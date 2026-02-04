@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:HeriStepAI.Mobile.ViewModels"
+             xmlns:models="clr-namespace:HeriStepAI.Shared.Models;assembly=HeriStepAI.Shared"
+             x:Class="HeriStepAI.Mobile.Views.TourListPage"
+             x:DataType="vm:TourListViewModel"
+             Title="Tours">
+
+    <RefreshView IsRefreshing="{Binding IsRefreshing}"
+                 Command="{Binding RefreshCommand}">
+        <CollectionView ItemsSource="{Binding Tours}"
+                        SelectionMode="None">
+            <CollectionView.EmptyView>
+                <VerticalStackLayout HorizontalOptions="Center"
+                                     VerticalOptions="Center"
+                                     Padding="32">
+                    <Label Text="🗺️"
+                           FontSize="48"
+                           HorizontalOptions="Center" />
+                    <Label Text="Chưa có tour nào"
+                           FontSize="16"
+                           TextColor="Gray"
+                           HorizontalOptions="Center" />
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:Tour">
+                    <Frame Margin="16,8"
+                           Padding="0"
+                           CornerRadius="16"
+                           BackgroundColor="White"
+                           BorderColor="LightGray"
+                           IsClippedToBounds="True">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:TourListViewModel}}, Path=ViewDetailCommand}"
+                                                  CommandParameter="{Binding .}" />
+                        </Frame.GestureRecognizers>
+
+                        <Grid RowDefinitions="120, Auto">
+                            <!-- Thumbnail -->
+                            <Image Grid.Row="0"
+                                   Source="{Binding ThumbnailUrl}"
+                                   Aspect="AspectFill"
+                                   BackgroundColor="LightGray" />
+                            
+                            <!-- Info -->
+                            <VerticalStackLayout Grid.Row="1" Padding="12" Spacing="4">
+                                <Label Text="{Binding Name}"
+                                       FontSize="18"
+                                       FontAttributes="Bold"
+                                       MaxLines="1" />
+                                
+                                <Label Text="{Binding Description}"
+                                       FontSize="12"
+                                       TextColor="Gray"
+                                       MaxLines="2" />
+
+                                <HorizontalStackLayout Spacing="16" Margin="0,8,0,0">
+                                    <HorizontalStackLayout Spacing="4">
+                                        <Label Text="📍" FontSize="12" />
+                                        <Label Text="{Binding POICount, StringFormat='{0} điểm'}"
+                                               FontSize="12"
+                                               TextColor="Gray" />
+                                    </HorizontalStackLayout>
+                                    
+                                    <HorizontalStackLayout Spacing="4">
+                                        <Label Text="⏱️" FontSize="12" />
+                                        <Label Text="{Binding EstimatedDurationMinutes, StringFormat='{0} phút'}"
+                                               FontSize="12"
+                                               TextColor="Gray" />
+                                    </HorizontalStackLayout>
+                                    
+                                    <HorizontalStackLayout Spacing="4">
+                                        <Label Text="🚶" FontSize="12" />
+                                        <Label Text="{Binding EstimatedDistanceMeters, StringFormat='{0:F0}m'}"
+                                               FontSize="12"
+                                               TextColor="Gray" />
+                                    </HorizontalStackLayout>
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+                        </Grid>
+                    </Frame>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </RefreshView>
+
+</ContentPage>

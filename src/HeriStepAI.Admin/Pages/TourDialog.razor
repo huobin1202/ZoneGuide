@@ -1,0 +1,215 @@
+@inject IApiService ApiService
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudTextField @bind-Value="_model.Name" Label="Name" Required="true" 
+                          RequiredError="Name is required" Class="mb-3" />
+            
+            <MudTextField @bind-Value="_model.Description" Label="Description" 
+                          Lines="3" Class="mb-3" />
+            
+            <MudGrid>
+                <MudItem xs="6">
+                    <MudNumericField @bind-Value="_model.EstimatedDurationMinutes" 
+                                     Label="Duration (minutes)" Min="1" Max="1440" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudNumericField @bind-Value="_model.DistanceKm" 
+                                     Label="Distance (km)" Min="0.1" Max="100" Step="0.1" Format="F1" />
+                </MudItem>
+            </MudGrid>
+            
+            <MudTextField @bind-Value="_model.ImageUrl" Label="Image URL" Class="mt-3" />
+            
+            <MudSelect @bind-Value="_model.Difficulty" Label="Difficulty" Class="mt-3">
+                <MudSelectItem Value="@("Easy")">Easy</MudSelectItem>
+                <MudSelectItem Value="@("Moderate")">Moderate</MudSelectItem>
+                <MudSelectItem Value="@("Hard")">Hard</MudSelectItem>
+            </MudSelect>
+            
+            <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">Select POIs (in order)</MudText>
+            <MudPaper Outlined="true" Class="pa-3">
+                @if (AvailablePOIs.Any())
+                {
+                    <MudStack Spacing="2">
+                        @foreach (var poi in _selectedPOIs)
+                        {
+                            <MudPaper Class="pa-2 d-flex align-center" Elevation="1">
+                                <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Class="mr-2" />
+                                <MudText>@poi.Name</MudText>
+                                <MudSpacer />
+                                <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small"
+                                               Disabled="@(_selectedPOIs.IndexOf(poi) == 0)"
+                                               OnClick="@(() => MovePOI(poi, -1))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small"
+                                               Disabled="@(_selectedPOIs.IndexOf(poi) == _selectedPOIs.Count - 1)"
+                                               OnClick="@(() => MovePOI(poi, 1))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Remove" Size="Size.Small" 
+                                               Color="Color.Error"
+                                               OnClick="@(() => RemovePOI(poi))" />
+                            </MudPaper>
+                        }
+                        
+                        <MudSelect T="POIDto" Label="Add POI" Value="null" ValueChanged="AddPOI">
+                            @foreach (var poi in AvailablePOIs.Where(p => !_selectedPOIs.Any(s => s.Id == p.Id)))
+                            {
+                                <MudSelectItem Value="@poi">@poi.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudStack>
+                }
+                else
+                {
+                    <MudText Color="Color.Warning">No POIs available. Create some POIs first.</MudText>
+                }
+            </MudPaper>
+            
+            <MudSwitch @bind-Value="_model.IsActive" Label="Active" Color="Color.Primary" Class="mt-3" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" 
+                   OnClick="Submit" Disabled="@(!_isValid || _saving)">
+            @if (_saving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            @(IsEdit ? "Update" : "Create")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public TourDto? Tour { get; set; }
+    [Parameter] public bool IsEdit { get; set; }
+    [Parameter] public List<POIDto> AvailablePOIs { get; set; } = new();
+
+    private MudForm _form = null!;
+    private bool _isValid;
+    private bool _saving;
+    private TourFormModel _model = new();
+    private List<POIDto> _selectedPOIs = new();
+
+    protected override void OnInitialized()
+    {
+        if (Tour != null)
+        {
+            _model = new TourFormModel
+            {
+                Name = Tour.Name,
+                Description = Tour.Description,
+                EstimatedDurationMinutes = Tour.EstimatedDurationMinutes,
+                DistanceKm = Tour.DistanceKm,
+                ImageUrl = Tour.ImageUrl,
+                Difficulty = Tour.Difficulty,
+                IsActive = Tour.IsActive
+            };
+
+            // Load selected POIs in order
+            foreach (var poiId in Tour.POIIds)
+            {
+                var poi = AvailablePOIs.FirstOrDefault(p => p.Id == poiId);
+                if (poi != null)
+                {
+                    _selectedPOIs.Add(poi);
+                }
+            }
+        }
+    }
+
+    private void AddPOI(POIDto? poi)
+    {
+        if (poi != null && !_selectedPOIs.Any(p => p.Id == poi.Id))
+        {
+            _selectedPOIs.Add(poi);
+        }
+    }
+
+    private void RemovePOI(POIDto poi)
+    {
+        _selectedPOIs.Remove(poi);
+    }
+
+    private void MovePOI(POIDto poi, int direction)
+    {
+        var index = _selectedPOIs.IndexOf(poi);
+        var newIndex = index + direction;
+        
+        if (newIndex >= 0 && newIndex < _selectedPOIs.Count)
+        {
+            _selectedPOIs.RemoveAt(index);
+            _selectedPOIs.Insert(newIndex, poi);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_isValid) return;
+
+        _saving = true;
+
+        try
+        {
+            if (IsEdit && Tour != null)
+            {
+                var updateDto = new UpdateTourDto
+                {
+                    Name = _model.Name,
+                    Description = _model.Description,
+                    EstimatedDurationMinutes = _model.EstimatedDurationMinutes,
+                    DistanceKm = _model.DistanceKm,
+                    ImageUrl = _model.ImageUrl,
+                    Difficulty = _model.Difficulty,
+                    POIIds = _selectedPOIs.Select(p => p.Id).ToList(),
+                    IsActive = _model.IsActive
+                };
+
+                var result = await ApiService.UpdateTourAsync(Tour.Id, updateDto);
+                if (result != null)
+                {
+                    MudDialog.Close(DialogResult.Ok(result));
+                }
+            }
+            else
+            {
+                var createDto = new CreateTourDto
+                {
+                    Name = _model.Name,
+                    Description = _model.Description,
+                    EstimatedDurationMinutes = _model.EstimatedDurationMinutes,
+                    DistanceKm = _model.DistanceKm,
+                    ImageUrl = _model.ImageUrl,
+                    Difficulty = _model.Difficulty,
+                    POIIds = _selectedPOIs.Select(p => p.Id).ToList()
+                };
+
+                var result = await ApiService.CreateTourAsync(createDto);
+                if (result != null)
+                {
+                    MudDialog.Close(DialogResult.Ok(result));
+                }
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private class TourFormModel
+    {
+        public string Name { get; set; } = "";
+        public string? Description { get; set; }
+        public int EstimatedDurationMinutes { get; set; } = 60;
+        public double DistanceKm { get; set; } = 1.0;
+        public string? ImageUrl { get; set; }
+        public string Difficulty { get; set; } = "Easy";
+        public bool IsActive { get; set; } = true;
+    }
+}

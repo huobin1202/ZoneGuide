@@ -1,0 +1,183 @@
+@inject IApiService ApiService
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudTextField @bind-Value="_model.Name" Label="Name" Required="true" 
+                          RequiredError="Name is required" Class="mb-3" />
+            
+            <MudTextField @bind-Value="_model.ShortDescription" Label="Short Description" 
+                          Lines="2" Class="mb-3" />
+            
+            <MudTextField @bind-Value="_model.FullDescription" Label="Full Description" 
+                          Lines="4" Class="mb-3" />
+            
+            <MudGrid>
+                <MudItem xs="6">
+                    <MudNumericField @bind-Value="_model.Latitude" Label="Latitude" Required="true"
+                                     Min="-90" Max="90" Step="0.000001" Format="F6" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudNumericField @bind-Value="_model.Longitude" Label="Longitude" Required="true"
+                                     Min="-180" Max="180" Step="0.000001" Format="F6" />
+                </MudItem>
+            </MudGrid>
+            
+            <MudGrid Class="mt-3">
+                <MudItem xs="6">
+                    <MudNumericField @bind-Value="_model.TriggerRadiusMeters" 
+                                     Label="Trigger Radius (meters)" Min="10" Max="1000" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudNumericField @bind-Value="_model.Priority" Label="Priority" Min="1" Max="100" />
+                </MudItem>
+            </MudGrid>
+            
+            <MudTextField @bind-Value="_model.Category" Label="Category" Class="mt-3" />
+            
+            <MudTextField @bind-Value="_model.ImageUrl" Label="Image URL" Class="mt-3" />
+            
+            <MudTextField @bind-Value="_model.AudioUrl" Label="Audio URL" Class="mt-3" />
+            
+            @if (!string.IsNullOrEmpty(_model.AudioUrl))
+            {
+                <MudNumericField @bind-Value="_model.AudioDurationSeconds" 
+                                 Label="Audio Duration (seconds)" Class="mt-3" Min="0" />
+            }
+            
+            <MudTextField @bind-Value="_model.MapDeepLink" Label="Map Deep Link" Class="mt-3" 
+                          HelperText="e.g., https://maps.google.com/..." />
+            
+            <MudSwitch @bind-Value="_model.IsActive" Label="Active" Color="Color.Primary" Class="mt-3" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" 
+                   OnClick="Submit" Disabled="@(!_isValid || _saving)">
+            @if (_saving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            @(IsEdit ? "Update" : "Create")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public POIDto? POI { get; set; }
+    [Parameter] public bool IsEdit { get; set; }
+
+    private MudForm _form = null!;
+    private bool _isValid;
+    private bool _saving;
+    private POIFormModel _model = new();
+
+    protected override void OnInitialized()
+    {
+        if (POI != null)
+        {
+            _model = new POIFormModel
+            {
+                Name = POI.Name,
+                ShortDescription = POI.ShortDescription,
+                FullDescription = POI.FullDescription,
+                Latitude = POI.Latitude,
+                Longitude = POI.Longitude,
+                TriggerRadiusMeters = POI.TriggerRadiusMeters,
+                Priority = POI.Priority,
+                Category = POI.Category,
+                ImageUrl = POI.ImageUrl,
+                AudioUrl = POI.AudioUrl,
+                AudioDurationSeconds = POI.AudioDurationSeconds,
+                MapDeepLink = POI.MapDeepLink,
+                IsActive = POI.IsActive
+            };
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_isValid) return;
+
+        _saving = true;
+
+        try
+        {
+            if (IsEdit && POI != null)
+            {
+                var updateDto = new UpdatePOIDto
+                {
+                    Name = _model.Name,
+                    ShortDescription = _model.ShortDescription,
+                    FullDescription = _model.FullDescription,
+                    Latitude = _model.Latitude,
+                    Longitude = _model.Longitude,
+                    TriggerRadiusMeters = _model.TriggerRadiusMeters,
+                    Priority = _model.Priority,
+                    Category = _model.Category,
+                    ImageUrl = _model.ImageUrl,
+                    AudioUrl = _model.AudioUrl,
+                    AudioDurationSeconds = _model.AudioDurationSeconds,
+                    MapDeepLink = _model.MapDeepLink,
+                    IsActive = _model.IsActive
+                };
+                
+                var result = await ApiService.UpdatePOIAsync(POI.Id, updateDto);
+                if (result != null)
+                {
+                    MudDialog.Close(DialogResult.Ok(result));
+                }
+            }
+            else
+            {
+                var createDto = new CreatePOIDto
+                {
+                    Name = _model.Name,
+                    ShortDescription = _model.ShortDescription,
+                    FullDescription = _model.FullDescription,
+                    Latitude = _model.Latitude,
+                    Longitude = _model.Longitude,
+                    TriggerRadiusMeters = _model.TriggerRadiusMeters,
+                    Priority = _model.Priority,
+                    Category = _model.Category,
+                    ImageUrl = _model.ImageUrl,
+                    AudioUrl = _model.AudioUrl,
+                    AudioDurationSeconds = _model.AudioDurationSeconds,
+                    MapDeepLink = _model.MapDeepLink
+                };
+
+                var result = await ApiService.CreatePOIAsync(createDto);
+                if (result != null)
+                {
+                    MudDialog.Close(DialogResult.Ok(result));
+                }
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private class POIFormModel
+    {
+        public string Name { get; set; } = "";
+        public string? ShortDescription { get; set; }
+        public string? FullDescription { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public double TriggerRadiusMeters { get; set; } = 50;
+        public int Priority { get; set; } = 1;
+        public string? Category { get; set; }
+        public string? ImageUrl { get; set; }
+        public string? AudioUrl { get; set; }
+        public int AudioDurationSeconds { get; set; }
+        public string? MapDeepLink { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+}

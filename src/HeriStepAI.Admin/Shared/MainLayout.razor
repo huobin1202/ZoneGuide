@@ -1,0 +1,50 @@
+@inherits LayoutComponentBase
+
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+        <MudText Typo="Typo.h5" Class="ml-3">HeriStepAI Admin</MudText>
+        <MudSpacer />
+        <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Inherit" Title="Refresh Data" />
+        <MudIconButton Icon="@Icons.Material.Filled.DarkMode" Color="Color.Inherit" Title="Toggle Dark Mode" />
+    </MudAppBar>
+    
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+        <MudNavMenu>
+            <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
+                Dashboard
+            </MudNavLink>
+            <MudNavLink Href="/pois" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.LocationOn">
+                POIs Management
+            </MudNavLink>
+            <MudNavLink Href="/tours" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Map">
+                Tours Management
+            </MudNavLink>
+            <MudNavLink Href="/analytics" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Analytics">
+                Analytics
+            </MudNavLink>
+            <MudNavLink Href="/heatmap" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Whatshot">
+                Visitor Heatmap
+            </MudNavLink>
+            <MudDivider Class="my-2" />
+            <MudNavLink Href="/settings" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Settings">
+                Settings
+            </MudNavLink>
+        </MudNavMenu>
+    </MudDrawer>
+    
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-6">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+}

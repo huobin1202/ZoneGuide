@@ -1,0 +1,148 @@
+@page "/"
+@inject IApiService ApiService
+
+<MudText Typo="Typo.h4" Class="mb-6">Dashboard</MudText>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_dashboard != null)
+{
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Total POIs</MudText>
+                <MudText Typo="Typo.h4">@_dashboard.TotalPOIs</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Total Tours</MudText>
+                <MudText Typo="Typo.h4">@_dashboard.TotalTours</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Total Listens</MudText>
+                <MudText Typo="Typo.h4">@_dashboard.TotalListens</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Unique Users</MudText>
+                <MudText Typo="Typo.h4">@_dashboard.UniqueUsers</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid Class="mt-6">
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudText Typo="Typo.h6" Class="mb-4">Key Metrics</MudText>
+                <MudSimpleTable Dense="true" Bordered="true">
+                    <tbody>
+                        <tr>
+                            <td>Average Listen Duration</td>
+                            <td>@FormatDuration(_dashboard.AverageListenDurationSeconds)</td>
+                        </tr>
+                        <tr>
+                            <td>Completion Rate</td>
+                            <td>@(_dashboard.CompletionRate.ToString("P1"))</td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudText Typo="Typo.h6" Class="mb-4">Top POIs</MudText>
+                @if (_dashboard.TopPOIs.Any())
+                {
+                    <MudSimpleTable Dense="true" Bordered="true">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Listens</th>
+                                <th>Avg Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var poi in _dashboard.TopPOIs.Take(5))
+                            {
+                                <tr>
+                                    <td>@poi.Name</td>
+                                    <td>@poi.ListenCount</td>
+                                    <td>@FormatDuration(poi.AvgDurationSeconds)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                }
+                else
+                {
+                    <MudText>No data available</MudText>
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    @if (_dashboard.DailyStats.Any())
+    {
+        <MudPaper Class="pa-4 mt-6" Elevation="1">
+            <MudText Typo="Typo.h6" Class="mb-4">Daily Activity (Last 30 Days)</MudText>
+            <MudSimpleTable Dense="true" Bordered="true" Style="max-height: 400px; overflow-y: auto;">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Listens</th>
+                        <th>Unique Users</th>
+                        <th>Avg Duration</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var stat in _dashboard.DailyStats.OrderByDescending(s => s.Date).Take(30))
+                    {
+                        <tr>
+                            <td>@stat.Date.ToString("MMM dd, yyyy")</td>
+                            <td>@stat.ListenCount</td>
+                            <td>@stat.UniqueUsers</td>
+                            <td>@FormatDuration(stat.AvgDurationSeconds)</td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        </MudPaper>
+    }
+}
+else
+{
+    <MudAlert Severity="Severity.Warning">
+        Unable to load dashboard data. Please check your API connection.
+    </MudAlert>
+}
+
+@code {
+    private DashboardAnalyticsDto? _dashboard;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboard();
+    }
+
+    private async Task LoadDashboard()
+    {
+        _loading = true;
+        _dashboard = await ApiService.GetDashboardAsync();
+        _loading = false;
+    }
+
+    private string FormatDuration(double seconds)
+    {
+        var ts = TimeSpan.FromSeconds(seconds);
+        return ts.TotalMinutes >= 1 
+            ? $"{(int)ts.TotalMinutes}m {ts.Seconds}s" 
+            : $"{ts.Seconds}s";
+    }
+}

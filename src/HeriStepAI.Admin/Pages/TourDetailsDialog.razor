@@ -1,0 +1,95 @@
+<MudDialog>
+    <DialogContent>
+        @if (Tour != null)
+        {
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Name</MudText>
+                    <MudText>@Tour.Name</MudText>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Difficulty</MudText>
+                    <MudChip Color="@GetDifficultyColor(Tour.Difficulty)" Size="Size.Small">@Tour.Difficulty</MudChip>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Duration</MudText>
+                    <MudText>@FormatDuration(Tour.EstimatedDurationMinutes)</MudText>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Distance</MudText>
+                    <MudText>@Tour.DistanceKm.ToString("F1") km</MudText>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Description</MudText>
+                    <MudText>@(Tour.Description ?? "No description")</MudText>
+                </MudItem>
+            </MudGrid>
+
+            <MudDivider Class="my-4" />
+
+            <MudText Typo="Typo.h6" Class="mb-3">Tour Route (@Tour.POIs.Count POIs)</MudText>
+            
+            <MudTimeline TimelinePosition="TimelinePosition.Start">
+                @for (int i = 0; i < Tour.POIs.Count; i++)
+                {
+                    var poi = Tour.POIs[i];
+                    var isFirst = i == 0;
+                    var isLast = i == Tour.POIs.Count - 1;
+                    
+                    <MudTimelineItem Color="@(isFirst ? Color.Success : isLast ? Color.Error : Color.Primary)" 
+                                     Size="Size.Medium">
+                        <ItemContent>
+                            <MudCard Outlined="true" Class="mb-2">
+                                <MudCardContent>
+                                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                                        <MudAvatar Color="Color.Primary" Size="Size.Small">@(i + 1)</MudAvatar>
+                                        <MudStack Spacing="0">
+                                            <MudText Typo="Typo.subtitle1">@poi.Name</MudText>
+                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                                @($"{poi.Latitude:F6}, {poi.Longitude:F6}")
+                                            </MudText>
+                                            @if (!string.IsNullOrEmpty(poi.Category))
+                                            {
+                                                <MudChip Size="Size.Small" Variant="Variant.Outlined">@poi.Category</MudChip>
+                                            }
+                                        </MudStack>
+                                    </MudStack>
+                                    @if (!string.IsNullOrEmpty(poi.ShortDescription))
+                                    {
+                                        <MudText Typo="Typo.body2" Class="mt-2">@poi.ShortDescription</MudText>
+                                    }
+                                </MudCardContent>
+                            </MudCard>
+                        </ItemContent>
+                    </MudTimelineItem>
+                }
+            </MudTimeline>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public TourWithPOIsDto? Tour { get; set; }
+
+    private void Close() => MudDialog.Close();
+
+    private string FormatDuration(int minutes)
+    {
+        if (minutes < 60) return $"{minutes} min";
+        var hours = minutes / 60;
+        var mins = minutes % 60;
+        return mins > 0 ? $"{hours}h {mins}m" : $"{hours}h";
+    }
+
+    private Color GetDifficultyColor(string? difficulty) => difficulty switch
+    {
+        "Easy" => Color.Success,
+        "Moderate" => Color.Warning,
+        "Hard" => Color.Error,
+        _ => Color.Default
+    };
+}

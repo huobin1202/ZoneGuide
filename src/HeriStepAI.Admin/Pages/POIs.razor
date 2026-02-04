@@ -1,0 +1,144 @@
+@page "/pois"
+@inject IApiService ApiService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h4" Class="mb-4">POI Management</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1">
+    <MudToolBar>
+        <MudTextField @bind-Value="_searchString" Placeholder="Search POIs..." 
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      Immediate="true" Class="mr-4" Style="width: 300px;" />
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                   StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateDialog">
+            Add New POI
+        </MudButton>
+    </MudToolBar>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudTable Items="@FilteredPOIs" Dense="true" Hover="true" Bordered="true" Striped="true">
+        <HeaderContent>
+            <MudTh><MudTableSortLabel SortBy="new Func<POIDto, object>(x => x.Name)">Name</MudTableSortLabel></MudTh>
+            <MudTh>Category</MudTh>
+            <MudTh>Location</MudTh>
+            <MudTh>Radius (m)</MudTh>
+            <MudTh>Priority</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh Style="width: 150px;">Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Category">@(context.Category ?? "N/A")</MudTd>
+            <MudTd DataLabel="Location">@($"{context.Latitude:F6}, {context.Longitude:F6}")</MudTd>
+            <MudTd DataLabel="Radius">@context.TriggerRadiusMeters</MudTd>
+            <MudTd DataLabel="Priority">@context.Priority</MudTd>
+            <MudTd DataLabel="Status">
+                <MudChip Color="@(context.IsActive ? Color.Success : Color.Error)" Size="Size.Small">
+                    @(context.IsActive ? "Active" : "Inactive")
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Actions">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" 
+                               OnClick="@(() => OpenEditDialog(context))" Title="Edit" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" 
+                               Color="Color.Error" OnClick="@(() => ConfirmDelete(context))" Title="Delete" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No POIs found.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+}
+
+@code {
+    private List<POIDto> _pois = new();
+    private string _searchString = "";
+    private bool _loading = true;
+
+    private IEnumerable<POIDto> FilteredPOIs => string.IsNullOrWhiteSpace(_searchString)
+        ? _pois
+        : _pois.Where(p => 
+            p.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+            (p.Category?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (p.ShortDescription?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPOIs();
+    }
+
+    private async Task LoadPOIs()
+    {
+        _loading = true;
+        _pois = await ApiService.GetPOIsAsync();
+        _loading = false;
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var parameters = new DialogParameters
+        {
+            { "POI", null },
+            { "IsEdit", false }
+        };
+
+        var dialog = await DialogService.ShowAsync<POIDialog>("Create New POI", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadPOIs();
+            Snackbar.Add("POI created successfully", Severity.Success);
+        }
+    }
+
+    private async Task OpenEditDialog(POIDto poi)
+    {
+        var parameters = new DialogParameters
+        {
+            { "POI", poi },
+            { "IsEdit", true }
+        };
+
+        var dialog = await DialogService.ShowAsync<POIDialog>("Edit POI", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadPOIs();
+            Snackbar.Add("POI updated successfully", Severity.Success);
+        }
+    }
+
+    private async Task ConfirmDelete(POIDto poi)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Delete POI",
+            $"Are you sure you want to delete '{poi.Name}'?",
+            yesText: "Delete", cancelText: "Cancel");
+
+        if (confirm == true)
+        {
+            var success = await ApiService.DeletePOIAsync(poi.Id);
+            if (success)
+            {
+                await LoadPOIs();
+                Snackbar.Add("POI deleted successfully", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Failed to delete POI", Severity.Error);
+            }
+        }
+    }
+}

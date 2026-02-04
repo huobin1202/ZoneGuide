@@ -1,0 +1,180 @@
+@page "/tours"
+@inject IApiService ApiService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h4" Class="mb-4">Tour Management</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1">
+    <MudToolBar>
+        <MudTextField @bind-Value="_searchString" Placeholder="Search Tours..." 
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      Immediate="true" Class="mr-4" Style="width: 300px;" />
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                   StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateDialog">
+            Add New Tour
+        </MudButton>
+    </MudToolBar>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudTable Items="@FilteredTours" Dense="true" Hover="true" Bordered="true" Striped="true">
+        <HeaderContent>
+            <MudTh><MudTableSortLabel SortBy="new Func<TourDto, object>(x => x.Name)">Name</MudTableSortLabel></MudTh>
+            <MudTh>Description</MudTh>
+            <MudTh>Duration</MudTh>
+            <MudTh>Distance</MudTh>
+            <MudTh>Difficulty</MudTh>
+            <MudTh>POIs</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh Style="width: 150px;">Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Description">@TruncateText(context.Description, 50)</MudTd>
+            <MudTd DataLabel="Duration">@FormatDuration(context.EstimatedDurationMinutes)</MudTd>
+            <MudTd DataLabel="Distance">@(context.DistanceKm.ToString("F1")) km</MudTd>
+            <MudTd DataLabel="Difficulty">@context.Difficulty</MudTd>
+            <MudTd DataLabel="POIs">@context.POIIds.Count</MudTd>
+            <MudTd DataLabel="Status">
+                <MudChip Color="@(context.IsActive ? Color.Success : Color.Error)" Size="Size.Small">
+                    @(context.IsActive ? "Active" : "Inactive")
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Actions">
+                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" 
+                               OnClick="@(() => ViewTourDetails(context.Id))" Title="View Details" />
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" 
+                               OnClick="@(() => OpenEditDialog(context))" Title="Edit" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" 
+                               Color="Color.Error" OnClick="@(() => ConfirmDelete(context))" Title="Delete" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No tours found.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+}
+
+@code {
+    private List<TourDto> _tours = new();
+    private string _searchString = "";
+    private bool _loading = true;
+
+    private IEnumerable<TourDto> FilteredTours => string.IsNullOrWhiteSpace(_searchString)
+        ? _tours
+        : _tours.Where(t => 
+            t.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+            (t.Description?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTours();
+    }
+
+    private async Task LoadTours()
+    {
+        _loading = true;
+        _tours = await ApiService.GetToursAsync();
+        _loading = false;
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var pois = await ApiService.GetPOIsAsync();
+        var parameters = new DialogParameters
+        {
+            { "Tour", null },
+            { "IsEdit", false },
+            { "AvailablePOIs", pois }
+        };
+
+        var dialog = await DialogService.ShowAsync<TourDialog>("Create New Tour", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadTours();
+            Snackbar.Add("Tour created successfully", Severity.Success);
+        }
+    }
+
+    private async Task OpenEditDialog(TourDto tour)
+    {
+        var pois = await ApiService.GetPOIsAsync();
+        var parameters = new DialogParameters
+        {
+            { "Tour", tour },
+            { "IsEdit", true },
+            { "AvailablePOIs", pois }
+        };
+
+        var dialog = await DialogService.ShowAsync<TourDialog>("Edit Tour", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadTours();
+            Snackbar.Add("Tour updated successfully", Severity.Success);
+        }
+    }
+
+    private async Task ViewTourDetails(string tourId)
+    {
+        var tour = await ApiService.GetTourWithDetailsAsync(tourId);
+        if (tour != null)
+        {
+            var parameters = new DialogParameters
+            {
+                { "Tour", tour }
+            };
+
+            await DialogService.ShowAsync<TourDetailsDialog>("Tour Details", parameters,
+                new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true });
+        }
+    }
+
+    private async Task ConfirmDelete(TourDto tour)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Delete Tour",
+            $"Are you sure you want to delete '{tour.Name}'?",
+            yesText: "Delete", cancelText: "Cancel");
+
+        if (confirm == true)
+        {
+            var success = await ApiService.DeleteTourAsync(tour.Id);
+            if (success)
+            {
+                await LoadTours();
+                Snackbar.Add("Tour deleted successfully", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Failed to delete tour", Severity.Error);
+            }
+        }
+    }
+
+    private string TruncateText(string? text, int maxLength)
+    {
+        if (string.IsNullOrEmpty(text)) return "N/A";
+        return text.Length <= maxLength ? text : text.Substring(0, maxLength) + "...";
+    }
+
+    private string FormatDuration(int minutes)
+    {
+        if (minutes < 60) return $"{minutes} min";
+        var hours = minutes / 60;
+        var mins = minutes % 60;
+        return mins > 0 ? $"{hours}h {mins}m" : $"{hours}h";
+    }
+}

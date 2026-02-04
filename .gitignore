@@ -1,0 +1,82 @@
+# .NET
+bin/
+obj/
+*.user
+*.userosscache
+*.suo
+*.cache
+*.dll
+*.pdb
+*.exe
+*.nupkg
+*.lock.json
+
+# IDE
+.vs/
+.vscode/
+*.swp
+*~
+
+# MAUI
+*.apk
+*.aab
+*.ipa
+*.app
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Rider
+.idea/
+*.sln.iml
+
+# NuGet
+nuget.exe
+*.nupkg
+**/packages/*
+!**/packages/build/
+**/packages/repositories.config
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Secrets
+appsettings.Development.json
+appsettings.*.local.json
+secrets.json
+*.pfx
+*.key
+
+# Database
+*.db
+*.sqlite
+*.mdf
+*.ldf

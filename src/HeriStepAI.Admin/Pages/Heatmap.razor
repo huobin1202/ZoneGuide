@@ -1,0 +1,141 @@
+@page "/heatmap"
+@inject IApiService ApiService
+
+<MudText Typo="Typo.h4" Class="mb-4">Visitor Heatmap</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1">
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudDateRangePicker @bind-DateRange="_dateRange" Label="Date Range" />
+        </MudItem>
+        <MudItem xs="12" md="2" Class="d-flex align-end">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadData">
+                Apply Filter
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" md="8">
+            <MudPaper Class="pa-4" Elevation="1" Style="height: 500px;">
+                <MudText Typo="Typo.h6" Class="mb-2">Location Distribution</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+                    Showing @_heatmapData.Count aggregated location points
+                </MudText>
+                
+                @if (_heatmapData.Any())
+                {
+                    <MudAlert Severity="Severity.Info" Class="mb-4">
+                        Heatmap visualization requires integration with a mapping library like Leaflet.js or Google Maps.
+                        The data points are available for rendering.
+                    </MudAlert>
+                    
+                    <MudSimpleTable Dense="true" Bordered="true" Style="max-height: 300px; overflow-y: auto;">
+                        <thead>
+                            <tr>
+                                <th>Latitude</th>
+                                <th>Longitude</th>
+                                <th>Weight (visits)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var point in _heatmapData.OrderByDescending(p => p.Weight).Take(50))
+                            {
+                                <tr>
+                                    <td>@point.Latitude.ToString("F6")</td>
+                                    <td>@point.Longitude.ToString("F6")</td>
+                                    <td>
+                                        <MudProgressLinear Value="@GetRelativeWeight(point.Weight)" 
+                                                           Color="Color.Error" Rounded="true" Size="Size.Small">
+                                            <MudText Typo="Typo.caption">@point.Weight</MudText>
+                                        </MudProgressLinear>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                }
+                else
+                {
+                    <MudText>No heatmap data available for the selected period.</MudText>
+                }
+            </MudPaper>
+        </MudItem>
+        
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudText Typo="Typo.h6" Class="mb-4">Statistics</MudText>
+                <MudSimpleTable Dense="true">
+                    <tbody>
+                        <tr>
+                            <td>Total Data Points</td>
+                            <td><strong>@_heatmapData.Count</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Total Visits</td>
+                            <td><strong>@_heatmapData.Sum(p => p.Weight)</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Max Weight</td>
+                            <td><strong>@(_heatmapData.Any() ? _heatmapData.Max(p => p.Weight) : 0)</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Avg Weight</td>
+                            <td><strong>@(_heatmapData.Any() ? _heatmapData.Average(p => p.Weight).ToString("F1") : "0")</strong></td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+            
+            <MudPaper Class="pa-4 mt-4" Elevation="1">
+                <MudText Typo="Typo.h6" Class="mb-4">Export Data</MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.Download" OnClick="ExportToJson">
+                    Export as JSON
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private DateRange _dateRange = new(DateTime.UtcNow.AddDays(-30), DateTime.UtcNow);
+    private List<HeatmapPointDto> _heatmapData = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        _heatmapData = await ApiService.GetHeatmapDataAsync(_dateRange.Start, _dateRange.End);
+        _loading = false;
+    }
+
+    private double GetRelativeWeight(int weight)
+    {
+        if (!_heatmapData.Any()) return 0;
+        var max = _heatmapData.Max(p => p.Weight);
+        return max > 0 ? (double)weight / max * 100 : 0;
+    }
+
+    private void ExportToJson()
+    {
+        // In a real implementation, this would download the JSON file
+        var json = System.Text.Json.JsonSerializer.Serialize(_heatmapData, new System.Text.Json.JsonSerializerOptions 
+        { 
+            WriteIndented = true 
+        });
+        Console.WriteLine(json);
+    }
+}

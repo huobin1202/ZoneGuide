@@ -1,0 +1,85 @@
+@page "/analytics"
+@inject IApiService ApiService
+
+<MudText Typo="Typo.h4" Class="mb-4">Analytics</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1">
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudDateRangePicker @bind-DateRange="_dateRange" Label="Date Range" />
+        </MudItem>
+        <MudItem xs="12" md="2" Class="d-flex align-end">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadData">
+                Apply Filter
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_topPOIs.Any())
+{
+    <MudGrid>
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudText Typo="Typo.h6" Class="mb-4">Top Visited POIs</MudText>
+                <MudTable Items="@_topPOIs" Dense="true" Hover="true">
+                    <HeaderContent>
+                        <MudTh>Rank</MudTh>
+                        <MudTh>POI Name</MudTh>
+                        <MudTh>Listen Count</MudTh>
+                        <MudTh>Avg Duration</MudTh>
+                        <MudTh>Completion Rate</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="poi">
+                        <MudTd>@(_topPOIs.IndexOf(poi) + 1)</MudTd>
+                        <MudTd>@poi.Name</MudTd>
+                        <MudTd>@poi.ListenCount</MudTd>
+                        <MudTd>@FormatDuration(poi.AvgDurationSeconds)</MudTd>
+                        <MudTd>
+                            <MudProgressLinear Value="@(poi.CompletionRate * 100)" Color="Color.Success" 
+                                               Rounded="true" Size="Size.Medium">
+                                <MudText Typo="Typo.caption">@(poi.CompletionRate.ToString("P0"))</MudText>
+                            </MudProgressLinear>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+else
+{
+    <MudAlert Severity="Severity.Info">
+        No analytics data available for the selected date range.
+    </MudAlert>
+}
+
+@code {
+    private DateRange _dateRange = new(DateTime.UtcNow.AddDays(-30), DateTime.UtcNow);
+    private List<TopPOIDto> _topPOIs = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        _topPOIs = await ApiService.GetTopPOIsAsync(20);
+        _loading = false;
+    }
+
+    private string FormatDuration(double seconds)
+    {
+        var ts = TimeSpan.FromSeconds(seconds);
+        return ts.TotalMinutes >= 1 
+            ? $"{(int)ts.TotalMinutes}m {ts.Seconds}s" 
+            : $"{ts.Seconds}s";
+    }
+}
