@@ -11,9 +11,11 @@ public class AppDbContext : DbContext
     public DbSet<POIEntity> POIs { get; set; }
     public DbSet<POITranslationEntity> POITranslations { get; set; }
     public DbSet<TourEntity> Tours { get; set; }
+    public DbSet<TourPOIEntity> TourPOIs { get; set; }
     public DbSet<LocationHistoryEntity> LocationHistories { get; set; }
     public DbSet<NarrationHistoryEntity> NarrationHistories { get; set; }
     public DbSet<POIStatisticsEntity> POIStatistics { get; set; }
+    public DbSet<DeletedRecordEntity> DeletedRecords { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -83,19 +85,24 @@ public class POIEntity
     public int Id { get; set; }
     public string UniqueCode { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
-    public string ShortDescription { get; set; } = string.Empty;
-    public string FullDescription { get; set; } = string.Empty;
+    public string? ShortDescription { get; set; }
+    public string? FullDescription { get; set; }
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public double TriggerRadius { get; set; } = 50;
+    public double TriggerRadiusMeters { get; set; } = 50;
     public double ApproachRadius { get; set; } = 100;
     public int Priority { get; set; } = 5;
+    public string? Category { get; set; }
     public string? AudioFilePath { get; set; }
     public string? AudioUrl { get; set; }
+    public int? AudioDurationSeconds { get; set; }
     public string? TTSScript { get; set; }
     public string? ImagePath { get; set; }
     public string? ImageUrl { get; set; }
+    public string? ThumbnailUrl { get; set; }
     public string? MapLink { get; set; }
+    public string? MapDeepLink { get; set; }
     public string Language { get; set; } = "vi-VN";
     public int? TourId { get; set; }
     public int OrderInTour { get; set; }
@@ -130,13 +137,16 @@ public class TourEntity
     public int Id { get; set; }
     public string UniqueCode { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
+    public string? Description { get; set; }
     public int EstimatedDurationMinutes { get; set; }
+    public double DistanceKm { get; set; }
     public double EstimatedDistanceMeters { get; set; }
     public int POICount { get; set; }
+    public string? ImageUrl { get; set; }
     public string? ThumbnailPath { get; set; }
     public string? ThumbnailUrl { get; set; }
     public string Language { get; set; } = "vi-VN";
+    public string Difficulty { get; set; } = "Easy";
     public int DifficultyLevel { get; set; } = 1;
     public bool WheelchairAccessible { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -144,6 +154,7 @@ public class TourEntity
     public bool IsActive { get; set; } = true;
 
     public ICollection<POIEntity> POIs { get; set; } = new List<POIEntity>();
+    public ICollection<TourPOIEntity> POIIds { get; set; } = new List<TourPOIEntity>();
 }
 
 public class LocationHistoryEntity
@@ -165,7 +176,7 @@ public class NarrationHistoryEntity
     public int Id { get; set; }
     public string AnonymousDeviceId { get; set; } = string.Empty;
     public string SessionId { get; set; } = string.Empty;
-    public int POIId { get; set; }
+    public string POIId { get; set; } = string.Empty;
     public string POIName { get; set; } = string.Empty;
     public string Language { get; set; } = string.Empty;
     public DateTime StartTime { get; set; }
@@ -174,20 +185,38 @@ public class NarrationHistoryEntity
     public int TotalDurationSeconds { get; set; }
     public bool Completed { get; set; }
     public string TriggerType { get; set; } = string.Empty;
-    public double TriggerDistance { get; set; }
-    public double TriggerLatitude { get; set; }
-    public double TriggerLongitude { get; set; }
+    public double? TriggerDistance { get; set; }
+    public double? TriggerLatitude { get; set; }
+    public double? TriggerLongitude { get; set; }
 }
 
 public class POIStatisticsEntity
 {
     public int Id { get; set; }
-    public int POIId { get; set; }
+    public string POIId { get; set; } = string.Empty;
     public DateTime Date { get; set; }
     public int ListenCount { get; set; }
     public int CompletedCount { get; set; }
     public long TotalListenDurationSeconds { get; set; }
     public int UniqueUsers { get; set; }
+}
+
+public class TourPOIEntity
+{
+    public int Id { get; set; }
+    public int TourId { get; set; }
+    public int POIId { get; set; }
+    public int Order { get; set; }
+    public TourEntity Tour { get; set; } = null!;
+    public POIEntity POI { get; set; } = null!;
+}
+
+public class DeletedRecordEntity
+{
+    public int Id { get; set; }
+    public string EntityType { get; set; } = string.Empty;
+    public string EntityId { get; set; } = string.Empty;
+    public DateTime DeletedAt { get; set; } = DateTime.UtcNow;
 }
 
 #endregion

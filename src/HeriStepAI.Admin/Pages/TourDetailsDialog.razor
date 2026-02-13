@@ -9,7 +9,7 @@
                 </MudItem>
                 <MudItem xs="12" md="6">
                     <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Difficulty</MudText>
-                    <MudChip Color="@GetDifficultyColor(Tour.Difficulty)" Size="Size.Small">@Tour.Difficulty</MudChip>
+                    <MudChip T="string" Color="@GetDifficultyColor(Tour.Difficulty)" Size="Size.Small">@Tour.Difficulty</MudChip>
                 </MudItem>
                 <MudItem xs="12" md="6">
                     <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Duration</MudText>
@@ -50,7 +50,7 @@
                                             </MudText>
                                             @if (!string.IsNullOrEmpty(poi.Category))
                                             {
-                                                <MudChip Size="Size.Small" Variant="Variant.Outlined">@poi.Category</MudChip>
+                                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@poi.Category</MudChip>
                                             }
                                         </MudStack>
                                     </MudStack>
@@ -72,7 +72,7 @@
 </MudDialog>
 
 @code {
-    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
     [Parameter] public TourWithPOIsDto? Tour { get; set; }
 
     private void Close() => MudDialog.Close();

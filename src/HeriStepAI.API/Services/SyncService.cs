@@ -1,5 +1,5 @@
 using HeriStepAI.API.Data;
-using HeriStepAI.Shared.DTOs;
+using HeriStepAI.Shared.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace HeriStepAI.API.Services;
@@ -142,7 +142,7 @@ public class SyncService : ISyncService
     {
         return new POIDto
         {
-            Id = entity.Id,
+            Id = entity.Id.ToString(),
             Name = entity.Name,
             ShortDescription = entity.ShortDescription,
             FullDescription = entity.FullDescription,
@@ -159,10 +159,10 @@ public class SyncService : ISyncService
             IsActive = entity.IsActive,
             Translations = entity.Translations?.Select(t => new POITranslationDto
             {
-                Language = t.Language,
+                LanguageCode = t.LanguageCode,
                 Name = t.Name,
-                ShortDescription = t.ShortDescription,
-                FullDescription = t.FullDescription,
+                ShortDescription = t.ShortDescription ?? string.Empty,
+                FullDescription = t.FullDescription ?? string.Empty,
                 AudioUrl = t.AudioUrl
             }).ToList() ?? new List<POITranslationDto>()
         };
@@ -172,7 +172,7 @@ public class SyncService : ISyncService
     {
         return new TourDto
         {
-            Id = entity.Id,
+            Id = entity.Id.ToString(),
             Name = entity.Name,
             Description = entity.Description,
             EstimatedDurationMinutes = entity.EstimatedDurationMinutes,
@@ -180,7 +180,7 @@ public class SyncService : ISyncService
             ImageUrl = entity.ImageUrl,
             Difficulty = entity.Difficulty,
             IsActive = entity.IsActive,
-            POIIds = entity.POIIds.OrderBy(p => p.Order).Select(p => p.POIId).ToList()
+            POIIds = entity.POIIds.OrderBy(p => p.Order).Select(p => p.POIId.ToString()).ToList()
         };
     }
 }
@@ -227,76 +227,4 @@ public class ContentVersionDto
     public int TourCount { get; set; }
 }
 
-// Analytics DTOs
-public class AnalyticsUploadDto
-{
-    public string AnonymousDeviceId { get; set; } = string.Empty;
-    public List<LocationHistoryUploadDto> Locations { get; set; } = new();
-    public List<NarrationHistoryUploadDto> Narrations { get; set; } = new();
-}
-
-public class LocationHistoryUploadDto
-{
-    public string SessionId { get; set; } = string.Empty;
-    public double Latitude { get; set; }
-    public double Longitude { get; set; }
-    public double Accuracy { get; set; }
-    public double? Speed { get; set; }
-    public double? Heading { get; set; }
-    public double? Altitude { get; set; }
-    public DateTime Timestamp { get; set; }
-}
-
-public class NarrationHistoryUploadDto
-{
-    public string SessionId { get; set; } = string.Empty;
-    public string POIId { get; set; } = string.Empty;
-    public string POIName { get; set; } = string.Empty;
-    public string Language { get; set; } = string.Empty;
-    public DateTime StartTime { get; set; }
-    public DateTime? EndTime { get; set; }
-    public int DurationSeconds { get; set; }
-    public int TotalDurationSeconds { get; set; }
-    public bool Completed { get; set; }
-    public string TriggerType { get; set; } = string.Empty;
-    public double? TriggerDistance { get; set; }
-    public double? TriggerLatitude { get; set; }
-    public double? TriggerLongitude { get; set; }
-}
-
-public class DashboardAnalyticsDto
-{
-    public int TotalPOIs { get; set; }
-    public int TotalTours { get; set; }
-    public int TotalListens { get; set; }
-    public int UniqueUsers { get; set; }
-    public double AverageListenDurationSeconds { get; set; }
-    public double CompletionRate { get; set; }
-    public List<TopPOIDto> TopPOIs { get; set; } = new();
-    public List<HeatmapPointDto> HeatmapData { get; set; } = new();
-    public List<DailyStatsDto> DailyStats { get; set; } = new();
-}
-
-public class TopPOIDto
-{
-    public string POIId { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public int ListenCount { get; set; }
-    public double AvgDurationSeconds { get; set; }
-    public double CompletionRate { get; set; }
-}
-
-public class HeatmapPointDto
-{
-    public double Latitude { get; set; }
-    public double Longitude { get; set; }
-    public int Weight { get; set; }
-}
-
-public class DailyStatsDto
-{
-    public DateTime Date { get; set; }
-    public int ListenCount { get; set; }
-    public int UniqueUsers { get; set; }
-    public double AvgDurationSeconds { get; set; }
-}
+// Note: DashboardAnalyticsDto, TopPOIDto, HeatmapPointDto, DailyStatsDto are defined in HeriStepAI.Shared.Models

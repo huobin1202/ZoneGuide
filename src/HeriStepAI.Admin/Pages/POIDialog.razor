@@ -65,7 +65,7 @@
 </MudDialog>
 
 @code {
-    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
     [Parameter] public POIDto? POI { get; set; }
     [Parameter] public bool IsEdit { get; set; }
 
@@ -90,7 +90,7 @@
                 Category = POI.Category,
                 ImageUrl = POI.ImageUrl,
                 AudioUrl = POI.AudioUrl,
-                AudioDurationSeconds = POI.AudioDurationSeconds,
+                AudioDurationSeconds = POI.AudioDurationSeconds ?? 0,
                 MapDeepLink = POI.MapDeepLink,
                 IsActive = POI.IsActive
             };

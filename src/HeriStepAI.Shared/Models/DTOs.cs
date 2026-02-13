@@ -31,26 +31,70 @@ public class ApiResponse<T>
 /// </summary>
 public class POIDto
 {
-    public int Id { get; set; }
+    public string Id { get; set; } = string.Empty;
     public string UniqueCode { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
-    public string ShortDescription { get; set; } = string.Empty;
-    public string FullDescription { get; set; } = string.Empty;
+    public string? ShortDescription { get; set; }
+    public string? FullDescription { get; set; }
     public double Latitude { get; set; }
     public double Longitude { get; set; }
+    public double TriggerRadiusMeters { get; set; }
     public double TriggerRadius { get; set; }
     public double ApproachRadius { get; set; }
     public int Priority { get; set; }
     public string? AudioUrl { get; set; }
+    public int? AudioDurationSeconds { get; set; }
     public string? TTSScript { get; set; }
     public string? ImageUrl { get; set; }
+    public string? ThumbnailUrl { get; set; }
+    public string? MapDeepLink { get; set; }
     public string? MapLink { get; set; }
+    public string? Category { get; set; }
     public string Language { get; set; } = "vi-VN";
     public int? TourId { get; set; }
     public int OrderInTour { get; set; }
     public int CooldownSeconds { get; set; }
     public bool IsActive { get; set; }
     public List<POITranslationDto>? Translations { get; set; }
+}
+
+/// <summary>
+/// DTO tạo POI mới
+/// </summary>
+public class CreatePOIDto
+{
+    public string Name { get; set; } = string.Empty;
+    public string? ShortDescription { get; set; }
+    public string? FullDescription { get; set; }
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public double TriggerRadiusMeters { get; set; } = 50;
+    public int Priority { get; set; } = 1;
+    public string? AudioUrl { get; set; }
+    public int? AudioDurationSeconds { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? Category { get; set; }
+    public string? MapDeepLink { get; set; }
+}
+
+/// <summary>
+/// DTO cập nhật POI
+/// </summary>
+public class UpdatePOIDto
+{
+    public string? Name { get; set; }
+    public string? ShortDescription { get; set; }
+    public string? FullDescription { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    public double? TriggerRadiusMeters { get; set; }
+    public int? Priority { get; set; }
+    public string? AudioUrl { get; set; }
+    public int? AudioDurationSeconds { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? Category { get; set; }
+    public string? MapDeepLink { get; set; }
+    public bool? IsActive { get; set; }
 }
 
 /// <summary>
@@ -73,19 +117,59 @@ public class POITranslationDto
 /// </summary>
 public class TourDto
 {
-    public int Id { get; set; }
+    public string Id { get; set; } = string.Empty;
     public string UniqueCode { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
+    public string? Description { get; set; }
     public int EstimatedDurationMinutes { get; set; }
-    public double EstimatedDistanceMeters { get; set; }
+    public double DistanceKm { get; set; }
     public int POICount { get; set; }
+    public string? ImageUrl { get; set; }
     public string? ThumbnailUrl { get; set; }
     public string Language { get; set; } = "vi-VN";
+    public string Difficulty { get; set; } = "Easy";
     public int DifficultyLevel { get; set; }
     public bool WheelchairAccessible { get; set; }
     public bool IsActive { get; set; }
+    public List<string> POIIds { get; set; } = new();
     public List<POIDto>? POIs { get; set; }
+}
+
+/// <summary>
+/// DTO cho Tour với POI chi tiết
+/// </summary>
+public class TourWithPOIsDto : TourDto
+{
+    public new List<POIDto> POIs { get; set; } = new();
+}
+
+/// <summary>
+/// DTO tạo Tour mới
+/// </summary>
+public class CreateTourDto
+{
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public int EstimatedDurationMinutes { get; set; }
+    public double DistanceKm { get; set; }
+    public string? ImageUrl { get; set; }
+    public string Difficulty { get; set; } = "Easy";
+    public List<string> POIIds { get; set; } = new();
+}
+
+/// <summary>
+/// DTO cập nhật Tour
+/// </summary>
+public class UpdateTourDto
+{
+    public string? Name { get; set; }
+    public string? Description { get; set; }
+    public int? EstimatedDurationMinutes { get; set; }
+    public double? DistanceKm { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? Difficulty { get; set; }
+    public List<string>? POIIds { get; set; }
+    public bool? IsActive { get; set; }
 }
 
 /// <summary>
@@ -136,7 +220,7 @@ public class LocationHistoryDto
 public class NarrationHistoryDto
 {
     public string SessionId { get; set; } = string.Empty;
-    public int POIId { get; set; }
+    public string POIId { get; set; } = string.Empty;
     public string POIName { get; set; } = string.Empty;
     public string Language { get; set; } = string.Empty;
     public DateTime StartTime { get; set; }
@@ -145,9 +229,9 @@ public class NarrationHistoryDto
     public int TotalDurationSeconds { get; set; }
     public bool Completed { get; set; }
     public string TriggerType { get; set; } = string.Empty;
-    public double TriggerDistance { get; set; }
-    public double TriggerLatitude { get; set; }
-    public double TriggerLongitude { get; set; }
+    public double? TriggerDistance { get; set; }
+    public double? TriggerLatitude { get; set; }
+    public double? TriggerLongitude { get; set; }
 }
 
 /// <summary>
@@ -168,7 +252,7 @@ public class DashboardAnalyticsDto
 
 public class TopPOIDto
 {
-    public int POIId { get; set; }
+    public string POIId { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public int ListenCount { get; set; }
     public double AvgDurationSeconds { get; set; }

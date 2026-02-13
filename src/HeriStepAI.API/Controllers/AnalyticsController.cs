@@ -1,4 +1,5 @@
 using HeriStepAI.API.Services;
+using HeriStepAI.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HeriStepAI.API.Controllers;

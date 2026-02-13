@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="456" height="456" viewBox="0 0 456 456" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <rect fill="#512BD4" x="0" y="0" width="456" height="456"/>
+  <g transform="translate(100, 100)">
+    <!-- HeriStep Logo -->
+    <path fill="#FFFFFF" d="M128,28 L128,228 L168,228 L168,148 L228,148 L228,228 L268,228 L268,28 L228,28 L228,108 L168,108 L168,28 L128,28 Z"/>
+    <circle fill="#FFFFFF" cx="128" cy="148" r="20"/>
+    <path fill="#00D4AA" d="M40,168 Q40,228 100,228 Q160,228 160,168 L120,168 Q120,188 100,188 Q80,188 80,168 Q80,148 100,148 L140,148 L140,108 L100,108 Q40,108 40,168 Z"/>
+  </g>
+</svg>

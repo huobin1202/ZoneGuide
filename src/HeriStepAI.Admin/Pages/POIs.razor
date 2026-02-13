@@ -41,7 +41,7 @@ else
             <MudTd DataLabel="Radius">@context.TriggerRadiusMeters</MudTd>
             <MudTd DataLabel="Priority">@context.Priority</MudTd>
             <MudTd DataLabel="Status">
-                <MudChip Color="@(context.IsActive ? Color.Success : Color.Error)" Size="Size.Small">
+                <MudChip T="string" Color="@(context.IsActive ? Color.Success : Color.Error)" Size="Size.Small">
                     @(context.IsActive ? "Active" : "Inactive")
                 </MudChip>
             </MudTd>

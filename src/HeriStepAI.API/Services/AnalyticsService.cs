@@ -132,7 +132,7 @@ public class AnalyticsService : IAnalyticsService
             .GroupBy(n => new { n.POIId, n.POIName })
             .Select(g => new TopPOIDto
             {
-                POIId = g.Key.POIId,
+                POIId = g.Key.POIId.ToString(),
                 Name = g.Key.POIName,
                 ListenCount = g.Count(),
                 AvgDurationSeconds = g.Average(n => n.DurationSeconds),

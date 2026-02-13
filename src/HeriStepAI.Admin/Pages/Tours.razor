@@ -43,7 +43,7 @@ else
             <MudTd DataLabel="Difficulty">@context.Difficulty</MudTd>
             <MudTd DataLabel="POIs">@context.POIIds.Count</MudTd>
             <MudTd DataLabel="Status">
-                <MudChip Color="@(context.IsActive ? Color.Success : Color.Error)" Size="Size.Small">
+                <MudChip T="string" Color="@(context.IsActive ? Color.Success : Color.Error)" Size="Size.Small">
                     @(context.IsActive ? "Active" : "Inactive")
                 </MudChip>
             </MudTd>

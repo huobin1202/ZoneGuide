@@ -82,7 +82,7 @@
 </MudDialog>
 
 @code {
-    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
     [Parameter] public TourDto? Tour { get; set; }
     [Parameter] public bool IsEdit { get; set; }
     [Parameter] public List<POIDto> AvailablePOIs { get; set; } = new();

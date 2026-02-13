@@ -1,5 +1,5 @@
 using System.Net.Http.Json;
-using HeriStepAI.Shared.DTOs;
+using HeriStepAI.Shared.Models;
 
 namespace HeriStepAI.Admin.Services;
 
@@ -245,40 +245,5 @@ public class ApiService : IApiService
     }
 }
 
-// Additional DTOs for Admin
-public class DashboardAnalyticsDto
-{
-    public int TotalPOIs { get; set; }
-    public int TotalTours { get; set; }
-    public int TotalListens { get; set; }
-    public int UniqueUsers { get; set; }
-    public double AverageListenDurationSeconds { get; set; }
-    public double CompletionRate { get; set; }
-    public List<TopPOIDto> TopPOIs { get; set; } = new();
-    public List<HeatmapPointDto> HeatmapData { get; set; } = new();
-    public List<DailyStatsDto> DailyStats { get; set; } = new();
-}
-
-public class TopPOIDto
-{
-    public string POIId { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public int ListenCount { get; set; }
-    public double AvgDurationSeconds { get; set; }
-    public double CompletionRate { get; set; }
-}
-
-public class HeatmapPointDto
-{
-    public double Latitude { get; set; }
-    public double Longitude { get; set; }
-    public int Weight { get; set; }
-}
-
-public class DailyStatsDto
-{
-    public DateTime Date { get; set; }
-    public int ListenCount { get; set; }
-    public int UniqueUsers { get; set; }
-    public double AvgDurationSeconds { get; set; }
-}
+// Analytics DTOs are defined in HeriStepAI.API.Services.SyncService
+// We use those definitions through the Shared project
