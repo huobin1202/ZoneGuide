@@ -70,6 +70,7 @@ public class TourService : ITourService
             DistanceKm = dto.DistanceKm,
             ImageUrl = dto.ImageUrl,
             Difficulty = dto.Difficulty,
+            POICount = dto.POIIds?.Count ?? 0,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
             IsActive = true
@@ -77,6 +78,27 @@ public class TourService : ITourService
 
         _context.Tours.Add(entity);
         await _context.SaveChangesAsync();
+
+        // Add POI associations
+        if (dto.POIIds != null && dto.POIIds.Any())
+        {
+            for (int i = 0; i < dto.POIIds.Count; i++)
+            {
+                if (int.TryParse(dto.POIIds[i], out var poiIntId))
+                {
+                    _context.TourPOIs.Add(new TourPOIEntity
+                    {
+                        TourId = entity.Id,
+                        POIId = poiIntId,
+                        Order = i
+                    });
+                }
+            }
+            await _context.SaveChangesAsync();
+        }
+
+        // Reload with POIIds
+        await _context.Entry(entity).Collection(e => e.POIIds).LoadAsync();
 
         return MapToDto(entity);
     }
@@ -86,7 +108,9 @@ public class TourService : ITourService
         if (!int.TryParse(id, out var intId))
             return null;
             
-        var entity = await _context.Tours.FindAsync(intId);
+        var entity = await _context.Tours
+            .Include(t => t.POIIds)
+            .FirstOrDefaultAsync(t => t.Id == intId);
         if (entity == null)
             return null;
 
@@ -98,6 +122,28 @@ public class TourService : ITourService
         if (dto.Difficulty != null) entity.Difficulty = dto.Difficulty;
         if (dto.IsActive.HasValue) entity.IsActive = dto.IsActive.Value;
         entity.UpdatedAt = DateTime.UtcNow;
+
+        // Update POI associations if provided
+        if (dto.POIIds != null)
+        {
+            // Remove existing POI associations
+            _context.TourPOIs.RemoveRange(entity.POIIds);
+            
+            // Add new associations with order
+            for (int i = 0; i < dto.POIIds.Count; i++)
+            {
+                if (int.TryParse(dto.POIIds[i], out var poiIntId))
+                {
+                    entity.POIIds.Add(new TourPOIEntity
+                    {
+                        TourId = intId,
+                        POIId = poiIntId,
+                        Order = i
+                    });
+                }
+            }
+            entity.POICount = dto.POIIds.Count;
+        }
 
         await _context.SaveChangesAsync();
         return MapToDto(entity);

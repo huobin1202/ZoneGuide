@@ -9,11 +9,25 @@ namespace HeriStepAI.Mobile.Services;
 public class ApiService
 {
     private readonly HttpClient _httpClient;
-    private const string BaseUrl = "https://your-api-server.com/api"; // Thay đổi URL thực tế
+    
+    // Cho Android Emulator: dùng 10.0.2.2 thay vì localhost
+    // Cho Windows/iOS Simulator: dùng localhost
+    // Cho thiết bị thật: dùng IP máy tính (ví dụ: 192.168.1.x)
+#if ANDROID
+    private const string BaseUrl = "https://10.0.2.2:56040/api";
+#else
+    private const string BaseUrl = "https://localhost:56040/api";
+#endif
 
     public ApiService()
     {
-        _httpClient = new HttpClient
+        // Cho development, bỏ qua SSL certificate validation
+        var handler = new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
+        };
+        
+        _httpClient = new HttpClient(handler)
         {
             BaseAddress = new Uri(BaseUrl),
             Timeout = TimeSpan.FromSeconds(30)

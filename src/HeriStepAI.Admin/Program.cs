@@ -16,9 +16,6 @@ builder.Services.AddHttpClient<IApiService, ApiService>(client =>
     client.BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"] ?? "https://localhost:7001");
 });
 
-// Register services
-builder.Services.AddScoped<IApiService, ApiService>();
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
