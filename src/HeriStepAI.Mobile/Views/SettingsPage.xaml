@@ -65,7 +65,7 @@
             </Frame>
 
             <!-- GPS Settings -->
-            <Label Text="GPS & Vị trí"
+            <Label Text="GPS và Vị trí"
                    FontSize="18"
                    FontAttributes="Bold"
                    Margin="0,16,0,0" />

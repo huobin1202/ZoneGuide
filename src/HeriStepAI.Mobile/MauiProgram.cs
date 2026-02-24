@@ -1,4 +1,3 @@
-using CommunityToolkit.Maui;
 using HeriStepAI.Mobile.Services;
 using HeriStepAI.Mobile.ViewModels;
 using HeriStepAI.Mobile.Views;
@@ -14,7 +13,6 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()
-            .UseMauiCommunityToolkit()
             .UseMauiMaps()
             .ConfigureFonts(fonts =>
             {
@@ -25,6 +23,9 @@ public static class MauiProgram
 #if DEBUG
         builder.Logging.AddDebug();
 #endif
+
+        // Add Plugin.Maui.Audio
+        builder.Services.AddSingleton(Plugin.Maui.Audio.AudioManager.Current);
 
         // Register Services
         builder.Services.AddSingleton<DatabaseService>();

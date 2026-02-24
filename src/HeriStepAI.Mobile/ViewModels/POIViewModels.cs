@@ -134,12 +134,26 @@ public partial class POIListViewModel : ObservableObject
 /// <summary>
 /// ViewModel chi tiết POI
 /// </summary>
-[QueryProperty(nameof(POIId), "id")]
+[QueryProperty(nameof(POIIdString), "id")]
 public partial class POIDetailViewModel : ObservableObject
 {
     private readonly IPOIRepository _poiRepository;
     private readonly INarrationService _narrationService;
     private readonly IGeofenceService _geofenceService;
+
+    private string? _poiIdString;
+    public string? POIIdString
+    {
+        get => _poiIdString;
+        set
+        {
+            if (SetProperty(ref _poiIdString, value) && int.TryParse(value, out var id))
+            {
+                POIId = id;
+                _ = LoadPOIAsync();
+            }
+        }
+    }
 
     [ObservableProperty]
     private int poiId;
@@ -169,11 +183,6 @@ public partial class POIDetailViewModel : ObservableObject
         _narrationService.NarrationCompleted += (s, e) => IsPlaying = false;
         _narrationService.NarrationStopped += (s, e) => IsPlaying = false;
         _narrationService.ProgressUpdated += (s, p) => Progress = p;
-    }
-
-    async partial void OnPOIIdChanged(int value)
-    {
-        await LoadPOIAsync();
     }
 
     private async Task LoadPOIAsync()

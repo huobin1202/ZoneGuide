@@ -2,9 +2,7 @@
 <svg width="456" height="456" viewBox="0 0 456 456" version="1.1" xmlns="http://www.w3.org/2000/svg">
   <rect fill="#512BD4" x="0" y="0" width="456" height="456" rx="40" ry="40"/>
   <g transform="translate(80, 80)">
-    <!-- HeriStep Logo - H with location pin -->
     <path fill="#FFFFFF" d="M50,50 L50,250 L100,250 L100,170 L200,170 L200,250 L250,250 L250,50 L200,50 L200,120 L100,120 L100,50 L50,50 Z"/>
-    <!-- Location Pin -->
     <circle fill="#00D4AA" cx="148" cy="148" r="30"/>
     <circle fill="#FFFFFF" cx="148" cy="148" r="15"/>
     <polygon fill="#00D4AA" points="148,200 118,160 178,160"/>
