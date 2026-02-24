@@ -149,7 +149,7 @@ public partial class POIDetailViewModel : ObservableObject
         {
             if (SetProperty(ref _poiIdString, value) && int.TryParse(value, out var id))
             {
-                POIId = id;
+                PoiId = id;
                 _ = LoadPOIAsync();
             }
         }
@@ -159,7 +159,7 @@ public partial class POIDetailViewModel : ObservableObject
     private int poiId;
 
     [ObservableProperty]
-    private POI? poi;
+    private POI? currentPoi;
 
     [ObservableProperty]
     private bool isPlaying;
@@ -187,9 +187,9 @@ public partial class POIDetailViewModel : ObservableObject
 
     private async Task LoadPOIAsync()
     {
-        POI = await _poiRepository.GetByIdAsync(POIId);
+        CurrentPoi = await _poiRepository.GetByIdAsync(PoiId);
 
-        if (POI != null && _geofenceService.NearestPOI?.Id == POI.Id)
+        if (CurrentPoi != null && _geofenceService.NearestPOI?.Id == CurrentPoi.Id)
         {
             Distance = _geofenceService.NearestPOIDistance;
         }
@@ -198,15 +198,15 @@ public partial class POIDetailViewModel : ObservableObject
     [RelayCommand]
     private async Task PlayAsync()
     {
-        if (POI == null)
+        if (CurrentPoi == null)
             return;
 
         var item = new NarrationQueueItem
         {
-            POI = POI,
-            TTSText = POI.TTSScript ?? POI.FullDescription,
-            Language = POI.Language,
-            Priority = POI.Priority,
+            POI = CurrentPoi,
+            TTSText = CurrentPoi.TTSScript ?? CurrentPoi.FullDescription,
+            Language = CurrentPoi.Language,
+            Priority = CurrentPoi.Priority,
             TriggerType = GeofenceEventType.Enter,
             TriggerDistance = 0
         };
@@ -229,24 +229,24 @@ public partial class POIDetailViewModel : ObservableObject
     [RelayCommand]
     private async Task NavigateAsync()
     {
-        if (POI == null)
+        if (CurrentPoi == null)
             return;
 
-        var location = new Location(POI.Latitude, POI.Longitude);
+        var location = new Location(CurrentPoi.Latitude, CurrentPoi.Longitude);
         var options = new MapLaunchOptions { NavigationMode = NavigationMode.Walking };
-        await Map.Default.OpenAsync(location, options);
+        await Microsoft.Maui.ApplicationModel.Map.Default.OpenAsync(location, options);
     }
 
     [RelayCommand]
     private async Task ShareAsync()
     {
-        if (POI == null)
+        if (CurrentPoi == null)
             return;
 
         await Share.RequestAsync(new ShareTextRequest
         {
-            Title = POI.Name,
-            Text = $"{POI.Name}\n{POI.ShortDescription}\n{POI.MapLink}"
+            Title = CurrentPoi.Name,
+            Text = $"{CurrentPoi.Name}\n{CurrentPoi.ShortDescription}\n{CurrentPoi.MapLink}"
         });
     }
 }

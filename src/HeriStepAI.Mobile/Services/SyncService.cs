@@ -147,15 +147,15 @@ public class SyncService : ISyncService
                 Narrations = narrations.Select(n => new NarrationHistoryDto
                 {
                     SessionId = n.SessionId,
-                    POIId = n.POIId,
-                    POIName = n.POIName,
-                    Language = n.Language,
+                    POIId = n.POIId.ToString(),
+                    POIName = n.POIName ?? string.Empty,
+                    Language = n.Language ?? "vi-VN",
                     StartTime = n.StartTime,
                     EndTime = n.EndTime,
                     DurationSeconds = n.DurationSeconds,
                     TotalDurationSeconds = n.TotalDurationSeconds,
                     Completed = n.Completed,
-                    TriggerType = n.TriggerType,
+                    TriggerType = n.TriggerType ?? string.Empty,
                     TriggerDistance = n.TriggerDistance,
                     TriggerLatitude = n.TriggerLatitude,
                     TriggerLongitude = n.TriggerLongitude
@@ -241,11 +241,11 @@ public class SyncService : ISyncService
     {
         return new POI
         {
-            Id = dto.Id,
+            Id = int.TryParse(dto.Id, out var id) ? id : 0,
             UniqueCode = dto.UniqueCode,
             Name = dto.Name,
-            ShortDescription = dto.ShortDescription,
-            FullDescription = dto.FullDescription,
+            ShortDescription = dto.ShortDescription ?? string.Empty,
+            FullDescription = dto.FullDescription ?? string.Empty,
             Latitude = dto.Latitude,
             Longitude = dto.Longitude,
             TriggerRadius = dto.TriggerRadius,
@@ -255,7 +255,7 @@ public class SyncService : ISyncService
             TTSScript = dto.TTSScript,
             ImageUrl = dto.ImageUrl,
             MapLink = dto.MapLink,
-            Language = dto.Language,
+            Language = dto.Language ?? "vi-VN",
             TourId = dto.TourId,
             OrderInTour = dto.OrderInTour,
             CooldownSeconds = dto.CooldownSeconds,
@@ -268,12 +268,12 @@ public class SyncService : ISyncService
     {
         return new Tour
         {
-            Id = dto.Id,
+            Id = int.TryParse(dto.Id, out var id) ? id : 0,
             UniqueCode = dto.UniqueCode,
             Name = dto.Name,
-            Description = dto.Description,
+            Description = dto.Description ?? string.Empty,
             EstimatedDurationMinutes = dto.EstimatedDurationMinutes,
-            EstimatedDistanceMeters = dto.EstimatedDistanceMeters,
+            EstimatedDistanceMeters = dto.DistanceKm * 1000, // Convert km to meters
             POICount = dto.POICount,
             ThumbnailUrl = dto.ThumbnailUrl,
             Language = dto.Language,

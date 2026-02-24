@@ -1,0 +1,167 @@
+@page "/login"
+@using HeriStepAI.Shared.Models
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@layout EmptyLayout
+
+<PageTitle>Đăng nhập - HeriStepAI</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center" Style="height: 100vh;">
+    <MudPaper Elevation="4" Class="pa-8 rounded-lg" Style="width: 100%;">
+        <div class="text-center mb-6">
+            <MudIcon Icon="@Icons.Material.Filled.Map" Color="Color.Primary" Style="font-size: 64px;" />
+            <MudText Typo="Typo.h4" Class="mt-2" Color="Color.Primary">HeriStepAI</MudText>
+            <MudText Typo="Typo.subtitle1" Class="mud-text-secondary">Hướng dẫn du lịch thông minh</MudText>
+        </div>
+        
+        <MudDivider Class="mb-6" />
+        
+        <MudText Typo="Typo.h5" Class="mb-4 text-center">Đăng nhập</MudText>
+        
+        <EditForm Model="@_loginModel" OnValidSubmit="HandleLogin">
+            <DataAnnotationsValidator />
+            
+            <MudTextField @bind-Value="_loginModel.Email" 
+                          Label="Email" 
+                          Variant="Variant.Outlined"
+                          InputType="InputType.Email"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Email"
+                          Class="mb-4"
+                          Required="true"
+                          RequiredError="Vui lòng nhập email" />
+            
+            <MudTextField @bind-Value="_loginModel.Password" 
+                          Label="Mật khẩu" 
+                          Variant="Variant.Outlined"
+                          InputType="@(_showPassword ? InputType.Text : InputType.Password)"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@(_showPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                          OnAdornmentClick="() => _showPassword = !_showPassword"
+                          Class="mb-4"
+                          Required="true"
+                          RequiredError="Vui lòng nhập mật khẩu" />
+            
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-4">@_errorMessage</MudAlert>
+            }
+            
+            <MudButton ButtonType="ButtonType.Submit" 
+                       Variant="Variant.Filled" 
+                       Color="Color.Primary" 
+                       FullWidth="true"
+                       Size="Size.Large"
+                       Disabled="@_isLoading">
+                @if (_isLoading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    <span>Đang đăng nhập...</span>
+                }
+                else
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Login" Class="mr-2" />
+                    <span>Đăng nhập</span>
+                }
+            </MudButton>
+        </EditForm>
+        
+        <MudDivider Class="my-6" />
+        
+        <div class="text-center">
+            <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">
+                Bạn muốn đóng góp POI?
+            </MudText>
+            <MudButton Variant="Variant.Outlined" 
+                       Color="Color.Secondary" 
+                       Href="/register"
+                       FullWidth="true">
+                <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Class="mr-2" />
+                Đăng ký tài khoản Contributor
+            </MudButton>
+        </div>
+        
+        <MudText Typo="Typo.caption" Class="text-center mt-6 mud-text-secondary">
+            © 2026 HeriStepAI - Đồ án tốt nghiệp
+        </MudText>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private LoginDto _loginModel = new();
+    private bool _showPassword = false;
+    private bool _isLoading = false;
+    private string? _errorMessage;
+    private bool _isInitialized = false;
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Check if already logged in (LocalStorage only works after first render in Server-Side Blazor)
+            try
+            {
+                var token = await LocalStorage.GetItemAsync<string>("accessToken");
+                if (!string.IsNullOrEmpty(token))
+                {
+                    Navigation.NavigateTo("/");
+                    return;
+                }
+            }
+            catch { }
+            _isInitialized = true;
+            StateHasChanged();
+        }
+    }
+    
+    private async Task HandleLogin()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/auth/login", _loginModel);
+            var result = await response.Content.ReadFromJsonAsync<AuthResponseDto>();
+            
+            if (result?.Success == true)
+            {
+                // Save tokens
+                await LocalStorage.SetItemAsync("accessToken", result.AccessToken);
+                await LocalStorage.SetItemAsync("refreshToken", result.RefreshToken);
+                await LocalStorage.SetItemAsync("user", result.User);
+                
+                Snackbar.Add($"Chào mừng {result.User?.DisplayName}!", Severity.Success);
+                
+                // Redirect based on role
+                if (result.User?.Role == "Admin")
+                {
+                    Navigation.NavigateTo("/", forceLoad: true);
+                }
+                else if (result.User?.Role == "Contributor")
+                {
+                    Navigation.NavigateTo("/my-contributions", forceLoad: true);
+                }
+                else
+                {
+                    Navigation.NavigateTo("/", forceLoad: true);
+                }
+            }
+            else
+            {
+                _errorMessage = result?.Message ?? "Đăng nhập thất bại";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Không thể kết nối đến server: " + ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}

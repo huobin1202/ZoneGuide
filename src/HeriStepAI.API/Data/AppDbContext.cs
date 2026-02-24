@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using HeriStepAI.Shared.Models;
 
 namespace HeriStepAI.API.Data;
 
@@ -16,6 +17,11 @@ public class AppDbContext : DbContext
     public DbSet<NarrationHistoryEntity> NarrationHistories { get; set; }
     public DbSet<POIStatisticsEntity> POIStatistics { get; set; }
     public DbSet<DeletedRecordEntity> DeletedRecords { get; set; }
+    
+    // User & Contribution
+    public DbSet<UserEntity> Users { get; set; }
+    public DbSet<POIContributionEntity> POIContributions { get; set; }
+    public DbSet<POIApprovalHistoryEntity> POIApprovalHistories { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -74,6 +80,47 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.POIId, e.Date }).IsUnique();
+        });
+
+        // User
+        modelBuilder.Entity<UserEntity>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Email).IsUnique();
+            entity.Property(e => e.Email).IsRequired().HasMaxLength(256);
+            entity.Property(e => e.DisplayName).IsRequired().HasMaxLength(100);
+        });
+
+        // POI Contribution
+        modelBuilder.Entity<POIContributionEntity>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.ContributorId);
+            entity.HasIndex(e => e.Status);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.HasOne(e => e.Contributor)
+                  .WithMany()
+                  .HasForeignKey(e => e.ContributorId)
+                  .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Reviewer)
+                  .WithMany()
+                  .HasForeignKey(e => e.ReviewerId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // POI Approval History
+        modelBuilder.Entity<POIApprovalHistoryEntity>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.ContributionId);
+            entity.HasOne(e => e.Contribution)
+                  .WithMany()
+                  .HasForeignKey(e => e.ContributionId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.ActionBy)
+                  .WithMany()
+                  .HasForeignKey(e => e.ActionById)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }
@@ -217,6 +264,70 @@ public class DeletedRecordEntity
     public string EntityType { get; set; } = string.Empty;
     public string EntityId { get; set; } = string.Empty;
     public DateTime DeletedAt { get; set; } = DateTime.UtcNow;
+}
+
+public class UserEntity
+{
+    public int Id { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public string PasswordHash { get; set; } = string.Empty;
+    public string PasswordSalt { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string? PhoneNumber { get; set; }
+    public string? AvatarUrl { get; set; }
+    public UserRole Role { get; set; } = UserRole.User;
+    public UserStatus Status { get; set; } = UserStatus.Active;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastLoginAt { get; set; }
+    public string? RefreshToken { get; set; }
+    public DateTime? RefreshTokenExpiry { get; set; }
+}
+
+public class POIContributionEntity
+{
+    public int Id { get; set; }
+    public int? OriginalPOIId { get; set; }
+    public int ContributorId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string ShortDescription { get; set; } = string.Empty;
+    public string FullDescription { get; set; } = string.Empty;
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public double TriggerRadius { get; set; } = 50;
+    public double ApproachRadius { get; set; } = 100;
+    public int Priority { get; set; } = 5;
+    public string? AudioUrl { get; set; }
+    public string? TTSScript { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? MapLink { get; set; }
+    public string Language { get; set; } = "vi-VN";
+    public string? Category { get; set; }
+    public POIApprovalStatus Status { get; set; } = POIApprovalStatus.Draft;
+    public string? ContributorNotes { get; set; }
+    public string? ReviewerFeedback { get; set; }
+    public int? ReviewerId { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? SubmittedAt { get; set; }
+    public DateTime? ReviewedAt { get; set; }
+    
+    public UserEntity Contributor { get; set; } = null!;
+    public UserEntity? Reviewer { get; set; }
+}
+
+public class POIApprovalHistoryEntity
+{
+    public int Id { get; set; }
+    public int ContributionId { get; set; }
+    public POIApprovalStatus OldStatus { get; set; }
+    public POIApprovalStatus NewStatus { get; set; }
+    public string? Notes { get; set; }
+    public int ActionById { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    public POIContributionEntity Contribution { get; set; } = null!;
+    public UserEntity ActionBy { get; set; } = null!;
 }
 
 #endregion

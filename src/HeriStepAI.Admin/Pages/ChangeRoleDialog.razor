@@ -1,0 +1,90 @@
+@using HeriStepAI.Shared.Models
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-2" />
+            Đổi Role cho @User.DisplayName
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="form">
+            <MudText Class="mb-3">Email: <strong>@User.Email</strong></MudText>
+            <MudText Class="mb-3">Role hiện tại: <MudChip T="string" Color="@GetRoleColor(User.Role)" Size="Size.Small">@User.Role</MudChip></MudText>
+            
+            <MudSelect @bind-Value="selectedRole" Label="Role mới" Required="true" Variant="Variant.Outlined">
+                <MudSelectItem Value="@("User")">User - Người dùng thường</MudSelectItem>
+                <MudSelectItem Value="@("Contributor")">Contributor - Người đóng góp</MudSelectItem>
+                <MudSelectItem Value="@("Admin")">Admin - Quản trị viên</MudSelectItem>
+            </MudSelect>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@isSaving">
+            @if (isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            Lưu
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance? MudDialog { get; set; }
+    [Parameter] public UserDto User { get; set; } = null!;
+    
+    private MudForm? form;
+    private string selectedRole = string.Empty;
+    private bool isSaving = false;
+    
+    protected override void OnInitialized()
+    {
+        selectedRole = User.Role;
+    }
+    
+    private async Task Submit()
+    {
+        if (selectedRole == User.Role)
+        {
+            MudDialog?.Close(DialogResult.Ok(true));
+            return;
+        }
+        
+        isSaving = true;
+        try
+        {
+            var response = await Http.PutAsJsonAsync($"api/users/{User.Id}/role", new { Role = selectedRole });
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Cập nhật role thành công!", Severity.Success);
+                MudDialog?.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Lỗi: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+    
+    private void Cancel() => MudDialog?.Cancel();
+    
+    private Color GetRoleColor(string role) => role switch
+    {
+        "Admin" => Color.Error,
+        "Contributor" => Color.Warning,
+        _ => Color.Info
+    };
+}

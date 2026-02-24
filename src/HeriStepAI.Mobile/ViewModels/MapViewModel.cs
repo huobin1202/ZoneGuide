@@ -169,7 +169,7 @@ public partial class MapViewModel : ObservableObject
         var location = new Location(SelectedPOI.Latitude, SelectedPOI.Longitude);
         var options = new MapLaunchOptions { NavigationMode = NavigationMode.Walking };
 
-        await Map.Default.OpenAsync(location, options);
+        await Microsoft.Maui.ApplicationModel.Map.Default.OpenAsync(location, options);
     }
 
     [RelayCommand]
