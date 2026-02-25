@@ -3,6 +3,8 @@
 @inject HttpClient Http
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject NavigationManager Navigation
 
 <PageTitle>Quản lý Users - HeriStepAI</PageTitle>
 
@@ -72,9 +74,21 @@
     private string searchString = string.Empty;
     private string? roleFilter = null;
     
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await LoadUsers();
+        if (firstRender)
+        {
+            var token = await LocalStorage.GetItemAsync<string>("accessToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+            Http.DefaultRequestHeaders.Authorization = 
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            await LoadUsers();
+            StateHasChanged();
+        }
     }
     
     private async Task LoadUsers()

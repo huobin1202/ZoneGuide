@@ -3,6 +3,8 @@
 @inject HttpClient Http
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject NavigationManager Navigation
 
 <PageTitle>Duyệt đóng góp POI - HeriStepAI</PageTitle>
 
@@ -71,9 +73,21 @@
     
     private bool isLoading = true;
     
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await LoadContributions();
+        if (firstRender)
+        {
+            var token = await LocalStorage.GetItemAsync<string>("accessToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+            Http.DefaultRequestHeaders.Authorization = 
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            await LoadContributions();
+            StateHasChanged();
+        }
     }
     
     private async Task LoadContributions()

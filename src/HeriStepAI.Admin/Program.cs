@@ -6,7 +6,13 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
-builder.Services.AddServerSideBlazor();
+builder.Services.AddServerSideBlazor().AddCircuitOptions(options =>
+{
+    if (builder.Environment.IsDevelopment())
+    {
+        options.DetailedErrors = true;
+    }
+});
 
 // Add MudBlazor
 builder.Services.AddMudServices();
@@ -17,17 +23,23 @@ builder.Services.AddBlazoredLocalStorage();
 // Get API base URL
 var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:56040";
 
-// Add HttpClient for API calls
+// Register AuthTokenHandler for automatic JWT token injection
+builder.Services.AddScoped<AuthTokenHandler>();
+
+// Add HttpClient for API calls (via IApiService)
 builder.Services.AddHttpClient<IApiService, ApiService>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);
-});
+}).AddHttpMessageHandler<AuthTokenHandler>();
 
 // Add a default HttpClient for pages that inject HttpClient directly
-builder.Services.AddScoped(sp => new HttpClient 
-{ 
-    BaseAddress = new Uri(apiBaseUrl) 
-});
+builder.Services.AddHttpClient("Default", client =>
+{
+    client.BaseAddress = new Uri(apiBaseUrl);
+}).AddHttpMessageHandler<AuthTokenHandler>();
+
+builder.Services.AddScoped(sp =>
+    sp.GetRequiredService<IHttpClientFactory>().CreateClient("Default"));
 
 var app = builder.Build();
 
