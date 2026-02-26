@@ -1,0 +1,123 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # Cho phép chạy thủ công từ GitHub
+
+jobs:
+  build-android:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install MAUI workload
+        run: dotnet workload install maui-android
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'microsoft'
+          java-version: '17'
+
+      - name: Restore dependencies
+        run: dotnet restore src/HeriStepAI.Mobile/HeriStepAI.Mobile.csproj
+
+      - name: Build & Publish APK
+        run: |
+          dotnet publish src/HeriStepAI.Mobile/HeriStepAI.Mobile.csproj `
+            -f net10.0-android `
+            -c Release `
+            -o ./artifacts
+
+      - name: Find APK file
+        id: find-apk
+        run: |
+          $apk = Get-ChildItem -Path ./artifacts -Filter "*.apk" -Recurse | Select-Object -First 1
+          if ($apk) {
+            echo "APK_PATH=$($apk.FullName)" >> $env:GITHUB_OUTPUT
+            echo "APK_NAME=$($apk.Name)" >> $env:GITHUB_OUTPUT
+            echo "Found APK: $($apk.FullName)"
+          } else {
+            # Tìm signed-apk trong thư mục publish
+            $signed = Get-ChildItem -Path ./artifacts -Filter "*Signed.apk" -Recurse | Select-Object -First 1
+            if ($signed) {
+              echo "APK_PATH=$($signed.FullName)" >> $env:GITHUB_OUTPUT
+              echo "APK_NAME=$($signed.Name)" >> $env:GITHUB_OUTPUT
+              echo "Found Signed APK: $($signed.FullName)"
+            } else {
+              # Liệt kê tất cả file để debug
+              Get-ChildItem -Path ./artifacts -Recurse | ForEach-Object { echo $_.FullName }
+              echo "No APK found!"
+              exit 1
+            }
+          }
+
+      - name: Upload APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HeriStepAI-Android
+          path: ${{ steps.find-apk.outputs.APK_PATH }}
+          retention-days: 30
+
+      - name: Create Release
+        id: create-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: "HeriStepAI v1.0.${{ github.run_number }}"
+          body: |
+            ## 📱 HeriStepAI Android App
+
+            ### Cách cài đặt:
+            1. Tải file APK bên dưới
+            2. Trên điện thoại Android, bật **"Cài đặt từ nguồn không xác định"**
+               - Vào **Cài đặt → Bảo mật → Nguồn không xác định** (hoặc **Cài đặt ứng dụng không rõ nguồn gốc**)
+            3. Mở file APK đã tải và cài đặt
+            4. Mở app **HeriStepAI** và bắt đầu sử dụng!
+
+            ### ⚠️ Lưu ý:
+            - Yêu cầu Android 7.0 (API 24) trở lên
+            - Cần cấp quyền **Vị trí** để sử dụng tính năng GPS
+            - Build: #${{ github.run_number }} | Commit: ${{ github.sha }}
+          files: ${{ steps.find-apk.outputs.APK_PATH }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate QR Code
+        run: |
+          $releaseUrl = "https://github.com/${{ github.repository }}/releases/tag/v1.0.${{ github.run_number }}"
+          $qrApiUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=$([uri]::EscapeDataString($releaseUrl))"
+
+          echo ""
+          echo "=============================================="
+          echo "  📱 APK BUILD THANH CONG!"
+          echo "=============================================="
+          echo ""
+          echo "📥 Link tai APK:"
+          echo "   $releaseUrl"
+          echo ""
+          echo "📷 QR Code (mo link nay tren trinh duyet de xem QR):"
+          echo "   $qrApiUrl"
+          echo ""
+          echo "=============================================="
+
+          # Tải QR code image
+          Invoke-WebRequest -Uri $qrApiUrl -OutFile ./artifacts/qr-code.png
+          echo "QR code saved to ./artifacts/qr-code.png"
+
+      - name: Upload QR Code
+        uses: actions/upload-artifact@v4
+        with:
+          name: QR-Code-Download
+          path: ./artifacts/qr-code.png
+          retention-days: 30
