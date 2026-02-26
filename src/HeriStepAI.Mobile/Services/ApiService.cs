@@ -10,9 +10,10 @@ public class ApiService
 {
     private readonly HttpClient _httpClient;
     
-    // Cho Android Emulator: dùng 10.0.2.2 thay vì localhost
-    // Cho Windows/iOS Simulator: dùng localhost
-    // Cho thiết bị thật: dùng IP máy tính (ví dụ: 192.168.1.x)
+    // ⚠️ QUAN TRỌNG: Thay đổi IP cho thiết bị thật
+    // Emulator Android: 10.0.2.2
+    // Thiết bị thật: Dùng IP LAN của máy tính (ví dụ: 192.168.1.100)
+    // Production: Dùng domain thật (ví dụ: https://api.heristepai.com)
 #if ANDROID
     private const string BaseUrl = "https://10.0.2.2:56040/api";
 #else
@@ -30,7 +31,7 @@ public class ApiService
         _httpClient = new HttpClient(handler)
         {
             BaseAddress = new Uri(BaseUrl),
-            Timeout = TimeSpan.FromSeconds(30)
+            Timeout = TimeSpan.FromSeconds(15) // Giảm timeout để không block quá lâu
         };
     }
 

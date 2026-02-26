@@ -8,6 +8,11 @@
         android:supportsRtl="true"
         android:usesCleartextTraffic="true">
         
+        <!-- Google Maps API Key -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyBrvawp2yWPR_8HPkZ8ZLM1KBh4UijMJ7I" />
+        
         <!-- Foreground service cho GPS tracking -->
         <service 
             android:name="com.heristepai.app.LocationForegroundService"

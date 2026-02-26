@@ -10,9 +10,17 @@ public partial class MapPage : ContentPage
 
     public MapPage(MapViewModel viewModel)
     {
-        InitializeComponent();
-        _viewModel = viewModel;
-        BindingContext = viewModel;
+        try
+        {
+            InitializeComponent();
+            _viewModel = viewModel;
+            BindingContext = viewModel;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MapPage] Init Error: {ex}");
+            _viewModel = viewModel;
+        }
     }
 
     protected override async void OnAppearing()
@@ -26,39 +34,57 @@ public partial class MapPage : ContentPage
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[MapPage] Error: {ex}");
+            System.Diagnostics.Debug.WriteLine($"[MapPage] OnAppearing Error: {ex}");
         }
     }
 
     private void UpdateMapPins()
     {
-        MainMap.Pins.Clear();
-        
-        foreach (var poi in _viewModel.POIs)
+        try
         {
-            var pin = new Pin
-            {
-                Label = poi.Name,
-                Address = poi.ShortDescription,
-                Location = new Location(poi.Latitude, poi.Longitude),
-                Type = PinType.Place
-            };
+            if (MainMap == null) return;
             
-            pin.MarkerClicked += (s, e) =>
-            {
-                _viewModel.SelectPOICommand.Execute(poi);
-                e.HideInfoWindow = true;
-            };
+            MainMap.Pins.Clear();
             
-            MainMap.Pins.Add(pin);
+            foreach (var poi in _viewModel.POIs)
+            {
+                var pin = new Pin
+                {
+                    Label = poi.Name ?? "Không tên",
+                    Address = poi.ShortDescription ?? "",
+                    Location = new Location(poi.Latitude, poi.Longitude),
+                    Type = PinType.Place
+                };
+                
+                pin.MarkerClicked += (s, e) =>
+                {
+                    _viewModel.SelectPOICommand.Execute(poi);
+                    e.HideInfoWindow = true;
+                };
+                
+                MainMap.Pins.Add(pin);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MapPage] UpdateMapPins Error: {ex}");
         }
     }
 
     private void UpdateMapRegion()
     {
-        if (_viewModel.MapSpan != null)
+        try
         {
-            MainMap.MoveToRegion(_viewModel.MapSpan);
+            if (MainMap == null) return;
+            
+            if (_viewModel.MapSpan != null)
+            {
+                MainMap.MoveToRegion(_viewModel.MapSpan);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MapPage] UpdateMapRegion Error: {ex}");
         }
     }
 }

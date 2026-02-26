@@ -52,30 +52,39 @@ public partial class MapViewModel : ObservableObject
 
     public async Task InitializeAsync()
     {
+        if (IsLoading) return; // Tránh gọi nhiều lần
+        
         IsLoading = true;
         
         try
         {
-            // Lấy vị trí hiện tại
-            var location = await _locationService.GetCurrentLocationAsync();
-            if (location != null)
-            {
-                UserLocation = new Location(location.Latitude, location.Longitude);
-                MapSpan = MapSpan.FromCenterAndRadius(UserLocation, Distance.FromKilometers(0.5));
-            }
-            else
-            {
-                // Default location (Hồ Chí Minh)
-                UserLocation = new Location(10.8231, 106.6297);
-                MapSpan = MapSpan.FromCenterAndRadius(UserLocation, Distance.FromKilometers(1));
-            }
+            // Đặt vị trí mặc định trước để map render ngay
+            UserLocation = new Location(10.8231, 106.6297); // Hồ Chí Minh
+            MapSpan = MapSpan.FromCenterAndRadius(UserLocation, Distance.FromKilometers(1));
 
-            // Tải POIs
+            // Tải POIs (offline từ SQLite - không phụ thuộc API)
             await LoadPOIsAsync();
+
+            // Sau đó cố lấy vị trí thực
+            try
+            {
+                var location = await _locationService.GetCurrentLocationAsync();
+                if (location != null)
+                {
+                    UserLocation = new Location(location.Latitude, location.Longitude);
+                    MapSpan = MapSpan.FromCenterAndRadius(UserLocation, Distance.FromKilometers(0.5));
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MapVM] Location error (non-fatal): {ex.Message}");
+                // Giữ vị trí mặc định, không crash
+            }
         }
         catch (Exception ex)
         {
             ErrorMessage = ex.Message;
+            System.Diagnostics.Debug.WriteLine($"[MapVM] InitializeAsync error: {ex}");
         }
         finally
         {

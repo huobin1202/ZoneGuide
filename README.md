@@ -2,6 +2,8 @@
 
 A comprehensive GPS-based tour guide application with real-time location tracking, automatic audio narration, and content management capabilities.
 
+![QR code linking to the HeriStepAI repository or application download page](image.png)
+
 ## 🎯 Features
 
 ### Mobile Application (MAUI)
