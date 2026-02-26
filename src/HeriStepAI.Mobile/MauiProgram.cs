@@ -13,12 +13,21 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()
-            .UseMauiMaps()
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
+
+        // Maps - chỉ bật khi có API key thật
+        try
+        {
+            builder.UseMauiMaps();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MauiProgram] Maps init failed: {ex.Message}");
+        }
 
 #if DEBUG
         builder.Logging.AddDebug();

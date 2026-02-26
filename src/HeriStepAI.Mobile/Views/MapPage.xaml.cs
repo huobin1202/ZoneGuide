@@ -18,9 +18,16 @@ public partial class MapPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        await _viewModel.InitializeAsync();
-        UpdateMapPins();
-        UpdateMapRegion();
+        try
+        {
+            await _viewModel.InitializeAsync();
+            UpdateMapPins();
+            UpdateMapRegion();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MapPage] Error: {ex}");
+        }
     }
 
     private void UpdateMapPins()

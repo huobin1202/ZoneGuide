@@ -8,27 +8,27 @@
 
     <TabBar>
         <ShellContent
-            Title="Bản đồ"
-            ContentTemplate="{DataTemplate views:MapPage}"
-            Icon="{OnPlatform Android=map, iOS=map}"
-            Route="map" />
-
-        <ShellContent
             Title="Điểm"
             ContentTemplate="{DataTemplate views:POIListPage}"
-            Icon="{OnPlatform Android=location, iOS=location}"
+            Icon="location.png"
             Route="pois" />
+
+        <ShellContent
+            Title="Bản đồ"
+            ContentTemplate="{DataTemplate views:MapPage}"
+            Icon="map.png"
+            Route="map" />
 
         <ShellContent
             Title="Tour"
             ContentTemplate="{DataTemplate views:TourListPage}"
-            Icon="{OnPlatform Android=route, iOS=route}"
+            Icon="route.png"
             Route="tours" />
 
         <ShellContent
             Title="Cài đặt"
             ContentTemplate="{DataTemplate views:SettingsPage}"
-            Icon="{OnPlatform Android=settings, iOS=settings}"
+            Icon="settings.png"
             Route="settings" />
     </TabBar>
 
