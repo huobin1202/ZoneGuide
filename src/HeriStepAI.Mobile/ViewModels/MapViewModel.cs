@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using HeriStepAI.Mobile.Services;
 using HeriStepAI.Shared.Interfaces;
 using HeriStepAI.Shared.Models;
 using Microsoft.Maui.Controls.Maps;
@@ -17,6 +18,7 @@ public partial class MapViewModel : ObservableObject
     private readonly IGeofenceService _geofenceService;
     private readonly IPOIRepository _poiRepository;
     private readonly INarrationService _narrationService;
+    private readonly ITourRepository _tourRepository;
 
     [ObservableProperty]
     private Location? userLocation;
@@ -40,12 +42,14 @@ public partial class MapViewModel : ObservableObject
         ILocationService locationService,
         IGeofenceService geofenceService,
         IPOIRepository poiRepository,
-        INarrationService narrationService)
+        INarrationService narrationService,
+        ITourRepository tourRepository)
     {
         _locationService = locationService;
         _geofenceService = geofenceService;
         _poiRepository = poiRepository;
         _narrationService = narrationService;
+        _tourRepository = tourRepository;
 
         _locationService.LocationChanged += OnLocationChanged;
     }
@@ -61,6 +65,9 @@ public partial class MapViewModel : ObservableObject
             // Đặt vị trí mặc định trước để map render ngay
             UserLocation = new Location(10.8231, 106.6297); // Hồ Chí Minh
             MapSpan = MapSpan.FromCenterAndRadius(UserLocation, Distance.FromKilometers(1));
+
+            // Seed dữ liệu mẫu nếu database trống
+            await SeedDataService.SeedIfEmptyAsync(_poiRepository, _tourRepository);
 
             // Tải POIs (offline từ SQLite - không phụ thuộc API)
             await LoadPOIsAsync();

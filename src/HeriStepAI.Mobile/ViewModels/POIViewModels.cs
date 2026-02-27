@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using HeriStepAI.Mobile.Services;
 using HeriStepAI.Shared.Interfaces;
 using HeriStepAI.Shared.Models;
 using System.Collections.ObjectModel;
@@ -12,6 +13,7 @@ namespace HeriStepAI.Mobile.ViewModels;
 public partial class POIListViewModel : ObservableObject
 {
     private readonly IPOIRepository _poiRepository;
+    private readonly ITourRepository _tourRepository;
     private readonly IGeofenceService _geofenceService;
     private readonly INarrationService _narrationService;
 
@@ -32,16 +34,20 @@ public partial class POIListViewModel : ObservableObject
 
     public POIListViewModel(
         IPOIRepository poiRepository,
+        ITourRepository tourRepository,
         IGeofenceService geofenceService,
         INarrationService narrationService)
     {
         _poiRepository = poiRepository;
+        _tourRepository = tourRepository;
         _geofenceService = geofenceService;
         _narrationService = narrationService;
     }
 
     public async Task InitializeAsync()
     {
+        // Seed dữ liệu mẫu nếu database trống
+        await SeedDataService.SeedIfEmptyAsync(_poiRepository, _tourRepository);
         await LoadPOIsAsync();
     }
 
