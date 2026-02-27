@@ -10,28 +10,33 @@ public class ApiService
 {
     private readonly HttpClient _httpClient;
     
-    // ⚠️ QUAN TRỌNG: Thay đổi IP cho thiết bị thật
+    // ⚠️ Thay đổi IP tùy theo môi trường:
     // Emulator Android: 10.0.2.2
-    // Thiết bị thật: Dùng IP LAN của máy tính (ví dụ: 192.168.1.100)
-    // Production: Dùng domain thật (ví dụ: https://api.heristepai.com)
+    // Thiết bị thật cùng WiFi: dùng IP LAN (ví dụ: 192.168.1.3)
+    // Production: dùng domain thật (ví dụ: https://api.heristepai.com)
+    
+    // 👇 ĐỔI IP NÀY THÀNH IP MÁY TÍNH CỦA BẠN
+    private const string ServerIP = "192.168.1.3";
+    private const string ServerPort = "56042"; // HTTP port (không cần SSL cho development)
+    
 #if ANDROID
-    private const string BaseUrl = "https://10.0.2.2:56040/api";
+    private static readonly string BaseUrl = $"http://{ServerIP}:{ServerPort}/api/";
 #else
-    private const string BaseUrl = "https://localhost:56040/api";
+    private const string BaseUrl = "https://localhost:56040/api/";
 #endif
 
     public ApiService()
     {
-        // Cho development, bỏ qua SSL certificate validation
         var handler = new HttpClientHandler
         {
+            // Cho development, bỏ qua SSL certificate validation
             ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
         };
         
         _httpClient = new HttpClient(handler)
         {
             BaseAddress = new Uri(BaseUrl),
-            Timeout = TimeSpan.FromSeconds(15) // Giảm timeout để không block quá lâu
+            Timeout = TimeSpan.FromSeconds(15)
         };
     }
 
@@ -101,18 +106,60 @@ public class ApiService
     {
         try
         {
-            var response = await _httpClient.PostAsJsonAsync("sync", request);
+            // API trả về SyncResponseDto trực tiếp (không wrap ApiResponse)
+            // Gửi request tương thích với SyncRequestDto trên server
+            var serverRequest = new
+            {
+                LastSyncTime = request.LastSyncTime,
+                IncludePOIs = true,
+                IncludeTours = true
+            };
+
+            var response = await _httpClient.PostAsJsonAsync("sync", serverRequest);
             if (response.IsSuccessStatusCode)
             {
-                var result = await response.Content.ReadFromJsonAsync<ApiResponse<SyncDataDto>>();
-                return result?.Data;
+                var json = await response.Content.ReadAsStringAsync();
+                System.Diagnostics.Debug.WriteLine($"[ApiService] Sync response: {json[..Math.Min(json.Length, 500)]}");
+
+                var syncResponse = System.Text.Json.JsonSerializer.Deserialize<SyncResponseFromServer>(json, 
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                if (syncResponse != null)
+                {
+                    return new SyncDataDto
+                    {
+                        LastSyncTime = syncResponse.SyncedAt,
+                        POIs = syncResponse.POIs ?? new(),
+                        Tours = syncResponse.Tours ?? new(),
+                        DeletedPOIIds = syncResponse.DeletedPOIIds?
+                            .Where(id => int.TryParse(id, out _))
+                            .Select(id => int.Parse(id)).ToList() ?? new(),
+                        DeletedTourIds = syncResponse.DeletedTourIds?
+                            .Where(id => int.TryParse(id, out _))
+                            .Select(id => int.Parse(id)).ToList() ?? new()
+                    };
+                }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore
+            System.Diagnostics.Debug.WriteLine($"[ApiService] SyncDataAsync error: {ex.Message}");
         }
         return null;
+    }
+
+    /// <summary>
+    /// DTO tạm để deserialize response từ server (khớp SyncResponseDto phía API)
+    /// </summary>
+    private class SyncResponseFromServer
+    {
+        public bool Success { get; set; }
+        public bool HasUpdates { get; set; }
+        public DateTime SyncedAt { get; set; }
+        public List<POIDto> POIs { get; set; } = new();
+        public List<TourDto> Tours { get; set; } = new();
+        public List<string> DeletedPOIIds { get; set; } = new();
+        public List<string> DeletedTourIds { get; set; } = new();
     }
 
     #endregion

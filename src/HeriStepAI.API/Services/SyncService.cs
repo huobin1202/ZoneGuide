@@ -143,19 +143,28 @@ public class SyncService : ISyncService
         return new POIDto
         {
             Id = entity.Id.ToString(),
+            UniqueCode = entity.UniqueCode,
             Name = entity.Name,
             ShortDescription = entity.ShortDescription,
             FullDescription = entity.FullDescription,
             Latitude = entity.Latitude,
             Longitude = entity.Longitude,
             TriggerRadiusMeters = entity.TriggerRadiusMeters,
+            TriggerRadius = entity.TriggerRadius,
+            ApproachRadius = entity.ApproachRadius,
             Priority = entity.Priority,
             Category = entity.Category,
             ImageUrl = entity.ImageUrl,
             ThumbnailUrl = entity.ThumbnailUrl,
             AudioUrl = entity.AudioUrl,
             AudioDurationSeconds = entity.AudioDurationSeconds,
+            TTSScript = entity.TTSScript,
             MapDeepLink = entity.MapDeepLink,
+            MapLink = entity.MapLink,
+            Language = entity.Language,
+            TourId = entity.TourId,
+            OrderInTour = entity.OrderInTour,
+            CooldownSeconds = entity.CooldownSeconds,
             IsActive = entity.IsActive,
             Translations = entity.Translations?.Select(t => new POITranslationDto
             {

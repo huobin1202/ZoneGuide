@@ -8,6 +8,16 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Cấu hình Kestrel để lắng nghe trên tất cả interfaces (cho phép điện thoại kết nối qua WiFi)
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(56042); // HTTP
+    options.ListenAnyIP(56040, listenOptions =>
+    {
+        listenOptions.UseHttps(); // HTTPS
+    });
+});
+
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -101,8 +111,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    app.UseHttpsRedirection(); // Chỉ redirect HTTPS ở Production
+}
 
-app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();

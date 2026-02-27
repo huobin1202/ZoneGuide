@@ -16,6 +16,7 @@ public partial class POIListViewModel : ObservableObject
     private readonly ITourRepository _tourRepository;
     private readonly IGeofenceService _geofenceService;
     private readonly INarrationService _narrationService;
+    private readonly ISyncService _syncService;
 
     [ObservableProperty]
     private bool isLoading;
@@ -36,18 +37,34 @@ public partial class POIListViewModel : ObservableObject
         IPOIRepository poiRepository,
         ITourRepository tourRepository,
         IGeofenceService geofenceService,
-        INarrationService narrationService)
+        INarrationService narrationService,
+        ISyncService syncService)
     {
         _poiRepository = poiRepository;
         _tourRepository = tourRepository;
         _geofenceService = geofenceService;
         _narrationService = narrationService;
+        _syncService = syncService;
     }
 
     public async Task InitializeAsync()
     {
-        // Seed dữ liệu mẫu nếu database trống
+        // === Bước 1: Thử đồng bộ từ Server ===
+        try
+        {
+            System.Diagnostics.Debug.WriteLine("[POIListVM] Syncing from server...");
+            await _syncService.SyncFromServerAsync();
+            System.Diagnostics.Debug.WriteLine("[POIListVM] Sync completed!");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[POIListVM] Server sync failed (non-fatal): {ex.Message}");
+        }
+
+        // === Bước 2: Seed nếu vẫn trống ===
         await SeedDataService.SeedIfEmptyAsync(_poiRepository, _tourRepository);
+
+        // === Bước 3: Tải từ SQLite ===
         await LoadPOIsAsync();
     }
 

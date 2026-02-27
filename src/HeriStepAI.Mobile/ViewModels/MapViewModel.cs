@@ -19,6 +19,7 @@ public partial class MapViewModel : ObservableObject
     private readonly IPOIRepository _poiRepository;
     private readonly INarrationService _narrationService;
     private readonly ITourRepository _tourRepository;
+    private readonly ISyncService _syncService;
 
     [ObservableProperty]
     private Location? userLocation;
@@ -43,13 +44,15 @@ public partial class MapViewModel : ObservableObject
         IGeofenceService geofenceService,
         IPOIRepository poiRepository,
         INarrationService narrationService,
-        ITourRepository tourRepository)
+        ITourRepository tourRepository,
+        ISyncService syncService)
     {
         _locationService = locationService;
         _geofenceService = geofenceService;
         _poiRepository = poiRepository;
         _narrationService = narrationService;
         _tourRepository = tourRepository;
+        _syncService = syncService;
 
         _locationService.LocationChanged += OnLocationChanged;
     }
@@ -66,10 +69,23 @@ public partial class MapViewModel : ObservableObject
             UserLocation = new Location(10.8231, 106.6297); // Hồ Chí Minh
             MapSpan = MapSpan.FromCenterAndRadius(UserLocation, Distance.FromKilometers(1));
 
-            // Seed dữ liệu mẫu nếu database trống
+            // === Bước 1: Thử đồng bộ từ Server (Admin Web → API → Mobile) ===
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("[MapVM] Syncing from server...");
+                await _syncService.SyncFromServerAsync();
+                System.Diagnostics.Debug.WriteLine("[MapVM] Sync from server completed!");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MapVM] Server sync failed (non-fatal): {ex.Message}");
+                // Nếu không kết nối được server → dùng dữ liệu local/seed
+            }
+
+            // === Bước 2: Nếu DB vẫn trống (server không có data hoặc offline) → seed mẫu ===
             await SeedDataService.SeedIfEmptyAsync(_poiRepository, _tourRepository);
 
-            // Tải POIs (offline từ SQLite - không phụ thuộc API)
+            // === Bước 3: Tải POIs từ SQLite local ===
             await LoadPOIsAsync();
 
             // Sau đó cố lấy vị trí thực
