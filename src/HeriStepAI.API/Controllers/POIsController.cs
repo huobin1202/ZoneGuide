@@ -9,11 +9,13 @@ namespace HeriStepAI.API.Controllers;
 public class POIsController : ControllerBase
 {
     private readonly IPOIService _poiService;
+    private readonly IActivityLogService _activityLogService;
     private readonly ILogger<POIsController> _logger;
 
-    public POIsController(IPOIService poiService, ILogger<POIsController> logger)
+    public POIsController(IPOIService poiService, IActivityLogService activityLogService, ILogger<POIsController> logger)
     {
         _poiService = poiService;
+        _activityLogService = activityLogService;
         _logger = logger;
     }
 
@@ -93,6 +95,7 @@ public class POIsController : ControllerBase
         try
         {
             var poi = await _poiService.CreateAsync(dto);
+            await _activityLogService.LogAsync("Create", "POI", poi.Id, poi.Name, $"Tạo POI mới: {poi.Name}", null, "admin", "Admin");
             return CreatedAtAction(nameof(GetById), new { id = poi.Id }, poi);
         }
         catch (Exception ex)
@@ -115,6 +118,7 @@ public class POIsController : ControllerBase
             {
                 return NotFound($"POI with ID '{id}' not found");
             }
+            await _activityLogService.LogAsync("Update", "POI", id, poi.Name, $"Cập nhật POI: {poi.Name}", null, "admin", "Admin");
             return Ok(poi);
         }
         catch (Exception ex)
@@ -137,6 +141,7 @@ public class POIsController : ControllerBase
             {
                 return NotFound($"POI with ID '{id}' not found");
             }
+            await _activityLogService.LogAsync("Delete", "POI", id, null, $"Xóa POI ID: {id}", null, "admin", "Admin");
             return NoContent();
         }
         catch (Exception ex)

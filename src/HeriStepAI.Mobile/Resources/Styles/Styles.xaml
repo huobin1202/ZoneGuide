@@ -17,6 +17,9 @@
     <converters:TrackingButtonColorConverter x:Key="TrackingButtonColorConverter" />
     <converters:PlayPauseConverter x:Key="PlayPauseConverter" />
     <converters:SyncButtonTextConverter x:Key="SyncButtonTextConverter" />
+    <converters:EnumToBoolConverter x:Key="EnumToBoolConverter" />
+    <converters:OfflineStatusTextConverter x:Key="OfflineStatusTextConverter" />
+    <converters:OfflineButtonTextConverter x:Key="OfflineButtonTextConverter" />
 
     <!-- Default Styles -->
     <Style TargetType="ActivityIndicator">

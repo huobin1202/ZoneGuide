@@ -1,0 +1,173 @@
+@page "/activity-log"
+@using HeriStepAI.Shared.Models
+@inject HeriStepAI.Admin.Services.ApiService ApiService
+
+<MudText Typo="Typo.h4" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.History" Class="mr-2" />
+    Nhật ký hoạt động
+</MudText>
+
+<MudPaper Class="pa-4 mb-4">
+    <MudGrid>
+        <MudItem xs="12" sm="3">
+            <MudSelect T="string" Label="Loại đối tượng" @bind-Value="_entityTypeFilter" Clearable="true" Variant="Variant.Outlined" Dense="true">
+                <MudSelectItem Value="@("POI")">POI</MudSelectItem>
+                <MudSelectItem Value="@("Tour")">Tour</MudSelectItem>
+                <MudSelectItem Value="@("User")">User</MudSelectItem>
+                <MudSelectItem Value="@("Contribution")">Contribution</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="3">
+            <MudSelect T="string" Label="Hành động" @bind-Value="_actionFilter" Clearable="true" Variant="Variant.Outlined" Dense="true">
+                <MudSelectItem Value="@("Create")">Tạo mới</MudSelectItem>
+                <MudSelectItem Value="@("Update")">Cập nhật</MudSelectItem>
+                <MudSelectItem Value="@("Delete")">Xóa</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="3">
+            <MudDatePicker Label="Từ ngày" @bind-Date="_fromDate" Variant="Variant.Outlined" Dense="true" />
+        </MudItem>
+        <MudItem xs="12" sm="3">
+            <MudDatePicker Label="Đến ngày" @bind-Date="_toDate" Variant="Variant.Outlined" Dense="true" />
+        </MudItem>
+    </MudGrid>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadLogs" Class="mt-3" StartIcon="@Icons.Material.Filled.Search">
+        Tìm kiếm
+    </MudButton>
+    <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="ClearFilters" Class="mt-3 ml-2" StartIcon="@Icons.Material.Filled.Clear">
+        Xóa bộ lọc
+    </MudButton>
+</MudPaper>
+
+@if (_isLoading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_logs.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">Không có nhật ký hoạt động nào.</MudAlert>
+}
+else
+{
+    <MudTable Items="@_logs" Hover="true" Striped="true" Dense="true" Bordered="true">
+        <HeaderContent>
+            <MudTh>Thời gian</MudTh>
+            <MudTh>Người thực hiện</MudTh>
+            <MudTh>Hành động</MudTh>
+            <MudTh>Đối tượng</MudTh>
+            <MudTh>Tên</MudTh>
+            <MudTh>Chi tiết</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>
+                <MudText Typo="Typo.body2">@context.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</MudText>
+            </MudTd>
+            <MudTd>
+                <MudChip T="string" Size="Size.Small" Color="Color.Info">@context.UserName</MudChip>
+            </MudTd>
+            <MudTd>
+                @{
+                    var (actionColor, actionIcon) = GetActionStyle(context.Action);
+                }
+                <MudChip T="string" Size="Size.Small" Color="@actionColor" Icon="@actionIcon">@GetActionText(context.Action)</MudChip>
+            </MudTd>
+            <MudTd>
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.EntityType</MudChip>
+            </MudTd>
+            <MudTd>
+                <MudText Typo="Typo.body2">@(context.EntityName ?? context.EntityId ?? "-")</MudText>
+            </MudTd>
+            <MudTd>
+                <MudText Typo="Typo.body2" Style="max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    @(context.Details ?? "-")
+                </MudText>
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] { 10, 20, 50 }" />
+        </PagerContent>
+    </MudTable>
+
+    <MudText Typo="Typo.caption" Class="mt-2 mud-text-secondary">
+        Tổng cộng: @_totalCount bản ghi
+    </MudText>
+}
+
+@code {
+    private List<ActivityLogDto> _logs = new();
+    private bool _isLoading;
+    private int _totalCount;
+    private int _page = 1;
+    private int _pageSize = 20;
+    private string? _entityTypeFilter;
+    private string? _actionFilter;
+    private DateTime? _fromDate;
+    private DateTime? _toDate;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLogs();
+    }
+
+    private async Task LoadLogs()
+    {
+        _isLoading = true;
+        try
+        {
+            var queryParams = new List<string> { $"page={_page}", $"pageSize={_pageSize}" };
+            if (!string.IsNullOrEmpty(_entityTypeFilter)) queryParams.Add($"entityType={_entityTypeFilter}");
+            if (!string.IsNullOrEmpty(_actionFilter)) queryParams.Add($"action={_actionFilter}");
+            if (_fromDate.HasValue) queryParams.Add($"from={_fromDate.Value:yyyy-MM-dd}");
+            if (_toDate.HasValue) queryParams.Add($"to={_toDate.Value:yyyy-MM-dd}");
+
+            var url = $"activitylog?{string.Join("&", queryParams)}";
+            var result = await ApiService.GetAsync<ActivityLogResponse>(url);
+            if (result != null)
+            {
+                _logs = result.Items;
+                _totalCount = result.TotalCount;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading activity logs: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void ClearFilters()
+    {
+        _entityTypeFilter = null;
+        _actionFilter = null;
+        _fromDate = null;
+        _toDate = null;
+        _ = LoadLogs();
+    }
+
+    private (Color, string) GetActionStyle(string action) => action switch
+    {
+        "Create" => (Color.Success, Icons.Material.Filled.Add),
+        "Update" => (Color.Warning, Icons.Material.Filled.Edit),
+        "Delete" => (Color.Error, Icons.Material.Filled.Delete),
+        _ => (Color.Default, Icons.Material.Filled.Info)
+    };
+
+    private string GetActionText(string action) => action switch
+    {
+        "Create" => "Tạo mới",
+        "Update" => "Cập nhật",
+        "Delete" => "Xóa",
+        _ => action
+    };
+
+    private class ActivityLogResponse
+    {
+        public List<ActivityLogDto> Items { get; set; } = new();
+        public int TotalCount { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+    }
+}

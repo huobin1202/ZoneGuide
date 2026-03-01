@@ -72,9 +72,11 @@ public class CreatePOIDto
     public int Priority { get; set; } = 1;
     public string? AudioUrl { get; set; }
     public int? AudioDurationSeconds { get; set; }
+    public string? TTSScript { get; set; }
     public string? ImageUrl { get; set; }
     public string? Category { get; set; }
     public string? MapDeepLink { get; set; }
+    public string Language { get; set; } = "vi-VN";
 }
 
 /// <summary>
@@ -91,10 +93,13 @@ public class UpdatePOIDto
     public int? Priority { get; set; }
     public string? AudioUrl { get; set; }
     public int? AudioDurationSeconds { get; set; }
+    public string? TTSScript { get; set; }
     public string? ImageUrl { get; set; }
     public string? Category { get; set; }
     public string? MapDeepLink { get; set; }
+    public string? Language { get; set; }
     public bool? IsActive { get; set; }
+    public List<POITranslationDto>? Translations { get; set; }
 }
 
 /// <summary>
@@ -272,4 +277,20 @@ public class DailyStatsDto
     public int ListenCount { get; set; }
     public int UniqueUsers { get; set; }
     public double AvgDurationSeconds { get; set; }
+}
+
+/// <summary>
+/// DTO cho Activity Log
+/// </summary>
+public class ActivityLogDto
+{
+    public int Id { get; set; }
+    public string Action { get; set; } = string.Empty;
+    public string EntityType { get; set; } = string.Empty;
+    public string? EntityId { get; set; }
+    public string? EntityName { get; set; }
+    public string? Details { get; set; }
+    public string UserEmail { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
 }

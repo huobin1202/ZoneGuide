@@ -138,6 +138,8 @@ public partial class POIListViewModel : ObservableObject
         var item = new NarrationQueueItem
         {
             POI = poi,
+            AudioPath = poi.AudioFilePath,
+            AudioUrl = poi.AudioUrl,
             TTSText = poi.TTSScript ?? poi.FullDescription,
             Language = poi.Language,
             Priority = poi.Priority,
@@ -227,6 +229,8 @@ public partial class POIDetailViewModel : ObservableObject
         var item = new NarrationQueueItem
         {
             POI = CurrentPoi,
+            AudioPath = CurrentPoi.AudioFilePath,
+            AudioUrl = CurrentPoi.AudioUrl,
             TTSText = CurrentPoi.TTSScript ?? CurrentPoi.FullDescription,
             Language = CurrentPoi.Language,
             Priority = CurrentPoi.Priority,

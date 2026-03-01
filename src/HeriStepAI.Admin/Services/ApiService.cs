@@ -24,6 +24,9 @@ public interface IApiService
     Task<DashboardAnalyticsDto?> GetDashboardAsync(DateTime? from = null, DateTime? to = null);
     Task<List<TopPOIDto>> GetTopPOIsAsync(int count = 10);
     Task<List<HeatmapPointDto>> GetHeatmapDataAsync(DateTime? from = null, DateTime? to = null);
+
+    // Generic
+    Task<T?> GetAsync<T>(string url) where T : class;
 }
 
 public class ApiService : IApiService
@@ -241,6 +244,18 @@ public class ApiService : IApiService
         catch
         {
             return new();
+        }
+    }
+
+    public async Task<T?> GetAsync<T>(string url) where T : class
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<T>($"api/{url}");
+        }
+        catch
+        {
+            return null;
         }
     }
 }

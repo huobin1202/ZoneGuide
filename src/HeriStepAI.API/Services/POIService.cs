@@ -123,9 +123,12 @@ public class POIService : IPOIService
             TriggerRadius = dto.TriggerRadiusMeters,
             Priority = dto.Priority,
             AudioUrl = dto.AudioUrl,
+            AudioDurationSeconds = dto.AudioDurationSeconds,
+            TTSScript = dto.TTSScript,
             ImageUrl = dto.ImageUrl,
             Category = dto.Category,
             MapDeepLink = dto.MapDeepLink,
+            Language = dto.Language ?? "vi-VN",
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
             IsActive = true
@@ -158,11 +161,50 @@ public class POIService : IPOIService
         }
         if (dto.Priority.HasValue) entity.Priority = dto.Priority.Value;
         if (dto.AudioUrl != null) entity.AudioUrl = dto.AudioUrl;
+        if (dto.AudioDurationSeconds.HasValue) entity.AudioDurationSeconds = dto.AudioDurationSeconds.Value;
+        if (dto.TTSScript != null) entity.TTSScript = dto.TTSScript;
         if (dto.ImageUrl != null) entity.ImageUrl = dto.ImageUrl;
         if (dto.Category != null) entity.Category = dto.Category;
         if (dto.MapDeepLink != null) entity.MapDeepLink = dto.MapDeepLink;
+        if (dto.Language != null) entity.Language = dto.Language;
         if (dto.IsActive.HasValue) entity.IsActive = dto.IsActive.Value;
         entity.UpdatedAt = DateTime.UtcNow;
+
+        // Cập nhật Translations nếu có
+        if (dto.Translations != null)
+        {
+            // Load existing translations
+            await _context.Entry(entity).Collection(e => e.Translations).LoadAsync();
+            
+            foreach (var transDto in dto.Translations)
+            {
+                var existing = entity.Translations.FirstOrDefault(t => t.LanguageCode == transDto.LanguageCode);
+                if (existing != null)
+                {
+                    existing.Name = transDto.Name;
+                    existing.ShortDescription = transDto.ShortDescription;
+                    existing.FullDescription = transDto.FullDescription;
+                    existing.TTSScript = transDto.TTSScript;
+                    existing.AudioUrl = transDto.AudioUrl;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    entity.Translations.Add(new POITranslationEntity
+                    {
+                        POIId = entity.Id,
+                        LanguageCode = transDto.LanguageCode,
+                        Name = transDto.Name,
+                        ShortDescription = transDto.ShortDescription,
+                        FullDescription = transDto.FullDescription,
+                        TTSScript = transDto.TTSScript,
+                        AudioUrl = transDto.AudioUrl,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    });
+                }
+            }
+        }
 
         await _context.SaveChangesAsync();
         return MapToDto(entity);

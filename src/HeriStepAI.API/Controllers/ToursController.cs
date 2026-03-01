@@ -9,11 +9,13 @@ namespace HeriStepAI.API.Controllers;
 public class ToursController : ControllerBase
 {
     private readonly ITourService _tourService;
+    private readonly IActivityLogService _activityLogService;
     private readonly ILogger<ToursController> _logger;
 
-    public ToursController(ITourService tourService, ILogger<ToursController> logger)
+    public ToursController(ITourService tourService, IActivityLogService activityLogService, ILogger<ToursController> logger)
     {
         _tourService = tourService;
+        _activityLogService = activityLogService;
         _logger = logger;
     }
 
@@ -88,6 +90,7 @@ public class ToursController : ControllerBase
         try
         {
             var tour = await _tourService.CreateAsync(dto);
+            await _activityLogService.LogAsync("Create", "Tour", tour.Id, tour.Name, $"Tạo Tour mới: {tour.Name}", null, "admin", "Admin");
             return CreatedAtAction(nameof(GetById), new { id = tour.Id }, tour);
         }
         catch (Exception ex)
@@ -110,6 +113,7 @@ public class ToursController : ControllerBase
             {
                 return NotFound($"Tour with ID '{id}' not found");
             }
+            await _activityLogService.LogAsync("Update", "Tour", id, tour.Name, $"Cập nhật Tour: {tour.Name}", null, "admin", "Admin");
             return Ok(tour);
         }
         catch (Exception ex)
@@ -132,6 +136,7 @@ public class ToursController : ControllerBase
             {
                 return NotFound($"Tour with ID '{id}' not found");
             }
+            await _activityLogService.LogAsync("Delete", "Tour", id, null, $"Xóa Tour ID: {id}", null, "admin", "Admin");
             return NoContent();
         }
         catch (Exception ex)

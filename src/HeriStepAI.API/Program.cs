@@ -88,6 +88,7 @@ builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<ISyncService, SyncService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPOIContributionService, POIContributionService>();
+builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
 
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(Program));

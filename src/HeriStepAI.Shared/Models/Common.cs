@@ -100,6 +100,7 @@ public class NarrationQueueItem
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public POI POI { get; set; } = null!;
     public string? AudioPath { get; set; }
+    public string? AudioUrl { get; set; }
     public string? TTSText { get; set; }
     public string Language { get; set; } = "vi-VN";
     public int Priority { get; set; }

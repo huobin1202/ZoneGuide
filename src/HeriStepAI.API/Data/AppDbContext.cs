@@ -22,6 +22,7 @@ public class AppDbContext : DbContext
     public DbSet<UserEntity> Users { get; set; }
     public DbSet<POIContributionEntity> POIContributions { get; set; }
     public DbSet<POIApprovalHistoryEntity> POIApprovalHistories { get; set; }
+    public DbSet<ActivityLogEntity> ActivityLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -121,6 +122,21 @@ public class AppDbContext : DbContext
                   .WithMany()
                   .HasForeignKey(e => e.ActionById)
                   .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Activity Log
+        modelBuilder.Entity<ActivityLogEntity>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.CreatedAt);
+            entity.HasIndex(e => e.EntityType);
+            entity.HasIndex(e => e.UserId);
+            entity.Property(e => e.Action).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.EntityType).IsRequired().HasMaxLength(50);
+            entity.HasOne(e => e.User)
+                  .WithMany()
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }
@@ -328,6 +344,23 @@ public class POIApprovalHistoryEntity
     
     public POIContributionEntity Contribution { get; set; } = null!;
     public UserEntity ActionBy { get; set; } = null!;
+}
+
+public class ActivityLogEntity
+{
+    public int Id { get; set; }
+    public string Action { get; set; } = string.Empty;
+    public string EntityType { get; set; } = string.Empty;
+    public string? EntityId { get; set; }
+    public string? EntityName { get; set; }
+    public string? Details { get; set; }
+    public int? UserId { get; set; }
+    public string UserEmail { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
+    public string? IpAddress { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public UserEntity? User { get; set; }
 }
 
 #endregion

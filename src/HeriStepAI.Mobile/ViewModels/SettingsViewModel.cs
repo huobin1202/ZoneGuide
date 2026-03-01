@@ -28,6 +28,12 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private GPSAccuracyLevel gpsAccuracy = GPSAccuracyLevel.Medium;
 
+    /// <summary>
+    /// Index cho Picker GPS Accuracy: 0=Low, 1=Medium, 2=High
+    /// </summary>
+    [ObservableProperty]
+    private int gpsAccuracyIndex = 1;
+
     [ObservableProperty]
     private double triggerRadius = 50;
 
@@ -102,6 +108,12 @@ public partial class SettingsViewModel : ObservableObject
         TtsSpeed = settings.TTSSpeed;
         Volume = settings.Volume;
         GpsAccuracy = settings.GPSAccuracy;
+        GpsAccuracyIndex = settings.GPSAccuracy switch
+        {
+            GPSAccuracyLevel.Low => 0,
+            GPSAccuracyLevel.High => 2,
+            _ => 1
+        };
         TriggerRadius = settings.DefaultTriggerRadius;
         ApproachRadius = settings.DefaultApproachRadius;
         CooldownSeconds = settings.DefaultCooldownSeconds;
@@ -224,6 +236,16 @@ public partial class SettingsViewModel : ObservableObject
     partial void OnPreferredLanguageChanged(string value)
     {
         _ = LoadVoicesAsync();
+    }
+
+    partial void OnGpsAccuracyIndexChanged(int value)
+    {
+        GpsAccuracy = value switch
+        {
+            0 => GPSAccuracyLevel.Low,
+            2 => GPSAccuracyLevel.High,
+            _ => GPSAccuracyLevel.Medium
+        };
     }
 
     partial void OnVolumeChanged(float value)

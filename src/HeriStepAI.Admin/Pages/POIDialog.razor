@@ -89,6 +89,92 @@
                               Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search"
                               OnKeyDown="SearchAddress" />
             </MudTabPanel>
+
+            <MudTabPanel Text="Thuyết minh" Icon="@Icons.Material.Filled.RecordVoiceOver">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Audiotrack" Size="Size.Small" Class="mr-1" />
+                    Audio & Text-to-Speech
+                </MudText>
+                <MudAlert Severity="Severity.Info" Class="mb-3" Dense="true">
+                    Nếu có URL audio, app sẽ phát file audio. Nếu không, app sẽ đọc TTSScript bằng Text-to-Speech.
+                </MudAlert>
+
+                <MudTextField @bind-Value="_model.AudioUrl" Label="URL Audio thuyết minh" Class="mb-3"
+                              Placeholder="https://example.com/audio/poi-name.mp3"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.AudioFile" />
+                
+                @if (!string.IsNullOrEmpty(_model.AudioUrl))
+                {
+                    <MudNumericField @bind-Value="_model.AudioDurationSeconds" 
+                                     Label="Thời lượng Audio (giây)" Class="mb-3" Min="0" />
+                    <MudPaper Class="pa-2 mb-3" Outlined="true">
+                        <audio controls style="width:100%">
+                            <source src="@_model.AudioUrl" />
+                        </audio>
+                    </MudPaper>
+                }
+
+                <MudDivider Class="my-3" />
+
+                <MudSelect @bind-Value="_model.Language" Label="Ngôn ngữ chính" Class="mb-3">
+                    <MudSelectItem Value="@("vi-VN")">🇻🇳 Tiếng Việt</MudSelectItem>
+                    <MudSelectItem Value="@("en-US")">🇺🇸 English</MudSelectItem>
+                    <MudSelectItem Value="@("ja-JP")">🇯🇵 日本語</MudSelectItem>
+                    <MudSelectItem Value="@("ko-KR")">🇰🇷 한국어</MudSelectItem>
+                    <MudSelectItem Value="@("zh-CN")">🇨🇳 中文</MudSelectItem>
+                </MudSelect>
+
+                <MudTextField @bind-Value="_model.TTSScript" Label="Script TTS (Text-to-Speech)" 
+                              Lines="6" Class="mb-3"
+                              Placeholder="Nhập nội dung thuyết minh sẽ được đọc tự động khi người dùng đến gần..."
+                              HelperText="Nội dung này sẽ được đọc bằng giọng nói tự động nếu không có file audio" />
+            </MudTabPanel>
+
+            <MudTabPanel Text="Bản dịch" Icon="@Icons.Material.Filled.Translate">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Language" Size="Size.Small" Class="mr-1" />
+                    Nội dung đa ngôn ngữ
+                </MudText>
+                <MudAlert Severity="Severity.Info" Class="mb-3" Dense="true">
+                    Thêm bản dịch cho mỗi ngôn ngữ. App sẽ tự chọn bản dịch phù hợp với ngôn ngữ người dùng.
+                </MudAlert>
+
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Add" OnClick="AddTranslation" Class="mb-3">
+                    Thêm bản dịch
+                </MudButton>
+
+                @foreach (var trans in _model.Translations)
+                {
+                    <MudPaper Class="pa-3 mb-3" Outlined="true">
+                        <MudGrid>
+                            <MudItem xs="10">
+                                <MudSelect @bind-Value="trans.LanguageCode" Label="Ngôn ngữ" Dense="true">
+                                    <MudSelectItem Value="@("en-US")">🇺🇸 English</MudSelectItem>
+                                    <MudSelectItem Value="@("ja-JP")">🇯🇵 日本語</MudSelectItem>
+                                    <MudSelectItem Value="@("ko-KR")">🇰🇷 한국어</MudSelectItem>
+                                    <MudSelectItem Value="@("zh-CN")">🇨🇳 中文</MudSelectItem>
+                                    <MudSelectItem Value="@("fr-FR")">🇫🇷 Français</MudSelectItem>
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="2" Class="d-flex align-center justify-end">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                               OnClick="@(() => RemoveTranslation(trans))" />
+                            </MudItem>
+                        </MudGrid>
+                        <MudTextField @bind-Value="trans.Name" Label="Tên (dịch)" Class="mt-2" Dense="true" />
+                        <MudTextField @bind-Value="trans.ShortDescription" Label="Mô tả ngắn (dịch)" 
+                                      Class="mt-2" Dense="true" Lines="2" />
+                        <MudTextField @bind-Value="trans.FullDescription" Label="Mô tả chi tiết (dịch)" 
+                                      Class="mt-2" Dense="true" Lines="2" />
+                        <MudTextField @bind-Value="trans.TTSScript" Label="TTS Script (dịch)" 
+                                      Class="mt-2" Dense="true" Lines="3"
+                                      Placeholder="Nội dung thuyết minh bằng ngôn ngữ này..." />
+                        <MudTextField @bind-Value="trans.AudioUrl" Label="URL Audio (dịch)" 
+                                      Class="mt-2" Dense="true" />
+                    </MudPaper>
+                }
+            </MudTabPanel>
         </MudTabs>
     </DialogContent>
     <DialogActions>
@@ -135,8 +221,21 @@
                 ImageUrl = POI.ImageUrl,
                 AudioUrl = POI.AudioUrl,
                 AudioDurationSeconds = POI.AudioDurationSeconds ?? 0,
+                TTSScript = POI.TTSScript,
+                Language = POI.Language ?? "vi-VN",
                 MapDeepLink = POI.MapDeepLink,
-                IsActive = POI.IsActive
+                IsActive = POI.IsActive,
+                Translations = POI.Translations?.Select(t => new POITranslationDto
+                {
+                    Id = t.Id,
+                    POIId = t.POIId,
+                    LanguageCode = t.LanguageCode,
+                    Name = t.Name,
+                    ShortDescription = t.ShortDescription,
+                    FullDescription = t.FullDescription,
+                    TTSScript = t.TTSScript,
+                    AudioUrl = t.AudioUrl
+                }).ToList() ?? new()
             };
         }
         
@@ -236,8 +335,11 @@
                     ImageUrl = _model.ImageUrl,
                     AudioUrl = _model.AudioUrl,
                     AudioDurationSeconds = _model.AudioDurationSeconds,
+                    TTSScript = _model.TTSScript,
+                    Language = _model.Language,
                     MapDeepLink = _model.MapDeepLink,
-                    IsActive = _model.IsActive
+                    IsActive = _model.IsActive,
+                    Translations = _model.Translations
                 };
                 
                 var result = await ApiService.UpdatePOIAsync(POI.Id, updateDto);
@@ -261,6 +363,8 @@
                     ImageUrl = _model.ImageUrl,
                     AudioUrl = _model.AudioUrl,
                     AudioDurationSeconds = _model.AudioDurationSeconds,
+                    TTSScript = _model.TTSScript,
+                    Language = _model.Language,
                     MapDeepLink = _model.MapDeepLink
                 };
 
@@ -275,6 +379,22 @@
         {
             _saving = false;
         }
+    }
+
+    private void AddTranslation()
+    {
+        _model.Translations.Add(new POITranslationDto
+        {
+            LanguageCode = "en-US",
+            Name = _model.Name ?? "",
+            ShortDescription = "",
+            FullDescription = ""
+        });
+    }
+
+    private void RemoveTranslation(POITranslationDto trans)
+    {
+        _model.Translations.Remove(trans);
     }
 
     public void Dispose()
@@ -295,7 +415,10 @@
         public string? ImageUrl { get; set; }
         public string? AudioUrl { get; set; }
         public int AudioDurationSeconds { get; set; }
+        public string? TTSScript { get; set; }
+        public string Language { get; set; } = "vi-VN";
         public string? MapDeepLink { get; set; }
         public bool IsActive { get; set; } = true;
+        public List<POITranslationDto> Translations { get; set; } = new();
     }
 }

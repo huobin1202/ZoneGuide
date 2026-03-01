@@ -207,6 +207,17 @@ public class NarrationService : INarrationService, IDisposable
                             await Task.Delay(100);
                         }
                     }
+                    else if (!string.IsNullOrEmpty(item.AudioUrl))
+                    {
+                        // Phát audio từ URL online
+                        await _audioService.PlayFromUrlAsync(item.AudioUrl);
+                        
+                        // Chờ phát xong
+                        while (_audioService.IsPlaying && !_cancellationTokenSource.Token.IsCancellationRequested)
+                        {
+                            await Task.Delay(100);
+                        }
+                    }
                     else if (!string.IsNullOrEmpty(item.TTSText))
                     {
                         // Dùng TTS

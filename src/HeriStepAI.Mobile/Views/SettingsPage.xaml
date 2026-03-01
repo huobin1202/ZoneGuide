@@ -75,14 +75,16 @@
                     <!-- GPS Accuracy -->
                     <Grid RowDefinitions="Auto, Auto" RowSpacing="4">
                         <Label Grid.Row="0" Text="Độ chính xác GPS" FontSize="14" />
-                        <HorizontalStackLayout Grid.Row="1" Spacing="8">
-                            <RadioButton Content="Thấp" 
-                                         IsChecked="{Binding GpsAccuracy, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Low}" />
-                            <RadioButton Content="Trung bình"
-                                         IsChecked="{Binding GpsAccuracy, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Medium}" />
-                            <RadioButton Content="Cao"
-                                         IsChecked="{Binding GpsAccuracy, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=High}" />
-                        </HorizontalStackLayout>
+                        <Picker Grid.Row="1"
+                                SelectedIndex="{Binding GpsAccuracyIndex}">
+                            <Picker.ItemsSource>
+                                <x:Array Type="{x:Type x:String}">
+                                    <x:String>Thấp (tiết kiệm pin)</x:String>
+                                    <x:String>Trung bình</x:String>
+                                    <x:String>Cao (chính xác nhất)</x:String>
+                                </x:Array>
+                            </Picker.ItemsSource>
+                        </Picker>
                     </Grid>
 
                     <!-- Trigger Radius -->

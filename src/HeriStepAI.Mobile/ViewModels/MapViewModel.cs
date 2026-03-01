@@ -182,6 +182,8 @@ public partial class MapViewModel : ObservableObject
         var item = new NarrationQueueItem
         {
             POI = SelectedPOI,
+            AudioPath = SelectedPOI.AudioFilePath,
+            AudioUrl = SelectedPOI.AudioUrl,
             TTSText = SelectedPOI.TTSScript ?? SelectedPOI.FullDescription,
             Language = SelectedPOI.Language,
             Priority = SelectedPOI.Priority,
