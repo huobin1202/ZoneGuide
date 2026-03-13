@@ -36,6 +36,11 @@ public partial class MapViewModel : ObservableObject
     [ObservableProperty]
     private string? errorMessage;
 
+    [ObservableProperty]
+    private string? searchQuery;
+
+    private List<POI> _allPOIs = new();
+
     public ObservableCollection<POI> POIs { get; } = new();
     public ObservableCollection<Pin> MapPins { get; } = new();
 
@@ -121,28 +126,59 @@ public partial class MapViewModel : ObservableObject
         try
         {
             var pois = await _poiRepository.GetActiveAsync();
-            
-            POIs.Clear();
-            MapPins.Clear();
-
-            foreach (var poi in pois)
-            {
-                POIs.Add(poi);
-                
-                var pin = new Pin
-                {
-                    Label = poi.Name,
-                    Address = poi.ShortDescription,
-                    Location = new Location(poi.Latitude, poi.Longitude),
-                    Type = PinType.Place
-                };
-                
-                MapPins.Add(pin);
-            }
+            _allPOIs = pois;
+            PopulatePins(_allPOIs);
         }
         catch (Exception ex)
         {
             ErrorMessage = ex.Message;
+        }
+    }
+
+    private void PopulatePins(List<POI> pois)
+    {
+        POIs.Clear();
+        MapPins.Clear();
+
+        foreach (var poi in pois)
+        {
+            POIs.Add(poi);
+            
+            var pin = new Pin
+            {
+                Label = poi.Name,
+                Address = poi.ShortDescription,
+                Location = new Location(poi.Latitude, poi.Longitude),
+                Type = PinType.Place
+            };
+            
+            MapPins.Add(pin);
+        }
+    }
+
+    [RelayCommand]
+    private void PerformSearch()
+    {
+        if (string.IsNullOrWhiteSpace(SearchQuery))
+        {
+            PopulatePins(_allPOIs);
+            return;
+        }
+
+        var query = SearchQuery.ToLowerInvariant();
+        var results = _allPOIs.Where(p => 
+            p.Name.ToLowerInvariant().Contains(query) || 
+            (p.ShortDescription != null && p.ShortDescription.ToLowerInvariant().Contains(query)))
+            .ToList();
+
+        PopulatePins(results);
+
+        if (results.Count > 0)
+        {
+            SelectedPOI = results.First();
+            MapSpan = MapSpan.FromCenterAndRadius(
+                new Location(SelectedPOI.Latitude, SelectedPOI.Longitude), 
+                Distance.FromKilometers(1)); // Zoom out a bit to show searched area
         }
     }
 

@@ -139,15 +139,15 @@
                 // Redirect based on role
                 if (result.User?.Role == "Admin")
                 {
-                    Navigation.NavigateTo("/", forceLoad: true);
+                    Navigation.NavigateTo("/");
                 }
                 else if (result.User?.Role == "Contributor")
                 {
-                    Navigation.NavigateTo("/my-contributions", forceLoad: true);
+                    Navigation.NavigateTo("/my-contributions");
                 }
                 else
                 {
-                    Navigation.NavigateTo("/", forceLoad: true);
+                    Navigation.NavigateTo("/");
                 }
             }
             else

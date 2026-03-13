@@ -151,13 +151,22 @@ public partial class TourDetailViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task ToggleOfflineAsync()
+    {
+        if (IsOfflineAvailable)
+            await DeleteOfflineAsync();
+        else
+            await DownloadOfflineAsync();
+    }
+
+    [RelayCommand]
     private async Task DownloadOfflineAsync()
     {
         if (IsDownloading)
             return;
 
         IsDownloading = true;
-        downloadProgress = 0;
+        DownloadProgress = 0;
 
         try
         {
