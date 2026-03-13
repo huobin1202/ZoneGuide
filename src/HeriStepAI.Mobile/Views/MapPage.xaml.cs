@@ -15,6 +15,14 @@ public partial class MapPage : ContentPage
             InitializeComponent();
             _viewModel = viewModel;
             BindingContext = viewModel;
+            
+            _viewModel.POIs.CollectionChanged += (s, e) => UpdateMapPins();
+            _viewModel.PropertyChanged += (s, e) => {
+                if (e.PropertyName == nameof(MapViewModel.MapSpan))
+                {
+                    UpdateMapRegion();
+                }
+            };
         }
         catch (Exception ex)
         {

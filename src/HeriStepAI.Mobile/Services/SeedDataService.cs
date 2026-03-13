@@ -11,7 +11,8 @@ public static class SeedDataService
 {
     public static async Task SeedIfEmptyAsync(IPOIRepository poiRepository, ITourRepository tourRepository)
     {
-        var existingPOIs = await poiRepository.GetAllAsync();
+        await Task.CompletedTask;//nếu cần seed data thì xóa cái này đi, còn không thì để nguyên cho nhanh
+        /*var existingPOIs = await poiRepository.GetAllAsync();
         if (existingPOIs.Count > 0)
             return; // Đã có dữ liệu, không seed
 
@@ -262,5 +263,6 @@ public static class SeedDataService
 
         var totalPOIs = hcmPOIs.Count + huePOIs.Count;
         System.Diagnostics.Debug.WriteLine($"[SeedData] Đã thêm {totalPOIs} điểm thuyết minh và 2 tour");
+        */
     }
 }

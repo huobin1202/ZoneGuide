@@ -160,6 +160,6 @@
         await LocalStorage.RemoveItemAsync("user");
         _currentUser = null;
         Snackbar.Add("Đã đăng xuất", Severity.Info);
-        Navigation.NavigateTo("/login", forceLoad: true);
+        Navigation.NavigateTo("/login");
     }
 }

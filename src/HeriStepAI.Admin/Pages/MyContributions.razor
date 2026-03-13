@@ -397,7 +397,7 @@
         await LocalStorage.RemoveItemAsync("accessToken");
         await LocalStorage.RemoveItemAsync("refreshToken");
         await LocalStorage.RemoveItemAsync("user");
-        Navigation.NavigateTo("/login", forceLoad: true);
+        Navigation.NavigateTo("/login");
     }
     
     private Color GetStatusColor(string status) => status switch

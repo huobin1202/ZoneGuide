@@ -16,6 +16,19 @@
                   MapType="Street">
         </maps:Map>
 
+        <!-- Search Bar Overlay -->
+        <Frame Grid.Row="0"
+               Margin="16,16,16,0"
+               Padding="0"
+               CornerRadius="8"
+               VerticalOptions="Start"
+               BackgroundColor="White"
+               HasShadow="True">
+            <SearchBar Placeholder="Tìm kiếm địa điểm..."
+                       Text="{Binding SearchQuery}"
+                       SearchCommand="{Binding PerformSearchCommand}" />
+        </Frame>
+
         <!-- Floating buttons -->
         <VerticalStackLayout Grid.Row="0"
                              HorizontalOptions="End"

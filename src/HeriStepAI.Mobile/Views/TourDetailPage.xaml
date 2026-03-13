@@ -85,7 +85,7 @@
                             TextColor="{StaticResource Primary}"
                             HeightRequest="36"
                             CornerRadius="18"
-                            Command="{Binding IsOfflineAvailable, Converter={StaticResource OfflineCommandConverter}}" />
+                            Command="{Binding ToggleOfflineCommand}" />
                 </HorizontalStackLayout>
             </Frame>
 
