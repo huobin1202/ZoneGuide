@@ -69,14 +69,12 @@ public class POIContribution
     /// <summary>
     /// Vĩ độ
     /// </summary>
-    public double Latitude { get; set; }
-    
+    public double? Latitude { get; set; }
+
     /// <summary>
     /// Kinh độ
     /// </summary>
-    public double Longitude { get; set; }
-    
-    /// <summary>
+    public double? Longitude { get; set; }    /// <summary>
     /// Bán kính kích hoạt (mét)
     /// </summary>
     public double TriggerRadius { get; set; } = 50;
@@ -211,8 +209,8 @@ public class CreatePOIContributionDto
     public string Name { get; set; } = string.Empty;
     public string? ShortDescription { get; set; }
     public string? FullDescription { get; set; }
-    public double Latitude { get; set; }
-    public double Longitude { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
     public double TriggerRadius { get; set; } = 50;
     public double ApproachRadius { get; set; } = 100;
     public int Priority { get; set; } = 5;
@@ -259,8 +257,8 @@ public class POIContributionDto
     public string Name { get; set; } = string.Empty;
     public string? ShortDescription { get; set; }
     public string? FullDescription { get; set; }
-    public double Latitude { get; set; }
-    public double Longitude { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
     public double TriggerRadius { get; set; }
     public double ApproachRadius { get; set; }
     public int Priority { get; set; }

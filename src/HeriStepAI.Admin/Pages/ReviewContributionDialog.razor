@@ -16,7 +16,7 @@
                 <MudDivider Class="my-2" />
                 <MudText><strong>Tên:</strong> @Contribution.Name</MudText>
                 <MudText><strong>Mô tả ngắn:</strong> @(Contribution.ShortDescription ?? "-")</MudText>
-                <MudText><strong>Vị trí:</strong> @Contribution.Latitude.ToString("F6"), @Contribution.Longitude.ToString("F6")</MudText>
+                <MudText><strong>Vị trí:</strong> @(Contribution.Latitude?.ToString("F6") ?? "0"), @(Contribution.Longitude?.ToString("F6") ?? "0")</MudText>
                 <MudText><strong>Bán kính kích hoạt:</strong> @Contribution.TriggerRadius m</MudText>
                 <MudText><strong>Danh mục:</strong> @(Contribution.Category ?? "-")</MudText>
             </MudItem>

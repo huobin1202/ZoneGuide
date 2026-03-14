@@ -20,6 +20,30 @@ public class POIsController : ControllerBase
     }
 
     /// <summary>
+    /// Get all POIs (Admin endpoint to get both active and inactive)
+    /// </summary>
+    [HttpGet("all")]
+    public async Task<ActionResult<List<POIDto>>> GetAllAdmin([FromQuery] string? category = null)
+    {
+        try
+        {
+            var pois = await _poiService.GetAllAsync(includeInactive: true);
+
+            if (!string.IsNullOrEmpty(category))
+            {
+                pois = pois.Where(p => p.Category == category).ToList();
+            }
+
+            return Ok(pois);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting admin POIs");
+            return StatusCode(500, "An error occurred while retrieving POIs");
+        }
+    }
+
+    /// <summary>
     /// Get all active POIs
     /// </summary>
     [HttpGet]

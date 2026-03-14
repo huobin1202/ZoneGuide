@@ -6,7 +6,7 @@ namespace HeriStepAI.API.Services;
 
 public interface IPOIService
 {
-    Task<List<POIDto>> GetAllAsync();
+    Task<List<POIDto>> GetAllAsync(bool includeInactive = false);
     Task<POIDto?> GetByIdAsync(string id);
     Task<List<POIDto>> GetByTourIdAsync(string tourId);
     Task<List<POIDto>> SearchAsync(string keyword);
@@ -16,25 +16,30 @@ public interface IPOIService
     Task<bool> DeleteAsync(string id);
 }
 
-public class POIService : IPOIService
-{
-    private readonly AppDbContext _context;
-
-    public POIService(AppDbContext context)
+    public class POIService : IPOIService
     {
-        _context = context;
-    }
+        private readonly AppDbContext _context;
 
-    public async Task<List<POIDto>> GetAllAsync()
-    {
-        var entities = await _context.POIs
-            .Include(p => p.Translations)
-            .Where(p => p.IsActive)
-            .OrderBy(p => p.Name)
-            .ToListAsync();
+        public POIService(AppDbContext context)
+        {
+            _context = context;
+        }
 
-        return entities.Select(MapToDto).ToList();
-    }
+        public async Task<List<POIDto>> GetAllAsync(bool includeInactive = false)
+        {
+            var query = _context.POIs
+                .Include(p => p.Translations)
+                .AsQueryable();
+
+            if (!includeInactive)
+            {
+                query = query.Where(p => p.IsActive);
+            }
+
+            var entities = await query.OrderBy(p => p.Name).ToListAsync();
+
+            return entities.Select(MapToDto).ToList();
+        }
 
     public async Task<POIDto?> GetByIdAsync(string id)
     {

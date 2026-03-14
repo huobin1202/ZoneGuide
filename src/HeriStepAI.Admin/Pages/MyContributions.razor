@@ -121,7 +121,7 @@
                             </MudTd>
                             <MudTd DataLabel="Vị trí">
                                 <MudLink Href="@($"https://maps.google.com/?q={context.Latitude},{context.Longitude}")" Target="_blank">
-                                    @context.Latitude.ToString("F4"), @context.Longitude.ToString("F4")
+                                    @(context.Latitude?.ToString("F4") ?? "0"), @(context.Longitude?.ToString("F4") ?? "0")
                                 </MudLink>
                             </MudTd>
                             <MudTd DataLabel="Trạng thái">

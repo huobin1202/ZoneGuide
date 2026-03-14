@@ -15,6 +15,15 @@
     </MudText>
     
     <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+        <MudTabPanel Text="Tất cả">
+                <ContributionTable 
+                    Contributions="@allContributions" 
+                    IsLoading="@isLoading"
+                    OnReview="OnReviewContribution"
+                    OnViewHistory="OnViewHistory"
+                    ShowReviewActions="true" />
+            </MudTabPanel>
+            
         <MudTabPanel Text="Chờ duyệt" BadgeData="@pendingCount" BadgeColor="Color.Warning">
             <ContributionTable 
                 Contributions="@pendingContributions" 
@@ -48,14 +57,7 @@
                 ShowReviewActions="false" />
         </MudTabPanel>
         
-        <MudTabPanel Text="Tất cả">
-            <ContributionTable 
-                Contributions="@allContributions" 
-                IsLoading="@isLoading"
-                OnReview="OnReviewContribution"
-                OnViewHistory="OnViewHistory"
-                ShowReviewActions="true" />
-        </MudTabPanel>
+       
     </MudTabs>
 </MudContainer>
 

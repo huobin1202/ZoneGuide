@@ -8,7 +8,7 @@
 <MudDialog Style="max-width: 900px;">
     <TitleContent>
         <MudText Typo="Typo.h6">
-            <MudIcon Icon="@(IsEdit ? Icons.Material.Filled.Edit : Icons.Material.Filled.Add)" Class="mr-2" />
+            <MudIcon Icon="@(IsEdit? Icons.Material.Filled.Edit : Icons.Material.Filled.Add)" Class="mr-2" />
             @(IsEdit ? "Sửa POI" : "Thêm POI mới")
         </MudText>
     </TitleContent>
@@ -16,145 +16,88 @@
         <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-3">
             <MudTabPanel Text="Thông tin" Icon="@Icons.Material.Filled.Info">
                 <MudForm @ref="_form" @bind-IsValid="@_isValid">
-                    <!-- Basic Info -->
-                    <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">
-                        <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />
-                        Thông tin cơ bản
+                    <MudTextField @bind-Value="_model.Name" Label="Tên POI" Required="true"
+                        RequiredError="Tên là bắt buộc" Class="mb-3" />
+
+                    <MudTextField @bind-Value="_model.ShortDescription" Label="Mô tả ngắn" Lines="2" Class="mb-3" />
+
+                    <MudTextField @bind-Value="_model.FullDescription" Label="Mô tả chi tiết" Lines="3" Class="mb-3" />
+
+
+
+                    <MudText Typo="Typo.subtitle2" Class="mb-2 mt-3">
+                        <MudIcon Icon="@Icons.Material.Filled.Map" Size="Size.Small" Class="mr-1" />
+                        Trực quan trên bản đồ
                     </MudText>
-                    
-                    <MudTextField @bind-Value="_model.Name" 
-                                  Label="Tên địa điểm" 
-                                  Required="true"
-                                  RequiredError="Vui lòng nhập tên địa điểm"
-                                  Counter="200"
-                                  MaxLength="200"
-                                  Class="mb-3" />
-                    
+
+                    <MudText Typo="Typo.body2" Class="mb-2" Color="Color.Primary">
+                        <MudIcon Icon="@Icons.Material.Filled.TouchApp" Size="Size.Small" />
+                        Click vào bản đồ để chọn vị trí. Kéo marker để điều chỉnh.
+                    </MudText>
+
+                    <MudPaper Elevation="2" Class="mb-3" Style="height: 350px; position: relative;">
+                        <div id="poi-picker-map" style="width: 100%; height: 100%; border-radius: 4px;"></div>
+                    </MudPaper>
+
                     <MudGrid>
-                        <MudItem xs="12" md="6">
-                            <MudSelect @bind-Value="_model.Category" 
-                                       Label="Danh mục" 
-                                       AnchorOrigin="Origin.BottomCenter">
-                                <MudSelectItem T="string" Value="@("Di tích lịch sử")">Di tích lịch sử</MudSelectItem>
-                                <MudSelectItem T="string" Value="@("Bảo tàng")">Bảo tàng</MudSelectItem>
-                                <MudSelectItem T="string" Value="@("Đền chùa")">Đền chùa</MudSelectItem>
-                                <MudSelectItem T="string" Value="@("Công trình kiến trúc")">Công trình kiến trúc</MudSelectItem>
-                                <MudSelectItem T="string" Value="@("Danh lam thắng cảnh")">Danh lam thắng cảnh</MudSelectItem>
-                                <MudSelectItem T="string" Value="@("Làng nghề")">Làng nghề</MudSelectItem>
-                                <MudSelectItem T="string" Value="@("Ẩm thực")">Ẩm thực</MudSelectItem>
-                                <MudSelectItem T="string" Value="@("Khác")">Khác</MudSelectItem>
-                            </MudSelect>
+                        <MudItem xs="5">
+                            <MudTextField @bind-Value="_model.Latitude" Label="Vĩ độ" ReadOnly="true" Required="true"
+                                Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.NorthEast" />
                         </MudItem>
-                        
-                        <MudItem xs="12" md="6">
-                            <MudSelect @bind-Value="_model.Language" 
-                                       Label="Ngôn ngữ" 
-                                       AnchorOrigin="Origin.BottomCenter">
-                                <MudSelectItem T="string" Value="@("vi-VN")">Tiếng Việt</MudSelectItem>
-                                <MudSelectItem T="string" Value="@("en-US")">English</MudSelectItem>
-                                <MudSelectItem T="string" Value="@("ja-JP")">日本語</MudSelectItem>
-                                <MudSelectItem T="string" Value="@("ko-KR")">한국어</MudSelectItem>
-                                <MudSelectItem T="string" Value="@("zh-CN")">中文</MudSelectItem>
-                            </MudSelect>
+                        <MudItem xs="5">
+                            <MudTextField @bind-Value="_model.Longitude" Label="Kinh độ" ReadOnly="true" Required="true"
+                                Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.East" />
+                        </MudItem>
+                        <MudItem xs="2" Class="d-flex align-center">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
+                                OnClick="UseCurrentLocation" StartIcon="@Icons.Material.Filled.MyLocation">
+                                GPS
+                            </MudButton>
                         </MudItem>
                     </MudGrid>
-                    
-                    <MudTextField @bind-Value="_model.ShortDescription" 
-                                  Label="Mô tả ngắn" 
-                                  Lines="2"
-                                  Counter="500"
-                                  MaxLength="500"
-                                  Class="mt-3 mb-3" />
-                    
-                    <MudTextField @bind-Value="_model.FullDescription" 
-                                  Label="Mô tả chi tiết" 
-                                  Lines="4"
-                                  HelperText="Mô tả đầy đủ về địa điểm"
-                                  Class="mb-3" />
-                    
-                    <!-- Location -->
-                    <MudDivider Class="my-3" />
-                    <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">
-                        <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Class="mr-1" />
-                        Vị trí (Click tab "Chọn trên Map" để chọn nhanh)
-                    </MudText>
-                    
-                    <MudGrid>
-                        <MudItem xs="6">
-                            <MudNumericField @bind-Value="_model.Latitude" 
-                                             Label="Vĩ độ (Latitude)" 
-                                             Required="true"
-                                             RequiredError="Vui lòng nhập vĩ độ"
-                                             Format="F6"
-                                             Step="0.000001"
-                                             Min="-90" Max="90" />
-                        </MudItem>
-                        <MudItem xs="6">
-                            <MudNumericField @bind-Value="_model.Longitude" 
-                                             Label="Kinh độ (Longitude)" 
-                                             Required="true"
-                                             RequiredError="Vui lòng nhập kinh độ"
-                                             Format="F6"
-                                             Step="0.000001"
-                                             Min="-180" Max="180" />
-                        </MudItem>
-                    </MudGrid>
-                    
+
+                    <MudTextField @bind-Value="_searchAddress" Label="Tìm địa chỉ" Class="mt-3"
+                        Placeholder="Nhập địa chỉ và nhấn Enter..." Adornment="Adornment.End"
+                        AdornmentIcon="@Icons.Material.Filled.Search" OnKeyDown="SearchAddress" />
+
                     <MudGrid Class="mt-3">
                         <MudItem xs="6">
-                            <MudNumericField @bind-Value="_model.TriggerRadius" 
-                                             Label="Bán kính kích hoạt (m)" 
-                                             Min="10" Max="500"
-                                             HelperText="Khoảng cách để tự động phát audio" />
+                            <MudNumericField @bind-Value="_model.TriggerRadius" Label="Bán kính kích hoạt (m)"
+                                Min="20" Max="150" />
                         </MudItem>
                         <MudItem xs="6">
-                            <MudNumericField @bind-Value="_model.ApproachRadius" 
-                                             Label="Bán kính tiếp cận (m)" 
-                                             Min="50" Max="1000"
-                                             HelperText="Khoảng cách để hiện thông báo" />
+                            <MudNumericField @bind-Value="_model.Priority" Label="Độ ưu tiên" Min="1" Max="5" />
                         </MudItem>
                     </MudGrid>
-                    
-                    <!-- Media -->
-                    <MudDivider Class="my-3" />
-                    <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">
-                        <MudIcon Icon="@Icons.Material.Filled.Image" Size="Size.Small" Class="mr-1" />
-                        Media (không bắt buộc)
-                    </MudText>
-                    
-                    <MudTextField @bind-Value="_model.ImageUrl" 
-                                  Label="URL hình ảnh" 
-                                  Placeholder="https://example.com/image.jpg"
-                                  Class="mb-3" />
-                
-                    <MudTextField @bind-Value="_model.AudioUrl" 
-                                  Label="URL audio thuyết minh" 
-                                  Placeholder="https://example.com/audio.mp3"
-                                  Class="mb-3" />
-                    
-                    <MudTextField @bind-Value="_model.TTSScript" 
-                                  Label="Nội dung TTS (Text-to-Speech)" 
-                                  Lines="3"
-                                  HelperText="Nếu không có audio, hệ thống sẽ dùng nội dung này để tạo giọng đọc tự động"
-                                  Class="mb-3" />
-                    
-                    <MudTextField @bind-Value="_model.MapLink" 
-                                  Label="Link Google Maps" 
-                                  Placeholder="https://goo.gl/maps/..."
-                                  Class="mb-3" />
-                    
-                    <!-- Notes -->
+
+                    <MudTextField @bind-Value="_model.Category" Label="Danh mục" Class="mt-3"
+                        Placeholder="VD: Di tích, Bảo tàng, Công viên..." />
+
+                    <MudFileUpload T="IBrowserFile" Accept=".png, .jpg, .jpeg" FilesChanged="UploadImage" Class="mt-3">
+                        <ActivatorContent>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                StartIcon="@Icons.Material.Filled.CloudUpload">
+                                Tải lên hình ảnh
+                            </MudButton>
+                        </ActivatorContent>
+                    </MudFileUpload>
+
+                    @if (!string.IsNullOrEmpty(_model.ImageUrl))
+                    {
+                        <div class="mt-2">
+                            <img src="@_model.ImageUrl" style="max-height: 150px; border-radius: 4px;" />
+                        </div>
+                    }
+
                     <MudDivider Class="my-3" />
                     <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">
                         <MudIcon Icon="@Icons.Material.Filled.Note" Size="Size.Small" Class="mr-1" />
                         Ghi chú cho Admin
                     </MudText>
-                    
-                    <MudTextField @bind-Value="_model.ContributorNotes" 
-                                  Label="Ghi chú" 
-                                  Lines="2"
-                                  HelperText="Ghi chú thêm cho Admin khi duyệt (nguồn tham khảo, lý do đề xuất...)" />
-                    
+
+                    <MudTextField @bind-Value="_model.ContributorNotes" Label="Ghi chú" Lines="2"
+                        HelperText="Ghi chú thêm cho Admin khi duyệt (nguồn tham khảo, lý do đề xuất...)" />
+
                     @if (IsEdit && !string.IsNullOrEmpty(Contribution?.ReviewerFeedback))
                     {
                         <MudAlert Severity="Severity.Warning" Icon="@Icons.Material.Filled.Feedback" Class="mt-3">
@@ -164,47 +107,44 @@
                     }
                 </MudForm>
             </MudTabPanel>
-            
+
             <MudTabPanel Text="Chọn trên Map" Icon="@Icons.Material.Filled.Map" OnClick="InitPickerMap">
                 <MudText Typo="Typo.body2" Class="mb-2" Color="Color.Primary">
                     <MudIcon Icon="@Icons.Material.Filled.TouchApp" Size="Size.Small" />
                     Click vào bản đồ để chọn vị trí. Kéo marker để điều chỉnh.
                 </MudText>
-                
+
                 <MudPaper Elevation="2" Class="mb-3" Style="height: 350px; position: relative;">
                     <div id="contributor-poi-picker-map" style="width: 100%; height: 100%; border-radius: 4px;"></div>
                 </MudPaper>
-                
+
                 <MudGrid>
                     <MudItem xs="5">
-                        <MudTextField @bind-Value="_model.Latitude" Label="Vĩ độ" ReadOnly="true" 
-                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.NorthEast" />
+                        <MudTextField @bind-Value="_model.Latitude" Label="Vĩ độ" ReadOnly="true"
+                            Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.NorthEast" />
                     </MudItem>
                     <MudItem xs="5">
                         <MudTextField @bind-Value="_model.Longitude" Label="Kinh độ" ReadOnly="true"
-                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.East" />
+                            Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.East" />
                     </MudItem>
                     <MudItem xs="2" Class="d-flex align-center">
                         <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
-                                   OnClick="UseCurrentLocation" StartIcon="@Icons.Material.Filled.MyLocation">
+                            OnClick="UseCurrentLocation" StartIcon="@Icons.Material.Filled.MyLocation">
                             GPS
                         </MudButton>
                     </MudItem>
                 </MudGrid>
 
                 <MudTextField @bind-Value="_searchAddress" Label="Tìm địa chỉ" Class="mt-3"
-                              Placeholder="Nhập địa chỉ và nhấn Enter..."
-                              Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search"
-                              OnKeyDown="SearchAddress" />
+                    Placeholder="Nhập địa chỉ và nhấn Enter..." Adornment="Adornment.End"
+                    AdornmentIcon="@Icons.Material.Filled.Search" OnKeyDown="SearchAddress" />
             </MudTabPanel>
         </MudTabs>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel">Hủy</MudButton>
-        <MudButton Color="Color.Primary" 
-                   Variant="Variant.Filled" 
-                   OnClick="SaveAsDraft"
-                   Disabled="@(!_isValid || _isSaving)">
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveAsDraft"
+            Disabled="@(!_isValid || _isSaving)">
             @if (_isSaving)
             {
                 <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
@@ -212,10 +152,8 @@
             <MudIcon Icon="@Icons.Material.Filled.Save" Class="mr-1" />
             Lưu nháp
         </MudButton>
-        <MudButton Color="Color.Success" 
-                   Variant="Variant.Filled" 
-                   OnClick="SaveAndSubmit"
-                   Disabled="@(!_isValid || _isSaving)">
+        <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="SaveAndSubmit"
+            Disabled="@(!_isValid || _isSaving)">
             @if (_isSaving)
             {
                 <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
@@ -228,18 +166,18 @@
 
 @code {
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
-    
+
     [Parameter] public POIContributionDto? Contribution { get; set; }
     [Parameter] public bool IsEdit { get; set; }
-    
+
     private MudForm _form = null!;
     private bool _isValid;
     private bool _isSaving;
     private bool _mapInitialized = false;
     private string _searchAddress = "";
-    
+
     private DotNetObjectReference<ContributorPOIDialog>? _dotNetRef;
-    
+
     private CreatePOIContributionDto _model = new()
     {
         Language = "vi-VN",
@@ -247,7 +185,7 @@
         ApproachRadius = 100,
         Priority = 5
     };
-    
+
     protected override void OnInitialized()
     {
         if (IsEdit && Contribution != null)
@@ -271,21 +209,21 @@
                 ContributorNotes = Contribution.ContributorNotes
             };
         }
-        
+
         _dotNetRef = DotNetObjectReference.Create(this);
     }
-    
+
     private async Task InitPickerMap()
     {
         if (_mapInitialized) return;
-        
+
         await Task.Delay(100);
-        
+
         try
         {
-            double lat = _model.Latitude != 0 ? _model.Latitude : 10.762622;
-            double lng = _model.Longitude != 0 ? _model.Longitude : 106.660172;
-            
+            double lat = _model.Latitude.GetValueOrDefault();
+            double lng = _model.Longitude.GetValueOrDefault();
+
             await JS.InvokeVoidAsync("initPickerMap", "contributor-poi-picker-map", lat, lng, _dotNetRef);
             _mapInitialized = true;
         }
@@ -318,7 +256,7 @@
         _model.Latitude = Math.Round(lat, 6);
         _model.Longitude = Math.Round(lng, 6);
         StateHasChanged();
-        
+
         await JS.InvokeVoidAsync("updatePickerMarker", lat, lng);
     }
 
@@ -335,31 +273,31 @@
     }
 
     private void Cancel() => MudDialog.Cancel();
-    
+
     private async Task SaveAsDraft()
     {
         await _form.Validate();
         if (!_isValid) return;
-        
+
         await Save(submitForReview: false);
     }
-    
+
     private async Task SaveAndSubmit()
     {
         await _form.Validate();
         if (!_isValid) return;
-        
+
         await Save(submitForReview: true);
     }
-    
+
     private async Task Save(bool submitForReview)
     {
         _isSaving = true;
-        
+
         try
         {
             HttpResponseMessage response;
-            
+
             if (IsEdit && Contribution != null)
             {
                 response = await Http.PutAsJsonAsync($"api/contributions/{Contribution.Id}", _model);
@@ -368,11 +306,11 @@
             {
                 response = await Http.PostAsJsonAsync("api/contributions", _model);
             }
-            
+
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<POIContributionDto>();
-                
+
                 if (submitForReview && result != null)
                 {
                     var submitResponse = await Http.PostAsync($"api/contributions/{result.Id}/submit", null);
@@ -389,7 +327,7 @@
                 {
                     Snackbar.Add(IsEdit ? "Đã cập nhật thành công!" : "Đã tạo bản nháp thành công!", Severity.Success);
                 }
-                
+
                 MudDialog.Close(DialogResult.Ok(result));
             }
             else
@@ -407,7 +345,23 @@
             _isSaving = false;
         }
     }
-    
+
+    private async Task UploadImage(IBrowserFile file)
+    {
+        if (file != null)
+        {
+            try
+            {
+                // Demo mock implementation:
+                _model.ImageUrl = $"https://dummyimage.com/600x400/000/fff&text={Uri.EscapeDataString(file.Name)}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error mapping file: {ex.Message}");
+            }
+        }
+    }
+
     public void Dispose()
     {
         _dotNetRef?.Dispose();

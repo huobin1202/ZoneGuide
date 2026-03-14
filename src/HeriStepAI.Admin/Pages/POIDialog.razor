@@ -15,79 +15,76 @@
                     <MudTextField @bind-Value="_model.FullDescription" Label="Mô tả chi tiết" 
                                   Lines="3" Class="mb-3" />
                     
+                
+
                     <MudText Typo="Typo.subtitle2" Class="mb-2 mt-3">
-                        <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Class="mr-1" />
-                        Vị trí (Click tab "Chọn trên Map" để chọn nhanh)
+                        <MudIcon Icon="@Icons.Material.Filled.Map" Size="Size.Small" Class="mr-1" />
+                        Trực quan trên bản đồ
                     </MudText>
+
+                    <MudText Typo="Typo.body2" Class="mb-2" Color="Color.Primary">
+                        <MudIcon Icon="@Icons.Material.Filled.TouchApp" Size="Size.Small" />
+                        Click vào bản đồ để chọn vị trí. Kéo marker để điều chỉnh.
+                    </MudText>
+
+                    <MudPaper Elevation="2" Class="mb-3" Style="height: 350px; position: relative;">
+                        <div id="poi-picker-map" style="width: 100%; height: 100%; border-radius: 4px;"></div>
+                    </MudPaper>
+
                     <MudGrid>
-                        <MudItem xs="6">
-                            <MudNumericField @bind-Value="_model.Latitude" Label="Vĩ độ (Latitude)" Required="true"
-                                             Min="-90" Max="90" Step="0.000001" Format="F6" />
+                        <MudItem xs="5">
+                            <MudTextField @bind-Value="_model.Latitude" Label="Vĩ độ" ReadOnly="true" Required="true"
+                                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.NorthEast" />
                         </MudItem>
-                        <MudItem xs="6">
-                            <MudNumericField @bind-Value="_model.Longitude" Label="Kinh độ (Longitude)" Required="true"
-                                             Min="-180" Max="180" Step="0.000001" Format="F6" />
+                        <MudItem xs="5">
+                            <MudTextField @bind-Value="_model.Longitude" Label="Kinh độ" ReadOnly="true" Required="true"
+                                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.East" />
+                        </MudItem>
+                        <MudItem xs="2" Class="d-flex align-center">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
+                                       OnClick="UseCurrentLocation" StartIcon="@Icons.Material.Filled.MyLocation">
+                                GPS
+                            </MudButton>
                         </MudItem>
                     </MudGrid>
-                    
+
+                    <MudTextField @bind-Value="_searchAddress" Label="Tìm địa chỉ" Class="mt-3"
+                                  Placeholder="Nhập địa chỉ và nhấn Enter..."
+                                  Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search"
+                                  OnKeyDown="SearchAddress" />
+
                     <MudGrid Class="mt-3">
                         <MudItem xs="6">
-                            <MudNumericField @bind-Value="_model.TriggerRadiusMeters" 
-                                             Label="Bán kính kích hoạt (m)" Min="10" Max="1000" />
+                            <MudNumericField @bind-Value="_model.TriggerRadiusMeters"
+                                             Label="Bán kính kích hoạt (m)" Min="20" Max="150" />
                         </MudItem>
                         <MudItem xs="6">
-                            <MudNumericField @bind-Value="_model.Priority" Label="Độ ưu tiên" Min="1" Max="100" />
+                            <MudNumericField @bind-Value="_model.Priority" Label="Độ ưu tiên" Min="1" Max="5" />
                         </MudItem>
                     </MudGrid>
-                    
-                    <MudTextField @bind-Value="_model.Category" Label="Danh mục" Class="mt-3" 
+
+                    <MudTextField @bind-Value="_model.Category" Label="Danh mục" Class="mt-3"
                                   Placeholder="VD: Di tích, Bảo tàng, Công viên..." />
-                    
-                    <MudTextField @bind-Value="_model.ImageUrl" Label="URL Hình ảnh" Class="mt-3" />
-                    
-                    <MudTextField @bind-Value="_model.AudioUrl" Label="URL Audio thuyết minh" Class="mt-3" />
-                    
-                    @if (!string.IsNullOrEmpty(_model.AudioUrl))
+
+                    <MudFileUpload T="IBrowserFile" Accept=".png, .jpg, .jpeg" FilesChanged="UploadImage" Class="mt-3">
+                        <ActivatorContent>
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.CloudUpload">
+                                Tải lên hình ảnh
+                            </MudButton>
+                        </ActivatorContent>
+                    </MudFileUpload>
+
+                    @if (!string.IsNullOrEmpty(_model.ImageUrl))
                     {
-                        <MudNumericField @bind-Value="_model.AudioDurationSeconds" 
-                                         Label="Thời lượng Audio (giây)" Class="mt-3" Min="0" />
+                        <div class="mt-2">
+                            <img src="@_model.ImageUrl" style="max-height: 150px; border-radius: 4px;" />
+                        </div>
                     }
-                    
+
                     <MudSwitch @bind-Value="_model.IsActive" Label="Kích hoạt" Color="Color.Primary" Class="mt-3" />
                 </MudForm>
-            </MudTabPanel>
-            
-            <MudTabPanel Text="Chọn trên Map" Icon="@Icons.Material.Filled.Map" OnClick="InitPickerMap">
-                <MudText Typo="Typo.body2" Class="mb-2" Color="Color.Primary">
-                    <MudIcon Icon="@Icons.Material.Filled.TouchApp" Size="Size.Small" />
-                    Click vào bản đồ để chọn vị trí. Kéo marker để điều chỉnh.
-                </MudText>
-                
-                <MudPaper Elevation="2" Class="mb-3" Style="height: 350px; position: relative;">
-                    <div id="poi-picker-map" style="width: 100%; height: 100%; border-radius: 4px;"></div>
-                </MudPaper>
-                
-                <MudGrid>
-                    <MudItem xs="5">
-                        <MudTextField @bind-Value="_model.Latitude" Label="Vĩ độ" ReadOnly="true" 
-                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.NorthEast" />
-                    </MudItem>
-                    <MudItem xs="5">
-                        <MudTextField @bind-Value="_model.Longitude" Label="Kinh độ" ReadOnly="true"
-                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.East" />
-                    </MudItem>
-                    <MudItem xs="2" Class="d-flex align-center">
-                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
-                                   OnClick="UseCurrentLocation" StartIcon="@Icons.Material.Filled.MyLocation">
-                            GPS
-                        </MudButton>
-                    </MudItem>
-                </MudGrid>
-
-                <MudTextField @bind-Value="_searchAddress" Label="Tìm địa chỉ" Class="mt-3"
-                              Placeholder="Nhập địa chỉ và nhấn Enter..."
-                              Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search"
-                              OnKeyDown="SearchAddress" />
             </MudTabPanel>
 
             <MudTabPanel Text="Thuyết minh" Icon="@Icons.Material.Filled.RecordVoiceOver">
@@ -251,8 +248,8 @@
         
         try
         {
-            double lat = _model.Latitude != 0 ? _model.Latitude : 10.762622; // Default: HCM
-            double lng = _model.Longitude != 0 ? _model.Longitude : 106.660172;
+            double lat = _model.Latitude ?? 10.762622; // Default: HCM
+            double lng = _model.Longitude ?? 106.660172;
             
             await JS.InvokeVoidAsync("initPickerMap", "poi-picker-map", lat, lng, _dotNetRef);
             _mapInitialized = true;
@@ -327,8 +324,8 @@
                     Name = _model.Name,
                     ShortDescription = _model.ShortDescription,
                     FullDescription = _model.FullDescription,
-                    Latitude = _model.Latitude,
-                    Longitude = _model.Longitude,
+                    Latitude = _model.Latitude ?? 0,
+                    Longitude = _model.Longitude ?? 0,
                     TriggerRadiusMeters = _model.TriggerRadiusMeters,
                     Priority = _model.Priority,
                     Category = _model.Category,
@@ -355,8 +352,8 @@
                     Name = _model.Name,
                     ShortDescription = _model.ShortDescription,
                     FullDescription = _model.FullDescription,
-                    Latitude = _model.Latitude,
-                    Longitude = _model.Longitude,
+                    Latitude = _model.Latitude ?? 0,
+                    Longitude = _model.Longitude ?? 0,
                     TriggerRadiusMeters = _model.TriggerRadiusMeters,
                     Priority = _model.Priority,
                     Category = _model.Category,
@@ -397,6 +394,37 @@
         _model.Translations.Remove(trans);
     }
 
+    private async Task UploadImage(IBrowserFile file)
+    {
+        if (file != null)
+        {
+            try
+            {
+                // NOTE: This uses a mock URL for demo or needs an actual generic upload API.
+                // Assuming ApiService has an UploadFileAsync or similar in future. 
+                // For now, let's create a local object URL or mock URL.
+                
+                // Demo mock implementation:
+                // To actually upload, read the stream:
+                // var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+                // _model.ImageUrl = await ApiService.UploadImageAsync(stream, file.Name);
+
+                // Temporarily just mock it to test UI
+                _model.ImageUrl = $"https://dummyimage.com/600x400/000/fff&text={Uri.EscapeDataString(file.Name)}";
+                
+                // In a real application, you would do:
+                // var buffer = new byte[file.Size];
+                // await file.OpenReadStream().ReadAsync(buffer);
+                // var base64 = Convert.ToBase64String(buffer);
+                // _model.ImageUrl = $"data:{file.ContentType};base64,{base64}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error mapping file: {ex.Message}");
+            }
+        }
+    }
+
     public void Dispose()
     {
         _dotNetRef?.Dispose();
@@ -407,8 +435,8 @@
         public string Name { get; set; } = "";
         public string? ShortDescription { get; set; }
         public string? FullDescription { get; set; }
-        public double Latitude { get; set; }
-        public double Longitude { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
         public double TriggerRadiusMeters { get; set; } = 50;
         public int Priority { get; set; } = 1;
         public string? Category { get; set; }

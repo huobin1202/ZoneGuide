@@ -39,19 +39,17 @@ public class ApiService : IApiService
     }
 
     // POI Operations
-    public async Task<List<POIDto>> GetPOIsAsync()
-    {
-        try
+        public async Task<List<POIDto>> GetPOIsAsync()
         {
-            return await _httpClient.GetFromJsonAsync<List<POIDto>>("api/pois") ?? new();
-        }
-        catch
-        {
-            return new();
-        }
-    }
-
-    public async Task<POIDto?> GetPOIAsync(string id)
+            try
+            {
+                return await _httpClient.GetFromJsonAsync<List<POIDto>>("api/pois/all") ?? new();
+            }
+            catch
+            {
+                return new();
+            }
+        }    public async Task<POIDto?> GetPOIAsync(string id)
     {
         try
         {
