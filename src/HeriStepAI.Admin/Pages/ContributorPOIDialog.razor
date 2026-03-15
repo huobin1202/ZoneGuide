@@ -36,7 +36,7 @@
                     </MudText>
 
                     <MudPaper Elevation="2" Class="mb-3" Style="height: 350px; position: relative;">
-                        <div id="poi-picker-map" style="width: 100%; height: 100%; border-radius: 4px;"></div>
+                        <div id="contributor-poi-picker-map" style="width: 100%; height: 100%; border-radius: 4px;"></div>
                     </MudPaper>
 
                     <MudGrid>
@@ -56,9 +56,13 @@
                         </MudItem>
                     </MudGrid>
 
-                    <MudTextField @bind-Value="_searchAddress" Label="Tìm địa chỉ" Class="mt-3"
-                        Placeholder="Nhập địa chỉ và nhấn Enter..." Adornment="Adornment.End"
-                        AdornmentIcon="@Icons.Material.Filled.Search" OnKeyDown="SearchAddress" />
+                    <MudAutocomplete T="OsmAddressResult" Label="Tìm địa chỉ" Class="mt-3"
+                        Placeholder="Nhập địa chỉ..." Adornment="Adornment.End"
+                        AdornmentIcon="@Icons.Material.Filled.Search"
+                        SearchFunc="SearchAddressSuggestions"
+                        ToStringFunc="@(e => e == null ? null : e.DisplayName)"
+                        ValueChanged="OnAddressSelected" 
+                        ResetValueOnEmptyText="true" />
 
                     <MudGrid Class="mt-3">
                         <MudItem xs="6">
@@ -108,37 +112,7 @@
                 </MudForm>
             </MudTabPanel>
 
-            <MudTabPanel Text="Chọn trên Map" Icon="@Icons.Material.Filled.Map" OnClick="InitPickerMap">
-                <MudText Typo="Typo.body2" Class="mb-2" Color="Color.Primary">
-                    <MudIcon Icon="@Icons.Material.Filled.TouchApp" Size="Size.Small" />
-                    Click vào bản đồ để chọn vị trí. Kéo marker để điều chỉnh.
-                </MudText>
-
-                <MudPaper Elevation="2" Class="mb-3" Style="height: 350px; position: relative;">
-                    <div id="contributor-poi-picker-map" style="width: 100%; height: 100%; border-radius: 4px;"></div>
-                </MudPaper>
-
-                <MudGrid>
-                    <MudItem xs="5">
-                        <MudTextField @bind-Value="_model.Latitude" Label="Vĩ độ" ReadOnly="true"
-                            Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.NorthEast" />
-                    </MudItem>
-                    <MudItem xs="5">
-                        <MudTextField @bind-Value="_model.Longitude" Label="Kinh độ" ReadOnly="true"
-                            Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.East" />
-                    </MudItem>
-                    <MudItem xs="2" Class="d-flex align-center">
-                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
-                            OnClick="UseCurrentLocation" StartIcon="@Icons.Material.Filled.MyLocation">
-                            GPS
-                        </MudButton>
-                    </MudItem>
-                </MudGrid>
-
-                <MudTextField @bind-Value="_searchAddress" Label="Tìm địa chỉ" Class="mt-3"
-                    Placeholder="Nhập địa chỉ và nhấn Enter..." Adornment="Adornment.End"
-                    AdornmentIcon="@Icons.Material.Filled.Search" OnKeyDown="SearchAddress" />
-            </MudTabPanel>
+          
         </MudTabs>
     </DialogContent>
     <DialogActions>
@@ -176,6 +150,18 @@
     private bool _mapInitialized = false;
     private string _searchAddress = "";
 
+    public class OsmAddressResult
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("display_name")]
+        public string DisplayName { get; set; } = "";
+        
+        [System.Text.Json.Serialization.JsonPropertyName("lat")]
+        public string Lat { get; set; } = "";
+        
+        [System.Text.Json.Serialization.JsonPropertyName("lon")]
+        public string Lon { get; set; } = "";
+    }
+
     private DotNetObjectReference<ContributorPOIDialog>? _dotNetRef;
 
     private CreatePOIContributionDto _model = new()
@@ -211,6 +197,14 @@
         }
 
         _dotNetRef = DotNetObjectReference.Create(this);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await InitPickerMap();
+        }
     }
 
     private async Task InitPickerMap()
@@ -260,15 +254,39 @@
         await JS.InvokeVoidAsync("updatePickerMarker", lat, lng);
     }
 
-    private async Task SearchAddress(KeyboardEventArgs e)
+    private async Task<IEnumerable<OsmAddressResult>> SearchAddressSuggestions(string value, CancellationToken token)
     {
-        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_searchAddress))
+        if (string.IsNullOrWhiteSpace(value) || value.Length < 3)
+            return Array.Empty<OsmAddressResult>();
+
+        try
         {
-            try
+            var request = new HttpRequestMessage(HttpMethod.Get, $"https://nominatim.openstreetmap.org/search?format=json&q={Uri.EscapeDataString(value)}&limit=5");
+            request.Headers.Add("User-Agent", "HeriStepAI-Admin/1.0");
+            
+            var response = await Http.SendAsync(request, token);
+            if (response.IsSuccessStatusCode)
             {
-                await JS.InvokeVoidAsync("searchAndMoveToAddress", _searchAddress, _dotNetRef);
+                var results = await response.Content.ReadFromJsonAsync<List<OsmAddressResult>>(cancellationToken: token);
+                return results ?? new List<OsmAddressResult>();
             }
-            catch { }
+        }
+        catch { }
+
+        return Array.Empty<OsmAddressResult>();
+    }
+
+    private async Task OnAddressSelected(OsmAddressResult result)
+    {
+        if (result != null && 
+            double.TryParse(result.Lat, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double lat) && 
+            double.TryParse(result.Lon, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double lon))
+        {
+            _model.Latitude = Math.Round(lat, 6);
+            _model.Longitude = Math.Round(lon, 6);
+            
+            await JS.InvokeVoidAsync("updatePickerMarker", lat, lon);
+            _searchAddress = result.DisplayName; 
         }
     }
 
@@ -352,12 +370,20 @@
         {
             try
             {
-                // Demo mock implementation:
-                _model.ImageUrl = $"https://dummyimage.com/600x400/000/fff&text={Uri.EscapeDataString(file.Name)}";
+                var format = file.ContentType;
+                if (string.IsNullOrEmpty(format)) format = "image/png";
+                
+                using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // Tối đa 10MB
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                
+                var base64 = Convert.ToBase64String(ms.ToArray());
+                _model.ImageUrl = $"data:{format};base64,{base64}";
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error mapping file: {ex.Message}");
+                Console.WriteLine($"Error reading file: {ex.Message}");
+                Snackbar.Add("Lỗi tải ảnh: " + ex.Message, Severity.Error);
             }
         }
     }

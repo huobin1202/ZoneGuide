@@ -30,12 +30,7 @@
                                    OnClick="OpenAddDialog">
                             Thêm POI mới
                         </MudButton>
-                        <MudButton Variant="Variant.Outlined" 
-                                   Color="Color.Error" 
-                                   StartIcon="@Icons.Material.Filled.Logout"
-                                   OnClick="Logout">
-                            Đăng xuất
-                        </MudButton>
+              
                     </div>
                 </div>
             </MudPaper>
@@ -392,14 +387,7 @@
         await DialogService.ShowAsync<ApprovalHistoryDialog>("Lịch sử duyệt", parameters, options);
     }
     
-    private async Task Logout()
-    {
-        await LocalStorage.RemoveItemAsync("accessToken");
-        await LocalStorage.RemoveItemAsync("refreshToken");
-        await LocalStorage.RemoveItemAsync("user");
-        Navigation.NavigateTo("/login");
-    }
-    
+
     private Color GetStatusColor(string status) => status switch
     {
         "Draft" => Color.Default,

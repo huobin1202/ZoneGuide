@@ -48,10 +48,13 @@
                         </MudItem>
                     </MudGrid>
 
-                    <MudTextField @bind-Value="_searchAddress" Label="Tìm địa chỉ" Class="mt-3"
-                                  Placeholder="Nhập địa chỉ và nhấn Enter..."
-                                  Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search"
-                                  OnKeyDown="SearchAddress" />
+                    <MudAutocomplete T="OsmAddressResult" Label="Tìm địa chỉ" Class="mt-3"
+                        Placeholder="Nhập địa chỉ..." Adornment="Adornment.End"
+                        AdornmentIcon="@Icons.Material.Filled.Search"
+                        SearchFunc="SearchAddressSuggestions"
+                        ToStringFunc="@(e => e == null ? null : e.DisplayName)"
+                        ValueChanged="OnAddressSelected" 
+                        ResetValueOnEmptyText="true" />
 
                     <MudGrid Class="mt-3">
                         <MudItem xs="6">
@@ -198,7 +201,20 @@
     private bool _mapInitialized = false;
     private string _searchAddress = "";
     private POIFormModel _model = new();
+
+    public class OsmAddressResult
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("display_name")]
+        public string DisplayName { get; set; } = "";
+        
+        [System.Text.Json.Serialization.JsonPropertyName("lat")]
+        public string Lat { get; set; } = "";
+        
+        [System.Text.Json.Serialization.JsonPropertyName("lon")]
+        public string Lon { get; set; } = "";
+    }
     
+
     private DotNetObjectReference<POIDialog>? _dotNetRef;
 
     protected override void OnInitialized()
@@ -237,6 +253,14 @@
         }
         
         _dotNetRef = DotNetObjectReference.Create(this);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await InitPickerMap();
+        }
     }
 
     private async Task InitPickerMap()
@@ -291,18 +315,40 @@
         await JS.InvokeVoidAsync("updatePickerMarker", lat, lng);
     }
 
-    private async Task SearchAddress(KeyboardEventArgs e)
+    private async Task<IEnumerable<OsmAddressResult>> SearchAddressSuggestions(string value, CancellationToken token)
     {
-        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_searchAddress))
+        if (string.IsNullOrWhiteSpace(value) || value.Length < 3)
+            return Array.Empty<OsmAddressResult>();
+
+        try
         {
-            try
+            using var client = new HttpClient();
+            var request = new HttpRequestMessage(HttpMethod.Get, $"https://nominatim.openstreetmap.org/search?format=json&q={Uri.EscapeDataString(value)}&limit=5");
+            request.Headers.Add("User-Agent", "HeriStepAI-Admin/1.0");
+            
+            var response = await client.SendAsync(request, token);
+            if (response.IsSuccessStatusCode)
             {
-                await JS.InvokeVoidAsync("searchAndMoveToAddress", _searchAddress, _dotNetRef);
+                var results = await response.Content.ReadFromJsonAsync<List<OsmAddressResult>>(cancellationToken: token);
+                return results ?? new List<OsmAddressResult>();
             }
-            catch
-            {
-                // Search failed
-            }
+        }
+        catch { }
+
+        return Array.Empty<OsmAddressResult>();
+    }
+
+    private async Task OnAddressSelected(OsmAddressResult result)
+    {
+        if (result != null && 
+            double.TryParse(result.Lat, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double lat) && 
+            double.TryParse(result.Lon, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double lon))
+        {
+            _model.Latitude = Math.Round(lat, 6);
+            _model.Longitude = Math.Round(lon, 6);
+            
+            await JS.InvokeVoidAsync("updatePickerMarker", lat, lon);
+            _searchAddress = result.DisplayName; 
         }
     }
 
@@ -400,27 +446,19 @@
         {
             try
             {
-                // NOTE: This uses a mock URL for demo or needs an actual generic upload API.
-                // Assuming ApiService has an UploadFileAsync or similar in future. 
-                // For now, let's create a local object URL or mock URL.
+                var format = file.ContentType;
+                if (string.IsNullOrEmpty(format)) format = "image/png";
                 
-                // Demo mock implementation:
-                // To actually upload, read the stream:
-                // var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
-                // _model.ImageUrl = await ApiService.UploadImageAsync(stream, file.Name);
-
-                // Temporarily just mock it to test UI
-                _model.ImageUrl = $"https://dummyimage.com/600x400/000/fff&text={Uri.EscapeDataString(file.Name)}";
+                using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // Tối đa 10MB
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
                 
-                // In a real application, you would do:
-                // var buffer = new byte[file.Size];
-                // await file.OpenReadStream().ReadAsync(buffer);
-                // var base64 = Convert.ToBase64String(buffer);
-                // _model.ImageUrl = $"data:{file.ContentType};base64,{base64}";
+                var base64 = Convert.ToBase64String(ms.ToArray());
+                _model.ImageUrl = $"data:{format};base64,{base64}";
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error mapping file: {ex.Message}");
+                Console.WriteLine($"Error reading file: {ex.Message}");
             }
         }
     }
