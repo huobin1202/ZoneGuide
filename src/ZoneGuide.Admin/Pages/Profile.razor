@@ -1,0 +1,302 @@
+@page "/profile"
+@using ZoneGuide.Shared.Models
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+
+<PageTitle>Thông tin cá nhân - ZoneGuide</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-6">
+    <MudIcon Icon="@Icons.Material.Filled.Person" Class="mr-2" />
+    Thông tin cá nhân
+</MudText>
+
+@if (_isLoading)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (_currentUser != null)
+{
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-6 text-center">
+                <MudAvatar Size="Size.Large" Style="width: 120px; height: 120px; font-size: 48px;" Color="Color.Primary">
+                    @(_currentUser.DisplayName?.FirstOrDefault())
+                </MudAvatar>
+                <MudText Typo="Typo.h5" Class="mt-4">@_currentUser.DisplayName</MudText>
+                <MudChip T="string" Color="@GetRoleColor(_currentUser.Role)" Class="mt-2">@GetRoleText(_currentUser.Role)</MudChip>
+                <MudText Typo="Typo.body2" Class="mt-2 mud-text-secondary">@_currentUser.Email</MudText>
+            </MudPaper>
+        </MudItem>
+        
+        <MudItem xs="12" md="8">
+            <MudPaper Class="pa-6">
+                <MudText Typo="Typo.h6" Class="mb-4">Cập nhật thông tin</MudText>
+                
+                <MudForm @ref="_form" @bind-IsValid="_isValid">
+                    <MudTextField @bind-Value="_updateModel.DisplayName" 
+                                  Label="Họ và tên" 
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  Class="mb-4" />
+                    
+                    <MudTextField @bind-Value="_updateModel.PhoneNumber" 
+                                  Label="Số điện thoại" 
+                                  Variant="Variant.Outlined"
+                                  Class="mb-4" />
+                    
+                    <MudTextField @bind-Value="_updateModel.AvatarUrl" 
+                                  Label="URL ảnh đại diện" 
+                                  Variant="Variant.Outlined"
+                                  Placeholder="https://example.com/avatar.jpg"
+                                  Class="mb-4" />
+                    
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Primary" 
+                               OnClick="UpdateProfile"
+                               Disabled="@(!_isValid || _isSaving)">
+                        @if (_isSaving)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        <MudIcon Icon="@Icons.Material.Filled.Save" Class="mr-2" />
+                        Lưu thay đổi
+                    </MudButton>
+                </MudForm>
+            </MudPaper>
+            
+            <MudPaper Class="pa-6 mt-4">
+                <MudText Typo="Typo.h6" Class="mb-4">Đổi mật khẩu</MudText>
+                
+                <MudTextField @bind-Value="_passwordModel.CurrentPassword" 
+                              Label="Mật khẩu hiện tại" 
+                              Variant="Variant.Outlined"
+                              InputType="InputType.Password"
+                              Class="mb-4" />
+                
+                <MudTextField @bind-Value="_passwordModel.NewPassword" 
+                              Label="Mật khẩu mới" 
+                              Variant="Variant.Outlined"
+                              InputType="InputType.Password"
+                              Class="mb-4" />
+                
+                <MudTextField @bind-Value="_confirmNewPassword" 
+                              Label="Xác nhận mật khẩu mới" 
+                              Variant="Variant.Outlined"
+                              InputType="InputType.Password"
+                              Class="mb-4" />
+                
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Warning" 
+                           OnClick="ChangePassword"
+                           Disabled="@_isChangingPassword">
+                    @if (_isChangingPassword)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    <MudIcon Icon="@Icons.Material.Filled.Lock" Class="mr-2" />
+                    Đổi mật khẩu
+                </MudButton>
+            </MudPaper>
+            
+            <MudPaper Class="pa-6 mt-4">
+                <MudText Typo="Typo.h6" Class="mb-4">Thông tin tài khoản</MudText>
+                <MudSimpleTable Dense="true">
+                    <tbody>
+                        <tr>
+                            <td><strong>ID</strong></td>
+                            <td>@_currentUser.Id</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Email</strong></td>
+                            <td>@_currentUser.Email</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Vai trò</strong></td>
+                            <td>@GetRoleText(_currentUser.Role)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Trạng thái</strong></td>
+                            <td>@GetStatusText(_currentUser.Status)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ngày tạo</strong></td>
+                            <td>@_currentUser.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Đăng nhập gần nhất</strong></td>
+                            <td>@(_currentUser.LastLoginAt?.ToString("dd/MM/yyyy HH:mm") ?? "-")</td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private UserDto? _currentUser;
+    private bool _isLoading = true;
+    private bool _isSaving = false;
+    private bool _isChangingPassword = false;
+    private bool _isValid = true;
+    private MudForm _form = null!;
+    
+    private UpdateUserDto _updateModel = new();
+    private ChangePasswordDto _passwordModel = new();
+    private string _confirmNewPassword = string.Empty;
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadProfile();
+            StateHasChanged();
+        }
+    }
+    
+    private async Task LoadProfile()
+    {
+        _isLoading = true;
+        try
+        {
+            _currentUser = await LocalStorage.GetItemAsync<UserDto>("user");
+            if (_currentUser == null)
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+            
+            _updateModel = new UpdateUserDto
+            {
+                DisplayName = _currentUser.DisplayName,
+                PhoneNumber = _currentUser.PhoneNumber,
+                AvatarUrl = _currentUser.AvatarUrl
+            };
+            
+            // Set auth header
+            var token = await LocalStorage.GetItemAsync<string>("accessToken");
+            if (!string.IsNullOrEmpty(token))
+            {
+                Http.DefaultRequestHeaders.Authorization = 
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            }
+        }
+        catch
+        {
+            Navigation.NavigateTo("/login");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+    
+    private async Task UpdateProfile()
+    {
+        _isSaving = true;
+        try
+        {
+            var response = await Http.PutAsJsonAsync("api/auth/me", _updateModel);
+            if (response.IsSuccessStatusCode)
+            {
+                var user = await response.Content.ReadFromJsonAsync<UserDto>();
+                if (user != null)
+                {
+                    _currentUser = user;
+                    await LocalStorage.SetItemAsync("user", user);
+                }
+                Snackbar.Add("Đã cập nhật thông tin", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Không thể cập nhật thông tin", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+    
+    private async Task ChangePassword()
+    {
+        if (string.IsNullOrWhiteSpace(_passwordModel.CurrentPassword))
+        {
+            Snackbar.Add("Vui lòng nhập mật khẩu hiện tại", Severity.Warning);
+            return;
+        }
+        
+        if (string.IsNullOrWhiteSpace(_passwordModel.NewPassword))
+        {
+            Snackbar.Add("Vui lòng nhập mật khẩu mới", Severity.Warning);
+            return;
+        }
+        
+        if (_passwordModel.NewPassword != _confirmNewPassword)
+        {
+            Snackbar.Add("Mật khẩu xác nhận không khớp", Severity.Warning);
+            return;
+        }
+        
+        if (_passwordModel.NewPassword.Length < 6)
+        {
+            Snackbar.Add("Mật khẩu mới phải có ít nhất 6 ký tự", Severity.Warning);
+            return;
+        }
+        
+        _isChangingPassword = true;
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/auth/change-password", _passwordModel);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Đã đổi mật khẩu thành công", Severity.Success);
+                _passwordModel = new ChangePasswordDto();
+                _confirmNewPassword = string.Empty;
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Lỗi: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isChangingPassword = false;
+        }
+    }
+    
+    private Color GetRoleColor(string role) => role switch
+    {
+        "Admin" => Color.Primary,
+        "Contributor" => Color.Secondary,
+        _ => Color.Default
+    };
+    
+    private string GetRoleText(string role) => role switch
+    {
+        "Admin" => "Quản trị viên",
+        "Contributor" => "Người đóng góp",
+        "User" => "Người dùng",
+        _ => role
+    };
+    
+    private string GetStatusText(string status) => status switch
+    {
+        "Active" => "Đang hoạt động",
+        "Pending" => "Chờ kích hoạt",
+        "Suspended" => "Bị khóa",
+        _ => status
+    };
+}

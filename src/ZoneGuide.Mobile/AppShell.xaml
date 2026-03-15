@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="ZoneGuide.Mobile.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:views="clr-namespace:ZoneGuide.Mobile.Views"
+    Shell.FlyoutBehavior="Disabled">
+
+    <TabBar>
+        <ShellContent
+            Title="Điểm"
+            ContentTemplate="{DataTemplate views:POIListPage}"
+            Icon="location.png"
+            Route="pois" />
+
+        <ShellContent
+            Title="Bản đồ"
+            ContentTemplate="{DataTemplate views:MapPage}"
+            Icon="map.png"
+            Route="map" />
+
+        <ShellContent
+            Title="Tour"
+            ContentTemplate="{DataTemplate views:TourListPage}"
+            Icon="route.png"
+            Route="tours" />
+
+        <ShellContent
+            Title="Cài đặt"
+            ContentTemplate="{DataTemplate views:SettingsPage}"
+            Icon="settings.png"
+            Route="settings" />
+    </TabBar>
+
+</Shell>

@@ -1,0 +1,165 @@
+@inherits LayoutComponentBase
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject HttpClient Http
+@using ZoneGuide.Shared.Models
+
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+        <MudText Typo="Typo.h5" Class="ml-3">ZoneGuide @(_isAdmin ? "Admin" : "Contributor")</MudText>
+        <MudSpacer />
+        
+        @if (_currentUser != null)
+        {
+            <MudChip T="string" Color="@(_isAdmin ? Color.Primary : Color.Secondary)" Size="Size.Small" Class="mr-2">
+                @_currentUser.Role
+            </MudChip>
+            <MudText Class="mr-4">@_currentUser.DisplayName</MudText>
+            <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" OnClick="Logout" />
+        }
+        else
+        {
+            <MudButton Color="Color.Inherit" Href="/login" StartIcon="@Icons.Material.Filled.Login">
+                Đăng nhập
+            </MudButton>
+        }
+    </MudAppBar>
+    
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+        <MudNavMenu>
+            @if (_isAdmin)
+            {
+                <!-- Admin Menu -->
+                <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
+                    Dashboard
+                </MudNavLink>
+                <MudNavLink Href="/pois" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.LocationOn">
+                    POIs Management
+                </MudNavLink>
+                <MudNavLink Href="/poi-map" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Map">
+                    POI Map View
+                </MudNavLink>
+                <MudNavLink Href="/tours" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Route">
+                    Tours Management
+                </MudNavLink>
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.caption" Class="px-4 mud-text-secondary">Quản lý</MudText>
+                <MudNavLink Href="/contributions" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.RateReview">
+                    Duyệt đóng góp
+                </MudNavLink>
+                <MudNavLink Href="/users" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.People">
+                    Quản lý Users
+                </MudNavLink>
+                <MudDivider Class="my-2" />
+                <MudNavLink Href="/analytics" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Analytics">
+                    Analytics
+                </MudNavLink>
+                <MudNavLink Href="/heatmap" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Whatshot">
+                    Visitor Heatmap
+                </MudNavLink>
+                <MudNavLink Href="/activity-log" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.History">
+                    Nhật ký hoạt động
+                </MudNavLink>
+                <MudDivider Class="my-2" />
+                <MudNavLink Href="/settings" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Settings">
+                    Settings
+                </MudNavLink>
+            }
+            else if (_isContributor)
+            {
+                <!-- Contributor Menu -->
+                <MudNavLink Href="/my-contributions" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
+                    Trang chủ
+                </MudNavLink>
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.caption" Class="px-4 mud-text-secondary">Đóng góp của tôi</MudText>
+                <MudNavLink Href="/my-contributions" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.EditLocation">
+                    Quản lý POI
+                </MudNavLink>
+                <MudNavLink Href="/poi-map" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Map">
+                    Xem bản đồ POI
+                </MudNavLink>
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.caption" Class="px-4 mud-text-secondary">Tài khoản</MudText>
+                <MudNavLink Href="/profile" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Person">
+                    Thông tin cá nhân
+                </MudNavLink>
+            }
+            else
+            {
+                <!-- Not logged in -->
+                <MudNavLink Href="/login" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Login">
+                    Đăng nhập
+                </MudNavLink>
+                <MudNavLink Href="/register" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PersonAdd">
+                    Đăng ký Contributor
+                </MudNavLink>
+            }
+        </MudNavMenu>
+    </MudDrawer>
+    
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-6">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+    private UserDto? _currentUser;
+    private bool _isAdmin => _currentUser?.Role == "Admin";
+    private bool _isContributor => _currentUser?.Role == "Contributor";
+    private bool _initialized = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Set JWT token for HttpClient so all pages can call authorized APIs
+            try
+            {
+                var token = await LocalStorage.GetItemAsync<string>("accessToken");
+                if (!string.IsNullOrEmpty(token))
+                {
+                    Http.DefaultRequestHeaders.Authorization = 
+                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                }
+            }
+            catch { }
+            
+            await LoadCurrentUser();
+            _initialized = true;
+            StateHasChanged();
+        }
+    }
+    
+    private async Task LoadCurrentUser()
+    {
+        try
+        {
+            _currentUser = await LocalStorage.GetItemAsync<UserDto>("user");
+        }
+        catch
+        {
+            _currentUser = null;
+        }
+    }
+
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+    
+    private async Task Logout()
+    {
+        await LocalStorage.RemoveItemAsync("accessToken");
+        await LocalStorage.RemoveItemAsync("refreshToken");
+        await LocalStorage.RemoveItemAsync("user");
+        _currentUser = null;
+        Snackbar.Add("Đã đăng xuất", Severity.Info);
+        Navigation.NavigateTo("/login");
+    }
+}

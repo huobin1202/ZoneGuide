@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
+             x:Class="ZoneGuide.Mobile.Views.SettingsPage"
+             x:DataType="vm:SettingsViewModel"
+             Title="Cài đặt">
+
+    <ScrollView>
+        <VerticalStackLayout Spacing="16" Padding="16">
+            
+            <!-- Audio Settings -->
+            <Label Text="Âm thanh"
+                   FontSize="18"
+                   FontAttributes="Bold" />
+            
+            <Frame Padding="16" CornerRadius="12" BackgroundColor="White">
+                <VerticalStackLayout Spacing="16">
+                    <!-- Language -->
+                    <Grid RowDefinitions="Auto, Auto" RowSpacing="4">
+                        <Label Grid.Row="0" Text="Ngôn ngữ" FontSize="14" />
+                        <Picker Grid.Row="1"
+                                ItemsSource="{Binding AvailableLanguages}"
+                                SelectedItem="{Binding PreferredLanguage}" />
+                    </Grid>
+
+                    <!-- Voice -->
+                    <Grid RowDefinitions="Auto, Auto" RowSpacing="4">
+                        <Label Grid.Row="0" Text="Giọng đọc" FontSize="14" />
+                        <Picker Grid.Row="1"
+                                ItemsSource="{Binding AvailableVoices}"
+                                SelectedItem="{Binding SelectedVoice}" />
+                    </Grid>
+
+                    <!-- TTS Speed -->
+                    <Grid RowDefinitions="Auto, Auto" RowSpacing="4">
+                        <HorizontalStackLayout Grid.Row="0">
+                            <Label Text="Tốc độ đọc: " FontSize="14" />
+                            <Label Text="{Binding TtsSpeed, StringFormat='{0:F1}x'}" FontSize="14" FontAttributes="Bold" />
+                        </HorizontalStackLayout>
+                        <Slider Grid.Row="1"
+                                Minimum="0.5"
+                                Maximum="2.0"
+                                Value="{Binding TtsSpeed}" />
+                    </Grid>
+
+                    <!-- Volume -->
+                    <Grid RowDefinitions="Auto, Auto" RowSpacing="4">
+                        <HorizontalStackLayout Grid.Row="0">
+                            <Label Text="Âm lượng: " FontSize="14" />
+                            <Label Text="{Binding Volume, StringFormat='{0:P0}'}" FontSize="14" FontAttributes="Bold" />
+                        </HorizontalStackLayout>
+                        <Slider Grid.Row="1"
+                                Minimum="0"
+                                Maximum="1"
+                                Value="{Binding Volume}" />
+                    </Grid>
+
+                    <!-- Test TTS -->
+                    <Button Text="🔊 Test giọng đọc"
+                            BackgroundColor="{StaticResource Secondary}"
+                            TextColor="White"
+                            Command="{Binding TestTTSCommand}" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- GPS Settings -->
+            <Label Text="GPS và Vị trí"
+                   FontSize="18"
+                   FontAttributes="Bold"
+                   Margin="0,16,0,0" />
+            
+            <Frame Padding="16" CornerRadius="12" BackgroundColor="White">
+                <VerticalStackLayout Spacing="16">
+                    <!-- GPS Accuracy -->
+                    <Grid RowDefinitions="Auto, Auto" RowSpacing="4">
+                        <Label Grid.Row="0" Text="Độ chính xác GPS" FontSize="14" />
+                        <Picker Grid.Row="1"
+                                SelectedIndex="{Binding GpsAccuracyIndex}">
+                            <Picker.ItemsSource>
+                                <x:Array Type="{x:Type x:String}">
+                                    <x:String>Thấp (tiết kiệm pin)</x:String>
+                                    <x:String>Trung bình</x:String>
+                                    <x:String>Cao (chính xác nhất)</x:String>
+                                </x:Array>
+                            </Picker.ItemsSource>
+                        </Picker>
+                    </Grid>
+
+                    <!-- Trigger Radius -->
+                    <Grid RowDefinitions="Auto, Auto" RowSpacing="4">
+                        <HorizontalStackLayout Grid.Row="0">
+                            <Label Text="Bán kính kích hoạt: " FontSize="14" />
+                            <Label Text="{Binding TriggerRadius, StringFormat='{0:F0}m'}" FontSize="14" FontAttributes="Bold" />
+                        </HorizontalStackLayout>
+                        <Slider Grid.Row="1"
+                                Minimum="10"
+                                Maximum="200"
+                                Value="{Binding TriggerRadius}" />
+                    </Grid>
+
+                    <!-- Approach Radius -->
+                    <Grid RowDefinitions="Auto, Auto" RowSpacing="4">
+                        <HorizontalStackLayout Grid.Row="0">
+                            <Label Text="Bán kính cảnh báo: " FontSize="14" />
+                            <Label Text="{Binding ApproachRadius, StringFormat='{0:F0}m'}" FontSize="14" FontAttributes="Bold" />
+                        </HorizontalStackLayout>
+                        <Slider Grid.Row="1"
+                                Minimum="50"
+                                Maximum="500"
+                                Value="{Binding ApproachRadius}" />
+                    </Grid>
+
+                    <!-- Cooldown -->
+                    <Grid RowDefinitions="Auto, Auto" RowSpacing="4">
+                        <HorizontalStackLayout Grid.Row="0">
+                            <Label Text="Thời gian chờ: " FontSize="14" />
+                            <Label Text="{Binding CooldownSeconds, StringFormat='{0}s'}" FontSize="14" FontAttributes="Bold" />
+                        </HorizontalStackLayout>
+                        <Slider Grid.Row="1"
+                                Minimum="60"
+                                Maximum="600"
+                                Value="{Binding CooldownSeconds}" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Behavior Settings -->
+            <Label Text="Hành vi"
+                   FontSize="18"
+                   FontAttributes="Bold"
+                   Margin="0,16,0,0" />
+            
+            <Frame Padding="16" CornerRadius="12" BackgroundColor="White">
+                <VerticalStackLayout Spacing="12">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <Label Grid.Column="0" Text="Tự động phát khi vào vùng" FontSize="14" VerticalOptions="Center" />
+                        <Switch Grid.Column="1" IsToggled="{Binding AutoPlayOnEnter}" />
+                    </Grid>
+                    
+                    <Grid ColumnDefinitions="*, Auto">
+                        <Label Grid.Column="0" Text="Thông báo khi đến gần" FontSize="14" VerticalOptions="Center" />
+                        <Switch Grid.Column="1" IsToggled="{Binding NotifyOnApproach}" />
+                    </Grid>
+                    
+                    <Grid ColumnDefinitions="*, Auto">
+                        <Label Grid.Column="0" Text="Theo dõi ở nền" FontSize="14" VerticalOptions="Center" />
+                        <Switch Grid.Column="1" IsToggled="{Binding BackgroundTracking}" />
+                    </Grid>
+                    
+                    <Grid ColumnDefinitions="*, Auto">
+                        <Label Grid.Column="0" Text="Chế độ tiết kiệm pin" FontSize="14" VerticalOptions="Center" />
+                        <Switch Grid.Column="1" IsToggled="{Binding BatterySaverMode}" />
+                    </Grid>
+                    
+                    <Grid ColumnDefinitions="*, Auto">
+                        <Label Grid.Column="0" Text="Chế độ Offline" FontSize="14" VerticalOptions="Center" />
+                        <Switch Grid.Column="1" IsToggled="{Binding OfflineMode}" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Sync Settings -->
+            <Label Text="Đồng bộ"
+                   FontSize="18"
+                   FontAttributes="Bold"
+                   Margin="0,16,0,0" />
+            
+            <Frame Padding="16" CornerRadius="12" BackgroundColor="White">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="{Binding LastSyncTime, StringFormat='Lần cuối: {0:dd/MM/yyyy HH:mm}'}"
+                           FontSize="12"
+                           TextColor="Gray"
+                           IsVisible="{Binding LastSyncTime, Converter={StaticResource IsNotNullConverter}}" />
+                    
+                    <Button Text="{Binding IsSyncing, Converter={StaticResource SyncButtonTextConverter}}"
+                            BackgroundColor="{StaticResource Primary}"
+                            TextColor="White"
+                            Command="{Binding SyncDataCommand}"
+                            IsEnabled="{Binding IsSyncing, Converter={StaticResource InverseBoolConverter}}" />
+                    
+                    <Button Text="📤 Tải lên dữ liệu phân tích"
+                            BackgroundColor="{StaticResource Secondary}"
+                            TextColor="White"
+                            Command="{Binding UploadAnalyticsCommand}" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Other -->
+            <Label Text="Khác"
+                   FontSize="18"
+                   FontAttributes="Bold"
+                   Margin="0,16,0,0" />
+            
+            <Frame Padding="16" CornerRadius="12" BackgroundColor="White">
+                <VerticalStackLayout Spacing="12">
+                    <Button Text="🗑️ Xóa Cache"
+                            BackgroundColor="Gray"
+                            TextColor="White"
+                            Command="{Binding ClearCacheCommand}" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Save Button -->
+            <Button Text="💾 Lưu cài đặt"
+                    BackgroundColor="{StaticResource Primary}"
+                    TextColor="White"
+                    FontSize="18"
+                    HeightRequest="56"
+                    CornerRadius="28"
+                    Margin="0,24"
+                    Command="{Binding SaveSettingsCommand}" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

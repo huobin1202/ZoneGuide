@@ -1,0 +1,140 @@
+@page "/contributions"
+@using ZoneGuide.Shared.Models
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject NavigationManager Navigation
+
+<PageTitle>Duyệt đóng góp POI - ZoneGuide</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">
+        <MudIcon Icon="@Icons.Material.Filled.RateReview" Class="mr-2" />
+        Duyệt đóng góp POI
+    </MudText>
+    
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+        <MudTabPanel Text="Tất cả">
+                <ContributionTable 
+                    Contributions="@allContributions" 
+                    IsLoading="@isLoading"
+                    OnReview="OnReviewContribution"
+                    OnViewHistory="OnViewHistory"
+                    ShowReviewActions="true" />
+            </MudTabPanel>
+            
+        <MudTabPanel Text="Chờ duyệt" BadgeData="@pendingCount" BadgeColor="Color.Warning">
+            <ContributionTable 
+                Contributions="@pendingContributions" 
+                IsLoading="@isLoading"
+                OnReview="OnReviewContribution"
+                OnViewHistory="OnViewHistory"
+                ShowReviewActions="true" />
+        </MudTabPanel>
+        
+        <MudTabPanel Text="Đã duyệt" BadgeData="@approvedCount" BadgeColor="Color.Success">
+            <ContributionTable 
+                Contributions="@approvedContributions" 
+                IsLoading="@isLoading"
+                OnViewHistory="OnViewHistory"
+                ShowReviewActions="false" />
+        </MudTabPanel>
+        
+        <MudTabPanel Text="Từ chối" BadgeData="@rejectedCount" BadgeColor="Color.Error">
+            <ContributionTable 
+                Contributions="@rejectedContributions" 
+                IsLoading="@isLoading"
+                OnViewHistory="OnViewHistory"
+                ShowReviewActions="false" />
+        </MudTabPanel>
+        
+        <MudTabPanel Text="Cần sửa" BadgeData="@needsRevisionCount" BadgeColor="Color.Info">
+            <ContributionTable 
+                Contributions="@needsRevisionContributions" 
+                IsLoading="@isLoading"
+                OnViewHistory="OnViewHistory"
+                ShowReviewActions="false" />
+        </MudTabPanel>
+        
+       
+    </MudTabs>
+</MudContainer>
+
+@code {
+    private List<POIContributionDto> allContributions = new();
+    private List<POIContributionDto> pendingContributions => allContributions.Where(c => c.Status == "Pending").ToList();
+    private List<POIContributionDto> approvedContributions => allContributions.Where(c => c.Status == "Approved").ToList();
+    private List<POIContributionDto> rejectedContributions => allContributions.Where(c => c.Status == "Rejected").ToList();
+    private List<POIContributionDto> needsRevisionContributions => allContributions.Where(c => c.Status == "NeedsRevision").ToList();
+    
+    private int pendingCount => pendingContributions.Count;
+    private int approvedCount => approvedContributions.Count;
+    private int rejectedCount => rejectedContributions.Count;
+    private int needsRevisionCount => needsRevisionContributions.Count;
+    
+    private bool isLoading = true;
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var token = await LocalStorage.GetItemAsync<string>("accessToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+            Http.DefaultRequestHeaders.Authorization = 
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            await LoadContributions();
+            StateHasChanged();
+        }
+    }
+    
+    private async Task LoadContributions()
+    {
+        isLoading = true;
+        try
+        {
+            var response = await Http.GetFromJsonAsync<List<POIContributionDto>>("api/contributions");
+            allContributions = response ?? new();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi tải danh sách: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+    
+    private async Task OnReviewContribution(POIContributionDto contribution)
+    {
+        var parameters = new DialogParameters
+        {
+            { "Contribution", contribution }
+        };
+        
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<ReviewContributionDialog>("Duyệt đóng góp", parameters, options);
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled)
+        {
+            await LoadContributions();
+        }
+    }
+    
+    private async Task OnViewHistory(int contributionId)
+    {
+        var parameters = new DialogParameters
+        {
+            { "ContributionId", contributionId }
+        };
+        
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium };
+        await DialogService.ShowAsync<ApprovalHistoryDialog>("Lịch sử duyệt", parameters, options);
+    }
+}

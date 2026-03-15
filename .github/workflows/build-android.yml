@@ -28,11 +28,11 @@ jobs:
           java-version: '17'
 
       - name: Restore dependencies
-        run: dotnet restore src/HeriStepAI.Mobile/HeriStepAI.Mobile.csproj
+        run: dotnet restore src/ZoneGuide.Mobile/ZoneGuide.Mobile.csproj
 
       - name: Build & Publish APK
         run: |
-          dotnet publish src/HeriStepAI.Mobile/HeriStepAI.Mobile.csproj `
+          dotnet publish src/ZoneGuide.Mobile/ZoneGuide.Mobile.csproj `
             -f net10.0-android `
             -c Release `
             -o ./artifacts
@@ -63,7 +63,7 @@ jobs:
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: HeriStepAI-Android
+          name: ZoneGuide-Android
           path: ${{ steps.find-apk.outputs.APK_PATH }}
           retention-days: 30
 
@@ -72,16 +72,16 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
-          name: "HeriStepAI v1.0.${{ github.run_number }}"
+          name: "ZoneGuide v1.0.${{ github.run_number }}"
           body: |
-            ## 📱 HeriStepAI Android App
+            ## 📱 ZoneGuide Android App
 
             ### Cách cài đặt:
             1. Tải file APK bên dưới
             2. Trên điện thoại Android, bật **"Cài đặt từ nguồn không xác định"**
                - Vào **Cài đặt → Bảo mật → Nguồn không xác định** (hoặc **Cài đặt ứng dụng không rõ nguồn gốc**)
             3. Mở file APK đã tải và cài đặt
-            4. Mở app **HeriStepAI** và bắt đầu sử dụng!
+            4. Mở app **ZoneGuide** và bắt đầu sử dụng!
 
             ### ⚠️ Lưu ý:
             - Yêu cầu Android 7.0 (API 24) trở lên

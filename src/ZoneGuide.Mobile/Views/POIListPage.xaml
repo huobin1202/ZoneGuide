@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
+             xmlns:models="clr-namespace:ZoneGuide.Shared.Models;assembly=ZoneGuide.Shared"
+             x:Class="ZoneGuide.Mobile.Views.POIListPage"
+             x:DataType="vm:POIListViewModel"
+             Title="Điểm thuyết minh">
+
+    <Grid RowDefinitions="Auto, *">
+        
+        <!-- Search Bar -->
+        <SearchBar Grid.Row="0"
+                   Placeholder="Tìm kiếm điểm..."
+                   Text="{Binding SearchText}"
+                   Margin="16,8" />
+
+        <!-- POI List -->
+        <RefreshView Grid.Row="1"
+                     IsRefreshing="{Binding IsRefreshing}"
+                     Command="{Binding RefreshCommand}">
+            <CollectionView ItemsSource="{Binding FilteredPOIs}"
+                            SelectionMode="None">
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout HorizontalOptions="Center"
+                                         VerticalOptions="Center"
+                                         Padding="32">
+                        <Label Text="📍"
+                               FontSize="48"
+                               HorizontalOptions="Center" />
+                        <Label Text="Không có điểm nào"
+                               FontSize="16"
+                               TextColor="Gray"
+                               HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+                
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:POI">
+                        <Frame Margin="16,8"
+                               Padding="12"
+                               CornerRadius="12"
+                               BackgroundColor="White"
+                               BorderColor="LightGray">
+                            <Frame.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:POIListViewModel}}, Path=ViewDetailCommand}"
+                                                      CommandParameter="{Binding .}" />
+                            </Frame.GestureRecognizers>
+                            
+                            <Grid ColumnDefinitions="60, *, Auto" ColumnSpacing="12">
+                                <!-- Image -->
+                                <Frame Grid.Column="0"
+                                       WidthRequest="60"
+                                       HeightRequest="60"
+                                       CornerRadius="8"
+                                       Padding="0"
+                                       IsClippedToBounds="True"
+                                       BackgroundColor="LightGray">
+                                    <Image Source="{Binding ImageUrl}"
+                                           Aspect="AspectFill" />
+                                </Frame>
+                                
+                                <!-- Info -->
+                                <VerticalStackLayout Grid.Column="1" 
+                                                     VerticalOptions="Center"
+                                                     Spacing="4">
+                                    <Label Text="{Binding Name}"
+                                           FontSize="16"
+                                           FontAttributes="Bold"
+                                           MaxLines="1" />
+                                    <Label Text="{Binding ShortDescription}"
+                                           FontSize="12"
+                                           TextColor="Gray"
+                                           MaxLines="2" />
+                                    <HorizontalStackLayout Spacing="8">
+                                        <Label Text="⭐"
+                                               FontSize="10" />
+                                        <Label Text="{Binding Priority, StringFormat='Ưu tiên: {0}'}"
+                                               FontSize="10"
+                                               TextColor="Gray" />
+                                    </HorizontalStackLayout>
+                                </VerticalStackLayout>
+                                
+                                <!-- Play Button -->
+                                <Button Grid.Column="2"
+                                        Text="▶"
+                                        WidthRequest="44"
+                                        HeightRequest="44"
+                                        CornerRadius="22"
+                                        BackgroundColor="{StaticResource Primary}"
+                                        TextColor="White"
+                                        VerticalOptions="Center"
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:POIListViewModel}}, Path=PlayPOICommand}"
+                                        CommandParameter="{Binding .}" />
+                            </Grid>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </RefreshView>
+
+        <!-- Loading -->
+        <ActivityIndicator Grid.Row="1"
+                           IsRunning="{Binding IsLoading}"
+                           IsVisible="{Binding IsLoading}"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"
+                           Color="{StaticResource Primary}" />
+    </Grid>
+
+</ContentPage>
