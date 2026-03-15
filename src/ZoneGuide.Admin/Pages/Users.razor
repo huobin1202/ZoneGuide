@@ -25,7 +25,6 @@
                     <MudChip Text="Tất cả" Default="true" Color="Color.Default" Variant="Variant.Text">Tất cả</MudChip>
                     <MudChip Text="Admin" Color="Color.Error" Variant="Variant.Text">Admin</MudChip>
                     <MudChip Text="Contributor" Color="Color.Warning" Variant="Variant.Text">Contributor</MudChip>
-                    <MudChip Text="User" Color="Color.Info" Variant="Variant.Text">User</MudChip>
                 </MudChipSet>
             </ToolBarContent>
             <HeaderContent>
@@ -84,20 +83,16 @@
                 Navigation.NavigateTo("/login");
                 return;
             }
-            Http.DefaultRequestHeaders.Authorization = 
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             await LoadUsers();
             StateHasChanged();
         }
-    }
-    
-    private async Task LoadUsers()
+    }    private async Task LoadUsers()
     {
         isLoading = true;
         try
         {
             var response = await Http.GetFromJsonAsync<List<UserDto>>("api/users");
-            users = response ?? new();
+            users = response?.Where(u => u.Role == "Admin" || u.Role == "Contributor").ToList() ?? new();
         }
         catch (Exception ex)
         {

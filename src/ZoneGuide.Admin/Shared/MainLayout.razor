@@ -118,25 +118,11 @@
     {
         if (firstRender)
         {
-            // Set JWT token for HttpClient so all pages can call authorized APIs
-            try
-            {
-                var token = await LocalStorage.GetItemAsync<string>("accessToken");
-                if (!string.IsNullOrEmpty(token))
-                {
-                    Http.DefaultRequestHeaders.Authorization = 
-                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                }
-            }
-            catch { }
-            
             await LoadCurrentUser();
             _initialized = true;
             StateHasChanged();
         }
-    }
-    
-    private async Task LoadCurrentUser()
+    }    private async Task LoadCurrentUser()
     {
         try
         {

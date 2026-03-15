@@ -168,21 +168,13 @@ else if (_currentUser != null)
                 Navigation.NavigateTo("/login");
                 return;
             }
-            
+
             _updateModel = new UpdateUserDto
             {
                 DisplayName = _currentUser.DisplayName,
                 PhoneNumber = _currentUser.PhoneNumber,
                 AvatarUrl = _currentUser.AvatarUrl
             };
-            
-            // Set auth header
-            var token = await LocalStorage.GetItemAsync<string>("accessToken");
-            if (!string.IsNullOrEmpty(token))
-            {
-                Http.DefaultRequestHeaders.Authorization = 
-                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-            }
         }
         catch
         {

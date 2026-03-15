@@ -85,14 +85,10 @@
                 Navigation.NavigateTo("/login");
                 return;
             }
-            Http.DefaultRequestHeaders.Authorization = 
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             await LoadContributions();
             StateHasChanged();
         }
-    }
-    
-    private async Task LoadContributions()
+    }    private async Task LoadContributions()
     {
         isLoading = true;
         try

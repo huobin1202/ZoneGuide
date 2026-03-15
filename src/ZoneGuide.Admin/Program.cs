@@ -26,20 +26,23 @@ var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:56040
 // Register AuthTokenHandler for automatic JWT token injection
 builder.Services.AddScoped<AuthTokenHandler>();
 
-// Add HttpClient for API calls (via IApiService)
-builder.Services.AddHttpClient<IApiService, ApiService>(client =>
-{
-    client.BaseAddress = new Uri(apiBaseUrl);
-}).AddHttpMessageHandler<AuthTokenHandler>();
-
-// Add a default HttpClient for pages that inject HttpClient directly
-builder.Services.AddHttpClient("Default", client =>
-{
-    client.BaseAddress = new Uri(apiBaseUrl);
-}).AddHttpMessageHandler<AuthTokenHandler>();
-
+// Register a single Scoped HttpClient for this circuit
 builder.Services.AddScoped(sp =>
-    sp.GetRequiredService<IHttpClientFactory>().CreateClient("Default"));
+{
+    var handler = sp.GetRequiredService<AuthTokenHandler>();
+    // Ensure inner handler is set
+    if (handler.InnerHandler == null)
+    {
+        handler.InnerHandler = new HttpClientHandler();
+    }
+    return new HttpClient(handler)
+    {
+        BaseAddress = new Uri(apiBaseUrl)
+    };
+});
+
+// Configure IApiService to use the Scoped HttpClient
+builder.Services.AddScoped<IApiService, ApiService>();
 
 var app = builder.Build();
 

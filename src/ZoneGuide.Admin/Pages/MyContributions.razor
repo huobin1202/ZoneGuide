@@ -215,21 +215,7 @@
             Navigation.NavigateTo("/login");
             return;
         }
-        
-        // Set auth header
-        try
-        {
-            var token = await LocalStorage.GetItemAsync<string>("accessToken");
-            if (!string.IsNullOrEmpty(token))
-            {
-                Http.DefaultRequestHeaders.Authorization = 
-                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-            }
-        }
-        catch { }
-    }
-    
-    private async Task LoadContributions()
+    }    private async Task LoadContributions()
     {
         _isLoading = true;
         try

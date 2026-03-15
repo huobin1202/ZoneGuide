@@ -15,7 +15,6 @@
             <MudText Class="mb-3">Role hiện tại: <MudChip T="string" Color="@GetRoleColor(User.Role)" Size="Size.Small">@User.Role</MudChip></MudText>
             
             <MudSelect @bind-Value="selectedRole" Label="Role mới" Required="true" Variant="Variant.Outlined">
-                <MudSelectItem Value="@("User")">User - Người dùng thường</MudSelectItem>
                 <MudSelectItem Value="@("Contributor")">Contributor - Người đóng góp</MudSelectItem>
                 <MudSelectItem Value="@("Admin")">Admin - Quản trị viên</MudSelectItem>
             </MudSelect>
