@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
+             x:Class="ZoneGuide.Mobile.Views.MainPage"
+             x:DataType="vm:MainViewModel"
+             Title="ZoneGuide">
+
+    <Grid RowDefinitions="*, Auto">
+        <!-- Main Content -->
+        <VerticalStackLayout Grid.Row="0" 
+                             Spacing="16" 
+                             Padding="16"
+                             VerticalOptions="Center">
+            
+            <!-- Status -->
+            <Frame BackgroundColor="{Binding IsTracking, Converter={StaticResource TrackingColorConverter}}"
+                   CornerRadius="16"
+                   Padding="20">
+                <VerticalStackLayout Spacing="8" HorizontalOptions="Center">
+                    <Label Text="{Binding IsTracking, Converter={StaticResource TrackingIconConverter}}"
+                           FontSize="48"
+                           HorizontalOptions="Center" />
+                    <Label Text="{Binding StatusMessage}"
+                           FontSize="16"
+                           TextColor="White"
+                           HorizontalOptions="Center" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Location Info -->
+            <Frame BackgroundColor="White"
+                   CornerRadius="12"
+                   Padding="16"
+                   IsVisible="{Binding CurrentLocation, Converter={StaticResource IsNotNullConverter}}">
+                <Grid ColumnDefinitions="*, *" RowDefinitions="Auto, Auto" RowSpacing="8">
+                    <Label Grid.Row="0" Grid.Column="0" 
+                           Text="Vĩ độ" FontSize="12" TextColor="Gray" />
+                    <Label Grid.Row="1" Grid.Column="0"
+                           Text="{Binding CurrentLocation.Latitude, StringFormat='{0:F6}'}"
+                           FontSize="14" FontAttributes="Bold" />
+                    
+                    <Label Grid.Row="0" Grid.Column="1"
+                           Text="Kinh độ" FontSize="12" TextColor="Gray" />
+                    <Label Grid.Row="1" Grid.Column="1"
+                           Text="{Binding CurrentLocation.Longitude, StringFormat='{0:F6}'}"
+                           FontSize="14" FontAttributes="Bold" />
+                </Grid>
+            </Frame>
+
+            <!-- Nearest POI -->
+            <Frame BackgroundColor="White"
+                   CornerRadius="12"
+                   Padding="16"
+                   IsVisible="{Binding NearestPOI, Converter={StaticResource IsNotNullConverter}}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Điểm gần nhất" FontSize="12" TextColor="Gray" />
+                    <Label Text="{Binding NearestPOI.Name}"
+                           FontSize="16" FontAttributes="Bold" />
+                    <Label Text="{Binding NearestDistance, StringFormat='Cách {0:F0} mét'}"
+                           FontSize="14" TextColor="{StaticResource Primary}" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Start/Stop Button -->
+            <Button Text="{Binding IsTracking, Converter={StaticResource TrackingButtonTextConverter}}"
+                    BackgroundColor="{Binding IsTracking, Converter={StaticResource TrackingButtonColorConverter}}"
+                    TextColor="White"
+                    FontSize="18"
+                    HeightRequest="56"
+                    CornerRadius="28"
+                    Command="{Binding ToggleTrackingCommand}" />
+        </VerticalStackLayout>
+
+        <!-- Now Playing Bar -->
+        <Frame Grid.Row="1"
+               BackgroundColor="{StaticResource Primary}"
+               CornerRadius="0"
+               Padding="16"
+               IsVisible="{Binding IsPlaying}">
+            <Grid ColumnDefinitions="*, Auto, Auto, Auto" ColumnSpacing="12">
+                <VerticalStackLayout Grid.Column="0" VerticalOptions="Center">
+                    <Label Text="{Binding CurrentNarration.POI.Name}"
+                           FontSize="14"
+                           FontAttributes="Bold"
+                           TextColor="White"
+                           MaxLines="1" />
+                    <ProgressBar Progress="{Binding NarrationProgress}"
+                                 ProgressColor="White" />
+                </VerticalStackLayout>
+                
+                <Button Grid.Column="1"
+                        Text="⏸"
+                        WidthRequest="40"
+                        HeightRequest="40"
+                        CornerRadius="20"
+                        BackgroundColor="White"
+                        TextColor="{StaticResource Primary}"
+                        Command="{Binding PauseNarrationCommand}" />
+                
+                <Button Grid.Column="2"
+                        Text="⏭"
+                        WidthRequest="40"
+                        HeightRequest="40"
+                        CornerRadius="20"
+                        BackgroundColor="White"
+                        TextColor="{StaticResource Primary}"
+                        Command="{Binding SkipNarrationCommand}" />
+                
+                <Button Grid.Column="3"
+                        Text="⏹"
+                        WidthRequest="40"
+                        HeightRequest="40"
+                        CornerRadius="20"
+                        BackgroundColor="White"
+                        TextColor="{StaticResource Primary}"
+                        Command="{Binding StopNarrationCommand}" />
+            </Grid>
+        </Frame>
+    </Grid>
+
+</ContentPage>

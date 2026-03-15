@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 # ============================================================
-# HeriStepAI - Git Flow Helper Script
+# ZoneGuide - Git Flow Helper Script
 # ============================================================
 # Usage:
 #   .\scripts\git-flow.ps1 feature start <name>    - Create feature branch
@@ -22,7 +22,7 @@ $ErrorActionPreference = "Stop"
 function Show-Help {
     Write-Host @"
 
-HeriStepAI Git Flow Helper
+ZoneGuide Git Flow Helper
 ==========================
 Usage:
   .\scripts\git-flow.ps1 feature start <name>     Create feature/name from develop

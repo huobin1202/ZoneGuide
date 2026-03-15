@@ -1,13 +1,13 @@
 #!/usr/bin/env pwsh
 # ============================================================
-# HeriStepAI - Setup Branch Protection Rules
+# ZoneGuide - Setup Branch Protection Rules
 # ============================================================
 # Prerequisites: gh auth login (GitHub CLI authenticated)
 # Usage: .\scripts\setup-branch-protection.ps1
 # ============================================================
 
 $ErrorActionPreference = "Stop"
-$repo = "huobin1202/HeriStepAI"
+$repo = "huobin1202/ZoneGuide"
 
 Write-Host "=== Setting up branch protection for $repo ===" -ForegroundColor Cyan
 

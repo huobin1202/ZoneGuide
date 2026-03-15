@@ -1,0 +1,490 @@
+@inject IApiService ApiService
+@inject IJSRuntime JS
+
+<MudDialog Style="max-width: 900px;">
+    <DialogContent>
+        <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-3">
+            <MudTabPanel Text="Thông tin" Icon="@Icons.Material.Filled.Info">
+                <MudForm @ref="_form" @bind-IsValid="_isValid">
+                    <MudTextField @bind-Value="_model.Name" Label="Tên POI" Required="true" 
+                                  RequiredError="Tên là bắt buộc" Class="mb-3" />
+                    
+                    <MudTextField @bind-Value="_model.ShortDescription" Label="Mô tả ngắn" 
+                                  Lines="2" Class="mb-3" />
+                    
+                    <MudTextField @bind-Value="_model.FullDescription" Label="Mô tả chi tiết" 
+                                  Lines="3" Class="mb-3" />
+                    
+                
+
+                    <MudText Typo="Typo.subtitle2" Class="mb-2 mt-3">
+                        <MudIcon Icon="@Icons.Material.Filled.Map" Size="Size.Small" Class="mr-1" />
+                        Trực quan trên bản đồ
+                    </MudText>
+
+                    <MudText Typo="Typo.body2" Class="mb-2" Color="Color.Primary">
+                        <MudIcon Icon="@Icons.Material.Filled.TouchApp" Size="Size.Small" />
+                        Click vào bản đồ để chọn vị trí. Kéo marker để điều chỉnh.
+                    </MudText>
+
+                    <MudPaper Elevation="2" Class="mb-3" Style="height: 350px; position: relative;">
+                        <div id="poi-picker-map" style="width: 100%; height: 100%; border-radius: 4px;"></div>
+                    </MudPaper>
+
+                    <MudGrid>
+                        <MudItem xs="5">
+                            <MudTextField @bind-Value="_model.Latitude" Label="Vĩ độ" ReadOnly="true" Required="true"
+                                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.NorthEast" />
+                        </MudItem>
+                        <MudItem xs="5">
+                            <MudTextField @bind-Value="_model.Longitude" Label="Kinh độ" ReadOnly="true" Required="true"
+                                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.East" />
+                        </MudItem>
+                        <MudItem xs="2" Class="d-flex align-center">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
+                                       OnClick="UseCurrentLocation" StartIcon="@Icons.Material.Filled.MyLocation">
+                                GPS
+                            </MudButton>
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudAutocomplete T="OsmAddressResult" Label="Tìm địa chỉ" Class="mt-3"
+                        Placeholder="Nhập địa chỉ..." Adornment="Adornment.End"
+                        AdornmentIcon="@Icons.Material.Filled.Search"
+                        SearchFunc="SearchAddressSuggestions"
+                        ToStringFunc="@(e => e == null ? null : e.DisplayName)"
+                        ValueChanged="OnAddressSelected" 
+                        ResetValueOnEmptyText="true" />
+
+                    <MudGrid Class="mt-3">
+                        <MudItem xs="6">
+                            <MudNumericField @bind-Value="_model.TriggerRadiusMeters"
+                                             Label="Bán kính kích hoạt (m)" Min="20" Max="150" />
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudNumericField @bind-Value="_model.Priority" Label="Độ ưu tiên" Min="1" Max="5" />
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudTextField @bind-Value="_model.Category" Label="Danh mục" Class="mt-3"
+                                  Placeholder="VD: Di tích, Bảo tàng, Công viên..." />
+
+                    <MudFileUpload T="IBrowserFile" Accept=".png, .jpg, .jpeg" FilesChanged="UploadImage" Class="mt-3">
+                        <ActivatorContent>
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.CloudUpload">
+                                Tải lên hình ảnh
+                            </MudButton>
+                        </ActivatorContent>
+                    </MudFileUpload>
+
+                    @if (!string.IsNullOrEmpty(_model.ImageUrl))
+                    {
+                        <div class="mt-2">
+                            <img src="@_model.ImageUrl" style="max-height: 150px; border-radius: 4px;" />
+                        </div>
+                    }
+
+                    <MudSwitch @bind-Value="_model.IsActive" Label="Kích hoạt" Color="Color.Primary" Class="mt-3" />
+                </MudForm>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Thuyết minh" Icon="@Icons.Material.Filled.RecordVoiceOver">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Audiotrack" Size="Size.Small" Class="mr-1" />
+                    Audio & Text-to-Speech
+                </MudText>
+                <MudAlert Severity="Severity.Info" Class="mb-3" Dense="true">
+                    Nếu có URL audio, app sẽ phát file audio. Nếu không, app sẽ đọc TTSScript bằng Text-to-Speech.
+                </MudAlert>
+
+                <MudTextField @bind-Value="_model.AudioUrl" Label="URL Audio thuyết minh" Class="mb-3"
+                              Placeholder="https://example.com/audio/poi-name.mp3"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.AudioFile" />
+                
+                @if (!string.IsNullOrEmpty(_model.AudioUrl))
+                {
+                    <MudNumericField @bind-Value="_model.AudioDurationSeconds" 
+                                     Label="Thời lượng Audio (giây)" Class="mb-3" Min="0" />
+                    <MudPaper Class="pa-2 mb-3" Outlined="true">
+                        <audio controls style="width:100%">
+                            <source src="@_model.AudioUrl" />
+                        </audio>
+                    </MudPaper>
+                }
+
+                <MudDivider Class="my-3" />
+
+                <MudSelect @bind-Value="_model.Language" Label="Ngôn ngữ chính" Class="mb-3">
+                    <MudSelectItem Value="@("vi-VN")">🇻🇳 Tiếng Việt</MudSelectItem>
+                    <MudSelectItem Value="@("en-US")">🇺🇸 English</MudSelectItem>
+                    <MudSelectItem Value="@("ja-JP")">🇯🇵 日本語</MudSelectItem>
+                    <MudSelectItem Value="@("ko-KR")">🇰🇷 한국어</MudSelectItem>
+                    <MudSelectItem Value="@("zh-CN")">🇨🇳 中文</MudSelectItem>
+                </MudSelect>
+
+                <MudTextField @bind-Value="_model.TTSScript" Label="Script TTS (Text-to-Speech)" 
+                              Lines="6" Class="mb-3"
+                              Placeholder="Nhập nội dung thuyết minh sẽ được đọc tự động khi người dùng đến gần..."
+                              HelperText="Nội dung này sẽ được đọc bằng giọng nói tự động nếu không có file audio" />
+            </MudTabPanel>
+
+            <MudTabPanel Text="Bản dịch" Icon="@Icons.Material.Filled.Translate">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Language" Size="Size.Small" Class="mr-1" />
+                    Nội dung đa ngôn ngữ
+                </MudText>
+                <MudAlert Severity="Severity.Info" Class="mb-3" Dense="true">
+                    Thêm bản dịch cho mỗi ngôn ngữ. App sẽ tự chọn bản dịch phù hợp với ngôn ngữ người dùng.
+                </MudAlert>
+
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Add" OnClick="AddTranslation" Class="mb-3">
+                    Thêm bản dịch
+                </MudButton>
+
+                @foreach (var trans in _model.Translations)
+                {
+                    <MudPaper Class="pa-3 mb-3" Outlined="true">
+                        <MudGrid>
+                            <MudItem xs="10">
+                                <MudSelect @bind-Value="trans.LanguageCode" Label="Ngôn ngữ" Dense="true">
+                                    <MudSelectItem Value="@("en-US")">🇺🇸 English</MudSelectItem>
+                                    <MudSelectItem Value="@("ja-JP")">🇯🇵 日本語</MudSelectItem>
+                                    <MudSelectItem Value="@("ko-KR")">🇰🇷 한국어</MudSelectItem>
+                                    <MudSelectItem Value="@("zh-CN")">🇨🇳 中文</MudSelectItem>
+                                    <MudSelectItem Value="@("fr-FR")">🇫🇷 Français</MudSelectItem>
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="2" Class="d-flex align-center justify-end">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                               OnClick="@(() => RemoveTranslation(trans))" />
+                            </MudItem>
+                        </MudGrid>
+                        <MudTextField @bind-Value="trans.Name" Label="Tên (dịch)" Class="mt-2" Dense="true" />
+                        <MudTextField @bind-Value="trans.ShortDescription" Label="Mô tả ngắn (dịch)" 
+                                      Class="mt-2" Dense="true" Lines="2" />
+                        <MudTextField @bind-Value="trans.FullDescription" Label="Mô tả chi tiết (dịch)" 
+                                      Class="mt-2" Dense="true" Lines="2" />
+                        <MudTextField @bind-Value="trans.TTSScript" Label="TTS Script (dịch)" 
+                                      Class="mt-2" Dense="true" Lines="3"
+                                      Placeholder="Nội dung thuyết minh bằng ngôn ngữ này..." />
+                        <MudTextField @bind-Value="trans.AudioUrl" Label="URL Audio (dịch)" 
+                                      Class="mt-2" Dense="true" />
+                    </MudPaper>
+                }
+            </MudTabPanel>
+        </MudTabs>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" 
+                   OnClick="Submit" Disabled="@(!_isValid || _saving)">
+            @if (_saving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            @(IsEdit ? "Cập nhật" : "Tạo mới")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public POIDto? POI { get; set; }
+    [Parameter] public bool IsEdit { get; set; }
+
+    private MudForm _form = null!;
+    private bool _isValid;
+    private bool _saving;
+    private bool _mapInitialized = false;
+    private string _searchAddress = "";
+    private POIFormModel _model = new();
+
+    public class OsmAddressResult
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("display_name")]
+        public string DisplayName { get; set; } = "";
+        
+        [System.Text.Json.Serialization.JsonPropertyName("lat")]
+        public string Lat { get; set; } = "";
+        
+        [System.Text.Json.Serialization.JsonPropertyName("lon")]
+        public string Lon { get; set; } = "";
+    }
+    
+
+    private DotNetObjectReference<POIDialog>? _dotNetRef;
+
+    protected override void OnInitialized()
+    {
+        if (POI != null)
+        {
+            _model = new POIFormModel
+            {
+                Name = POI.Name,
+                ShortDescription = POI.ShortDescription,
+                FullDescription = POI.FullDescription,
+                Latitude = POI.Latitude,
+                Longitude = POI.Longitude,
+                TriggerRadiusMeters = POI.TriggerRadiusMeters,
+                Priority = POI.Priority,
+                Category = POI.Category,
+                ImageUrl = POI.ImageUrl,
+                AudioUrl = POI.AudioUrl,
+                AudioDurationSeconds = POI.AudioDurationSeconds ?? 0,
+                TTSScript = POI.TTSScript,
+                Language = POI.Language ?? "vi-VN",
+                MapDeepLink = POI.MapDeepLink,
+                IsActive = POI.IsActive,
+                Translations = POI.Translations?.Select(t => new POITranslationDto
+                {
+                    Id = t.Id,
+                    POIId = t.POIId,
+                    LanguageCode = t.LanguageCode,
+                    Name = t.Name,
+                    ShortDescription = t.ShortDescription,
+                    FullDescription = t.FullDescription,
+                    TTSScript = t.TTSScript,
+                    AudioUrl = t.AudioUrl
+                }).ToList() ?? new()
+            };
+        }
+        
+        _dotNetRef = DotNetObjectReference.Create(this);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await InitPickerMap();
+        }
+    }
+
+    private async Task InitPickerMap()
+    {
+        if (_mapInitialized) return;
+        
+        // Delay to ensure DOM is ready
+        await Task.Delay(100);
+        
+        try
+        {
+            double lat = _model.Latitude ?? 10.762622; // Default: HCM
+            double lng = _model.Longitude ?? 106.660172;
+            
+            await JS.InvokeVoidAsync("initPickerMap", "poi-picker-map", lat, lng, _dotNetRef);
+            _mapInitialized = true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error initializing map: {ex.Message}");
+        }
+    }
+
+    [JSInvokable]
+    public void OnLocationPicked(double lat, double lng)
+    {
+        _model.Latitude = Math.Round(lat, 6);
+        _model.Longitude = Math.Round(lng, 6);
+        StateHasChanged();
+    }
+
+    private async Task UseCurrentLocation()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("getCurrentLocation", _dotNetRef);
+        }
+        catch
+        {
+            // Browser may not support geolocation
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnCurrentLocationReceived(double lat, double lng)
+    {
+        _model.Latitude = Math.Round(lat, 6);
+        _model.Longitude = Math.Round(lng, 6);
+        StateHasChanged();
+        
+        // Update map marker
+        await JS.InvokeVoidAsync("updatePickerMarker", lat, lng);
+    }
+
+    private async Task<IEnumerable<OsmAddressResult>> SearchAddressSuggestions(string value, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Length < 3)
+            return Array.Empty<OsmAddressResult>();
+
+        try
+        {
+            using var client = new HttpClient();
+            var request = new HttpRequestMessage(HttpMethod.Get, $"https://nominatim.openstreetmap.org/search?format=json&q={Uri.EscapeDataString(value)}&limit=5");
+            request.Headers.Add("User-Agent", "ZoneGuide-Admin/1.0");
+            
+            var response = await client.SendAsync(request, token);
+            if (response.IsSuccessStatusCode)
+            {
+                var results = await response.Content.ReadFromJsonAsync<List<OsmAddressResult>>(cancellationToken: token);
+                return results ?? new List<OsmAddressResult>();
+            }
+        }
+        catch { }
+
+        return Array.Empty<OsmAddressResult>();
+    }
+
+    private async Task OnAddressSelected(OsmAddressResult result)
+    {
+        if (result != null && 
+            double.TryParse(result.Lat, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double lat) && 
+            double.TryParse(result.Lon, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double lon))
+        {
+            _model.Latitude = Math.Round(lat, 6);
+            _model.Longitude = Math.Round(lon, 6);
+            
+            await JS.InvokeVoidAsync("updatePickerMarker", lat, lon);
+            _searchAddress = result.DisplayName; 
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_isValid) return;
+
+        _saving = true;
+
+        try
+        {
+            if (IsEdit && POI != null)
+            {
+                var updateDto = new UpdatePOIDto
+                {
+                    Name = _model.Name,
+                    ShortDescription = _model.ShortDescription,
+                    FullDescription = _model.FullDescription,
+                    Latitude = _model.Latitude ?? 0,
+                    Longitude = _model.Longitude ?? 0,
+                    TriggerRadiusMeters = _model.TriggerRadiusMeters,
+                    Priority = _model.Priority,
+                    Category = _model.Category,
+                    ImageUrl = _model.ImageUrl,
+                    AudioUrl = _model.AudioUrl,
+                    AudioDurationSeconds = _model.AudioDurationSeconds,
+                    TTSScript = _model.TTSScript,
+                    Language = _model.Language,
+                    MapDeepLink = _model.MapDeepLink,
+                    IsActive = _model.IsActive,
+                    Translations = _model.Translations
+                };
+                
+                var result = await ApiService.UpdatePOIAsync(POI.Id, updateDto);
+                if (result != null)
+                {
+                    MudDialog.Close(DialogResult.Ok(result));
+                }
+            }
+            else
+            {
+                var createDto = new CreatePOIDto
+                {
+                    Name = _model.Name,
+                    ShortDescription = _model.ShortDescription,
+                    FullDescription = _model.FullDescription,
+                    Latitude = _model.Latitude ?? 0,
+                    Longitude = _model.Longitude ?? 0,
+                    TriggerRadiusMeters = _model.TriggerRadiusMeters,
+                    Priority = _model.Priority,
+                    Category = _model.Category,
+                    ImageUrl = _model.ImageUrl,
+                    AudioUrl = _model.AudioUrl,
+                    AudioDurationSeconds = _model.AudioDurationSeconds,
+                    TTSScript = _model.TTSScript,
+                    Language = _model.Language,
+                    MapDeepLink = _model.MapDeepLink
+                };
+
+                var result = await ApiService.CreatePOIAsync(createDto);
+                if (result != null)
+                {
+                    MudDialog.Close(DialogResult.Ok(result));
+                }
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void AddTranslation()
+    {
+        _model.Translations.Add(new POITranslationDto
+        {
+            LanguageCode = "en-US",
+            Name = _model.Name ?? "",
+            ShortDescription = "",
+            FullDescription = ""
+        });
+    }
+
+    private void RemoveTranslation(POITranslationDto trans)
+    {
+        _model.Translations.Remove(trans);
+    }
+
+    private async Task UploadImage(IBrowserFile file)
+    {
+        if (file != null)
+        {
+            try
+            {
+                var format = file.ContentType;
+                if (string.IsNullOrEmpty(format)) format = "image/png";
+                
+                using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // Tối đa 10MB
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                
+                var base64 = Convert.ToBase64String(ms.ToArray());
+                _model.ImageUrl = $"data:{format};base64,{base64}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error reading file: {ex.Message}");
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        _dotNetRef?.Dispose();
+    }
+
+    private class POIFormModel
+    {
+        public string Name { get; set; } = "";
+        public string? ShortDescription { get; set; }
+        public string? FullDescription { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public double TriggerRadiusMeters { get; set; } = 50;
+        public int Priority { get; set; } = 1;
+        public string? Category { get; set; }
+        public string? ImageUrl { get; set; }
+        public string? AudioUrl { get; set; }
+        public int AudioDurationSeconds { get; set; }
+        public string? TTSScript { get; set; }
+        public string Language { get; set; } = "vi-VN";
+        public string? MapDeepLink { get; set; }
+        public bool IsActive { get; set; } = true;
+        public List<POITranslationDto> Translations { get; set; } = new();
+    }
+}

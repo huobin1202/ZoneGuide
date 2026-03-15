@@ -1,8 +1,8 @@
-# HeriStepAI - GPS-Based Tour Guide System
+# ZoneGuide - GPS-Based Tour Guide System
 
 A comprehensive GPS-based tour guide application with real-time location tracking, automatic audio narration, and content management capabilities.
 
-![QR code linking to the HeriStepAI repository or application download page](image.png)
+![QR code linking to the ZoneGuide repository or application download page](image.png)
 
 ## 🎯 Features
 
@@ -30,13 +30,13 @@ A comprehensive GPS-based tour guide application with real-time location trackin
 ## 🏗️ Architecture
 
 ```
-HeriStepAI/
+ZoneGuide/
 ├── src/
-│   ├── HeriStepAI.Shared/          # Shared models, DTOs, interfaces
-│   ├── HeriStepAI.Mobile/          # .NET MAUI mobile app
-│   ├── HeriStepAI.API/             # ASP.NET Core Web API
-│   └── HeriStepAI.Admin/           # Blazor Server admin portal
-└── HeriStepAI.sln
+│   ├── ZoneGuide.Shared/          # Shared models, DTOs, interfaces
+│   ├── ZoneGuide.Mobile/          # .NET MAUI mobile app
+│   ├── ZoneGuide.API/             # ASP.NET Core Web API
+│   └── ZoneGuide.Admin/           # Blazor Server admin portal
+└── ZoneGuide.sln
 ```
 
 ## 🔧 Technology Stack
@@ -88,7 +88,7 @@ public enum LocationAccuracy
 1. **Clone the repository**
 ```bash
 git clone <repository-url>
-cd HeriStepAI
+cd ZoneGuide
 ```
 
 2. **Restore packages**
@@ -98,27 +98,27 @@ dotnet restore
 
 3. **Setup Database (API)**
 ```bash
-cd src/HeriStepAI.API
+cd src/ZoneGuide.API
 dotnet ef database update
 ```
 
 4. **Run API**
 ```bash
-dotnet run --project src/HeriStepAI.API
+dotnet run --project src/ZoneGuide.API
 ```
 
 5. **Run Admin Portal**
 ```bash
-dotnet run --project src/HeriStepAI.Admin
+dotnet run --project src/ZoneGuide.Admin
 ```
 
 6. **Run Mobile App**
 ```bash
-dotnet build src/HeriStepAI.Mobile -t:Run -f net8.0-android
+dotnet build src/ZoneGuide.Mobile -t:Run -f net8.0-android
 ```
 ## Build APK
 ```bash
-dotnet publish src/HeriStepAI.Mobile/HeriStepAI.Mobile.csproj -f net10.0-android -c Release -p:AndroidPackageFormat=apk
+dotnet publish src/ZoneGuide.Mobile/ZoneGuide.Mobile.csproj -f net10.0-android -c Release -p:AndroidPackageFormat=apk
 ```
 ## 📡 API Endpoints
 
@@ -180,7 +180,7 @@ dotnet publish src/HeriStepAI.Mobile/HeriStepAI.Mobile.csproj -f net10.0-android
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=...;Database=HeriStepAI;..."
+    "DefaultConnection": "Server=...;Database=ZoneGuide;..."
   }
 }
 ```

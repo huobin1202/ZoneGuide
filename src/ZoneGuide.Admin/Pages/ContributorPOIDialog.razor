@@ -1,0 +1,395 @@
+@using ZoneGuide.Shared.Models
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@implements IDisposable
+
+<MudDialog Style="max-width: 900px;">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@(IsEdit? Icons.Material.Filled.Edit : Icons.Material.Filled.Add)" Class="mr-2" />
+            @(IsEdit ? "Sửa POI" : "Thêm POI mới")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-3">
+            <MudTabPanel Text="Thông tin" Icon="@Icons.Material.Filled.Info">
+                <MudForm @ref="_form" @bind-IsValid="@_isValid">
+                    <MudTextField @bind-Value="_model.Name" Label="Tên POI" Required="true"
+                        RequiredError="Tên là bắt buộc" Class="mb-3" />
+
+                    <MudTextField @bind-Value="_model.ShortDescription" Label="Mô tả ngắn" Lines="2" Class="mb-3" />
+
+                    <MudTextField @bind-Value="_model.FullDescription" Label="Mô tả chi tiết" Lines="3" Class="mb-3" />
+
+
+
+                    <MudText Typo="Typo.subtitle2" Class="mb-2 mt-3">
+                        <MudIcon Icon="@Icons.Material.Filled.Map" Size="Size.Small" Class="mr-1" />
+                        Trực quan trên bản đồ
+                    </MudText>
+
+                    <MudText Typo="Typo.body2" Class="mb-2" Color="Color.Primary">
+                        <MudIcon Icon="@Icons.Material.Filled.TouchApp" Size="Size.Small" />
+                        Click vào bản đồ để chọn vị trí. Kéo marker để điều chỉnh.
+                    </MudText>
+
+                    <MudPaper Elevation="2" Class="mb-3" Style="height: 350px; position: relative;">
+                        <div id="contributor-poi-picker-map" style="width: 100%; height: 100%; border-radius: 4px;"></div>
+                    </MudPaper>
+
+                    <MudGrid>
+                        <MudItem xs="5">
+                            <MudTextField @bind-Value="_model.Latitude" Label="Vĩ độ" ReadOnly="true" Required="true"
+                                Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.NorthEast" />
+                        </MudItem>
+                        <MudItem xs="5">
+                            <MudTextField @bind-Value="_model.Longitude" Label="Kinh độ" ReadOnly="true" Required="true"
+                                Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.East" />
+                        </MudItem>
+                        <MudItem xs="2" Class="d-flex align-center">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
+                                OnClick="UseCurrentLocation" StartIcon="@Icons.Material.Filled.MyLocation">
+                                GPS
+                            </MudButton>
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudAutocomplete T="OsmAddressResult" Label="Tìm địa chỉ" Class="mt-3"
+                        Placeholder="Nhập địa chỉ..." Adornment="Adornment.End"
+                        AdornmentIcon="@Icons.Material.Filled.Search"
+                        SearchFunc="SearchAddressSuggestions"
+                        ToStringFunc="@(e => e == null ? null : e.DisplayName)"
+                        ValueChanged="OnAddressSelected" 
+                        ResetValueOnEmptyText="true" />
+
+                    <MudGrid Class="mt-3">
+                        <MudItem xs="6">
+                            <MudNumericField @bind-Value="_model.TriggerRadius" Label="Bán kính kích hoạt (m)"
+                                Min="20" Max="150" />
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudNumericField @bind-Value="_model.Priority" Label="Độ ưu tiên" Min="1" Max="5" />
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudTextField @bind-Value="_model.Category" Label="Danh mục" Class="mt-3"
+                        Placeholder="VD: Di tích, Bảo tàng, Công viên..." />
+
+                    <MudFileUpload T="IBrowserFile" Accept=".png, .jpg, .jpeg" FilesChanged="UploadImage" Class="mt-3">
+                        <ActivatorContent>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                StartIcon="@Icons.Material.Filled.CloudUpload">
+                                Tải lên hình ảnh
+                            </MudButton>
+                        </ActivatorContent>
+                    </MudFileUpload>
+
+                    @if (!string.IsNullOrEmpty(_model.ImageUrl))
+                    {
+                        <div class="mt-2">
+                            <img src="@_model.ImageUrl" style="max-height: 150px; border-radius: 4px;" />
+                        </div>
+                    }
+
+                    <MudDivider Class="my-3" />
+                    <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">
+                        <MudIcon Icon="@Icons.Material.Filled.Note" Size="Size.Small" Class="mr-1" />
+                        Ghi chú cho Admin
+                    </MudText>
+
+                    <MudTextField @bind-Value="_model.ContributorNotes" Label="Ghi chú" Lines="2"
+                        HelperText="Ghi chú thêm cho Admin khi duyệt (nguồn tham khảo, lý do đề xuất...)" />
+
+                    @if (IsEdit && !string.IsNullOrEmpty(Contribution?.ReviewerFeedback))
+                    {
+                        <MudAlert Severity="Severity.Warning" Icon="@Icons.Material.Filled.Feedback" Class="mt-3">
+                            <strong>Phản hồi từ Admin:</strong><br />
+                            @Contribution.ReviewerFeedback
+                        </MudAlert>
+                    }
+                </MudForm>
+            </MudTabPanel>
+
+          
+        </MudTabs>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveAsDraft"
+            Disabled="@(!_isValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            <MudIcon Icon="@Icons.Material.Filled.Save" Class="mr-1" />
+            Lưu nháp
+        </MudButton>
+        <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="SaveAndSubmit"
+            Disabled="@(!_isValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            <MudIcon Icon="@Icons.Material.Filled.Send" Class="mr-1" />
+            Lưu & Gửi duyệt
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public POIContributionDto? Contribution { get; set; }
+    [Parameter] public bool IsEdit { get; set; }
+
+    private MudForm _form = null!;
+    private bool _isValid;
+    private bool _isSaving;
+    private bool _mapInitialized = false;
+    private string _searchAddress = "";
+
+    public class OsmAddressResult
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("display_name")]
+        public string DisplayName { get; set; } = "";
+        
+        [System.Text.Json.Serialization.JsonPropertyName("lat")]
+        public string Lat { get; set; } = "";
+        
+        [System.Text.Json.Serialization.JsonPropertyName("lon")]
+        public string Lon { get; set; } = "";
+    }
+
+    private DotNetObjectReference<ContributorPOIDialog>? _dotNetRef;
+
+    private CreatePOIContributionDto _model = new()
+    {
+        Language = "vi-VN",
+        TriggerRadius = 50,
+        ApproachRadius = 100,
+        Priority = 5
+    };
+
+    protected override void OnInitialized()
+    {
+        if (IsEdit && Contribution != null)
+        {
+            _model = new CreatePOIContributionDto
+            {
+                Name = Contribution.Name,
+                ShortDescription = Contribution.ShortDescription,
+                FullDescription = Contribution.FullDescription,
+                Latitude = Contribution.Latitude,
+                Longitude = Contribution.Longitude,
+                TriggerRadius = Contribution.TriggerRadius,
+                ApproachRadius = Contribution.ApproachRadius,
+                Priority = Contribution.Priority,
+                AudioUrl = Contribution.AudioUrl,
+                TTSScript = Contribution.TTSScript,
+                ImageUrl = Contribution.ImageUrl,
+                MapLink = Contribution.MapLink,
+                Language = Contribution.Language,
+                Category = Contribution.Category,
+                ContributorNotes = Contribution.ContributorNotes
+            };
+        }
+
+        _dotNetRef = DotNetObjectReference.Create(this);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await InitPickerMap();
+        }
+    }
+
+    private async Task InitPickerMap()
+    {
+        if (_mapInitialized) return;
+
+        await Task.Delay(100);
+
+        try
+        {
+            double lat = _model.Latitude.GetValueOrDefault();
+            double lng = _model.Longitude.GetValueOrDefault();
+
+            await JS.InvokeVoidAsync("initPickerMap", "contributor-poi-picker-map", lat, lng, _dotNetRef);
+            _mapInitialized = true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error initializing map: {ex.Message}");
+        }
+    }
+
+    [JSInvokable]
+    public void OnLocationPicked(double lat, double lng)
+    {
+        _model.Latitude = Math.Round(lat, 6);
+        _model.Longitude = Math.Round(lng, 6);
+        StateHasChanged();
+    }
+
+    private async Task UseCurrentLocation()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("getCurrentLocation", _dotNetRef);
+        }
+        catch { }
+    }
+
+    [JSInvokable]
+    public async Task OnCurrentLocationReceived(double lat, double lng)
+    {
+        _model.Latitude = Math.Round(lat, 6);
+        _model.Longitude = Math.Round(lng, 6);
+        StateHasChanged();
+
+        await JS.InvokeVoidAsync("updatePickerMarker", lat, lng);
+    }
+
+    private async Task<IEnumerable<OsmAddressResult>> SearchAddressSuggestions(string value, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Length < 3)
+            return Array.Empty<OsmAddressResult>();
+
+        try
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get, $"https://nominatim.openstreetmap.org/search?format=json&q={Uri.EscapeDataString(value)}&limit=5");
+            request.Headers.Add("User-Agent", "ZoneGuide-Admin/1.0");
+            
+            var response = await Http.SendAsync(request, token);
+            if (response.IsSuccessStatusCode)
+            {
+                var results = await response.Content.ReadFromJsonAsync<List<OsmAddressResult>>(cancellationToken: token);
+                return results ?? new List<OsmAddressResult>();
+            }
+        }
+        catch { }
+
+        return Array.Empty<OsmAddressResult>();
+    }
+
+    private async Task OnAddressSelected(OsmAddressResult result)
+    {
+        if (result != null && 
+            double.TryParse(result.Lat, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double lat) && 
+            double.TryParse(result.Lon, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double lon))
+        {
+            _model.Latitude = Math.Round(lat, 6);
+            _model.Longitude = Math.Round(lon, 6);
+            
+            await JS.InvokeVoidAsync("updatePickerMarker", lat, lon);
+            _searchAddress = result.DisplayName; 
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task SaveAsDraft()
+    {
+        await _form.Validate();
+        if (!_isValid) return;
+
+        await Save(submitForReview: false);
+    }
+
+    private async Task SaveAndSubmit()
+    {
+        await _form.Validate();
+        if (!_isValid) return;
+
+        await Save(submitForReview: true);
+    }
+
+    private async Task Save(bool submitForReview)
+    {
+        _isSaving = true;
+
+        try
+        {
+            HttpResponseMessage response;
+
+            if (IsEdit && Contribution != null)
+            {
+                response = await Http.PutAsJsonAsync($"api/contributions/{Contribution.Id}", _model);
+            }
+            else
+            {
+                response = await Http.PostAsJsonAsync("api/contributions", _model);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<POIContributionDto>();
+
+                if (submitForReview && result != null)
+                {
+                    var submitResponse = await Http.PostAsync($"api/contributions/{result.Id}/submit", null);
+                    if (submitResponse.IsSuccessStatusCode)
+                    {
+                        Snackbar.Add("Đã lưu và gửi duyệt thành công!", Severity.Success);
+                    }
+                    else
+                    {
+                        Snackbar.Add("Đã lưu nhưng chưa thể gửi duyệt", Severity.Warning);
+                    }
+                }
+                else
+                {
+                    Snackbar.Add(IsEdit ? "Đã cập nhật thành công!" : "Đã tạo bản nháp thành công!", Severity.Success);
+                }
+
+                MudDialog.Close(DialogResult.Ok(result));
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Lỗi: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task UploadImage(IBrowserFile file)
+    {
+        if (file != null)
+        {
+            try
+            {
+                var format = file.ContentType;
+                if (string.IsNullOrEmpty(format)) format = "image/png";
+                
+                using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // Tối đa 10MB
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                
+                var base64 = Convert.ToBase64String(ms.ToArray());
+                _model.ImageUrl = $"data:{format};base64,{base64}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error reading file: {ex.Message}");
+                Snackbar.Add("Lỗi tải ảnh: " + ex.Message, Severity.Error);
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        _dotNetRef?.Dispose();
+    }
+}
