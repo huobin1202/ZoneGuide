@@ -23,7 +23,7 @@
         <MudTd DataLabel="Người đóng góp">@context.ContributorName</MudTd>
         <MudTd DataLabel="Vị trí">
             <MudLink Href="@($"https://maps.google.com/?q={context.Latitude},{context.Longitude}")" Target="_blank">
-                @context.Latitude.ToString("F5"), @context.Longitude.ToString("F5")
+                @(context.Latitude?.ToString("F5") ?? "0"), @(context.Longitude?.ToString("F5") ?? "0")
             </MudLink>
         </MudTd>
         <MudTd DataLabel="Trạng thái">

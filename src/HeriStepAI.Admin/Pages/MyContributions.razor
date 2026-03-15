@@ -30,12 +30,7 @@
                                    OnClick="OpenAddDialog">
                             Thêm POI mới
                         </MudButton>
-                        <MudButton Variant="Variant.Outlined" 
-                                   Color="Color.Error" 
-                                   StartIcon="@Icons.Material.Filled.Logout"
-                                   OnClick="Logout">
-                            Đăng xuất
-                        </MudButton>
+              
                     </div>
                 </div>
             </MudPaper>
@@ -121,7 +116,7 @@
                             </MudTd>
                             <MudTd DataLabel="Vị trí">
                                 <MudLink Href="@($"https://maps.google.com/?q={context.Latitude},{context.Longitude}")" Target="_blank">
-                                    @context.Latitude.ToString("F4"), @context.Longitude.ToString("F4")
+                                    @(context.Latitude?.ToString("F4") ?? "0"), @(context.Longitude?.ToString("F4") ?? "0")
                                 </MudLink>
                             </MudTd>
                             <MudTd DataLabel="Trạng thái">
@@ -392,14 +387,7 @@
         await DialogService.ShowAsync<ApprovalHistoryDialog>("Lịch sử duyệt", parameters, options);
     }
     
-    private async Task Logout()
-    {
-        await LocalStorage.RemoveItemAsync("accessToken");
-        await LocalStorage.RemoveItemAsync("refreshToken");
-        await LocalStorage.RemoveItemAsync("user");
-        Navigation.NavigateTo("/login");
-    }
-    
+
     private Color GetStatusColor(string status) => status switch
     {
         "Draft" => Color.Default,

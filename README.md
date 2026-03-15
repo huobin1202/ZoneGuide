@@ -116,7 +116,10 @@ dotnet run --project src/HeriStepAI.Admin
 ```bash
 dotnet build src/HeriStepAI.Mobile -t:Run -f net8.0-android
 ```
-
+## Build APK
+```bash
+dotnet publish src/HeriStepAI.Mobile/HeriStepAI.Mobile.csproj -f net10.0-android -c Release -p:AndroidPackageFormat=apk
+```
 ## 📡 API Endpoints
 
 ### POIs
