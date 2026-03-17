@@ -16,12 +16,22 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData) {
     markers = [];
 
     // Initialize map
-    poiMap = L.map(elementId).setView([centerLat, centerLng], 14);
+    poiMap = L.map(elementId, {
 
+        // Giới hạn vùng kéo của bản đồ [[Nam, Tây], [Bắc, Đông]]
+        maxBounds: [
+            [-90, -180], // Góc Tây Nam (South-West)
+            [90, 180]    // Góc Đông Bắc (North-East)
+        ],
+
+        // Độ cứng của viền (1.0 = cứng ngắc, kéo chạm viền sẽ không bị nảy ra ngoài)
+        maxBoundsViscosity: 1.0
+    }).setView([centerLat, centerLng], 14);
     // Add OpenStreetMap tiles
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19,
+        noWrap: true // Ngăn tile lặp lại theo chiều ngang
     }).addTo(poiMap);
 
     // Add markers for each POI
@@ -89,7 +99,7 @@ window.addMarkerToMap = function (lat, lng, name, description) {
 
 window.initPickerMap = function (elementId, centerLat, centerLng, dotNetReference) {
     dotNetRef = dotNetReference;
-    
+
     // Destroy existing picker map if any
     if (pickerMap) {
         pickerMap.remove();
@@ -98,13 +108,25 @@ window.initPickerMap = function (elementId, centerLat, centerLng, dotNetReferenc
     }
 
     // Initialize picker map
-    pickerMap = L.map(elementId).setView([centerLat, centerLng], 15);
+    pickerMap = L.map(elementId, {
 
+        // Giới hạn vùng kéo của bản đồ [[Nam, Tây], [Bắc, Đông]]
+        maxBounds: [
+            [-90, -180], // Góc Tây Nam (South-West)
+            [90, 180]    // Góc Đông Bắc (North-East)
+        ],
+
+        // Độ cứng của viền (1.0 = cứng ngắc, kéo chạm viền sẽ không bị nảy ra ngoài)
+        maxBoundsViscosity: 1.0
+    }).setView([centerLat, centerLng], 15);
     // Add OpenStreetMap tiles
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap',
-        maxZoom: 19
+        maxZoom: 19,
+        noWrap: true // Ngăn tile lặp lại theo chiều ngang
     }).addTo(pickerMap);
+
+
 
     // Create draggable marker
     var redIcon = L.icon({
@@ -154,8 +176,8 @@ window.getCurrentLocation = function (dotNetReference) {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             function (position) {
-                dotNetReference.invokeMethodAsync('OnCurrentLocationReceived', 
-                    position.coords.latitude, 
+                dotNetReference.invokeMethodAsync('OnCurrentLocationReceived',
+                    position.coords.latitude,
                     position.coords.longitude
                 );
             },
@@ -177,7 +199,7 @@ window.getCurrentLocation = function (dotNetReference) {
 window.searchAndMoveToAddress = function (address, dotNetReference) {
     // Use Nominatim (OpenStreetMap) for geocoding - free and no API key needed
     var url = 'https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(address);
-    
+
     fetch(url)
         .then(function (response) {
             return response.json();
@@ -186,12 +208,12 @@ window.searchAndMoveToAddress = function (address, dotNetReference) {
             if (data && data.length > 0) {
                 var lat = parseFloat(data[0].lat);
                 var lng = parseFloat(data[0].lon);
-                
+
                 if (pickerMap && pickerMarker) {
                     pickerMarker.setLatLng([lat, lng]);
                     pickerMap.setView([lat, lng], 16);
                 }
-                
+
                 dotNetReference.invokeMethodAsync('OnLocationPicked', lat, lng);
             } else {
                 alert('Không tìm thấy địa chỉ: ' + address);
