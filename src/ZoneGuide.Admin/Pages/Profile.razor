@@ -21,42 +21,57 @@ else if (_currentUser != null)
 {
     <MudGrid>
         <MudItem xs="12" md="4">
-            <MudPaper Class="pa-6 text-center">
-                <MudAvatar Size="Size.Large" Style="width: 120px; height: 120px; font-size: 48px;" Color="Color.Primary">
-                    @(_currentUser.DisplayName?.FirstOrDefault())
-                </MudAvatar>
+            <MudPaper Class="pa-6 text-center d-flex flex-column align-center">
+                <div style="position: relative; display: inline-block;">
+                    <MudFileUpload T="IBrowserFile" Accept=".png, .jpg, .jpeg" FilesChanged="UploadImage" Class="mt-0">
+                        <ActivatorContent>
+                            @if (!string.IsNullOrEmpty(_updateModel.AvatarUrl))
+                            {
+                                <MudAvatar Size="Size.Large" Style="width: 120px; height: 120px; cursor: pointer;" Elevation="2">
+                                    <MudImage Src="@_updateModel.AvatarUrl" />
+                                </MudAvatar>
+                            }
+                            else
+                            {
+                                <MudAvatar Size="Size.Large" Style="width: 120px; height: 120px; font-size: 48px; cursor: pointer;background-color: #22ffd6 !important" Color="Color.Primary" Elevation="2">
+                                    @(_currentUser.DisplayName?.FirstOrDefault())
+                                </MudAvatar>
+                            }
+                        </ActivatorContent>
+                    </MudFileUpload>
+
+                    @if (!string.IsNullOrEmpty(_updateModel.AvatarUrl))
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" 
+                                       Color="Color.Error" 
+                                       Size="Size.Small" 
+                                       Style="position: absolute; top: -5px; right: -5px; background: white; z-index: 1;"
+                                       OnClick="RemoveAvatar" />
+                    }
+                </div>
+                
                 <MudText Typo="Typo.h5" Class="mt-4">@_currentUser.DisplayName</MudText>
-                <MudChip T="string" Color="@GetRoleColor(_currentUser.Role)" Class="mt-2">@GetRoleText(_currentUser.Role)</MudChip>
+                <MudChip T="string" Color="@GetRoleColor(_currentUser.Role)" Class="mt-2">@GetRoleText(_currentUser.Role)
+                </MudChip>
                 <MudText Typo="Typo.body2" Class="mt-2 mud-text-secondary">@_currentUser.Email</MudText>
+                
+        
             </MudPaper>
         </MudItem>
-        
+
         <MudItem xs="12" md="8">
             <MudPaper Class="pa-6">
                 <MudText Typo="Typo.h6" Class="mb-4">Cập nhật thông tin</MudText>
-                
+
                 <MudForm @ref="_form" @bind-IsValid="_isValid">
-                    <MudTextField @bind-Value="_updateModel.DisplayName" 
-                                  Label="Họ và tên" 
-                                  Variant="Variant.Outlined"
-                                  Required="true"
-                                  Class="mb-4" />
-                    
-                    <MudTextField @bind-Value="_updateModel.PhoneNumber" 
-                                  Label="Số điện thoại" 
-                                  Variant="Variant.Outlined"
-                                  Class="mb-4" />
-                    
-                    <MudTextField @bind-Value="_updateModel.AvatarUrl" 
-                                  Label="URL ảnh đại diện" 
-                                  Variant="Variant.Outlined"
-                                  Placeholder="https://example.com/avatar.jpg"
-                                  Class="mb-4" />
-                    
-                    <MudButton Variant="Variant.Filled" 
-                               Color="Color.Primary" 
-                               OnClick="UpdateProfile"
-                               Disabled="@(!_isValid || _isSaving)">
+                    <MudTextField @bind-Value="_updateModel.DisplayName" Label="Họ và tên" Variant="Variant.Outlined"
+                        Required="true" Class="mb-4" />
+
+                    <MudTextField @bind-Value="_updateModel.PhoneNumber" Label="Số điện thoại" Variant="Variant.Outlined"
+                        Class="mb-4" />
+
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UpdateProfile"
+                        Disabled="@(!_isValid || _isSaving)">
                         @if (_isSaving)
                         {
                             <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
@@ -66,32 +81,21 @@ else if (_currentUser != null)
                     </MudButton>
                 </MudForm>
             </MudPaper>
-            
+
             <MudPaper Class="pa-6 mt-4">
                 <MudText Typo="Typo.h6" Class="mb-4">Đổi mật khẩu</MudText>
-                
-                <MudTextField @bind-Value="_passwordModel.CurrentPassword" 
-                              Label="Mật khẩu hiện tại" 
-                              Variant="Variant.Outlined"
-                              InputType="InputType.Password"
-                              Class="mb-4" />
-                
-                <MudTextField @bind-Value="_passwordModel.NewPassword" 
-                              Label="Mật khẩu mới" 
-                              Variant="Variant.Outlined"
-                              InputType="InputType.Password"
-                              Class="mb-4" />
-                
-                <MudTextField @bind-Value="_confirmNewPassword" 
-                              Label="Xác nhận mật khẩu mới" 
-                              Variant="Variant.Outlined"
-                              InputType="InputType.Password"
-                              Class="mb-4" />
-                
-                <MudButton Variant="Variant.Filled" 
-                           Color="Color.Warning" 
-                           OnClick="ChangePassword"
-                           Disabled="@_isChangingPassword">
+
+                <MudTextField @bind-Value="_passwordModel.CurrentPassword" Label="Mật khẩu hiện tại"
+                    Variant="Variant.Outlined" InputType="InputType.Password" Class="mb-4" />
+
+                <MudTextField @bind-Value="_passwordModel.NewPassword" Label="Mật khẩu mới" Variant="Variant.Outlined"
+                    InputType="InputType.Password" Class="mb-4" />
+
+                <MudTextField @bind-Value="_confirmNewPassword" Label="Xác nhận mật khẩu mới" Variant="Variant.Outlined"
+                    InputType="InputType.Password" Class="mb-4" />
+
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="ChangePassword"
+                    Disabled="@_isChangingPassword">
                     @if (_isChangingPassword)
                     {
                         <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
@@ -100,7 +104,7 @@ else if (_currentUser != null)
                     Đổi mật khẩu
                 </MudButton>
             </MudPaper>
-            
+
             <MudPaper Class="pa-6 mt-4">
                 <MudText Typo="Typo.h6" Class="mb-4">Thông tin tài khoản</MudText>
                 <MudSimpleTable Dense="true">
@@ -143,11 +147,11 @@ else if (_currentUser != null)
     private bool _isChangingPassword = false;
     private bool _isValid = true;
     private MudForm _form = null!;
-    
+
     private UpdateUserDto _updateModel = new();
     private ChangePasswordDto _passwordModel = new();
     private string _confirmNewPassword = string.Empty;
-    
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -156,7 +160,38 @@ else if (_currentUser != null)
             StateHasChanged();
         }
     }
-    
+
+    private void RemoveAvatar()
+    {
+        _updateModel.AvatarUrl = string.Empty;
+    }
+
+    private async Task UploadImage(IBrowserFile file)
+    {
+        if (file != null)
+        {
+            try
+            {
+                var format = file.ContentType;
+                if (string.IsNullOrEmpty(format)) format = "image/png";
+
+                // Thu nhỏ kích thước ảnh xuống tối đa 150x150 để giảm dung lượng chuỗi Base64
+                var resizedImageFile = await file.RequestImageFileAsync(format, 150, 150);
+                
+                using var stream = resizedImageFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // Tối đa 10MB
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                
+                var base64 = Convert.ToBase64String(ms.ToArray());
+                _updateModel.AvatarUrl = $"data:{format};base64,{base64}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error reading file: {ex.Message}");
+                Snackbar.Add("Lỗi tải ảnh: " + ex.Message, Severity.Error);
+            }
+        }
+    }
     private async Task LoadProfile()
     {
         _isLoading = true;
@@ -185,7 +220,7 @@ else if (_currentUser != null)
             _isLoading = false;
         }
     }
-    
+
     private async Task UpdateProfile()
     {
         _isSaving = true;
@@ -216,7 +251,7 @@ else if (_currentUser != null)
             _isSaving = false;
         }
     }
-    
+
     private async Task ChangePassword()
     {
         if (string.IsNullOrWhiteSpace(_passwordModel.CurrentPassword))
@@ -224,25 +259,25 @@ else if (_currentUser != null)
             Snackbar.Add("Vui lòng nhập mật khẩu hiện tại", Severity.Warning);
             return;
         }
-        
+
         if (string.IsNullOrWhiteSpace(_passwordModel.NewPassword))
         {
             Snackbar.Add("Vui lòng nhập mật khẩu mới", Severity.Warning);
             return;
         }
-        
+
         if (_passwordModel.NewPassword != _confirmNewPassword)
         {
             Snackbar.Add("Mật khẩu xác nhận không khớp", Severity.Warning);
             return;
         }
-        
+
         if (_passwordModel.NewPassword.Length < 6)
         {
             Snackbar.Add("Mật khẩu mới phải có ít nhất 6 ký tự", Severity.Warning);
             return;
         }
-        
+
         _isChangingPassword = true;
         try
         {
@@ -268,22 +303,21 @@ else if (_currentUser != null)
             _isChangingPassword = false;
         }
     }
-    
+
     private Color GetRoleColor(string role) => role switch
     {
         "Admin" => Color.Primary,
         "Contributor" => Color.Secondary,
         _ => Color.Default
     };
-    
+
     private string GetRoleText(string role) => role switch
     {
         "Admin" => "Quản trị viên",
         "Contributor" => "Người đóng góp",
-        "User" => "Người dùng",
         _ => role
     };
-    
+
     private string GetStatusText(string status) => status switch
     {
         "Active" => "Đang hoạt động",

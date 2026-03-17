@@ -7,16 +7,24 @@
 
 <MudLayout>
     <MudAppBar Elevation="1">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
+            OnClick="@ToggleDrawer" />
         <MudText Typo="Typo.h5" Class="ml-3">ZoneGuide @(_isAdmin ? "Admin" : "Contributor")</MudText>
         <MudSpacer />
-        
+
         @if (_currentUser != null)
         {
-            <MudChip T="string" Color="@(_isAdmin ? Color.Primary : Color.Secondary)" Size="Size.Small" Class="mr-2">
-                @_currentUser.Role
-            </MudChip>
-            <MudText Class="mr-4">@_currentUser.DisplayName</MudText>
+            <MudAvatar Size="Size.Medium" Class="mr-3 cursor-pointer" Color="Color.Primary" Style="background-color: #22ffd6 !important;" 
+            onclick="@(() => Navigation.NavigateTo("/profile"))">
+                    @if (!string.IsNullOrEmpty(_currentUser.AvatarUrl))
+                    {
+                        <MudImage Src="@_currentUser.AvatarUrl" />
+                    }
+                    else
+                    {
+                        @(_currentUser.DisplayName?.FirstOrDefault())
+                    }
+                </MudAvatar>
             <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" OnClick="Logout" />
         }
         else
@@ -26,7 +34,7 @@
             </MudButton>
         }
     </MudAppBar>
-    
+
     <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
         <MudNavMenu>
             @if (_isAdmin)
@@ -63,8 +71,8 @@
                     Nhật ký hoạt động
                 </MudNavLink>
                 <MudDivider Class="my-2" />
-                <MudNavLink Href="/settings" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Settings">
-                    Settings
+                <MudNavLink Href="/profile" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Person">
+                    Profile
                 </MudNavLink>
             }
             else if (_isContributor)
@@ -99,7 +107,7 @@
             }
         </MudNavMenu>
     </MudDrawer>
-    
+
     <MudMainContent>
         <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-6">
             @Body
@@ -113,7 +121,11 @@
     private bool _isAdmin => _currentUser?.Role == "Admin";
     private bool _isContributor => _currentUser?.Role == "Contributor";
     private bool _initialized = false;
-
+    protected override async Task OnInitializedAsync()
+    {
+        // Load user từ LocalStorage
+        _currentUser = await LocalStorage.GetItemAsync<UserDto>("user");
+    }
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -122,7 +134,8 @@
             _initialized = true;
             StateHasChanged();
         }
-    }    private async Task LoadCurrentUser()
+    }
+    private async Task LoadCurrentUser()
     {
         try
         {
@@ -138,7 +151,7 @@
     {
         _drawerOpen = !_drawerOpen;
     }
-    
+
     private async Task Logout()
     {
         await LocalStorage.RemoveItemAsync("accessToken");
@@ -148,4 +161,5 @@
         Snackbar.Add("Đã đăng xuất", Severity.Info);
         Navigation.NavigateTo("/login");
     }
+
 }
