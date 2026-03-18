@@ -39,10 +39,24 @@ public partial class MapViewModel : ObservableObject
     [ObservableProperty]
     private string? searchQuery;
 
+    [ObservableProperty]
+    private string? selectedCategory;
+
     private List<POI> _allPOIs = new();
 
     public ObservableCollection<POI> POIs { get; } = new();
     public ObservableCollection<Pin> MapPins { get; } = new();
+
+    public List<string> Categories { get; } = new()
+    {
+        "Tất cả",
+        "Ăn uống",
+        "Du lịch",
+        "Dịch vụ",
+        "Mua sắm",
+        "Giải trí",
+        "Khác"
+    };
 
     public MapViewModel(
         ILocationService locationService,
@@ -159,16 +173,17 @@ public partial class MapViewModel : ObservableObject
     [RelayCommand]
     private void PerformSearch()
     {
-        if (string.IsNullOrWhiteSpace(SearchQuery))
+        if (string.IsNullOrWhiteSpace(SearchQuery) && string.IsNullOrWhiteSpace(SelectedCategory))
         {
             PopulatePins(_allPOIs);
             return;
         }
 
-        var query = SearchQuery.ToLowerInvariant();
+        var query = SearchQuery?.ToLowerInvariant();
         var results = _allPOIs.Where(p => 
-            p.Name.ToLowerInvariant().Contains(query) || 
-            (p.ShortDescription != null && p.ShortDescription.ToLowerInvariant().Contains(query)))
+            (string.IsNullOrWhiteSpace(query) || p.Name.ToLowerInvariant().Contains(query) || 
+            (p.ShortDescription != null && p.ShortDescription.ToLowerInvariant().Contains(query))) &&
+            (string.IsNullOrWhiteSpace(SelectedCategory) || SelectedCategory == "Tất cả" || p.Category == SelectedCategory))
             .ToList();
 
         PopulatePins(results);
@@ -257,6 +272,11 @@ public partial class MapViewModel : ObservableObject
         {
             UserLocation = new Location(location.Latitude, location.Longitude);
         });
+    }
+
+    partial void OnSelectedCategoryChanged(string? value)
+    {
+        PerformSearch();
     }
 
     public POI? FindNearestPOI()

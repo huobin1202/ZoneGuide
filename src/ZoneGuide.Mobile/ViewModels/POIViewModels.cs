@@ -28,6 +28,20 @@ public partial class POIListViewModel : ObservableObject
     private string searchText = string.Empty;
 
     [ObservableProperty]
+    private string? selectedCategory;
+
+    public List<string> Categories { get; } = new()
+    {
+        "Tất cả",
+        "Ăn uống",
+        "Du lịch",
+        "Dịch vụ",
+        "Mua sắm",
+        "Giải trí",
+        "Khác"
+    };
+
+    [ObservableProperty]
     private POI? selectedPOI;
 
     public ObservableCollection<POI> POIs { get; } = new();
@@ -109,20 +123,25 @@ public partial class POIListViewModel : ObservableObject
     {
         FilteredPOIs.Clear();
 
+        IEnumerable<POI> results;
+
         if (string.IsNullOrWhiteSpace(SearchText))
         {
-            foreach (var poi in POIs)
-            {
-                FilteredPOIs.Add(poi);
-            }
+            results = POIs;
         }
         else
         {
-            var results = await _poiRepository.SearchAsync(SearchText);
-            foreach (var poi in results)
-            {
-                FilteredPOIs.Add(poi);
-            }
+            results = await _poiRepository.SearchAsync(SearchText);
+        }
+
+        if (!string.IsNullOrEmpty(SelectedCategory) && SelectedCategory != "Tất cả")
+        {
+            results = results.Where(p => p.Category == SelectedCategory);
+        }
+
+        foreach (var poi in results)
+        {
+            FilteredPOIs.Add(poi);
         }
     }
 
@@ -151,6 +170,11 @@ public partial class POIListViewModel : ObservableObject
     }
 
     partial void OnSearchTextChanged(string value)
+    {
+        _ = SearchAsync();
+    }
+
+    partial void OnSelectedCategoryChanged(string? value)
     {
         _ = SearchAsync();
     }

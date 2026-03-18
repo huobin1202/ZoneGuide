@@ -121,6 +121,11 @@ public class POI
     public int CooldownSeconds { get; set; } = 300; // 5 phút
     
     /// <summary>
+    /// Danh mục
+    /// </summary>
+    public string? Category { get; set; }
+
+    /// <summary>
     /// Tính khoảng cách từ vị trí hiện tại đến POI (mét)
     /// </summary>
     public double CalculateDistance(double currentLat, double currentLon)

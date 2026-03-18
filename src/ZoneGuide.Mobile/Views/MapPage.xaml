@@ -24,9 +24,15 @@
                VerticalOptions="Start"
                BackgroundColor="White"
                HasShadow="True">
-            <SearchBar Placeholder="Tìm kiếm địa điểm..."
-                       Text="{Binding SearchQuery}"
-                       SearchCommand="{Binding PerformSearchCommand}" />
+            <VerticalStackLayout>
+                <SearchBar Placeholder="Tìm kiếm địa điểm..."
+                           Text="{Binding SearchQuery}"
+                           SearchCommand="{Binding PerformSearchCommand}" />
+                <Picker Title="Lọc theo danh mục"
+                        ItemsSource="{Binding Categories}"
+                        SelectedItem="{Binding SelectedCategory}"
+                        Margin="16,0,16,8" />
+            </VerticalStackLayout>
         </Frame>
 
         <!-- Floating buttons -->

@@ -7,7 +7,7 @@
              x:DataType="vm:POIListViewModel"
              Title="Điểm thuyết minh">
 
-    <Grid RowDefinitions="Auto, *">
+    <Grid RowDefinitions="Auto, Auto, *">
         
         <!-- Search Bar -->
         <SearchBar Grid.Row="0"
@@ -15,8 +15,15 @@
                    Text="{Binding SearchText}"
                    Margin="16,8" />
 
+        <!-- Category Filter -->
+        <Picker Grid.Row="1"
+                Title="Lọc theo danh mục"
+                ItemsSource="{Binding Categories}"
+                SelectedItem="{Binding SelectedCategory}"
+                Margin="16,0,16,8" />
+
         <!-- POI List -->
-        <RefreshView Grid.Row="1"
+        <RefreshView Grid.Row="2"
                      IsRefreshing="{Binding IsRefreshing}"
                      Command="{Binding RefreshCommand}">
             <CollectionView ItemsSource="{Binding FilteredPOIs}"
@@ -100,7 +107,7 @@
         </RefreshView>
 
         <!-- Loading -->
-        <ActivityIndicator Grid.Row="1"
+        <ActivityIndicator Grid.Row="2"
                            IsRunning="{Binding IsLoading}"
                            IsVisible="{Binding IsLoading}"
                            HorizontalOptions="Center"
