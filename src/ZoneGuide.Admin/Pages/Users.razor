@@ -6,7 +6,7 @@
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @inject NavigationManager Navigation
 
-<PageTitle>Quản lý Users - ZoneGuide</PageTitle>
+<PageTitle>ZoneGuide</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
     <MudText Typo="Typo.h4" Class="mb-4">
@@ -21,10 +21,10 @@
                 <MudTextField @bind-Value="searchString" Placeholder="Tìm kiếm..." Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" />
                 <MudSpacer />
-                <MudChipSet SelectedChipChanged="OnRoleFilterChanged" T="string">
-                    <MudChip Text="Tất cả" Default="true" Color="Color.Default" Variant="Variant.Text">Tất cả</MudChip>
-                    <MudChip Text="Admin" Color="Color.Error" Variant="Variant.Text">Admin</MudChip>
-                    <MudChip Text="Contributor" Color="Color.Warning" Variant="Variant.Text">Contributor</MudChip>
+                <MudChipSet SelectedValueChanged="OnRoleFilterChanged" T="string">
+                    <MudChip Value="@("Tất cả")" Default="true" Color="Color.Default" Variant="Variant.Text">Tất cả</MudChip>
+                    <MudChip Value="@("Admin")" Color="Color.Error" Variant="Variant.Text">Admin</MudChip>
+                    <MudChip Value="@("Contributor")" Color="Color.Warning" Variant="Variant.Text">Contributor</MudChip>
                 </MudChipSet>
             </ToolBarContent>
             <HeaderContent>
@@ -45,7 +45,7 @@
                     <MudChip T="string" Color="@GetRoleColor(context.Role)" Size="Size.Small">@context.Role</MudChip>
                 </MudTd>
                 <MudTd DataLabel="Trạng thái">
-                    <MudChip T="string" Color="@GetStatusColor(context.Status)" Size="Size.Small">@context.Status</MudChip>
+                    <MudChip T="string" Color="@GetStatusColor(context.Status)" Size="Size.Small">@GetStatusText(context.Status)</MudChip>
                 </MudTd>
                 <MudTd DataLabel="Ngày tạo">@context.CreatedAt.ToString("dd/MM/yyyy")</MudTd>
                 <MudTd DataLabel="Đăng nhập cuối">@(context.LastLoginAt?.ToString("dd/MM/yyyy HH:mm") ?? "-")</MudTd>
@@ -119,9 +119,9 @@
         return matchSearch && matchRole;
     }
     
-    private void OnRoleFilterChanged(MudChip<string>? chip)
+    private void OnRoleFilterChanged(string? value)
     {
-        roleFilter = chip?.Text;
+        roleFilter = value;
         StateHasChanged();
     }
     
@@ -155,5 +155,13 @@
         "Pending" => Color.Warning,
         "Suspended" => Color.Error,
         _ => Color.Default
+    };
+    
+    private string GetStatusText(string status) => status switch
+    {
+        "Active" => "Hoạt động",
+        "Pending" => "Chờ duyệt",
+        "Suspended" => "Đã khóa",
+        _ => status
     };
 }

@@ -6,7 +6,7 @@
     <TitleContent>
         <MudText Typo="Typo.h6">
             <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-2" />
-            Đổi Role cho @User.DisplayName
+            Cập nhật tài khoản cho @User.DisplayName
         </MudText>
     </TitleContent>
     <DialogContent>
@@ -17,6 +17,10 @@
             <MudSelect @bind-Value="selectedRole" Label="Role mới" Required="true" Variant="Variant.Outlined">
                 <MudSelectItem Value="@("Contributor")">Contributor - Người đóng góp</MudSelectItem>
                 <MudSelectItem Value="@("Admin")">Admin - Quản trị viên</MudSelectItem>
+            </MudSelect>
+            <MudSelect @bind-Value="selectedStatus" Label="Trạng thái" Required="true" Variant="Variant.Outlined" Class="mt-3">
+                <MudSelectItem Value="@("Active")">Active - Hoạt động</MudSelectItem>
+                <MudSelectItem Value="@("Suspended")">Suspended - Đã khóa</MudSelectItem>
             </MudSelect>
         </MudForm>
     </DialogContent>
@@ -38,28 +42,31 @@
     
     private MudForm? form;
     private string selectedRole = string.Empty;
+    private string selectedStatus = "Active";
     private bool isSaving = false;
     
     protected override void OnInitialized()
     {
         selectedRole = User.Role;
+        selectedStatus = User.Status;
     }
+
     
     private async Task Submit()
     {
-        if (selectedRole == User.Role)
+        if (selectedRole == User.Role && selectedStatus == User.Status)
         {
             MudDialog?.Close(DialogResult.Ok(true));
             return;
         }
-        
+      
         isSaving = true;
         try
         {
-            var response = await Http.PutAsJsonAsync($"api/users/{User.Id}/role", new { Role = selectedRole });
+            var response = await Http.PutAsJsonAsync($"api/users/{User.Id}/role", new { Role = selectedRole, Status = selectedStatus });
             if (response.IsSuccessStatusCode)
             {
-                Snackbar.Add("Cập nhật role thành công!", Severity.Success);
+                Snackbar.Add("Cập nhật tài khoản thành công!", Severity.Success);
                 MudDialog?.Close(DialogResult.Ok(true));
             }
             else
@@ -86,4 +93,5 @@
         "Contributor" => Color.Warning,
         _ => Color.Info
     };
+
 }

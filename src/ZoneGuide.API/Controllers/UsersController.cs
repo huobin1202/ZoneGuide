@@ -52,17 +52,21 @@ public class UsersController : ControllerBase
         
         if (!Enum.TryParse<UserRole>(request.Role, true, out var role))
             return BadRequest(new { message = "Role không hợp lệ" });
+            
+        if (!Enum.TryParse<UserStatus>(request.Status, true, out var status))
+            return BadRequest(new { message = "Status không hợp lệ" });
         
         var result = await _authService.UpdateUserRoleAsync(new UpdateUserRoleDto
         {
             UserId = id,
-            Role = role
+            Role = role,
+            Status = status
         });
         
         if (!result)
             return NotFound(new { message = "Không tìm thấy user" });
         
-        return Ok(new { message = "Cập nhật role thành công" });
+        return Ok(new { message = "Cập nhật tài khoản thành công" });
     }
     
     private int? GetCurrentUserId()
@@ -75,4 +79,5 @@ public class UsersController : ControllerBase
 public class UpdateRoleRequest
 {
     public string Role { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
 }

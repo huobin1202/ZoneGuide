@@ -216,15 +216,14 @@ public class AuthService : IAuthService
     {
         var user = await _context.Users.FindAsync(dto.UserId);
         if (user == null) return false;
-        
+
         user.Role = dto.Role;
+        user.Status = dto.Status;
         user.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
-        
+
         return true;
-    }
-    
-    public async Task<bool> ChangePasswordAsync(int userId, ChangePasswordDto dto)
+    }    public async Task<bool> ChangePasswordAsync(int userId, ChangePasswordDto dto)
     {
         var user = await _context.Users.FindAsync(userId);
         if (user == null) return false;
