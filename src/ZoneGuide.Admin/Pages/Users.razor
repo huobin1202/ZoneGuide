@@ -152,7 +152,6 @@
     private Color GetStatusColor(string status) => status switch
     {
         "Active" => Color.Success,
-        "Pending" => Color.Warning,
         "Suspended" => Color.Error,
         _ => Color.Default
     };
@@ -160,7 +159,6 @@
     private string GetStatusText(string status) => status switch
     {
         "Active" => "Hoạt động",
-        "Pending" => "Chờ duyệt",
         "Suspended" => "Đã khóa",
         _ => status
     };

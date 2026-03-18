@@ -321,7 +321,6 @@ else if (_currentUser != null)
     private string GetStatusText(string status) => status switch
     {
         "Active" => "Đang hoạt động",
-        "Pending" => "Chờ kích hoạt",
         "Suspended" => "Bị khóa",
         _ => status
     };
