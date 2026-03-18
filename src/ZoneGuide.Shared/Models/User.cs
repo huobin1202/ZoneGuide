@@ -29,7 +29,6 @@ public enum UserRole
 public enum UserStatus
 {
 
-    
     /// <summary>
     /// Đang hoạt động
     /// </summary>
@@ -39,7 +38,11 @@ public enum UserStatus
     /// Bị khóa
     /// </summary>
     Suspended = 2,
- 
+    
+    /// <summary>
+    /// Đã xóa
+    /// </summary>
+    Deleted = 3
 }
 
 /// <summary>
