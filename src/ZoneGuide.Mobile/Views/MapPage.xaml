@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
+             xmlns:maps="clr-namespace:Microsoft.Maui.Controls.Maps;assembly=Microsoft.Maui.Controls.Maps"
+             x:Class="ZoneGuide.Mobile.Views.MapPage"
+             x:DataType="vm:MapViewModel"
+             Title="Bản đồ">
+
+    <Grid RowDefinitions="*, Auto, Auto">
+        
+        <!-- Map -->
+        <maps:Map x:Name="MainMap"
+                  Grid.Row="0"
+                  IsShowingUser="True"
+                  MapType="Street">
+        </maps:Map>
+
+        <!-- Search Bar Overlay -->
+        <Frame Grid.Row="0"
+               Margin="16,16,16,0"
+               Padding="0"
+               CornerRadius="8"
+               VerticalOptions="Start"
+               BackgroundColor="White"
+               HasShadow="True">
+            <VerticalStackLayout>
+                <SearchBar Placeholder="Tìm kiếm địa điểm..."
+                           Text="{Binding SearchQuery}"
+                           SearchCommand="{Binding PerformSearchCommand}" />
+                <Picker Title="Lọc theo danh mục"
+                        ItemsSource="{Binding Categories}"
+                        SelectedItem="{Binding SelectedCategory}"
+                        Margin="16,0,16,8" />
+            </VerticalStackLayout>
+        </Frame>
+
+        <!-- Floating buttons -->
+        <VerticalStackLayout Grid.Row="0"
+                             HorizontalOptions="End"
+                             VerticalOptions="End"
+                             Margin="16"
+                             Spacing="8">
+            
+            <Button Text="📍"
+                    WidthRequest="50"
+                    HeightRequest="50"
+                    CornerRadius="25"
+                    BackgroundColor="{StaticResource Primary}"
+                    TextColor="White"
+                    FontSize="20"
+                    Command="{Binding CenterOnUserCommand}" />
+        </VerticalStackLayout>
+
+        <!-- POI Info Card -->
+        <Frame Grid.Row="1"
+               Margin="16,8"
+               Padding="12"
+               CornerRadius="12"
+               BackgroundColor="White"
+               IsVisible="{Binding SelectedPOI, Converter={StaticResource IsNotNullConverter}}">
+            <Grid ColumnDefinitions="*, Auto">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="{Binding SelectedPOI.Name}"
+                           FontSize="16"
+                           FontAttributes="Bold" />
+                    <Label Text="{Binding SelectedPOI.ShortDescription}"
+                           FontSize="12"
+                           TextColor="Gray"
+                           MaxLines="2" />
+                </VerticalStackLayout>
+                
+                <HorizontalStackLayout Grid.Column="1" Spacing="8">
+                    <Button Text="▶"
+                            WidthRequest="44"
+                            HeightRequest="44"
+                            CornerRadius="22"
+                            BackgroundColor="{StaticResource Primary}"
+                            Command="{Binding PlaySelectedPOICommand}" />
+                    <Button Text="🧭"
+                            WidthRequest="44"
+                            HeightRequest="44"
+                            CornerRadius="22"
+                            BackgroundColor="{StaticResource Secondary}"
+                            Command="{Binding NavigateToPOICommand}" />
+                </HorizontalStackLayout>
+            </Grid>
+        </Frame>
+
+        <!-- Loading indicator -->
+        <ActivityIndicator Grid.Row="0"
+                           IsRunning="{Binding IsLoading}"
+                           IsVisible="{Binding IsLoading}"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"
+                           Color="{StaticResource Primary}" />
+
+    </Grid>
+
+</ContentPage>

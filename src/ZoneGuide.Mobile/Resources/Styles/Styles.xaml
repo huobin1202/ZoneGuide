@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xaml-comp compile="true" ?>
+<ResourceDictionary 
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:converters="clr-namespace:ZoneGuide.Mobile.Converters">
+
+    <!-- Converters -->
+    <converters:IsNotNullConverter x:Key="IsNotNullConverter" />
+    <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+    <converters:BoolToColorConverter x:Key="BoolToColorConverter" 
+                                      TrueColor="{StaticResource Success}"
+                                      FalseColor="{StaticResource Gray400}" />
+    <converters:TrackingColorConverter x:Key="TrackingColorConverter" />
+    <converters:TrackingIconConverter x:Key="TrackingIconConverter" />
+    <converters:TrackingButtonTextConverter x:Key="TrackingButtonTextConverter" />
+    <converters:TrackingButtonColorConverter x:Key="TrackingButtonColorConverter" />
+    <converters:PlayPauseConverter x:Key="PlayPauseConverter" />
+    <converters:SyncButtonTextConverter x:Key="SyncButtonTextConverter" />
+    <converters:EnumToBoolConverter x:Key="EnumToBoolConverter" />
+    <converters:OfflineStatusTextConverter x:Key="OfflineStatusTextConverter" />
+    <converters:OfflineButtonTextConverter x:Key="OfflineButtonTextConverter" />
+
+    <!-- Default Styles -->
+    <Style TargetType="ActivityIndicator">
+        <Setter Property="Color" Value="{StaticResource Primary}" />
+    </Style>
+
+    <Style TargetType="Button">
+        <Setter Property="TextColor" Value="White" />
+        <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+        <Setter Property="FontFamily" Value="OpenSansRegular" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="14,10" />
+        <Setter Property="MinimumHeightRequest" Value="44" />
+        <Setter Property="MinimumWidthRequest" Value="44" />
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal" />
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="TextColor" Value="{StaticResource Gray300}" />
+                            <Setter Property="BackgroundColor" Value="{StaticResource Gray600}" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <Style TargetType="Label">
+        <Setter Property="TextColor" Value="{StaticResource Gray900}" />
+        <Setter Property="FontFamily" Value="OpenSansRegular" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <Style TargetType="Entry">
+        <Setter Property="TextColor" Value="{StaticResource Black}" />
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="FontFamily" Value="OpenSansRegular" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="PlaceholderColor" Value="{StaticResource Gray400}" />
+        <Setter Property="MinimumHeightRequest" Value="44" />
+        <Setter Property="MinimumWidthRequest" Value="44" />
+    </Style>
+
+    <Style TargetType="SearchBar">
+        <Setter Property="TextColor" Value="{StaticResource Gray900}" />
+        <Setter Property="PlaceholderColor" Value="{StaticResource Gray400}" />
+        <Setter Property="CancelButtonColor" Value="{StaticResource Gray500}" />
+        <Setter Property="BackgroundColor" Value="{StaticResource Gray100}" />
+        <Setter Property="FontFamily" Value="OpenSansRegular" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <Style TargetType="Frame">
+        <Setter Property="BorderColor" Value="Transparent" />
+        <Setter Property="HasShadow" Value="False" />
+    </Style>
+
+    <Style TargetType="Page" ApplyToDerivedTypes="True">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="BackgroundColor" Value="{StaticResource Gray100}" />
+    </Style>
+
+    <Style TargetType="Shell" ApplyToDerivedTypes="True">
+        <Setter Property="Shell.BackgroundColor" Value="{StaticResource Primary}" />
+        <Setter Property="Shell.ForegroundColor" Value="White" />
+        <Setter Property="Shell.TitleColor" Value="White" />
+        <Setter Property="Shell.TabBarBackgroundColor" Value="White" />
+        <Setter Property="Shell.TabBarTitleColor" Value="#FF512BD4" />
+        <Setter Property="Shell.TabBarForegroundColor" Value="{StaticResource Primary}" />
+        <Setter Property="Shell.TabBarUnselectedColor" Value="{StaticResource Gray400}" />
+    </Style>
+
+</ResourceDictionary>
