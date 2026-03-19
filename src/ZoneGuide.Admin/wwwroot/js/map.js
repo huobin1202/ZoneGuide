@@ -40,7 +40,7 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData) {
 
         var CustomIcon = L.Icon.extend({
             options: {
-                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+                shadowUrl: '/images/markers/marker-shadow.png',
                 iconSize: [25, 41],
                 iconAnchor: [12, 41],
                 popupAnchor: [1, -34],
@@ -48,20 +48,21 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData) {
             }
         });
 
-        // Use standard Leaflet colors from github.com/pointhi/leaflet-color-markers
-        var blueIcon = new CustomIcon({iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png'});
-        var redIcon = new CustomIcon({iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png'});
-        var greenIcon = new CustomIcon({iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png'});
-        var orangeIcon = new CustomIcon({iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png'});
-        var violetIcon = new CustomIcon({iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png'});
-        var yellowIcon = new CustomIcon({iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png'});
+        // Use standard Leaflet colors from local offline files
+        var blueIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-blue.png'});
+        var redIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-red.png'});
+        var foodIcon = new CustomIcon({iconUrl: '/images/markers/food-dish-svgrepo-com.svg'});
+        var greenIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-green.png'});
+        var orangeIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-orange.png'});
+        var violetIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-violet.png'});
+        var yellowIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-yellow.png'});
 
         function getCustomIcon(category) {
             switch((category || '').toLowerCase()) {
           
                 case 'food':
                 case 'ăn uống':
-                    return redIcon;
+                    return foodIcon;
                 case 'travel':
                 case 'du lịch':
                     return greenIcon;
@@ -175,8 +176,8 @@ window.initPickerMap = function (elementId, centerLat, centerLng, dotNetReferenc
 
     // Create draggable marker
     var redIcon = L.icon({
-        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+        iconUrl: '/images/markers/marker-icon-2x-red.png',
+        shadowUrl: '/images/markers/marker-shadow.png',
         iconSize: [25, 41],
         iconAnchor: [12, 41],
         popupAnchor: [1, -34],
