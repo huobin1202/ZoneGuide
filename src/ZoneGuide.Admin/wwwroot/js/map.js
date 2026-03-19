@@ -38,8 +38,53 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData) {
     if (poiData && poiData.length > 0) {
         var bounds = [];
 
+        var CustomIcon = L.Icon.extend({
+            options: {
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+            }
+        });
+
+        // Use standard Leaflet colors from github.com/pointhi/leaflet-color-markers
+        var blueIcon = new CustomIcon({iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png'});
+        var redIcon = new CustomIcon({iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png'});
+        var greenIcon = new CustomIcon({iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png'});
+        var orangeIcon = new CustomIcon({iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png'});
+        var violetIcon = new CustomIcon({iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png'});
+        var yellowIcon = new CustomIcon({iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png'});
+
+        function getCustomIcon(category) {
+            switch((category || '').toLowerCase()) {
+          
+                case 'food':
+                case 'ăn uống':
+                    return redIcon;
+                case 'travel':
+                case 'du lịch':
+                    return greenIcon;
+                case 'services':
+                case 'dịch vụ':
+                    return orangeIcon;
+                case 'shopping':
+                case 'mua sắm':
+                    return violetIcon;
+                case 'entertainment':
+                case 'giải trí':
+                    return yellowIcon;
+                case 'other':
+                case 'khác':
+                    return blueIcon;
+
+                default:
+                    return blueIcon;
+            }
+        }
+
         poiData.forEach(function (poi) {
-            var marker = L.marker([poi.lat, poi.lng])
+            var marker = L.marker([poi.lat, poi.lng], { icon: getCustomIcon(poi.category) })
                 .addTo(poiMap)
                 .bindPopup(
                     '<div style="min-width: 200px;">' +
