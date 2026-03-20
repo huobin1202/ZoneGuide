@@ -1,58 +1,42 @@
 # ZoneGuide — Hệ Thống Thuyết Minh Du Lịch Dựa Trên GPS
-# ZoneGuide — GPS-Based Tour Guide System
 
-> **Type:** Product Requirements Document (PRD) · **Version:** v1.3.0 · **Year:** 2026 · **Status:** Released
+ ### Yêu cầu
+- .NET 8.0 SDK
+- Visual Studio 2022 
+- SQL Server 
 
 ---
 
 ## 1. Thành Viên
 
-| # | Họ và tên | GitHub |
-|---|---|---|
-| 1 | huobin1202 | [@huobin1202](https://github.com/huobin1202) |
+| # | Họ và tên | 
+|---|---|
+| 1 | Hồ Phạm Hữu Bình | 
+| 2 | Nguyễn Văn Phát | 
 
 ---
 
-## 2. Tổng Quan Dự Án
+## 2. Tổng Quan
 
-**Bối cảnh:** Du khách tham quan các điểm du lịch thường gặp khó khăn trong việc tìm kiếm thông tin chi tiết về địa điểm, thiếu hướng dẫn viên cá nhân hóa và rào cản ngôn ngữ. Nhu cầu về một hệ thống thuyết minh tự động, đa ngôn ngữ, hoạt động không cần kết nối mạng ngày càng tăng cao.
-
-**Giải pháp:** Hệ thống thuyết minh du lịch tự động dựa trên GPS gồm 3 thành phần:
+Hệ thống thuyết minh du lịch tự động dựa trên GPS gồm 3 thành phần:
 
 | Thành phần | Công nghệ | Mô tả |
 |---|---|---|
 | **Mobile App** | .NET MAUI | Du khách nghe audio tự động qua GPS + Geofencing, bản đồ tương tác, offline-first |
-| **Admin Web** | Blazor Server + MudBlazor | Quản lý POI, tour, người dùng, analytics dashboard |
+| **Admin Web** | Blazor Server + MudBlazor | Quản lý POI, tour, người dùng, analytics, dashboard |
 | **Backend API** | ASP.NET Core | REST API, TTS, RBAC, đồng bộ offline |
-
-**Vấn đề & Giải pháp:**
-
-| Vấn đề | Giải pháp |
-|---|---|
-| Không có hướng dẫn viên cá nhân tại điểm tham quan | POI có mô tả + ảnh + audio thuyết minh tự động |
-| Rào cản ngôn ngữ cho du khách quốc tế | Đa ngôn ngữ với TTS tùy chỉnh theo từng POI |
-| Mạng không ổn định tại các điểm tham quan | Offline-first: SQLite + audio cache local |
-| Không biết đang đứng gần điểm tham quan nào | GPS + Geofencing tự động kích hoạt audio |
-| Quản trị viên khó theo dõi hành vi du khách | Analytics ẩn danh + Heatmap dashboard |
 
 ---
 
-## 3. Mục Tiêu & Chỉ Số Thành Công
+## 3. Mục Tiêu 
 
 **Mục tiêu chính:**
-- Audio tự động, **không cần thao tác** khi du khách đi dạo trong khu vực POI.
-- Hoạt động **100% offline** sau lần đồng bộ đầu tiên.
+- POI có mô tả + ảnh + audio thuyết minh tự động khi du khách đi dạo trong khu vực POI.
+- Hoạt động **100% offline** sau lần đồng bộ đầu tiên:  SQLite + audio cache local
+- GPS + Geofencing tự động kích hoạt audio
 - Hỗ trợ **đa ngôn ngữ** với TTS và file audio ghi sẵn.
-- **Không thu thập thông tin cá nhân** — analytics hoàn toàn ẩn danh.
-
-| Chỉ số | Mục tiêu |
-|---|---|
-| Thời gian phát audio sau trigger GPS | ≤ 3 giây |
-| Tỉ lệ thành công offline | 100% (sau sync) |
-| Thời gian load màn hình chính | ≤ 2 giây |
-| Geofence Cooldown | 5 phút / POI |
-| Auto-sync interval | 30 phút |
-| Phiên bản hiện tại | v1.3.0 (19/03/2026) |
+- Chủ quán tự quản lý nội dung quán mình
+- Dùng Edge-TTS và Google Translate miễn phí
 
 ---
 
@@ -60,13 +44,14 @@
 
 | Persona | Nhu cầu chính |
 |---|---|
-| 👤 Du khách nội địa | Xem bản đồ POI, nghe thuyết minh tự động, khám phá tour theo lịch trình |
-| 🌏 Du khách quốc tế | Nghe audio bằng ngôn ngữ mẹ đẻ, xem ảnh minh họa, hiểu đặc trưng địa điểm |
-| 🛡️ Quản trị viên (Admin) | CRUD POI & Tour, xem analytics, quản lý heatmap du khách |
+| Du khách nội địa | Xem bản đồ POI, nghe thuyết minh tự động, khám phá tour theo lịch trình |
+| Du khách quốc tế | Nghe audio bằng ngôn ngữ mẹ đẻ, xem ảnh minh họa, hiểu đặc trưng địa điểm |
+| Quản trị viên (Admin) | CRUD POI & Tour, xem analytics, quản lý heatmap du khách |
+| Chủ cửa hàng | CRUD POI, sửa thông tin cửa hàng |
 
 ---
 
-## 5. Phạm Vi Tính Năng (v1.3.0)
+## 5. Phạm Vi Tính Năng 
 
 | Tính năng | Platform |
 |---|---|
@@ -85,7 +70,7 @@
 | REST API đồng bộ offline (incremental + full sync) | Backend |
 | Anonymous analytics tracking | Backend |
 
-**Ngoài phạm vi:** Push notification, live chat, mạng xã hội, thanh toán.
+**Ngoài phạm vi:** Push notification, thanh toán, chatbot.
 
 ### 5.1 Logic Geofencing & Audio Queue
 
@@ -148,7 +133,6 @@ GET /api/sync?since={last_sync_time}
   Cập nhật UI
 ```
 
-**Lịch sync:** Tự động mỗi 30 phút (configurable). Hỗ trợ full sync khi cần thiết qua `GET /api/sync/full`.
 
 ---
 
@@ -409,8 +393,6 @@ flowchart LR
 | ORM | Entity Framework Core | Code-first, Migrations |
 | Database | SQL Server (dev: SQLite) | Relational, ACID, Audit Log |
 | Auth | JWT / Cookie | Bảo mật API và admin portal |
-| CI/CD | GitHub Actions | Tự động build & release APK |
-| Build | PowerShell Scripts | Tự động hóa quy trình build |
 
 ---
 
@@ -438,14 +420,6 @@ flowchart LR
 | `/api/tours/{id}` | PUT | Cập nhật tour |
 | `/api/tours/{id}` | DELETE | Xóa tour |
 
-### Sync
-
-| Endpoint | Method | Mô tả |
-|---|---|---|
-| `/api/sync` | POST | Đồng bộ tăng dần (incremental) |
-| `/api/sync/version` | GET | Lấy content version hash |
-| `/api/sync/full` | GET | Full sync toàn bộ dữ liệu |
-
 ### Analytics
 
 | Endpoint | Method | Mô tả |
@@ -454,35 +428,6 @@ flowchart LR
 | `/api/analytics/dashboard` | GET | Dashboard tổng hợp |
 | `/api/analytics/top-pois` | GET | Top POI theo lượt nghe |
 | `/api/analytics/heatmap` | GET | Dữ liệu heatmap (lat/lng clusters) |
-
----
-
-## 12. Lộ Trình Phát Triển
-
-```mermaid
-gantt
-    title Development Roadmap — ZoneGuide GPS Tour Guide
-    dateFormat  YYYY-MM-DD
-    section POC — Core Location
-    GPS Tracking foreground/background     :p0a, 2025-10-01, 14d
-    Geofence detection + debounce          :p0b, after p0a, 7d
-
-    section MVP Phase 1 — Backend & Data
-    Setup Solution + SharedLibrary + EF    :p1a, after p0b, 7d
-    REST API POI + Tour CRUD               :p1b, after p1a, 7d
-
-    section MVP Phase 2 — Mobile Core
-    SQLite offline + incremental sync      :p2a, after p1b, 7d
-    Audio narration queue + TTS            :p2b, after p2a, 7d
-
-    section MVP Phase 3 — Admin Portal
-    Blazor Admin: POI + Tour management    :p3a, after p2b, 7d
-    Analytics module + Heatmap dashboard   :p3b, after p3a, 7d
-
-    section MVP Phase 4 — Release
-    CI/CD GitHub Actions + APK build       :p4a, after p3b, 7d
-    Field test + v1.3.0 Release            :p4b, after p4a, 7d
-```
 
 ---
 
@@ -528,162 +473,10 @@ graph LR
 
 ---
 
-## 14. Hướng Dẫn Cài Đặt & Chạy
 
-### Yêu cầu
 
-- .NET 8.0 SDK
-- Visual Studio 2022 với MAUI workload
-- SQL Server (cho API)
-- Android SDK (cho mobile)
 
-### Cài đặt
 
-**1. Clone repository**
-```bash
-git clone https://github.com/huobin1202/ZoneGuide.git
-cd ZoneGuide
-```
 
-**2. Khôi phục packages**
-```bash
-dotnet restore
-```
 
-**3. Setup Database**
-```bash
-cd src/ZoneGuide.API
-dotnet ef database update
-```
 
-**4. Chạy Backend API**
-```bash
-dotnet run --project src/ZoneGuide.API
-```
-
-**5. Chạy Admin Portal**
-```bash
-dotnet run --project src/ZoneGuide.Admin
-```
-
-**6. Chạy Mobile App (Android)**
-```bash
-dotnet build src/ZoneGuide.Mobile -t:Run -f net8.0-android
-```
-
-**7. Build APK Release**
-```bash
-dotnet publish src/ZoneGuide.Mobile/ZoneGuide.Mobile.csproj \
-  -f net10.0-android -c Release -p:AndroidPackageFormat=apk
-```
-
-### Cấu hình
-
-**Mobile App:**
-```json
-{
-  "ApiBaseUrl": "https://your-api.com",
-  "DefaultLanguage": "vi-VN",
-  "LocationAccuracy": "High",
-  "GeofenceCooldownSeconds": 300,
-  "AutoSyncIntervalMinutes": 30
-}
-```
-
-**Backend API (appsettings.json):**
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=...;Database=ZoneGuide;..."
-  }
-}
-```
-
----
-
-## 15. Rủi Ro & Giảm Thiểu
-
-| Rủi ro | Xác suất | Mức độ | Giảm thiểu |
-|---|---|---|---|
-| GPS không chính xác trong nhà / hẻm | Cao | Cao | Debounce 3s + cấu hình radius linh hoạt từng POI |
-| Pin thiết bị hao nhanh do GPS | Trung | Cao | LocationAccuracy tự động: Low/Medium/High |
-| Mạng không ổn định | Cao | Trung | Offline-first SQLite; incremental sync |
-| MAUI cross-platform bug (iOS) | Cao | Trung | Focus Android trước; test từng platform riêng |
-| Dữ liệu POI lỗi thời | Trung | Trung | Auto-sync 30 phút; Admin có thể force-update |
-| Analytics vi phạm quyền riêng tư | Thấp | Cao | Không lưu UserID; làm tròn tọa độ; consent bắt buộc |
-| Audio trigger liên tục (spam) | Trung | Trung | Cooldown 5 phút + priority queue |
-| SQL Server downtime | Thấp | Cao | Mobile hoạt động offline hoàn toàn với SQLite |
-
----
-
-## Phụ Lục
-
-### A. Hằng Số Hệ Thống
-
-| Hằng số | Giá trị |
-|---|---|
-| GPS Throttle (Low) | ~500m |
-| GPS Throttle (Medium) | ~100m |
-| GPS Throttle (High) | ~10m |
-| Geofence Debounce | 3 giây |
-| Geofence Cooldown | 300 giây (5 phút) |
-| Auto-sync Interval | 30 phút |
-| Analytics Batch Upload | 30 phút |
-
-### B. Ngôn Ngữ Hỗ Trợ
-
-| Code | Ngôn ngữ | Ghi chú |
-|---|---|---|
-| `vi-VN` | Tiếng Việt | Ngôn ngữ mặc định |
-| `en-US` | English | TTS + pre-recorded |
-| `zh-CN` | 中文 | TTS on-demand |
-| `ja-JP` | 日本語 | TTS on-demand |
-| `ko-KR` | 한국어 | TTS on-demand |
-
-### C. Ngôn Ngữ Lập Trình (Repository)
-
-| Ngôn ngữ | Tỉ lệ |
-|---|---|
-| C# | 66.0% |
-| HTML | 30.7% |
-| JavaScript | 1.8% |
-| PowerShell | 1.2% |
-| CSS | 0.3% |
-
-### D. Glossary
-
-| Thuật ngữ | Định nghĩa |
-|---|---|
-| **POI** | Point of Interest — Điểm tham quan / địa điểm du lịch |
-| **Geofence** | Vùng địa lý ảo, khi người dùng vào sẽ trigger sự kiện |
-| **Debounce** | Cơ chế chờ xác nhận trước khi trigger, tránh kích hoạt sai |
-| **Cooldown** | Khoảng thời gian chờ giữa 2 lần trigger cùng 1 POI |
-| **TTS** | Text-to-Speech — Văn bản thành giọng nói |
-| **RBAC** | Role-Based Access Control — Phân quyền theo vai trò |
-| **Incremental Sync** | Đồng bộ tăng dần — chỉ tải dữ liệu đã thay đổi |
-| **Heatmap** | Bản đồ nhiệt hiển thị mật độ du khách theo khu vực |
-| **MVVM** | Model-View-ViewModel — Kiến trúc UI tách biệt logic |
-| **MudBlazor** | Thư viện UI component cho Blazor Server |
-| **Anonymous ID** | ID tạm thời không liên kết với thông tin cá nhân thật |
-| **Priority Queue** | Hàng đợi ưu tiên — POI quan trọng hơn được phát audio trước |
-| **Full offline** | Trạng thái app hoạt động 100% không cần mạng sau khi sync |
-
----
-
-## Đóng Góp
-
-1. Fork repository
-2. Tạo feature branch: `git checkout -b feature/your-feature`
-3. Commit changes: `git commit -m 'Add your feature'`
-4. Push to branch: `git push origin feature/your-feature`
-5. Mở Pull Request
-
----
-
-## License
-
-MIT License — Xem file [LICENSE](LICENSE) để biết thêm chi tiết.
-
----
-
-*© 2026 — huobin1202 — ZoneGuide GPS-Based Tour Guide System · v1.3.0*
