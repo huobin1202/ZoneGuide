@@ -1,19 +1,21 @@
 // POI Map Functions using Leaflet
 var poiMap = null;
 var markers = [];
+var tempMarker = null;
 
 // Picker map for dialog
 var pickerMap = null;
 var pickerMarker = null;
 var dotNetRef = null;
 
-window.initPOIMap = function (elementId, centerLat, centerLng, poiData) {
+window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetReference) {
     // Destroy existing map if any
     if (poiMap) {
         poiMap.remove();
         poiMap = null;
     }
     markers = [];
+    dotNetRef = dotNetReference;
 
     // Initialize map
     poiMap = L.map(elementId, {
@@ -88,13 +90,23 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData) {
             var marker = L.marker([poi.lat, poi.lng], { icon: getCustomIcon(poi.category) })
                 .addTo(poiMap)
                 .bindPopup(
-                    '<div style="min-width: 200px;">' +
-                    '<h4 style="margin: 0 0 8px 0; color: #1976D2;">' + poi.name + '</h4>' +
-                    '<p style="margin: 0 0 4px 0;"><strong>Category:</strong> ' + poi.category + '</p>' +
-                    '<p style="margin: 0 0 4px 0;"><strong>Lat:</strong> ' + poi.lat.toFixed(6) + '</p>' +
-                    '<p style="margin: 0 0 4px 0;"><strong>Lng:</strong> ' + poi.lng.toFixed(6) + '</p>' +
-                    (poi.description ? '<p style="margin: 8px 0 0 0;">' + poi.description + '</p>' : '') +
-                    '</div>'
+                    '<div style="min-width: 250px; padding: 0;">' +
+                    (poi.imageUrl ? '<img src="' + poi.imageUrl + '" style="width: 100%; height: 120px; object-fit: cover; border-top-left-radius: 8px; border-top-right-radius: 8px; margin-bottom: 8px;" />' : '') +
+                    '<div style="padding: 4px 8px 8px 8px;">' +
+                    '<h4 style="margin: 0 0 6px 0; color: #333; font-size: 16px;">' + poi.name + '</h4>' +
+                    '<div style="display: flex; align-items: center; margin-bottom: 8px;">' +
+                        '<span style="background-color: #E3F2FD; color: #1976D2; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">' +
+                            '🏛 ' + poi.category + 
+                        '</span>' +
+                    '</div>' +
+                    '<p style="margin: 0 0 8px 0; font-size: 13px; color: #555; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">' + 
+                    (poi.description ? poi.description : 'Không có mô tả') + '</p>' +
+                    '<p style="margin: 0; font-size: 12px; color: #888;">' +
+                    '📍 ' + poi.lat.toFixed(6) + ', ' + poi.lng.toFixed(6) + '</p>' +
+                    '</div></div>', {
+                        className: 'custom-poi-popup',
+                        minWidth: 250
+                    }
                 );
 
             marker.poiId = poi.id;
@@ -108,6 +120,12 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData) {
             poiMap.fitBounds(bounds, { padding: [50, 50] });
         }
     }
+
+    poiMap.on('click', function(e) {
+        if (dotNetRef) {
+            dotNetRef.invokeMethodAsync('OnMapClicked', e.latlng.lat, e.latlng.lng);
+        }
+    });
 
     // Invalidate size after a small delay to ensure proper rendering
     setTimeout(function () {
@@ -136,6 +154,42 @@ window.addMarkerToMap = function (lat, lng, name, description) {
         markers.push(marker);
         poiMap.setView([lat, lng], 16);
         marker.openPopup();
+    }
+};
+
+window.addTempMarkerToPOIMap = function (lat, lng) {
+    if (poiMap) {
+        if (tempMarker) {
+            tempMarker.setLatLng([lat, lng]);
+        } else {
+            var redIcon = L.icon({
+                iconUrl: '/images/markers/marker-icon-2x-red.png',
+                shadowUrl: '/images/markers/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+            });
+            tempMarker = L.marker([lat, lng], {
+                draggable: true,
+                icon: redIcon
+            }).addTo(poiMap);
+
+            tempMarker.on('dragend', function (e) {
+                var position = tempMarker.getLatLng();
+                if (dotNetRef) {
+                    dotNetRef.invokeMethodAsync('OnMapClicked', position.lat, position.lng);
+                }
+            });
+        }
+        poiMap.setView([lat, lng], 16);
+    }
+};
+
+window.removeTempMarkerFromPOIMap = function () {
+    if (tempMarker && poiMap) {
+        poiMap.removeLayer(tempMarker);
+        tempMarker = null;
     }
 };
 
