@@ -77,7 +77,7 @@
                                     <MudSpacer />
                                     <MudText Typo="Typo.caption" Color="Color.Secondary">Tùy chọn</MudText>
                                 </div>
-                                <MudSelect @bind-Value="_newPoi.Language" Label="Ngôn ngữ thuyết minh (TTS)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Style="background-color: white;">
+                                <MudSelect @bind-Value="_newPoi.Language" Label="Ngôn ngữ thuyết minh " Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Style="background-color: white;">
                                     <MudSelectItem Value="@("vi-VN")">🇻🇳 Tiếng Việt</MudSelectItem>
                                     <MudSelectItem Value="@("en-US")">🇺🇸 English (US)</MudSelectItem>
                                     <MudSelectItem Value="@("en-GB")">🇬🇧 English (UK)</MudSelectItem>
@@ -105,7 +105,6 @@
                                     </MudButton> *@
                                 </div>
 
-                                <MudText Typo="Typo.body2" Align="Align.Center" Class="my-2">OR URL Audio</MudText>
 
                                 <MudTextField @bind-Value="_newPoi.AudioUrl" Label="URL Audio thuyết minh" 
                                               Variant="Variant.Outlined" Margin="Margin.Dense" Style="background-color: white;" />
@@ -264,7 +263,7 @@
                                 <MudSpacer />
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">Tùy chọn</MudText>
                             </div>
-                            <MudSelect @bind-Value="_newPoi.Language" Label="Ngôn ngữ thuyết minh (TTS)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Style="background-color: white;">
+                            <MudSelect @bind-Value="_newPoi.Language" Label="Ngôn ngữ thuyết minh " Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Style="background-color: white;">
                                 <MudSelectItem Value="@("vi-VN")">🇻🇳 Tiếng Việt</MudSelectItem>
                                 <MudSelectItem Value="@("en-US")">🇺🇸 English (US)</MudSelectItem>
                                 <MudSelectItem Value="@("en-GB")">🇬🇧 English (UK)</MudSelectItem>
@@ -685,26 +684,42 @@
     {
         if (string.IsNullOrWhiteSpace(_newPoi.TTSScript))
         {
-            Snackbar.Add("Vui lòng nhập nội dung thuyết minh để tạo giọng đọc", Severity.Warning);
+            Snackbar.Add("Vui lòng nhập nội dung thuyết minh!", Severity.Warning);
             return;
         }
 
-        _isGeneratingTts = true;
+        _saving = true;
+        
+        // Xóa âm thanh cũ khỏi giao diện để ép nó thay thế bằng cái mới sau khi gọi API xong
+        _newPoi.AudioUrl = null; 
         StateHasChanged();
 
-        var base64Audio = await ApiService.GenerateTtsAsync(_newPoi.TTSScript, _newPoi.Language ?? "vi-VN");
-        if (!string.IsNullOrEmpty(base64Audio))
+        try
         {
-            _newPoi.AudioUrl = $"data:audio/mp3;base64,{base64Audio}";
-            Snackbar.Add("Tạo giọng đọc thành công. Bạn có thể nghe thử ở phía trên.", Severity.Success);
+             var response = await ApiService.GenerateTtsAsync(_newPoi.TTSScript, _newPoi.Language);
+            if (!string.IsNullOrEmpty(response))
+            {
+                // Thêm tiền tố định dạng cho Base64 nếu backend chưa tự thêm
+                if (!response.StartsWith("data:audio"))
+                {
+                    _newPoi.AudioUrl = $"data:audio/mp3;base64,{response}";
+                }
+                else
+                {
+                    _newPoi.AudioUrl = response;
+                }
+                Snackbar.Add("Đã tạo giọng đọc mới thành công!", Severity.Success);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            Snackbar.Add("Tạo giọng đọc thất bại.", Severity.Error);
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
         }
-
-        _isGeneratingTts = false;
-        StateHasChanged();
+        finally
+        {
+            _saving = false;
+            StateHasChanged();
+        }
     }
 
     private void StopTTS()
