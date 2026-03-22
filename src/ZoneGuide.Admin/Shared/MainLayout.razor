@@ -5,6 +5,8 @@
 @inject HttpClient Http
 @using ZoneGuide.Shared.Models
 
+@if (_initialized)
+{
 <MudLayout>
     <MudAppBar Elevation="1">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
@@ -14,7 +16,7 @@
 
         @if (_currentUser != null)
         {
-            <MudAvatar Size="Size.Medium" Class="mr-3 cursor-pointer" Color="Color.Primary" Style="background-color: #22ffd6 !important;" 
+            <MudAvatar Size="Size.Medium" Class="mr-3 cursor-pointer" Color="Color.Primary" Style="background-color: #22ffd6 !important;"
             onclick="@(() => Navigation.NavigateTo("/profile"))">
                     @if (!string.IsNullOrEmpty(_currentUser.AvatarUrl))
                     {
@@ -46,7 +48,7 @@
                 <MudNavLink Href="/pois" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.LocationOn">
                     POIs Management
                 </MudNavLink>
-            
+
                 <MudNavLink Href="/tours" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Route">
                     Tours Management
                 </MudNavLink>
@@ -112,6 +114,13 @@
         </MudContainer>
     </MudMainContent>
 </MudLayout>
+}
+else
+{
+    <MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center" Style="height: 100vh;">
+        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+    </MudContainer>
+}
 
 @code {
     private bool _drawerOpen = true;
@@ -119,16 +128,17 @@
     private bool _isAdmin => _currentUser?.Role == "Admin";
     private bool _isContributor => _currentUser?.Role == "Contributor";
     private bool _initialized = false;
-    protected override async Task OnInitializedAsync()
-    {
-        // Load user từ LocalStorage
-        _currentUser = await LocalStorage.GetItemAsync<UserDto>("user");
-    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             await LoadCurrentUser();
+            if (_currentUser == null)
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
             _initialized = true;
             StateHasChanged();
         }

@@ -157,7 +157,7 @@ window.addMarkerToMap = function (lat, lng, name, description) {
     }
 };
 
-window.addTempMarkerToPOIMap = function (lat, lng) {
+window.addTempMarkerToPOIMap = function (lat, lng, dontChangeView) {
     if (poiMap) {
         if (tempMarker) {
             tempMarker.setLatLng([lat, lng]);
@@ -182,7 +182,10 @@ window.addTempMarkerToPOIMap = function (lat, lng) {
                 }
             });
         }
-        poiMap.setView([lat, lng], 16);
+        
+        if (!dontChangeView) {
+            poiMap.setView([lat, lng], 16);
+        }
     }
 };
 

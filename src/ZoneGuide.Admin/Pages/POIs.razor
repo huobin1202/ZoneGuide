@@ -3,6 +3,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
+@inject WebTtsService WebTts
 
 <MudGrid Spacing="0">
     <!-- Sidebar / List Area -->
@@ -76,20 +77,31 @@
                                     <MudSpacer />
                                     <MudText Typo="Typo.caption" Color="Color.Secondary">Tùy chọn</MudText>
                                 </div>
-                                <MudSelect @bind-Value="_newPoi.Language" Label="Language" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Style="background-color: white;">
+                                <MudSelect @bind-Value="_newPoi.Language" Label="Ngôn ngữ thuyết minh (TTS)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Style="background-color: white;">
                                     <MudSelectItem Value="@("vi-VN")">🇻🇳 Tiếng Việt</MudSelectItem>
-                                    <MudSelectItem Value="@("en-US")">🇺🇸 English</MudSelectItem>
+                                    <MudSelectItem Value="@("en-US")">🇺🇸 English (US)</MudSelectItem>
+                                    <MudSelectItem Value="@("en-GB")">🇬🇧 English (UK)</MudSelectItem>
+                                    <MudSelectItem Value="@("zh-CN")">🇨🇳 中文</MudSelectItem>
+                                    <MudSelectItem Value="@("ja-JP")">🇯🇵 日本語</MudSelectItem>
+                                    <MudSelectItem Value="@("ko-KR")">🇰🇷 한국어</MudSelectItem>
+                                    <MudSelectItem Value="@("fr-FR")">🇫🇷 Français</MudSelectItem>
+                                    <MudSelectItem Value="@("de-DE")">🇩🇪 Deutsch</MudSelectItem>
                                 </MudSelect>
 
-                                <MudTextField @bind-Value="_newPoi.TTSScript" Label="Nội dung thuyết minh (TTS)" 
-                                              Lines="4" Variant="Variant.Outlined" Margin="Margin.Dense" 
+                                <MudTextField @bind-Value="_newPoi.TTSScript" Label="Nội dung thuyết minh (TTS)"
+                                              Lines="4" Variant="Variant.Outlined" Margin="Margin.Dense"
                                               Placeholder="Nhập nội dung thuyết minh tại đây..." Style="background-color: white;" />
-                                
-                                <div class="d-flex gap-2 mt-2 mb-3">
-                                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small" 
+
+                                <div class="d-flex gap-2 mt-2 mb-3 flex-wrap">
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
                                                StartIcon="@Icons.Material.Filled.VolumeUp"
                                                OnClick="PreviewTTS">
-                                        Generate Audio
+                                        Nghe thử TTS
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
+                                               StartIcon="@Icons.Material.Filled.Stop"
+                                               OnClick="StopTTS">
+                                        Dừng
                                     </MudButton>
                                 </div>
 
@@ -127,9 +139,7 @@
                 else
                 {
                     <MudPaper Elevation="0" Class="pa-4 flex-grow-0" Style="border-bottom: 1px solid var(--mud-palette-lines-default);">
-                        <div class="d-flex align-center mb-4">
-                            <MudText Typo="Typo.subtitle1" Class="mr-auto">Danh sách @FilteredPOIs.Count()</MudText>
-                        </div>
+                    
 
                         <MudTextField @bind-Value="_searchString" Placeholder="Tìm kiếm địa điểm..." 
                                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
@@ -145,7 +155,7 @@
                         </MudSelect>
                     </MudPaper>
 
-                    <div style="flex-grow: 1; overflow-y: auto; background-color: #f7f9fa;" class="pa-4">
+                    <div style="flex-grow: 1; overflow-y: auto; background-color: #f7f9fa; height: calc(100vh - 290px);" class="pa-4">
                         @if (_loading)
                         {
                             <div class="d-flex justify-center my-4">
@@ -157,7 +167,7 @@
                             @foreach (var poi in FilteredPOIs)
                             {
                                 <MudCard Class="mb-4 cursor-pointer hover-effect" @onclick="@(() => CenterOnPOI(poi))">
-                                    <MudCardMedia Image="@(string.IsNullOrEmpty(poi.ImageUrl) ? "/images/placeholder.jpg" : poi.ImageUrl)" Height="160" />
+                                    <MudCardMedia Image="@(string.IsNullOrEmpty(poi.ImageUrl) ? "/images/placeholder.png" : poi.ImageUrl)" Height="160" />
                                     <MudCardContent Class="pa-3">
                                         <div class="d-flex justify-space-between align-center mb-2">
                                             <div class="d-flex gap-2">
@@ -254,20 +264,31 @@
                                 <MudSpacer />
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">Tùy chọn</MudText>
                             </div>
-                            <MudSelect @bind-Value="_newPoi.Language" Label="Language" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Style="background-color: white;">
+                            <MudSelect @bind-Value="_newPoi.Language" Label="Ngôn ngữ thuyết minh (TTS)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Style="background-color: white;">
                                 <MudSelectItem Value="@("vi-VN")">🇻🇳 Tiếng Việt</MudSelectItem>
-                                <MudSelectItem Value="@("en-US")">🇺🇸 English</MudSelectItem>
+                                <MudSelectItem Value="@("en-US")">🇺🇸 English (US)</MudSelectItem>
+                                <MudSelectItem Value="@("en-GB")">🇬🇧 English (UK)</MudSelectItem>
+                                <MudSelectItem Value="@("zh-CN")">🇨🇳 中文</MudSelectItem>
+                                <MudSelectItem Value="@("ja-JP")">🇯🇵 日本語</MudSelectItem>
+                                <MudSelectItem Value="@("ko-KR")">🇰🇷 한국어</MudSelectItem>
+                                <MudSelectItem Value="@("fr-FR")">🇫🇷 Français</MudSelectItem>
+                                <MudSelectItem Value="@("de-DE")">🇩🇪 Deutsch</MudSelectItem>
                             </MudSelect>
 
-                            <MudTextField @bind-Value="_newPoi.TTSScript" Label="Nội dung thuyết minh (TTS)" 
-                                          Lines="4" Variant="Variant.Outlined" Margin="Margin.Dense" 
+                            <MudTextField @bind-Value="_newPoi.TTSScript" Label="Nội dung thuyết minh (TTS)"
+                                          Lines="4" Variant="Variant.Outlined" Margin="Margin.Dense"
                                           Placeholder="Nhập nội dung thuyết minh tại đây..." Style="background-color: white;" />
-                            
-                            <div class="d-flex gap-2 mt-2 mb-3">
-                                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small" 
+
+                            <div class="d-flex gap-2 mt-2 mb-3 flex-wrap">
+                                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
                                            StartIcon="@Icons.Material.Filled.VolumeUp"
                                            OnClick="PreviewTTS">
-                                    Generate Audio
+                                    Nghe thử TTS
+                                </MudButton>
+                                <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
+                                           StartIcon="@Icons.Material.Filled.Stop"
+                                           OnClick="StopTTS">
+                                    Dừng
                                 </MudButton>
                             </div>
 
@@ -354,6 +375,20 @@
     private bool _isValid;
     private bool _saving;
 
+    private List<WebTtsVoiceInfo> _ttsVoices = new();
+    private bool _ttsVoicesAttemptedLoad;
+
+    private IEnumerable<WebTtsVoiceInfo> FilteredTtsVoices =>
+        _ttsVoices.Where(v => TtsVoiceMatchesLanguage(v, _newPoi.Language));
+
+    private static bool TtsVoiceMatchesLanguage(WebTtsVoiceInfo v, string? poiLang)
+    {
+        if (string.IsNullOrEmpty(poiLang)) return true;
+        var primary = poiLang.Trim().Replace('_', '-').Split('-')[0];
+        var vl = (v.Lang ?? "").Replace('_', '-');
+        return vl.StartsWith(primary, StringComparison.OrdinalIgnoreCase);
+    }
+
     private DotNetObjectReference<POIs>? _dotNetRef;
 
     private IEnumerable<POIDto> FilteredPOIs => _pois
@@ -371,6 +406,20 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender && !_ttsVoicesAttemptedLoad)
+        {
+            _ttsVoicesAttemptedLoad = true;
+            try
+            {
+                _ttsVoices = (await WebTts.GetVoicesAsync()).ToList();
+                await InvokeAsync(StateHasChanged);
+            }
+            catch
+            {
+                // Trình duyệt / circuit chưa sẵn sàng cho TTS
+            }
+        }
+
         if (firstRender || (!_loading && !_mapInitialized && _pois.Any()))
         {
             _mapInitialized = true;
@@ -486,7 +535,7 @@
         {
             _newPoi.Latitude = Math.Round(lat, 6);
             _newPoi.Longitude = Math.Round(lng, 6);
-            await JS.InvokeVoidAsync("addTempMarkerToPOIMap", lat, lng);
+            await JS.InvokeVoidAsync("addTempMarkerToPOIMap", lat, lng, true);
             StateHasChanged();
         }
     }
@@ -643,26 +692,25 @@
             return;
         }
 
-        try
+        var r = await WebTts.SpeakAsync(
+            _newPoi.TTSScript,
+            _newPoi.Language ?? "vi-VN",
+            1.0,
+            1.0,
+            1.0,
+            null);
+
+        if (!r.Ok)
         {
-            var script = _newPoi.TTSScript.Replace("'", "\\'").Replace("\n", " ");
-            var lang = _newPoi.Language ?? "vi-VN";
-            
-            var jsCode = $@"
-                if ('speechSynthesis' in window) {{
-                    window.speechSynthesis.cancel();
-                    var msg = new SpeechSynthesisUtterance('{script}');
-                    msg.lang = '{lang}';
-                    window.speechSynthesis.speak(msg);
-                }} else {{
-                    alert('Trình duyệt không hỗ trợ Text-to-Speech');
-                }}
-            ";
-            await JS.InvokeVoidAsync("eval", jsCode);
+            if (r.Error == "no-tts")
+                Snackbar.Add("Trình duyệt không hỗ trợ Text-to-Speech.", Severity.Error);
+            else if (r.Error != "empty-text")
+                Snackbar.Add($"Không thể phát TTS: {r.Error}", Severity.Error);
         }
-        catch
-        {
-            Snackbar.Add("Lỗi khi phát thử TTS", Severity.Error);
-        }
+    }
+
+    private async Task StopTTS()
+    {
+        await WebTts.StopAsync();
     }
 }

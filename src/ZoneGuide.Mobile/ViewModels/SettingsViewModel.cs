@@ -127,6 +127,10 @@ public partial class SettingsViewModel : ObservableObject
 
         LastSyncTime = _syncService.LastSyncTime;
 
+        _narrationService.SetVolume(settings.Volume);
+        _narrationService.SetTTSSpeed(settings.TTSSpeed);
+        await _narrationService.SetVoiceAsync(settings.PreferredVoice);
+
         await LoadVoicesAsync();
     }
 
@@ -206,9 +210,15 @@ public partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private async Task TestTTSAsync()
     {
-        await _ttsService.SpeakAsync(
-            "Xin chào! Đây là giọng đọc thử nghiệm từ ứng dụng ZoneGuide.", 
-            PreferredLanguage);
+        _ttsService.SetVolume(Volume);
+        _ttsService.SetSpeed(TtsSpeed);
+        _ttsService.SetVoice(SelectedVoice);
+
+        var sample = PreferredLanguage.StartsWith("en", StringComparison.OrdinalIgnoreCase)
+            ? "Hello! This is a sample voice from ZoneGuide."
+            : "Xin chào! Đây là giọng đọc thử nghiệm từ ứng dụng ZoneGuide.";
+
+        await _ttsService.SpeakAsync(sample, PreferredLanguage);
     }
 
     [RelayCommand]
