@@ -94,15 +94,15 @@
 
                                 <div class="d-flex gap-2 mt-2 mb-3 flex-wrap">
                                     <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
-                                               StartIcon="@Icons.Material.Filled.VolumeUp"
+                                               StartIcon="@Icons.Material.Filled.Autorenew" Disabled="@_isGeneratingTts"
                                                OnClick="PreviewTTS">
-                                        Nghe thử TTS
+                                        @(_isGeneratingTts ? "Đang tạo giọng đọc..." : "Tạo giọng đọc (Google Cloud)")
                                     </MudButton>
-                                    <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
+                                    @* <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
                                                StartIcon="@Icons.Material.Filled.Stop"
                                                OnClick="StopTTS">
                                         Dừng
-                                    </MudButton>
+                                    </MudButton> *@
                                 </div>
 
                                 <MudText Typo="Typo.body2" Align="Align.Center" Class="my-2">OR URL Audio</MudText>
@@ -281,14 +281,9 @@
 
                             <div class="d-flex gap-2 mt-2 mb-3 flex-wrap">
                                 <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
-                                           StartIcon="@Icons.Material.Filled.VolumeUp"
+                                           StartIcon="@Icons.Material.Filled.Autorenew" Disabled="@_isGeneratingTts"
                                            OnClick="PreviewTTS">
-                                    Nghe thử TTS
-                                </MudButton>
-                                <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
-                                           StartIcon="@Icons.Material.Filled.Stop"
-                                           OnClick="StopTTS">
-                                    Dừng
+                                    @(_isGeneratingTts ? "Đang tạo giọng đọc..." : "Tạo giọng đọc (Google Cloud)")
                                 </MudButton>
                             </div>
 
@@ -684,33 +679,36 @@
         }
     }
 
+    private bool _isGeneratingTts = false;
+
     private async Task PreviewTTS()
     {
         if (string.IsNullOrWhiteSpace(_newPoi.TTSScript))
         {
-            Snackbar.Add("Vui lòng nhập nội dung thuyết minh để nghe thử", Severity.Warning);
+            Snackbar.Add("Vui lòng nhập nội dung thuyết minh để tạo giọng đọc", Severity.Warning);
             return;
         }
 
-        var r = await WebTts.SpeakAsync(
-            _newPoi.TTSScript,
-            _newPoi.Language ?? "vi-VN",
-            1.0,
-            1.0,
-            1.0,
-            null);
+        _isGeneratingTts = true;
+        StateHasChanged();
 
-        if (!r.Ok)
+        var base64Audio = await ApiService.GenerateTtsAsync(_newPoi.TTSScript, _newPoi.Language ?? "vi-VN");
+        if (!string.IsNullOrEmpty(base64Audio))
         {
-            if (r.Error == "no-tts")
-                Snackbar.Add("Trình duyệt không hỗ trợ Text-to-Speech.", Severity.Error);
-            else if (r.Error != "empty-text")
-                Snackbar.Add($"Không thể phát TTS: {r.Error}", Severity.Error);
+            _newPoi.AudioUrl = $"data:audio/mp3;base64,{base64Audio}";
+            Snackbar.Add("Tạo giọng đọc thành công. Bạn có thể nghe thử ở phía trên.", Severity.Success);
         }
+        else
+        {
+            Snackbar.Add("Tạo giọng đọc thất bại.", Severity.Error);
+        }
+
+        _isGeneratingTts = false;
+        StateHasChanged();
     }
 
-    private async Task StopTTS()
+    private void StopTTS()
     {
-        await WebTts.StopAsync();
+        // Removed browser TTS stop logic
     }
 }
