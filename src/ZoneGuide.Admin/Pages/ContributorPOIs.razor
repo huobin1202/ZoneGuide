@@ -11,7 +11,7 @@
 <MudGrid Spacing="0">
     <MudItem xs="12" md="4" Style="height: calc(100vh - 64px); display: flex; flex-direction: column; border-right: 1px solid var(--mud-palette-lines-default); background-color: #f7f9fa;">
         <MudTabs Elevation="0" Rounded="false" ApplyEffectsToContainer="true" @bind-ActivePanelIndex="_activeTabIndex" Style="flex-grow: 1; display: flex; flex-direction: column; background-color: white;">
-            <MudTabPanel Text="@($"Danh sách POI ({_myContributions.Count})")">
+            <MudTabPanel Text="@($"Danh sách  ({_myContributions.Count})")">
                 <div style="flex-grow: 1; overflow-y: auto; height: calc(100vh - 120px);" class="px-4 pb-4 pt-4">
                     @if (_isEditMode && _editModel != null)
                     {
@@ -85,9 +85,18 @@
                     }
                     else
                     {
-                        <MudTextField @bind-Value="_searchString" Immediate="true" Placeholder="Tìm kiếm đóng góp..." 
-                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                                      Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
+                        <MudPaper Elevation="1" Class="pa-4 panel-card mb-3">
+                            <div class="d-flex justify-space-between align-center mb-3">
+                                <div>
+                                    <MudText Typo="Typo.h6">Đóng góp của tôi</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">@_myContributions.Count tổng • @FilteredContributions.Count() đang hiển thị</MudText>
+                                </div>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => { _activeTabIndex = 1; _isEditMode = false; })">Thêm đóng góp</MudButton>
+                            </div>
+                            <MudTextField @bind-Value="_searchString" Immediate="true" Placeholder="Tìm kiếm đóng góp..." 
+                                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-0" />
+                        </MudPaper>
 
                         @if (_loading)
                         {
@@ -97,30 +106,29 @@
                         {
                             @foreach (var contrib in FilteredContributions)
                             {
-                                <MudCard Elevation="0" Class="mb-3 pa-2 cursor-pointer pb-2" 
-                                         Style="border: 1px solid var(--mud-palette-lines-default); border-radius: 8px; transition: all 0.2s ease-in-out;"
-                                         @onclick="() => FocusMapOnContribution(contrib)">
-                                    <MudCardContent Class="pa-2">
-                                        <div class="d-flex justify-space-between align-start mb-2">
-                                            <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Outlined">
-                                                @contrib.Category
-                                            </MudChip>
-                                            <div class="d-flex gap-1 align-center">
-                                                <MudChip T="string" Color="@GetStatusColor(contrib.Status)" Size="Size.Small">
-                                                    @contrib.Status
-                                                </MudChip>
-                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => EditContribution(contrib)" />
+                                <MudCard Class="mb-3 poi-card" @onclick="() => FocusMapOnContribution(contrib)">
+                                    <div class="poi-card-body">
+                                        <img class="poi-thumb-img" src="@(string.IsNullOrEmpty(contrib.ImageUrl) ? "/images/placeholder.png" : contrib.ImageUrl)" alt="Ảnh địa điểm" />
+                                        <div class="poi-main">
+                                            <div class="d-flex justify-space-between align-center mb-1">
+                                                <MudText Typo="Typo.subtitle1" Class="text-truncate"><b>@contrib.Name</b></MudText>
+                                                <div class="d-flex gap-1">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" title="Chỉnh sửa" OnClick="() => EditContribution(contrib)" />
+                                                </div>
                                             </div>
+                                            <div class="d-flex gap-2 mb-1 flex-wrap">
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="ma-0">@contrib.Category</MudChip>
+                                                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(contrib.Status)" Class="ma-0">@contrib.Status</MudChip>
+                                            </div>
+                                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-1 d-flex align-center gap-1">
+                                                <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" />
+                                                @($"{contrib.Latitude:F6}, {contrib.Longitude:F6}")
+                                            </MudText>
+                                            <MudText Typo="Typo.body2" Color="Color.Default" Class="clamp-2">
+                                                @(contrib.ShortDescription ?? "Không có mô tả")
+                                            </MudText>
                                         </div>
-                                        <MudText Typo="Typo.subtitle1"><b>@contrib.Name</b></MudText>
-                                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
-                                            <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Class="mr-1" />
-                                            @($"{contrib.Latitude:F6}, {contrib.Longitude:F6}")
-                                        </MudText>
-                                        <MudText Typo="Typo.body2" Style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: #555;">
-                                            @(contrib.ShortDescription ?? "Không có mô tả")
-                                        </MudText>
-                                    </MudCardContent>
+                                    </div>
                                 </MudCard>
                             }
                             
@@ -211,7 +219,7 @@
     <!-- Map Area -->
     <MudItem xs="12" md="8" Style="height: calc(100vh - 64px); position: relative;">
         <div id="contributor-poi-map" style="width: 100%; height: 100%; z-index: 1;"></div>
-        <MudPaper Elevation="6" Class="pa-3" Style="position: absolute; top: 12px; left: 12px; z-index: 2; width: 320px; background: rgba(255,255,255,0.95); backdrop-filter: blur(6px); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.18);">
+        <MudPaper Elevation="8" Class="pa-3 map-overlay" Style="top: 10px; left: 50px; width: 320px;">
             <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">Tìm kiếm trên bản đồ</MudText>
             <div class="d-flex align-center gap-2">
                 <MudTextField @bind-Value="_mapSearchQuery" Placeholder="Nhập địa chỉ hoặc địa danh..." Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="flex-grow-1" OnKeyDown="@(async e => { if (e.Key == "Enter") await SearchOnMap(); })" />
@@ -232,6 +240,39 @@
         </MudPaper>
     </MudItem>
 </MudGrid>
+
+<style>
+    .panel-card {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #e7ebf0;
+    }
+    .poi-card {
+        border: 1px solid #e7ebf0;
+        border-radius: 12px;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+    }
+    .poi-card-body { display: flex; gap: 12px; padding: 12px; align-items: flex-start; }
+    .poi-thumb-img {
+        width: 88px;
+        height: 88px;
+        object-fit: cover;
+        border-radius: 12px;
+        background: #f0f2f5;
+        flex-shrink: 0;
+    }
+    .poi-main { flex: 1; min-width: 0; }
+    .clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .map-overlay {
+        position: absolute;
+        z-index: 2;
+        background: rgba(255,255,255,0.95);
+        backdrop-filter: blur(8px);
+        border-radius: 12px;
+        box-shadow: 0 14px 30px rgba(0,0,0,0.16);
+        border: 1px solid #e7ebf0;
+    }
+</style>
 
 @code {
     private int _activeTabIndex = 0;
