@@ -2,6 +2,7 @@
 var poiMap = null;
 var markers = [];
 var tempMarker = null;
+var searchResultMarker = null;
 
 // Picker map for dialog
 var pickerMap = null;
@@ -15,6 +16,7 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
         poiMap = null;
     }
     markers = [];
+    searchResultMarker = null;
     dotNetRef = dotNetReference;
 
     // Initialize map
@@ -194,6 +196,62 @@ window.removeTempMarkerFromPOIMap = function () {
         poiMap.removeLayer(tempMarker);
         tempMarker = null;
     }
+};
+
+// ==========================================
+// Search on main POI map (admin & contributor)
+// ==========================================
+window.searchAddressOnMainMap = function (address) {
+    if (!poiMap) {
+        return;
+    }
+
+    if (!address || !address.trim()) {
+        alert('Vui lòng nhập địa chỉ hoặc tên địa danh.');
+        return;
+    }
+
+    var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(address.trim());
+
+    fetch(url, {
+        headers: {
+            'Accept-Language': 'vi',
+            'User-Agent': 'ZoneGuide/1.0 (map search)'
+        }
+    })
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+            if (!data || data.length === 0) {
+                alert('Không tìm thấy địa điểm phù hợp.');
+                return;
+            }
+
+            var lat = parseFloat(data[0].lat);
+            var lng = parseFloat(data[0].lon);
+            var displayName = data[0].display_name || address;
+
+            if (!searchResultMarker) {
+                var purpleIcon = L.icon({
+                    iconUrl: '/images/markers/marker-icon-2x-violet.png',
+                    shadowUrl: '/images/markers/marker-shadow.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34],
+                    shadowSize: [41, 41]
+                });
+
+                searchResultMarker = L.marker([lat, lng], { icon: purpleIcon }).addTo(poiMap);
+            } else {
+                searchResultMarker.setLatLng([lat, lng]);
+            }
+
+            searchResultMarker.bindPopup('<b>Tìm kiếm</b><br />' + displayName).openPopup();
+            poiMap.setView([lat, lng], 16);
+        })
+        .catch(function (error) {
+            console.error('Search error:', error);
+            alert('Lỗi tìm kiếm địa chỉ.');
+        });
 };
 
 // ==========================================
