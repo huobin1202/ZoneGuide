@@ -57,12 +57,26 @@ public interface IPOIService
     {
         if (!int.TryParse(tourId, out var intTourId))
             return new List<POIDto>();
-            
-        var entities = await _context.POIs
-            .Include(p => p.Translations)
-            .Where(p => p.TourId == intTourId && p.IsActive)
-            .OrderBy(p => p.OrderInTour)
+
+        var poiIdsByOrder = await _context.TourPOIs
+            .Where(tp => tp.TourId == intTourId)
+            .OrderBy(tp => tp.Order)
+            .Select(tp => tp.POIId)
             .ToListAsync();
+
+        if (!poiIdsByOrder.Any())
+            return new List<POIDto>();
+
+        var poiIdSet = poiIdsByOrder.ToHashSet();
+        var poiById = await _context.POIs
+            .Include(p => p.Translations)
+            .Where(p => p.IsActive && poiIdSet.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id);
+
+        var entities = poiIdsByOrder
+            .Where(id => poiById.ContainsKey(id))
+            .Select(id => poiById[id])
+            .ToList();
 
         return entities.Select(MapToDto).ToList();
     }

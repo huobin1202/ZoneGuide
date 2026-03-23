@@ -3,80 +3,139 @@
 <MudDialog>
     <DialogContent>
         <MudForm @ref="_form" @bind-IsValid="_isValid">
-            <MudTextField @bind-Value="_model.Name" Label="Name" Required="true" 
-                          RequiredError="Name is required" Class="mb-3" />
-            
-            <MudTextField @bind-Value="_model.Description" Label="Description" 
-                          Lines="3" Class="mb-3" />
-            
-            <MudGrid>
-                <MudItem xs="6">
-                    <MudNumericField @bind-Value="_model.EstimatedDurationMinutes" 
-                                     Label="Duration (minutes)" Min="1" Max="1440" />
+            <MudText Typo="Typo.h5" Class="mb-4">@(IsEdit ? "Chinh sua Tour" : "Tao Tour moi")</MudText>
+
+            <MudGrid Spacing="3">
+                <MudItem xs="12" md="5">
+                    <MudPaper Outlined="true" Class="pa-4">
+                        <MudStack Spacing="2">
+                            <MudText Typo="Typo.subtitle1" Class="d-flex align-center">
+                                <MudIcon Icon="@Icons.Material.Filled.Info" Class="mr-2" Color="Color.Primary" />
+                                THONG TIN CO BAN
+                            </MudText>
+
+                            <MudTextField @bind-Value="_model.Name" Label="Ten tour" Required="true"
+                                          RequiredError="Ten tour la bat buoc" />
+
+                            <MudTextField @bind-Value="_model.Description" Label="Mo ta" Lines="4" />
+
+                            <MudGrid>
+                                <MudItem xs="6">
+                                    <MudNumericField @bind-Value="_model.EstimatedDurationMinutes"
+                                                     Label="Thoi luong (phut)" Min="1" Max="1440" />
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudNumericField @bind-Value="_model.DistanceKm"
+                                                     Label="Khoang cach (km)" Min="0.1" Max="100" Step="0.1" Format="F1" />
+                                </MudItem>
+                            </MudGrid>
+
+                            <MudSelect @bind-Value="_model.Difficulty" Label="Do kho">
+                                <MudSelectItem Value="@("Easy")">De</MudSelectItem>
+                                <MudSelectItem Value="@("Moderate")">Trung binh</MudSelectItem>
+                                <MudSelectItem Value="@("Hard")">Kho</MudSelectItem>
+                            </MudSelect>
+
+                            <MudFileUpload T="IBrowserFile" Accept=".png, .jpg, .jpeg" FilesChanged="UploadImage">
+                                <ActivatorContent>
+                                    <MudButton Variant="Variant.Outlined"
+                                               Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.CloudUpload">
+                                        Tai len anh tour
+                                    </MudButton>
+                                </ActivatorContent>
+                            </MudFileUpload>
+
+                            @if (!string.IsNullOrEmpty(_model.ImageUrl))
+                            {
+                                <img src="@_model.ImageUrl" style="max-height: 140px; border-radius: 8px;" />
+                            }
+
+                            <MudSwitch @bind-Value="_model.IsActive" Label="Kich hoat" Color="Color.Primary" />
+
+                            <MudDivider Class="my-2" />
+
+                            <MudText Typo="Typo.subtitle2" Class="d-flex align-center">
+                                <MudIcon Icon="@Icons.Material.Filled.GridView" Class="mr-2" Color="Color.Primary" />
+                                CHON DIEM THAM QUAN
+                            </MudText>
+
+                            @if (AvailablePOIs.Any())
+                            {
+                                @foreach (var poi in AvailablePOIs.OrderBy(p => p.Name))
+                                {
+                                    var selected = IsPOISelected(poi.Id);
+                                    <MudPaper Outlined="true"
+                                              Class="pa-3 d-flex align-center"
+                                              Style="@GetPOICardStyle(selected)"
+                                              @onclick="@(() => TogglePOI(poi))">
+                                        <MudCheckBox T="bool" Value="selected" DisableRipple="true" ReadOnly="true" Class="mr-2" />
+                                        <MudStack Spacing="0">
+                                            <MudText Typo="Typo.subtitle2">@poi.Name</MudText>
+                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@(string.IsNullOrWhiteSpace(poi.Category) ? "POI" : poi.Category)</MudText>
+                                        </MudStack>
+                                    </MudPaper>
+                                }
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Warning" Dense="true">Chua co POI de them vao tour.</MudAlert>
+                            }
+                        </MudStack>
+                    </MudPaper>
                 </MudItem>
-                <MudItem xs="6">
-                    <MudNumericField @bind-Value="_model.DistanceKm" 
-                                     Label="Distance (km)" Min="0.1" Max="100" Step="0.1" Format="F1" />
+
+                <MudItem xs="12" md="7">
+                    <MudPaper Outlined="true" Class="pa-4">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
+                            <MudText Typo="Typo.h6">Lo trinh tham quan (@_selectedPOIs.Count diem)</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">Sap xep thu tu cac diem de hinh thanh tuyen</MudText>
+                        </MudStack>
+
+                        @if (_selectedPOIs.Any())
+                        {
+                            <MudStack Spacing="2">
+                                @foreach (var poi in _selectedPOIs)
+                                {
+                                    var index = _selectedPOIs.IndexOf(poi);
+                                    <MudPaper Outlined="true" Class="pa-3 d-flex align-center">
+                                        <MudAvatar Color="Color.Primary" Size="Size.Medium" Class="mr-3">@(index + 1)</MudAvatar>
+                                        <MudStack Spacing="0">
+                                            <MudText Typo="Typo.subtitle1">@poi.Name</MudText>
+                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@($"{poi.Latitude:F6}, {poi.Longitude:F6}")</MudText>
+                                        </MudStack>
+                                        <MudSpacer />
+                                        <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small"
+                                                       Disabled="@(index == 0)"
+                                                       OnClick="@(() => MovePOI(poi, -1))" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small"
+                                                       Disabled="@(index == _selectedPOIs.Count - 1)"
+                                                       OnClick="@(() => MovePOI(poi, 1))" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
+                                                       Color="Color.Error"
+                                                       OnClick="@(() => RemovePOI(poi))" />
+                                    </MudPaper>
+                                }
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <MudAlert Severity="Severity.Info">Chon it nhat 1 POI o cot ben trai de tao lo trinh.</MudAlert>
+                        }
+                    </MudPaper>
                 </MudItem>
             </MudGrid>
-            
-            <MudTextField @bind-Value="_model.ImageUrl" Label="Image URL" Class="mt-3" />
-            
-            <MudSelect @bind-Value="_model.Difficulty" Label="Difficulty" Class="mt-3">
-                <MudSelectItem Value="@("Easy")">Easy</MudSelectItem>
-                <MudSelectItem Value="@("Moderate")">Moderate</MudSelectItem>
-                <MudSelectItem Value="@("Hard")">Hard</MudSelectItem>
-            </MudSelect>
-            
-            <MudText Typo="Typo.subtitle1" Class="mt-4 mb-2">Select POIs (in order)</MudText>
-            <MudPaper Outlined="true" Class="pa-3">
-                @if (AvailablePOIs.Any())
-                {
-                    <MudStack Spacing="2">
-                        @foreach (var poi in _selectedPOIs)
-                        {
-                            <MudPaper Class="pa-2 d-flex align-center" Elevation="1">
-                                <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Class="mr-2" />
-                                <MudText>@poi.Name</MudText>
-                                <MudSpacer />
-                                <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small"
-                                               Disabled="@(_selectedPOIs.IndexOf(poi) == 0)"
-                                               OnClick="@(() => MovePOI(poi, -1))" />
-                                <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small"
-                                               Disabled="@(_selectedPOIs.IndexOf(poi) == _selectedPOIs.Count - 1)"
-                                               OnClick="@(() => MovePOI(poi, 1))" />
-                                <MudIconButton Icon="@Icons.Material.Filled.Remove" Size="Size.Small" 
-                                               Color="Color.Error"
-                                               OnClick="@(() => RemovePOI(poi))" />
-                            </MudPaper>
-                        }
-                        
-                        <MudSelect T="POIDto" Label="Add POI" Value="null" ValueChanged="AddPOI">
-                            @foreach (var poi in AvailablePOIs.Where(p => !_selectedPOIs.Any(s => s.Id == p.Id)))
-                            {
-                                <MudSelectItem Value="@poi">@poi.Name</MudSelectItem>
-                            }
-                        </MudSelect>
-                    </MudStack>
-                }
-                else
-                {
-                    <MudText Color="Color.Warning">No POIs available. Create some POIs first.</MudText>
-                }
-            </MudPaper>
-            
-            <MudSwitch @bind-Value="_model.IsActive" Label="Active" Color="Color.Primary" Class="mt-3" />
         </MudForm>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton OnClick="Cancel">Huy</MudButton>
         <MudButton Color="Color.Primary" Variant="Variant.Filled" 
-                   OnClick="Submit" Disabled="@(!_isValid || _saving)">
+                   OnClick="Submit" Disabled="@(!_isValid || _saving || !_selectedPOIs.Any())">
             @if (_saving)
             {
                 <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
             }
-            @(IsEdit ? "Update" : "Create")
+            @(IsEdit ? "Luu Tour" : "Tao Tour")
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -120,11 +179,53 @@
         }
     }
 
-    private void AddPOI(POIDto? poi)
+    private bool IsPOISelected(string poiId)
     {
-        if (poi != null && !_selectedPOIs.Any(p => p.Id == poi.Id))
+        return _selectedPOIs.Any(p => p.Id == poiId);
+    }
+
+    private static string GetPOICardStyle(bool selected)
+    {
+        var borderColor = selected ? "#6c63ff" : "#d5d9e6";
+        var backgroundColor = selected ? "#f4f3ff" : "white";
+        return $"cursor:pointer; border-color:{borderColor}; background-color:{backgroundColor};";
+    }
+
+    private void TogglePOI(POIDto poi)
+    {
+        var exists = _selectedPOIs.FirstOrDefault(p => p.Id == poi.Id);
+        if (exists != null)
         {
-            _selectedPOIs.Add(poi);
+            _selectedPOIs.Remove(exists);
+            return;
+        }
+
+        _selectedPOIs.Add(poi);
+    }
+
+    private async Task UploadImage(IBrowserFile file)
+    {
+        if (file == null)
+            return;
+
+        try
+        {
+            var format = file.ContentType;
+            if (string.IsNullOrEmpty(format))
+            {
+                format = "image/png";
+            }
+
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+
+            var base64 = Convert.ToBase64String(memoryStream.ToArray());
+            _model.ImageUrl = $"data:{format};base64,{base64}";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error reading image file: {ex.Message}");
         }
     }
 
