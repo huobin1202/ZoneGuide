@@ -324,23 +324,7 @@
     <MudItem xs="12" md="8" Style="height: calc(100vh - 64px); position: relative;">
         <div id="poi-map" style="width: 100%; height: 100%; z-index: 1;"></div>
         
-        <!-- Optional Overlay Stats / Settings on Map -->
-        <MudPaper Class="pa-2 d-flex gap-4 align-center" Elevation="4" Style="position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 2; border-radius: 8px;">
-            <div class="text-center px-4">
-                <MudText Typo="Typo.h6" Color="Color.Primary"><b>@_pois.Count</b></MudText>
-                <MudText Typo="Typo.caption" Color="Color.Secondary">Địa điểm</MudText>
-            </div>
-            <MudDivider Vertical="true" FlexItem="true" />
-            <div class="text-center px-4">
-                <MudText Typo="Typo.h6" Color="Color.Warning"><b>4.7</b></MudText>
-                <MudText Typo="Typo.caption" Color="Color.Secondary">TB đánh giá</MudText>
-            </div>
-            <MudDivider Vertical="true" FlexItem="true" />
-             <div class="text-center px-4">
-                <MudText Typo="Typo.h6" Color="Color.Info"><b>@_pois.Select(p => p.Category).Distinct().Count()</b></MudText>
-                <MudText Typo="Typo.caption" Color="Color.Secondary">Danh mục</MudText>
-            </div>
-        </MudPaper>
+      
     </MudItem>
 </MudGrid>
 
