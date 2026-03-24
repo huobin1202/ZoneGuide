@@ -5,114 +5,165 @@
              xmlns:models="clr-namespace:ZoneGuide.Shared.Models;assembly=ZoneGuide.Shared"
              x:Class="ZoneGuide.Mobile.Views.POIListPage"
              x:DataType="vm:POIListViewModel"
-             Title="Điểm thuyết minh">
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F6F7FB">
 
-    <Grid RowDefinitions="Auto, Auto, *">
-        
-        <!-- Search Bar -->
-        <SearchBar Grid.Row="0"
-                   Placeholder="Tìm kiếm điểm..."
-                   Text="{Binding SearchText}"
-                   Margin="16,8" />
+    <Grid RowDefinitions="Auto,*">
+        <Border Grid.Row="0"
+                BackgroundColor="{StaticResource Primary}"
+                StrokeThickness="0"
+                StrokeShape="RoundRectangle 0,0,28,28"
+                Padding="20,28,20,24">
+            <VerticalStackLayout Spacing="18">
+                <Label Text="Địa điểm"
+                       FontSize="30"
+                       FontAttributes="Bold"
+                       TextColor="White" />
 
-        <!-- Category Filter -->
-        <Picker Grid.Row="1"
-                Title="Lọc theo danh mục"
-                ItemsSource="{Binding Categories}"
-                SelectedItem="{Binding SelectedCategory}"
-                Margin="16,0,16,8" />
+                <Border BackgroundColor="White"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 18"
+                        Padding="14,4">
+                    <Grid ColumnDefinitions="Auto,*"
+                          ColumnSpacing="10">
+                        <Label Text="⌕"
+                               FontSize="18"
+                               TextColor="{StaticResource Gray400}"
+                               VerticalTextAlignment="Center" />
+                        <Entry Grid.Column="1"
+                               Text="{Binding SearchText}"
+                               Placeholder="Tìm kiếm điểm..."
+                               ClearButtonVisibility="WhileEditing"
+                               BackgroundColor="Transparent"
+                               Margin="0,0,0,0" />
+                    </Grid>
+                </Border>
+            </VerticalStackLayout>
+        </Border>
 
-        <!-- POI List -->
-        <RefreshView Grid.Row="2"
-                     IsRefreshing="{Binding IsRefreshing}"
-                     Command="{Binding RefreshCommand}">
-            <CollectionView ItemsSource="{Binding FilteredPOIs}"
-                            SelectionMode="None">
-                <CollectionView.EmptyView>
-                    <VerticalStackLayout HorizontalOptions="Center"
-                                         VerticalOptions="Center"
-                                         Padding="32">
-                        <Label Text="📍"
-                               FontSize="48"
-                               HorizontalOptions="Center" />
-                        <Label Text="Không có điểm nào"
-                               FontSize="16"
-                               TextColor="Gray"
-                               HorizontalOptions="Center" />
-                    </VerticalStackLayout>
-                </CollectionView.EmptyView>
-                
-                <CollectionView.ItemTemplate>
-                    <DataTemplate x:DataType="models:POI">
-                        <Frame Margin="16,8"
-                               Padding="12"
-                               CornerRadius="12"
-                               BackgroundColor="White"
-                               BorderColor="LightGray">
-                            <Frame.GestureRecognizers>
-                                <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:POIListViewModel}}, Path=ViewDetailCommand}"
-                                                      CommandParameter="{Binding .}" />
-                            </Frame.GestureRecognizers>
-                            
-                            <Grid ColumnDefinitions="60, *, Auto" ColumnSpacing="12">
-                                <!-- Image -->
-                                <Frame Grid.Column="0"
-                                       WidthRequest="60"
-                                       HeightRequest="60"
-                                       CornerRadius="8"
-                                       Padding="0"
-                                       IsClippedToBounds="True"
-                                       BackgroundColor="LightGray">
-                                    <Image Source="{Binding ImageUrl}"
-                                           Aspect="AspectFill" />
-                                </Frame>
-                                
-                                <!-- Info -->
-                                <VerticalStackLayout Grid.Column="1" 
-                                                     VerticalOptions="Center"
-                                                     Spacing="4">
-                                    <Label Text="{Binding Name}"
-                                           FontSize="16"
-                                           FontAttributes="Bold"
-                                           MaxLines="1" />
-                                    <Label Text="{Binding ShortDescription}"
-                                           FontSize="12"
-                                           TextColor="Gray"
-                                           MaxLines="2" />
-                                    <HorizontalStackLayout Spacing="8">
-                                        <Label Text="⭐"
-                                               FontSize="10" />
-                                        <Label Text="{Binding Priority, StringFormat='Ưu tiên: {0}'}"
-                                               FontSize="10"
-                                               TextColor="Gray" />
-                                    </HorizontalStackLayout>
-                                </VerticalStackLayout>
-                                
-                                <!-- Play Button -->
-                                <Button Grid.Column="2"
-                                        Text="▶"
-                                        WidthRequest="44"
-                                        HeightRequest="44"
-                                        CornerRadius="22"
-                                        BackgroundColor="{StaticResource Primary}"
-                                        TextColor="White"
-                                        VerticalOptions="Center"
-                                        Command="{Binding Source={RelativeSource AncestorType={x:Type vm:POIListViewModel}}, Path=PlayPOICommand}"
-                                        CommandParameter="{Binding .}" />
-                            </Grid>
-                        </Frame>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
-        </RefreshView>
+        <Grid Grid.Row="1"
+              RowDefinitions="Auto,*"
+              Margin="0,10,0,0">
+            <Grid Grid.Row="0"
+                  Padding="20,0,20,10"
+                  ColumnDefinitions="*,Auto"
+                  ColumnSpacing="12">
+                <Label Text="{Binding FilteredCount, StringFormat='{}{0} địa điểm tham quan'}"
+                       FontSize="14"
+                       TextColor="{StaticResource Gray500}"
+                       VerticalTextAlignment="Center" />
 
-        <!-- Loading -->
-        <ActivityIndicator Grid.Row="2"
-                           IsRunning="{Binding IsLoading}"
-                           IsVisible="{Binding IsLoading}"
-                           HorizontalOptions="Center"
-                           VerticalOptions="Center"
-                           Color="{StaticResource Primary}" />
+                <Border Grid.Column="1"
+                        BackgroundColor="White"
+                        Stroke="#ECEAF5"
+                        StrokeShape="RoundRectangle 14"
+                        Padding="10,0">
+                    <Picker WidthRequest="150"
+                            Title="Lọc"
+                            ItemsSource="{Binding Categories}"
+                            SelectedItem="{Binding SelectedCategory}"
+                            TitleColor="{StaticResource Gray500}"
+                            TextColor="{StaticResource Gray900}"
+                            BackgroundColor="Transparent" />
+                </Border>
+            </Grid>
+
+            <RefreshView Grid.Row="1"
+                         IsRefreshing="{Binding IsRefreshing}"
+                         Command="{Binding RefreshCommand}">
+                <CollectionView ItemsSource="{Binding FilteredPOIs}"
+                                SelectionMode="None"
+                                Margin="0,0,0,12">
+                    <CollectionView.EmptyView>
+                        <VerticalStackLayout HorizontalOptions="Center"
+                                             VerticalOptions="Center"
+                                             Padding="32,72"
+                                             Spacing="10">
+                            <Label Text="Không có địa điểm phù hợp"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   HorizontalTextAlignment="Center" />
+                            <Label Text="Thử đổi từ khóa tìm kiếm hoặc bộ lọc danh mục."
+                                   FontSize="13"
+                                   TextColor="{StaticResource Gray500}"
+                                   HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </CollectionView.EmptyView>
+
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="models:POI">
+                            <Frame Margin="16,6"
+                                   Padding="12"
+                                   CornerRadius="18"
+                                   BackgroundColor="White"
+                                   HasShadow="False">
+                                <Frame.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:POIListViewModel}}, Path=ViewDetailCommand}"
+                                                          CommandParameter="{Binding .}" />
+                                </Frame.GestureRecognizers>
+
+                                <Grid ColumnDefinitions="82,*,Auto"
+                                      ColumnSpacing="12">
+                                    <Frame Grid.Column="0"
+                                           WidthRequest="82"
+                                           HeightRequest="82"
+                                           CornerRadius="16"
+                                           Padding="0"
+                                           BackgroundColor="#ECEAF8"
+                                           IsClippedToBounds="True">
+                                        <Image Source="{Binding ImageUrl}"
+                                               Aspect="AspectFill" />
+                                    </Frame>
+
+                                    <VerticalStackLayout Grid.Column="1"
+                                                         Spacing="4"
+                                                         VerticalOptions="Center">
+                                        <Label Text="{Binding Name}"
+                                               FontSize="18"
+                                               FontAttributes="Bold"
+                                               MaxLines="1" />
+                                        <Label Text="{Binding ShortDescription}"
+                                               FontSize="13"
+                                               TextColor="{StaticResource Gray500}"
+                                               MaxLines="2" />
+                                        <HorizontalStackLayout Spacing="8"
+                                                               Margin="0,2,0,0">
+                                            <Border BackgroundColor="#F2EFFF"
+                                                    StrokeThickness="0"
+                                                    StrokeShape="RoundRectangle 10"
+                                                    Padding="8,2">
+                                                <Label Text="{Binding Category}"
+                                                       FontSize="11"
+                                                       TextColor="{StaticResource Primary}" />
+                                            </Border>
+                                            <Label Text="★"
+                                                   FontSize="11"
+                                                   TextColor="#F5B301"
+                                                   VerticalTextAlignment="Center" />
+                                            <Label Text="{Binding Priority, StringFormat='{}{0}/10'}"
+                                                   FontSize="11"
+                                                   TextColor="{StaticResource Gray500}"
+                                                   VerticalTextAlignment="Center" />
+                                        </HorizontalStackLayout>
+                                    </VerticalStackLayout>
+
+                                    <Button Grid.Column="2"
+                                            Text="▶"
+                                            WidthRequest="46"
+                                            HeightRequest="46"
+                                            CornerRadius="23"
+                                            FontSize="16"
+                                            Padding="0"
+                                            VerticalOptions="Center"
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type vm:POIListViewModel}}, Path=PlayPOICommand}"
+                                            CommandParameter="{Binding .}" />
+                                </Grid>
+                            </Frame>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </RefreshView>
+        </Grid>
     </Grid>
 
 </ContentPage>

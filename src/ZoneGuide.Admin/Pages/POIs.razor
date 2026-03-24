@@ -337,9 +337,9 @@
             <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">Tìm kiếm trên bản đồ</MudText>
             <div class="d-flex align-center gap-2">
                 <MudAutocomplete T="MapSearchSuggestion"
-                                 Text="_mapSearchQuery"
+                                 Text="@_mapSearchQuery"
                                  TextChanged="OnMapSearchTextChanged"
-                                 Value="_selectedMapSuggestion"
+                                 Value="@_selectedMapSuggestion"
                                  ValueChanged="OnMapSuggestionSelected"
                                  SearchFunc="SearchMapSuggestionsAsync"
                                  ToStringFunc="@(item => item?.DisplayName)"

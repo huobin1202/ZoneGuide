@@ -48,15 +48,20 @@ public static class MauiProgram
         builder.Services.AddSingleton<MapViewModel>();
         builder.Services.AddSingleton<POIListViewModel>();
         builder.Services.AddSingleton<TourListViewModel>();
+        builder.Services.AddSingleton<HistoryViewModel>();
+        builder.Services.AddTransient<LanguageSelectionViewModel>();
         builder.Services.AddTransient<POIDetailViewModel>();
         builder.Services.AddTransient<TourDetailViewModel>();
         builder.Services.AddSingleton<SettingsViewModel>();
 
         // Register Views
+        builder.Services.AddSingleton<AppShell>();
         builder.Services.AddSingleton<MainPage>();
         builder.Services.AddSingleton<MapPage>();
         builder.Services.AddSingleton<POIListPage>();
+        builder.Services.AddSingleton<HistoryPage>();
         builder.Services.AddSingleton<TourListPage>();
+        builder.Services.AddTransient<LanguageSelectionPage>();
         builder.Services.AddTransient<POIDetailPage>();
         builder.Services.AddTransient<TourDetailPage>();
         builder.Services.AddSingleton<SettingsPage>();

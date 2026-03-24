@@ -66,6 +66,7 @@ public partial class MainViewModel : ObservableObject
         _geofenceService.GeofenceTriggered += OnGeofenceTriggered;
         _narrationService.NarrationStarted += OnNarrationStarted;
         _narrationService.NarrationCompleted += OnNarrationCompleted;
+        _narrationService.NarrationStopped += OnNarrationStopped;
         _narrationService.ProgressUpdated += OnProgressUpdated;
     }
 
@@ -225,7 +226,20 @@ public partial class MainViewModel : ObservableObject
         });
 
         // Cập nhật lịch sử narration
-        _ = SaveNarrationHistoryAsync(item, false);
+        _ = SaveNarrationHistoryAsync(item, false, true);
+    }
+
+    private void OnNarrationStopped(object? sender, NarrationQueueItem item)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            IsPlaying = false;
+            CurrentNarration = null;
+            NarrationProgress = 0;
+            StatusMessage = "Đã dừng phát";
+        });
+
+        _ = SaveNarrationHistoryAsync(item, false, false);
     }
 
     private void OnProgressUpdated(object? sender, double progress)
@@ -278,7 +292,7 @@ public partial class MainViewModel : ObservableObject
         await _analyticsRepository.InsertLocationAsync(history);
     }
 
-    private async Task SaveNarrationHistoryAsync(NarrationQueueItem item, bool isStart)
+    private async Task SaveNarrationHistoryAsync(NarrationQueueItem item, bool isStart, bool completed = false)
     {
         if (isStart)
         {
@@ -297,7 +311,24 @@ public partial class MainViewModel : ObservableObject
             };
 
             await _analyticsRepository.InsertNarrationAsync(history);
+            return;
         }
+
+        var existing = (await _analyticsRepository.GetNarrationsBySessionAsync(_sessionId))
+            .Where(h => h.POIId == item.POI.Id && h.EndTime == null)
+            .OrderByDescending(h => h.StartTime)
+            .FirstOrDefault();
+
+        if (existing == null)
+            return;
+
+        var endedAt = DateTime.UtcNow;
+        existing.EndTime = endedAt;
+        existing.DurationSeconds = Math.Max(1, (int)Math.Round((endedAt - existing.StartTime).TotalSeconds));
+        existing.TotalDurationSeconds = existing.DurationSeconds;
+        existing.Completed = completed;
+
+        await _analyticsRepository.UpdateNarrationAsync(existing);
     }
 
     private async Task<string> GetAnonymousDeviceIdAsync()

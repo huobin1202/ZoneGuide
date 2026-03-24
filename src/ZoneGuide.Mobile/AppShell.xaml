@@ -8,7 +8,7 @@
 
     <TabBar>
         <ShellContent
-            Title="Điểm"
+            Title="Địa điểm"
             ContentTemplate="{DataTemplate views:POIListPage}"
             Icon="location.png"
             Route="pois" />
@@ -18,6 +18,12 @@
             ContentTemplate="{DataTemplate views:MapPage}"
             Icon="map.png"
             Route="map" />
+
+        <ShellContent
+            Title="Lịch sử"
+            ContentTemplate="{DataTemplate views:HistoryPage}"
+            Icon="history.png"
+            Route="history" />
 
         <ShellContent
             Title="Tour"

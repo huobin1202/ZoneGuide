@@ -30,6 +30,9 @@ public partial class POIListViewModel : ObservableObject
     [ObservableProperty]
     private string? selectedCategory;
 
+    [ObservableProperty]
+    private int filteredCount;
+
     public List<string> Categories { get; } = new()
     {
         "Tất cả",
@@ -59,6 +62,7 @@ public partial class POIListViewModel : ObservableObject
         _geofenceService = geofenceService;
         _narrationService = narrationService;
         _syncService = syncService;
+        SelectedCategory = "Tất cả";
     }
 
     public async Task InitializeAsync()
@@ -97,12 +101,12 @@ public partial class POIListViewModel : ObservableObject
             POIs.Clear();
             FilteredPOIs.Clear();
 
-            // Sắp xếp theo khoảng cách nếu có vị trí
             foreach (var poi in pois.OrderBy(p => p.Name))
             {
                 POIs.Add(poi);
-                FilteredPOIs.Add(poi);
             }
+
+            await SearchAsync();
         }
         finally
         {
@@ -143,6 +147,8 @@ public partial class POIListViewModel : ObservableObject
         {
             FilteredPOIs.Add(poi);
         }
+
+        FilteredCount = FilteredPOIs.Count;
     }
 
     [RelayCommand]

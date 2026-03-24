@@ -242,6 +242,12 @@ public class AnalyticsRepository : IAnalyticsRepository
         return await db.UpdateAsync(narration);
     }
 
+    public async Task<int> DeleteNarrationAsync(int narrationId)
+    {
+        var db = await _database.GetConnectionAsync();
+        return await db.DeleteAsync<NarrationHistory>(narrationId);
+    }
+
     public async Task<List<NarrationHistory>> GetNarrationsBySessionAsync(string sessionId)
     {
         var db = await _database.GetConnectionAsync();

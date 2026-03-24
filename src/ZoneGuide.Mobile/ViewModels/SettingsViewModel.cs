@@ -70,17 +70,10 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private string selectedVoice = string.Empty;
 
-    public ObservableCollection<string> AvailableLanguages { get; } = new()
-    {
-        "vi-VN",
-        "en-US",
-        "en-GB",
-        "zh-CN",
-        "ja-JP",
-        "ko-KR",
-        "fr-FR",
-        "de-DE"
-    };
+    [ObservableProperty]
+    private LanguageOptionItem? selectedLanguageOption;
+
+    public ObservableCollection<LanguageOptionItem> AvailableLanguages { get; } = new();
 
     public ObservableCollection<string> AvailableVoices { get; } = new();
 
@@ -94,6 +87,11 @@ public partial class SettingsViewModel : ObservableObject
         _syncService = syncService;
         _ttsService = ttsService;
         _narrationService = narrationService;
+
+        foreach (var option in LanguageOptionItem.CreateDefaults())
+        {
+            AvailableLanguages.Add(option);
+        }
 
         _syncService.SyncStarted += (s, e) => IsSyncing = true;
         _syncService.SyncCompleted += (s, e) => IsSyncing = false;
@@ -124,6 +122,7 @@ public partial class SettingsViewModel : ObservableObject
         OfflineMode = settings.OfflineMode;
         AutoDownloadOffline = settings.AutoDownloadOffline;
         SelectedVoice = settings.PreferredVoice;
+        SelectedLanguageOption = AvailableLanguages.FirstOrDefault(x => x.Code == PreferredLanguage) ?? AvailableLanguages.FirstOrDefault();
 
         LastSyncTime = _syncService.LastSyncTime;
 
@@ -246,6 +245,19 @@ public partial class SettingsViewModel : ObservableObject
     partial void OnPreferredLanguageChanged(string value)
     {
         _ = LoadVoicesAsync();
+    }
+
+    partial void OnSelectedLanguageOptionChanged(LanguageOptionItem? value)
+    {
+        if (value == null)
+            return;
+
+        PreferredLanguage = value.Code;
+
+        foreach (var option in AvailableLanguages)
+        {
+            option.IsSelected = ReferenceEquals(option, value);
+        }
     }
 
     partial void OnGpsAccuracyIndexChanged(int value)
