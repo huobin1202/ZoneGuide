@@ -1,15 +1,17 @@
 @page "/pois"
+@using System.Net.Http.Json
 @inject IApiService ApiService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
+@inject HttpClient Http
 @inject WebTtsService WebTts
 
 <MudGrid Spacing="0">
     <!-- Sidebar / List Area -->
     <MudItem xs="12" md="4" Style="height: calc(100vh - 64px); display: flex; flex-direction: column; border-right: 1px solid var(--mud-palette-lines-default); background-color: #f7f9fa;">
         <MudTabs Elevation="0" Rounded="false" ApplyEffectsToContainer="true" @bind-ActivePanelIndex="_activeTabIndex" Style="flex-grow: 1; display: flex; flex-direction: column; background-color: #f7f9fa;">
-            <MudTabPanel Text="@($"Danh sách ({_pois.Count})")">
+            <MudTabPanel Text="@($"Danh sách ({ActivePoiCount})")">
                 @if (_isEditMode)
                 {
                     <div style="flex-grow: 1; overflow-y: auto; height: calc(100vh - 120px);" class="px-4 pb-4 pt-4">
@@ -141,7 +143,7 @@
                         <div class="d-flex justify-space-between align-center mb-3">
                             <div>
                                 <MudText Typo="Typo.h6">Địa điểm</MudText>
-                                <MudText Typo="Typo.body2" Color="Color.Secondary">@_pois.Count tổng • @FilteredPOIs.Count() đang hiển thị</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">@ActivePoiCount tổng • @FilteredPOIs.Count() đang hiển thị</MudText>
                             </div>
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateDialog">Thêm POI</MudButton>
                         </div>
@@ -334,7 +336,24 @@
         <MudPaper Elevation="8" Class="pa-3 map-overlay" Style="top: 10px; left: 50px; width: 320px;">
             <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">Tìm kiếm trên bản đồ</MudText>
             <div class="d-flex align-center gap-2">
-                <MudTextField @bind-Value="_mapSearchQuery" Placeholder="Nhập địa chỉ hoặc địa danh..." Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="flex-grow-1" OnKeyDown="@(async e => { if (e.Key == "Enter") await SearchOnMap(); })" />
+                <MudAutocomplete T="MapSearchSuggestion"
+                                 Text="_mapSearchQuery"
+                                 TextChanged="OnMapSearchTextChanged"
+                                 Value="_selectedMapSuggestion"
+                                 ValueChanged="OnMapSuggestionSelected"
+                                 SearchFunc="SearchMapSuggestionsAsync"
+                                 ToStringFunc="@(item => item?.DisplayName)"
+                                 Placeholder="Nhập địa chỉ hoặc địa danh..."
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
+                                 Adornment="Adornment.Start"
+                                 AdornmentIcon="@Icons.Material.Filled.Search"
+                                 Immediate="true"
+                                 ResetValueOnEmptyText="true"
+                                 DebounceInterval="250"
+                                 MaxItems="5"
+                                 Class="flex-grow-1"
+                                 OnKeyDown="@(async e => { if (e.Key == "Enter") await SearchOnMap(); })" />
                 <MudIconButton Icon="@Icons.Material.Filled.ArrowForward" Color="Color.Primary" Variant="Variant.Filled" OnClick="SearchOnMap" title="Tìm vị trí" />
             </div>
         </MudPaper>
@@ -386,6 +405,7 @@
     private List<POIDto> _pois = new();
     private string _searchString = "";
     private string _mapSearchQuery = "";
+    private MapSearchSuggestion? _selectedMapSuggestion;
     private string _selectedCategory = "Tất cả";
     private bool _loading = true;
     private bool _mapInitialized = false;
@@ -416,12 +436,37 @@
 
     private DotNetObjectReference<POIs>? _dotNetRef;
 
+    private int ActivePoiCount => _pois.Count(p => p.IsActive);
+
     private IEnumerable<POIDto> FilteredPOIs => _pois
+        .Where(p => p.IsActive)
         .Where(p => string.IsNullOrWhiteSpace(_searchString) ||
                     p.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
                     (p.ShortDescription?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false))
         .Where(p => string.IsNullOrWhiteSpace(_selectedCategory) || _selectedCategory == "Tất cả" ||
                     (p.Category != null && p.Category.Equals(_selectedCategory, StringComparison.OrdinalIgnoreCase)));
+
+    private sealed class MapSearchSuggestion
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("display_name")]
+        public string DisplayName { get; set; } = string.Empty;
+
+        [System.Text.Json.Serialization.JsonPropertyName("lat")]
+        public string Lat { get; set; } = string.Empty;
+
+        [System.Text.Json.Serialization.JsonPropertyName("lon")]
+        public string Lon { get; set; } = string.Empty;
+
+        public bool TryGetCoordinates(out double lat, out double lng)
+        {
+            var culture = System.Globalization.CultureInfo.InvariantCulture;
+            lat = 0;
+            lng = 0;
+
+            return double.TryParse(Lat, System.Globalization.NumberStyles.Any, culture, out lat)
+                && double.TryParse(Lon, System.Globalization.NumberStyles.Any, culture, out lng);
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -501,11 +546,98 @@
 
         try
         {
+            if (_selectedMapSuggestion != null &&
+                string.Equals(_selectedMapSuggestion.DisplayName, _mapSearchQuery, StringComparison.OrdinalIgnoreCase) &&
+                _selectedMapSuggestion.TryGetCoordinates(out var selectedLat, out var selectedLng))
+            {
+                await ShowSearchResultOnMap(selectedLat, selectedLng, _selectedMapSuggestion.DisplayName);
+                return;
+            }
+
             await JS.InvokeVoidAsync("searchAddressOnMainMap", _mapSearchQuery);
         }
         catch
         {
             Snackbar.Add("Không thể tìm kiếm trên bản đồ", Severity.Error);
+        }
+    }
+
+    private Task OnMapSearchTextChanged(string text)
+    {
+        _mapSearchQuery = text;
+
+        if (_selectedMapSuggestion != null &&
+            !string.Equals(_selectedMapSuggestion.DisplayName, text, StringComparison.OrdinalIgnoreCase))
+        {
+            _selectedMapSuggestion = null;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task<IEnumerable<MapSearchSuggestion>> SearchMapSuggestionsAsync(string value, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Trim().Length < 3)
+        {
+            return Array.Empty<MapSearchSuggestion>();
+        }
+
+        try
+        {
+            using var request = new HttpRequestMessage(
+                HttpMethod.Get,
+                $"https://nominatim.openstreetmap.org/search?format=json&limit=5&q={Uri.EscapeDataString(value.Trim())}");
+            request.Headers.TryAddWithoutValidation("User-Agent", "ZoneGuide-Admin/1.0");
+            request.Headers.TryAddWithoutValidation("Accept-Language", "vi");
+
+            using var response = await Http.SendAsync(request, token);
+            if (!response.IsSuccessStatusCode)
+            {
+                return Array.Empty<MapSearchSuggestion>();
+            }
+
+            var results = await response.Content.ReadFromJsonAsync<List<MapSearchSuggestion>>(cancellationToken: token);
+            return results ?? new List<MapSearchSuggestion>();
+        }
+        catch (OperationCanceledException)
+        {
+            return Array.Empty<MapSearchSuggestion>();
+        }
+        catch
+        {
+            return Array.Empty<MapSearchSuggestion>();
+        }
+    }
+
+    private async Task OnMapSuggestionSelected(MapSearchSuggestion? suggestion)
+    {
+        _selectedMapSuggestion = suggestion;
+
+        if (suggestion == null)
+        {
+            return;
+        }
+
+        _mapSearchQuery = suggestion.DisplayName;
+
+        if (!suggestion.TryGetCoordinates(out var lat, out var lng))
+        {
+            Snackbar.Add("Không đọc được tọa độ từ gợi ý đã chọn", Severity.Warning);
+            return;
+        }
+
+        await ShowSearchResultOnMap(lat, lng, suggestion.DisplayName);
+    }
+
+    private async Task ShowSearchResultOnMap(double lat, double lng, string displayName)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("showSearchResultOnMainMap", lat, lng, displayName);
+        }
+        catch
+        {
+            Snackbar.Add("Không thể hiển thị vị trí trên bản đồ", Severity.Error);
         }
     }
 

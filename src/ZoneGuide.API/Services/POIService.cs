@@ -238,8 +238,28 @@ public interface IPOIService
         if (entity == null)
             return false;
 
+        var deletedAt = DateTime.UtcNow;
+
         entity.IsActive = false;
-        entity.UpdatedAt = DateTime.UtcNow;
+        entity.UpdatedAt = deletedAt;
+
+        var deletedRecord = await _context.DeletedRecords
+            .FirstOrDefaultAsync(d => d.EntityType == "POI" && d.EntityId == entity.Id.ToString());
+
+        if (deletedRecord == null)
+        {
+            _context.DeletedRecords.Add(new DeletedRecordEntity
+            {
+                EntityType = "POI",
+                EntityId = entity.Id.ToString(),
+                DeletedAt = deletedAt
+            });
+        }
+        else
+        {
+            deletedRecord.DeletedAt = deletedAt;
+        }
+
         await _context.SaveChangesAsync();
         return true;
     }

@@ -202,6 +202,34 @@ window.removeTempMarkerFromPOIMap = function () {
     }
 };
 
+function showSearchResultMarker(lat, lng, displayName) {
+    if (!poiMap) {
+        return;
+    }
+
+    if (!searchResultMarker) {
+        var purpleIcon = L.icon({
+            iconUrl: '/images/markers/marker-icon-2x-violet.png',
+            shadowUrl: '/images/markers/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        searchResultMarker = L.marker([lat, lng], { icon: purpleIcon }).addTo(poiMap);
+    } else {
+        searchResultMarker.setLatLng([lat, lng]);
+    }
+
+    searchResultMarker.bindPopup('<b>Tìm kiếm</b><br />' + displayName).openPopup();
+    poiMap.setView([lat, lng], 16);
+}
+
+window.showSearchResultOnMainMap = function (lat, lng, displayName) {
+    showSearchResultMarker(lat, lng, displayName || 'Vị trí đã chọn');
+};
+
 // ==========================================
 // Search on main POI map (admin & contributor)
 // ==========================================
@@ -233,24 +261,7 @@ window.searchAddressOnMainMap = function (address) {
             var lat = parseFloat(data[0].lat);
             var lng = parseFloat(data[0].lon);
             var displayName = data[0].display_name || address;
-
-            if (!searchResultMarker) {
-                var purpleIcon = L.icon({
-                    iconUrl: '/images/markers/marker-icon-2x-violet.png',
-                    shadowUrl: '/images/markers/marker-shadow.png',
-                    iconSize: [25, 41],
-                    iconAnchor: [12, 41],
-                    popupAnchor: [1, -34],
-                    shadowSize: [41, 41]
-                });
-
-                searchResultMarker = L.marker([lat, lng], { icon: purpleIcon }).addTo(poiMap);
-            } else {
-                searchResultMarker.setLatLng([lat, lng]);
-            }
-
-            searchResultMarker.bindPopup('<b>Tìm kiếm</b><br />' + displayName).openPopup();
-            poiMap.setView([lat, lng], 16);
+            showSearchResultMarker(lat, lng, displayName);
         })
         .catch(function (error) {
             console.error('Search error:', error);
