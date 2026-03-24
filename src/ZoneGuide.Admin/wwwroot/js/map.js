@@ -63,26 +63,30 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
 
         function getCustomIcon(category) {
             switch((category || '').toLowerCase()) {
-          
                 case 'food':
                 case 'ăn uống':
+                case 'an uong':
                     return foodIcon;
+                case 'entertainment':
+                case 'giải trí':
+                case 'giai tri':
+                    return yellowIcon;
                 case 'travel':
                 case 'du lịch':
+                case 'du lich':
                     return greenIcon;
                 case 'services':
                 case 'dịch vụ':
+                case 'dich vu':
                     return orangeIcon;
                 case 'shopping':
                 case 'mua sắm':
+                case 'mua sam':
                     return violetIcon;
-                case 'entertainment':
-                case 'giải trí':
-                    return yellowIcon;
                 case 'other':
                 case 'khác':
+                case 'khac':
                     return blueIcon;
-
                 default:
                     return blueIcon;
             }

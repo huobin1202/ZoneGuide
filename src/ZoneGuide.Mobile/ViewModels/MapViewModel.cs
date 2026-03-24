@@ -50,11 +50,11 @@ public partial class MapViewModel : ObservableObject
     public List<string> Categories { get; } = new()
     {
         "Tất cả",
-        "Ăn uống",
         "Du lịch",
         "Dịch vụ",
-        "Mua sắm",
+        "Ăn uống",
         "Giải trí",
+        "Mua sắm",
         "Khác"
     };
 

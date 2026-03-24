@@ -27,7 +27,7 @@
                             
                             <MudText Typo="Typo.caption" Class="mb-1 mt-3 d-block">Danh mục</MudText>
                             <div class="d-flex gap-2" style="overflow-x: auto; padding-bottom: 4px;">
-                                @foreach(var cat in new[] { ("Du lịch", Icons.Material.Filled.Museum), ("Nhà hàng", Icons.Material.Filled.Restaurant), ("Khách sạn", Icons.Material.Filled.Hotel), ("Cà phê", Icons.Material.Filled.LocalCafe), ("Khác", Icons.Material.Filled.Place) })
+                                @foreach(var cat in new[] { ("Du lịch", Icons.Material.Filled.Museum), ("Dịch vụ", Icons.Material.Filled.MiscellaneousServices), ("Ăn uống giải trí", Icons.Material.Filled.LocalDining), ("Mua sắm", Icons.Material.Filled.LocalMall), ("Khác", Icons.Material.Filled.Place) })
                                 {
                                     var isSelected = _newPoi.Category == cat.Item1;
                                     <div @onclick="() => _newPoi.Category = cat.Item1" 
@@ -150,12 +150,12 @@
                                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                                           Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="flex-grow-1" />
                             <MudSelect T="string" Label="Danh mục" @bind-Value="_selectedCategory" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Class="filter-select">
-                                <MudSelectItem Value="@("Tất cả")" />
-                                <MudSelectItem Value="@("Du lịch")" />
-                                <MudSelectItem Value="@("Nhà hàng")" />
-                                <MudSelectItem Value="@("Khách sạn")" />
-                                <MudSelectItem Value="@("Cà phê")" />
-                                <MudSelectItem Value="@("Khác")" />
+                                <MudSelectItem Value="@( "Tất cả")" />
+                                <MudSelectItem Value="@( "Du lịch")" />
+                                <MudSelectItem Value="@( "Dịch vụ")" />
+                                <MudSelectItem Value="@( "Ăn uống giải trí")" />
+                                <MudSelectItem Value="@( "Mua sắm")" />
+                                <MudSelectItem Value="@( "Khác")" />
                             </MudSelect>
                         </div>
                     </MudPaper>
@@ -184,7 +184,7 @@
                                                 </div>
                                             </div>
                                             <div class="d-flex gap-2 mb-1 flex-wrap">
-                                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="ma-0">@(poi.Category ?? "Du lịch")</MudChip>
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="ma-0">@(poi.Category ?? "Khác")</MudChip>
                                                 <MudChip T="string" Size="Size.Small" Color="@(poi.IsActive ? Color.Success : Color.Default)" Class="ma-0">@(poi.IsActive ? "Đang bật" : "Đã tắt")</MudChip>
                                             </div>
                                             <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-1 d-flex align-center gap-1">

@@ -29,7 +29,7 @@
                             
                             <MudText Typo="Typo.caption" Class="mb-1 mt-3 d-block">Danh mục</MudText>
                             <div class="d-flex gap-2" style="overflow-x: auto; padding-bottom: 4px;">
-                                @foreach(var cat in new[] { ("Du lịch", Icons.Material.Filled.Museum), ("Nhà hàng", Icons.Material.Filled.Restaurant), ("Khách sạn", Icons.Material.Filled.Hotel), ("Cà phê", Icons.Material.Filled.LocalCafe), ("Khác", Icons.Material.Filled.Place) })
+                                @foreach(var cat in new[] { ("Du lịch", Icons.Material.Filled.Museum), ("Dịch vụ", Icons.Material.Filled.MiscellaneousServices), ("Ăn uống", Icons.Material.Filled.LocalDining), ("Giải trí", Icons.Material.Filled.EmojiEvents), ("Mua sắm", Icons.Material.Filled.LocalMall), ("Khác", Icons.Material.Filled.Place) })
                                 {
                                     var isSelected = _editModel.Category == cat.Item1;
                                     <div @onclick="() => _editModel.Category = cat.Item1" 
@@ -154,7 +154,7 @@
                         
                         <MudText Typo="Typo.caption" Class="mb-1 mt-3 d-block">Danh mục</MudText>
                         <div class="d-flex gap-2" style="overflow-x: auto; padding-bottom: 4px;">
-                            @foreach(var cat in new[] { ("Du lịch", Icons.Material.Filled.Museum), ("Nhà hàng", Icons.Material.Filled.Restaurant), ("Khách sạn", Icons.Material.Filled.Hotel), ("Cà phê", Icons.Material.Filled.LocalCafe), ("Khác", Icons.Material.Filled.Place) })
+                            @foreach(var cat in new[] { ("Du lịch", Icons.Material.Filled.Museum), ("Dịch vụ", Icons.Material.Filled.MiscellaneousServices), ("Ăn uống", Icons.Material.Filled.LocalDining), ("Giải trí", Icons.Material.Filled.EmojiEvents), ("Mua sắm", Icons.Material.Filled.LocalMall), ("Khác", Icons.Material.Filled.Place) })
                             {
                                 var isSelected = _newContrib.Category == cat.Item1;
                                 <div @onclick="() => _newContrib.Category = cat.Item1" 
