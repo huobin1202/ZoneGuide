@@ -193,7 +193,6 @@
                                                     <MudText Typo="Typo.subtitle1" Class="poi-name-ellipsis"><b>@poi.Name</b></MudText>
                                                 </div>
                                                 <div class="d-flex gap-1 poi-card-actions">
-                                                    <MudIconButton Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Color="Color.Primary" title="Xem trên bản đồ" OnClick="@(() => CenterOnPOI(poi))" />
                                                     <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" title="Chỉnh sửa" OnClick="@(() => OpenEditMode(poi))" />
                                                     <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" title="Xóa" OnClick="@(() => ConfirmDelete(poi))" />
                                                 </div>

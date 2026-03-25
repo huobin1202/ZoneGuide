@@ -93,13 +93,16 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
         }
 
         poiData.forEach(function (poi) {
+            var fallbackImageUrl = '/images/placeholder.png';
+            var imageUrl = (poi.imageUrl && poi.imageUrl.trim()) ? poi.imageUrl : fallbackImageUrl;
+
             var marker = L.marker([poi.lat, poi.lng], { icon: getCustomIcon(poi.category) })
                 .addTo(poiMap)
                 .bindPopup(
-                    '<div style="min-width: 250px; padding: 0;">' +
-                    (poi.imageUrl ? '<img src="' + poi.imageUrl + '" style="width: 100%; height: 120px; object-fit: cover; border-top-left-radius: 8px; border-top-right-radius: 8px; margin-bottom: 8px;" />' : '') +
+                    '<div style="width: 250px; max-width: 250px; padding: 0; overflow: hidden;">' +
+                    '<img src="' + imageUrl + '" onerror="this.onerror=null;this.src=\'' + fallbackImageUrl + '\';" style="width: 100%; height: 120px; object-fit: cover; border-top-left-radius: 8px; border-top-right-radius: 8px; margin-bottom: 8px; display: block;" />' +
                     '<div style="padding: 4px 8px 8px 8px;">' +
-                    '<h4 style="margin: 0 0 6px 0; color: #333; font-size: 16px;">' + poi.name + '</h4>' +
+                    '<h4 style="margin: 0 0 6px 0; color: #333; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' + poi.name + '</h4>' +
                     '<div style="display: flex; align-items: center; margin-bottom: 8px;">' +
                         '<span style="background-color: #E3F2FD; color: #1976D2; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">' +
                             '🏛 ' + poi.category + 
