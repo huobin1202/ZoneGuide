@@ -43,7 +43,7 @@ else
                     }
 
                     <div class="tour-card-body">
-                        <MudText Typo="Typo.h6">@tour.Name</MudText>
+                        <MudText Typo="Typo.h6" Class="tour-name-ellipsis" title="@tour.Name">@tour.Name</MudText>
                         <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">@TruncateText(tour.Description, 110)</MudText>
 
                         <MudStack Row="true" Spacing="2" Class="mb-2">
@@ -110,6 +110,13 @@ else
 
     .tour-card-body {
         padding: 20px;
+    }
+
+    .tour-name-ellipsis {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .tour-edit-btn {

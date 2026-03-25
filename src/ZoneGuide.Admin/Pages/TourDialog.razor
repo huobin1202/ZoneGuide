@@ -66,12 +66,12 @@
                                 {
                                     var selected = IsPOISelected(poi.Id);
                                     <MudPaper Outlined="true"
-                                              Class="pa-3 d-flex align-center"
+                                              Class="pa-3 d-flex align-center tour-poi-option"
                                               Style="@GetPOICardStyle(selected)"
                                               @onclick="@(() => TogglePOI(poi))">
                                         <MudCheckBox T="bool" Value="selected" DisableRipple="true" ReadOnly="true" Class="mr-2" />
-                                        <MudStack Spacing="0">
-                                            <MudText Typo="Typo.subtitle2">@poi.Name</MudText>
+                                        <MudStack Spacing="0" Class="tour-poi-text">
+                                            <MudText Typo="Typo.subtitle2" Class="tour-text-ellipsis" title="@poi.Name">@poi.Name</MudText>
                                             <MudText Typo="Typo.caption" Class="mud-text-secondary">@(string.IsNullOrWhiteSpace(poi.Category) ? "POI" : poi.Category)</MudText>
                                         </MudStack>
                                     </MudPaper>
@@ -98,10 +98,10 @@
                                 @foreach (var poi in _selectedPOIs)
                                 {
                                     var index = _selectedPOIs.IndexOf(poi);
-                                    <MudPaper Outlined="true" Class="pa-3 d-flex align-center">
+                                    <MudPaper Outlined="true" Class="pa-3 d-flex align-center tour-poi-option">
                                         <MudAvatar Color="Color.Primary" Size="Size.Medium" Class="mr-3">@(index + 1)</MudAvatar>
-                                        <MudStack Spacing="0">
-                                            <MudText Typo="Typo.subtitle1">@poi.Name</MudText>
+                                        <MudStack Spacing="0" Class="tour-poi-text">
+                                            <MudText Typo="Typo.subtitle1" Class="tour-text-ellipsis" title="@poi.Name">@poi.Name</MudText>
                                             <MudText Typo="Typo.caption" Class="mud-text-secondary">@($"{poi.Latitude:F6}, {poi.Longitude:F6}")</MudText>
                                         </MudStack>
                                         <MudSpacer />
@@ -139,6 +139,24 @@
         </MudButton>
     </DialogActions>
 </MudDialog>
+
+<style>
+    .tour-poi-option {
+        min-width: 0;
+    }
+
+    .tour-poi-text {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .tour-text-ellipsis {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+</style>
 
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;

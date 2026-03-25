@@ -60,11 +60,15 @@
                         ResetValueOnEmptyText="true" />
 
                     <MudGrid Class="mt-3">
-                        <MudItem xs="6">
+                        <MudItem xs="12" sm="4">
                             <MudNumericField @bind-Value="_model.TriggerRadiusMeters"
                                              Label="Bán kính kích hoạt (m)" Min="20" Max="150" />
                         </MudItem>
-                        <MudItem xs="6">
+                        <MudItem xs="12" sm="4">
+                            <MudNumericField @bind-Value="_model.ApproachRadius"
+                                             Label="Bán kính thuyết minh (m)" Min="20" Max="500" />
+                        </MudItem>
+                        <MudItem xs="12" sm="4">
                             <MudNumericField @bind-Value="_model.Priority" Label="Độ ưu tiên" Min="1" Max="5" />
                         </MudItem>
                     </MudGrid>
@@ -286,6 +290,7 @@
                 Latitude = POI.Latitude,
                 Longitude = POI.Longitude,
                 TriggerRadiusMeters = POI.TriggerRadiusMeters,
+                ApproachRadius = POI.ApproachRadius,
                 Priority = POI.Priority,
                 Category = POI.Category,
                 ImageUrl = POI.ImageUrl,
@@ -477,6 +482,7 @@
                     Latitude = _model.Latitude ?? 0,
                     Longitude = _model.Longitude ?? 0,
                     TriggerRadiusMeters = _model.TriggerRadiusMeters,
+                    ApproachRadius = _model.ApproachRadius,
                     Priority = _model.Priority,
                     Category = _model.Category,
                     ImageUrl = _model.ImageUrl,
@@ -505,6 +511,7 @@
                     Latitude = _model.Latitude ?? 0,
                     Longitude = _model.Longitude ?? 0,
                     TriggerRadiusMeters = _model.TriggerRadiusMeters,
+                    ApproachRadius = _model.ApproachRadius,
                     Priority = _model.Priority,
                     Category = _model.Category,
                     ImageUrl = _model.ImageUrl,
@@ -581,6 +588,7 @@
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
         public double TriggerRadiusMeters { get; set; } = 50;
+        public double ApproachRadius { get; set; } = 100;
         public int Priority { get; set; } = 1;
         public string? Category { get; set; }
         public string? ImageUrl { get; set; }

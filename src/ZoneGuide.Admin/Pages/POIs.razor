@@ -29,7 +29,7 @@
                             
                             <MudText Typo="Typo.caption" Class="mb-1 mt-3 d-block">Danh mục</MudText>
                             <div class="d-flex gap-2" style="overflow-x: auto; padding-bottom: 4px;">
-                                @foreach(var cat in new[] { ("Du lịch", Icons.Material.Filled.Museum), ("Dịch vụ", Icons.Material.Filled.MiscellaneousServices), ("Ăn uống giải trí", Icons.Material.Filled.LocalDining), ("Mua sắm", Icons.Material.Filled.LocalMall), ("Khác", Icons.Material.Filled.Place) })
+                                @foreach(var cat in new[] { ("Du lịch", Icons.Material.Filled.Museum), ("Dịch vụ", Icons.Material.Filled.MiscellaneousServices), ("Ăn uống", Icons.Material.Filled.LocalDining), ("Giải trí", Icons.Material.Filled.EmojiEvents), ("Mua sắm", Icons.Material.Filled.LocalMall), ("Khác", Icons.Material.Filled.Place) })
                                 {
                                     var isSelected = _newPoi.Category == cat.Item1;
                                     <div @onclick="() => _newPoi.Category = cat.Item1" 
@@ -49,6 +49,16 @@
                                 </MudItem>
                                 <MudItem xs="6">
                                     <MudTextField @bind-Value="_newPoi.Longitude" Label="Kinh độ" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudNumericField T="double" @bind-Value="_newPoi.TriggerRadiusMeters"
+                                                     Label="Bán kính kích hoạt (m)" Min="20" Max="300"
+                                                     Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudNumericField T="double" @bind-Value="_newPoi.ApproachRadius"
+                                                     Label="Bán kính thuyết minh (m)" Min="20" Max="500"
+                                                     Variant="Variant.Outlined" Margin="Margin.Dense" />
                                 </MudItem>
                             </MudGrid>
 
@@ -155,7 +165,8 @@
                                 <MudSelectItem Value="@( "Tất cả")" />
                                 <MudSelectItem Value="@( "Du lịch")" />
                                 <MudSelectItem Value="@( "Dịch vụ")" />
-                                <MudSelectItem Value="@( "Ăn uống giải trí")" />
+                                <MudSelectItem Value="@( "Ăn uống")" />
+                                <MudSelectItem Value="@( "Giải trí")" />
                                 <MudSelectItem Value="@( "Mua sắm")" />
                                 <MudSelectItem Value="@( "Khác")" />
                             </MudSelect>
@@ -177,9 +188,11 @@
                                     <div class="poi-card-body">
                                         <img class="poi-thumb-img" src="@(string.IsNullOrEmpty(poi.ImageUrl) ? "/images/placeholder.png" : poi.ImageUrl)" alt="Ảnh địa điểm" />
                                         <div class="poi-main">
-                                            <div class="d-flex justify-space-between align-center mb-1">
-                                                <MudText Typo="Typo.subtitle1" Class="text-truncate"><b>@poi.Name</b></MudText>
-                                                <div class="d-flex gap-1">
+                                            <div class="d-flex justify-space-between align-start gap-2 mb-1">
+                                                <div class="poi-title-wrap" title="@poi.Name">
+                                                    <MudText Typo="Typo.subtitle1" Class="poi-name-ellipsis"><b>@poi.Name</b></MudText>
+                                                </div>
+                                                <div class="d-flex gap-1 poi-card-actions">
                                                     <MudIconButton Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Color="Color.Primary" title="Xem trên bản đồ" OnClick="@(() => CenterOnPOI(poi))" />
                                                     <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" title="Chỉnh sửa" OnClick="@(() => OpenEditMode(poi))" />
                                                     <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" title="Xóa" OnClick="@(() => ConfirmDelete(poi))" />
@@ -223,7 +236,7 @@
                         
                         <MudText Typo="Typo.caption" Class="mb-1 mt-3 d-block">Danh mục</MudText>
                         <div class="d-flex gap-2" style="overflow-x: auto; padding-bottom: 4px;">
-                            @foreach(var cat in new[] { ("Du lịch", Icons.Material.Filled.Museum), ("Nhà hàng", Icons.Material.Filled.Restaurant), ("Khách sạn", Icons.Material.Filled.Hotel), ("Cà phê", Icons.Material.Filled.LocalCafe), ("Khác", Icons.Material.Filled.Place) })
+                            @foreach(var cat in new[] { ("Du lịch", Icons.Material.Filled.Museum), ("Dịch vụ", Icons.Material.Filled.MiscellaneousServices), ("Ăn uống", Icons.Material.Filled.LocalDining), ("Giải trí", Icons.Material.Filled.EmojiEvents), ("Mua sắm", Icons.Material.Filled.LocalMall), ("Khác", Icons.Material.Filled.Place) })
                             {
                                 var isSelected = _newPoi.Category == cat.Item1;
                                 <div @onclick="() => _newPoi.Category = cat.Item1" 
@@ -243,6 +256,16 @@
                             </MudItem>
                             <MudItem xs="6">
                                 <MudTextField @bind-Value="_newPoi.Longitude" Label="Kinh độ" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudNumericField T="double" @bind-Value="_newPoi.TriggerRadiusMeters"
+                                                 Label="Bán kính kích hoạt (m)" Min="20" Max="300"
+                                                 Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudNumericField T="double" @bind-Value="_newPoi.ApproachRadius"
+                                                 Label="Bán kính thuyết minh (m)" Min="20" Max="500"
+                                                 Variant="Variant.Outlined" Margin="Margin.Dense" />
                             </MudItem>
                         </MudGrid>
 
@@ -388,6 +411,14 @@
         flex-shrink: 0;
     }
     .poi-main { flex: 1; min-width: 0; }
+    .poi-title-wrap { flex: 1; min-width: 0; }
+    .poi-name-ellipsis {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .poi-card-actions { flex-shrink: 0; }
     .clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .map-overlay {
         position: absolute;
@@ -414,7 +445,7 @@
     private int _activeTabIndex = 0;
     private bool _isEditMode = false;
     private string? _editingPoiId = null;
-    private POIDto _newPoi = new POIDto { Category = "Khác", Language = "vi-VN", IsActive = true };
+    private POIDto _newPoi = CreateDefaultPoi();
     private MudForm _createForm = null!;
     private MudForm _editForm = null!;
     private bool _isValid;
@@ -437,6 +468,16 @@
     private DotNetObjectReference<POIs>? _dotNetRef;
 
     private int ActivePoiCount => _pois.Count(p => p.IsActive);
+
+    private static POIDto CreateDefaultPoi() => new()
+    {
+        Category = "Khác",
+        Language = "vi-VN",
+        IsActive = true,
+        TriggerRadiusMeters = 50,
+        ApproachRadius = 100,
+        Priority = 1
+    };
 
     private IEnumerable<POIDto> FilteredPOIs => _pois
         .Where(p => p.IsActive)
@@ -657,7 +698,7 @@
     {
         _isEditMode = false;
         _editingPoiId = null;
-        _newPoi = new POIDto { Category = "Khác", Language = "vi-VN", IsActive = true };
+        _newPoi = CreateDefaultPoi();
         _activeTabIndex = 1; // Switch to Add/Edit Tab
         await JS.InvokeVoidAsync("addTempMarkerToPOIMap", 10.762622, 106.660172); // Default center
     }
@@ -676,6 +717,7 @@
             Latitude = poi.Latitude,
             Longitude = poi.Longitude,
             TriggerRadiusMeters = poi.TriggerRadiusMeters,
+            ApproachRadius = poi.ApproachRadius,
             Priority = poi.Priority,
             Category = poi.Category,
             ImageUrl = poi.ImageUrl,
@@ -698,7 +740,7 @@
 
     private void CancelCreate()
     {
-        _newPoi = new POIDto { Category = "Khác", Language = "vi-VN", IsActive = true };
+        _newPoi = CreateDefaultPoi();
         _isValid = false;
         JS.InvokeVoidAsync("removeTempMarkerFromPOIMap");
     }
@@ -741,6 +783,7 @@
                     Latitude = _newPoi.Latitude,
                     Longitude = _newPoi.Longitude,
                     TriggerRadiusMeters = _newPoi.TriggerRadiusMeters,
+                    ApproachRadius = _newPoi.ApproachRadius,
                     Priority = _newPoi.Priority,
                     Category = _newPoi.Category,
                     ImageUrl = _newPoi.ImageUrl,
@@ -776,6 +819,7 @@
                     Latitude = _newPoi.Latitude,
                     Longitude = _newPoi.Longitude,
                     TriggerRadiusMeters = _newPoi.TriggerRadiusMeters,
+                    ApproachRadius = _newPoi.ApproachRadius,
                     Priority = _newPoi.Priority,
                     Category = _newPoi.Category,
                     ImageUrl = _newPoi.ImageUrl,
@@ -790,7 +834,7 @@
                 {
                     Snackbar.Add("Thêm địa điểm thành công", Severity.Success);
                     _activeTabIndex = 0; // Go back to List
-                    _newPoi = new POIDto { Category = "Khác", Language = "vi-VN", IsActive = true };
+                    _newPoi = CreateDefaultPoi();
                     await JS.InvokeVoidAsync("removeTempMarkerFromPOIMap");
                     await LoadPOIs();
                 }

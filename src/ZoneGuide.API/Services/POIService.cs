@@ -140,6 +140,7 @@ public interface IPOIService
             Longitude = dto.Longitude,
             TriggerRadiusMeters = dto.TriggerRadiusMeters,
             TriggerRadius = dto.TriggerRadiusMeters,
+            ApproachRadius = dto.ApproachRadius,
             Priority = dto.Priority,
             AudioUrl = dto.AudioUrl,
             AudioDurationSeconds = dto.AudioDurationSeconds,
@@ -178,6 +179,7 @@ public interface IPOIService
             entity.TriggerRadiusMeters = dto.TriggerRadiusMeters.Value;
             entity.TriggerRadius = dto.TriggerRadiusMeters.Value;
         }
+        if (dto.ApproachRadius.HasValue) entity.ApproachRadius = dto.ApproachRadius.Value;
         if (dto.Priority.HasValue) entity.Priority = dto.Priority.Value;
         if (dto.AudioUrl != null) entity.AudioUrl = dto.AudioUrl;
         if (dto.AudioDurationSeconds.HasValue) entity.AudioDurationSeconds = dto.AudioDurationSeconds.Value;
