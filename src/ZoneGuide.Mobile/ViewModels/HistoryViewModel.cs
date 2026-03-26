@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
+using ZoneGuide.Mobile.Localization;
 using ZoneGuide.Mobile.Services;
 using ZoneGuide.Shared.Interfaces;
 using ZoneGuide.Shared.Models;
@@ -103,7 +104,10 @@ public partial class HistoryViewModel : ObservableObject
         var poi = await _poiRepository.GetByIdAsync(item.POIId);
         if (poi == null)
         {
-            await Shell.Current.DisplayAlert("Không tìm thấy", "Địa điểm này không còn trong dữ liệu hiện tại.", "OK");
+            await Shell.Current.DisplayAlert(
+                AppLocalizer.Instance.Translate("status_not_found"),
+                "POI is no longer available.",
+                AppLocalizer.Instance.Translate("alert_ok"));
             return;
         }
 
@@ -130,10 +134,10 @@ public partial class HistoryViewModel : ObservableObject
             return;
 
         var confirm = await Shell.Current.DisplayAlert(
-            "Xóa lịch sử",
+            AppLocalizer.Instance.Translate("history_delete"),
             $"Xóa mục lịch sử của '{item.Title}'?",
-            "Xóa",
-            "Hủy");
+            AppLocalizer.Instance.Translate("alert_delete"),
+            AppLocalizer.Instance.Translate("alert_cancel"));
 
         if (!confirm)
             return;
@@ -161,8 +165,8 @@ public partial class HistoryViewModel : ObservableObject
             Id = history.Id,
             POIId = history.POIId,
             Title = poi?.Name ?? history.POIName,
-            Description = poi?.ShortDescription ?? "Đã nghe thuyết minh tại địa điểm này",
-            Category = poi?.Category ?? "Thuyết minh",
+            Description = poi?.ShortDescription ?? AppLocalizer.Instance.Translate("history_subtitle"),
+            Category = poi?.Category ?? AppLocalizer.Instance.Translate("category_other"),
             ImageUrl = POIListViewModel.ResolveImageSource(poi?.ImageUrl),
             PlayedAt = localTime,
             PlayedAtText = FormatRelativeTime(localTime),
@@ -175,9 +179,9 @@ public partial class HistoryViewModel : ObservableObject
     {
         var today = DateTime.Now.Date;
         if (date == today)
-            return "Hôm nay";
+            return AppLocalizer.Instance.Translate("status_today");
         if (date == today.AddDays(-1))
-            return "Hôm qua";
+            return AppLocalizer.Instance.Translate("status_yesterday");
 
         return date.ToString("dd/MM/yyyy");
     }
@@ -188,13 +192,13 @@ public partial class HistoryViewModel : ObservableObject
         var span = now - dateTime;
 
         if (span.TotalMinutes < 1)
-            return "Vừa xong";
+            return AppLocalizer.Instance.Translate("status_just_now");
         if (span.TotalHours < 1)
-            return $"{Math.Max(1, (int)span.TotalMinutes)} phút trước";
+            return $"{Math.Max(1, (int)span.TotalMinutes)} {AppLocalizer.Instance.Translate("status_minutes_ago")}";
         if (span.TotalDays < 1)
-            return $"{Math.Max(1, (int)span.TotalHours)} giờ trước";
+            return $"{Math.Max(1, (int)span.TotalHours)} {AppLocalizer.Instance.Translate("status_hours_ago")}";
         if (span.TotalDays < 2)
-            return "Hôm qua";
+            return AppLocalizer.Instance.Translate("status_yesterday");
 
         return dateTime.ToString("dd/MM/yyyy HH:mm");
     }

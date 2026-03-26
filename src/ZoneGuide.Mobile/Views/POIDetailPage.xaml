@@ -2,6 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
+             xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
              x:Class="ZoneGuide.Mobile.Views.POIDetailPage"
              x:DataType="vm:POIDetailViewModel"
              Shell.NavBarIsVisible="False"
@@ -28,6 +29,7 @@
                         VerticalOptions="Start"
                         BackgroundColor="#66FFFFFF"
                         TextColor="White"
+                        SemanticProperties.Hint="{local:Translate poi_detail_back}"
                         Command="{Binding BackCommand}" />
 
                 <VerticalStackLayout Grid.Row="2"
@@ -37,7 +39,7 @@
                             StrokeShape="RoundRectangle 12"
                             Padding="10,4"
                             HorizontalOptions="Start">
-                        <Label Text="{Binding CurrentPoi.Category}"
+                        <Label Text="{Binding CurrentPoi.Category, Converter={StaticResource LocalizedCategoryConverter}}"
                                TextColor="White"
                                FontSize="12" />
                     </Border>
@@ -67,7 +69,7 @@
                         <Grid ColumnDefinitions="*,Auto"
                               ColumnSpacing="12">
                             <VerticalStackLayout Spacing="4">
-                                <Label Text="Đang phát"
+                                <Label Text="{local:Translate poi_detail_now_playing}"
                                        FontSize="18"
                                        FontAttributes="Bold"
                                        TextColor="{StaticResource Gray900}" />
@@ -92,32 +94,12 @@
                                      ProgressColor="{StaticResource Primary}"
                                      BackgroundColor="#ECEAF8" />
 
-                        <Grid ColumnDefinitions="*,*,*"
-                              ColumnSpacing="12">
-                            <Button Grid.Column="0"
-                                    Text="■"
-                                    HeightRequest="52"
-                                    CornerRadius="16"
-                                    BackgroundColor="#F4F4F7"
-                                    TextColor="{StaticResource Gray700}"
-                                    Command="{Binding StopCommand}" />
-
-                            <Button Grid.Column="1"
-                                    Text="⏯"
-                                    HeightRequest="52"
-                                    CornerRadius="16"
-                                    BackgroundColor="{StaticResource Primary}"
-                                    TextColor="White"
-                                    Command="{Binding TogglePlayPauseCommand}" />
-
-                            <Button Grid.Column="2"
-                                    Text="➤"
-                                    HeightRequest="52"
-                                    CornerRadius="16"
-                                    BackgroundColor="#F4F4F7"
-                                    TextColor="{StaticResource Gray700}"
-                                    Command="{Binding PlayCommand}" />
-                        </Grid>
+                        <Button Text="⏯"
+                                HeightRequest="52"
+                                CornerRadius="16"
+                                BackgroundColor="{StaticResource Primary}"
+                                TextColor="White"
+                                Command="{Binding TogglePlayPauseCommand}" />
                     </VerticalStackLayout>
                 </Border>
 
@@ -126,7 +108,7 @@
                         StrokeShape="RoundRectangle 22"
                         Padding="18">
                     <VerticalStackLayout Spacing="12">
-                        <Label Text="Thông tin địa điểm"
+                        <Label Text="{local:Translate poi_detail_description}"
                                FontSize="18"
                                FontAttributes="Bold" />
 
@@ -154,7 +136,7 @@
                 <Grid ColumnDefinitions="*,*"
                       ColumnSpacing="12">
                     <Button Grid.Column="0"
-                            Text="🧭 Chỉ đường"
+                            Text="{local:Translate poi_detail_navigate}"
                             HeightRequest="52"
                             CornerRadius="16"
                             BackgroundColor="{StaticResource Secondary}"
@@ -162,7 +144,7 @@
                             Command="{Binding NavigateCommand}" />
 
                     <Button Grid.Column="1"
-                            Text="📤 Chia sẻ"
+                            Text="{local:Translate poi_detail_share}"
                             HeightRequest="52"
                             CornerRadius="16"
                             BackgroundColor="#4B5563"

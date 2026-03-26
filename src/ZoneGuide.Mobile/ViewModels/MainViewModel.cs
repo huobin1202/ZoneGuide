@@ -210,9 +210,6 @@ public partial class MainViewModel : ObservableObject
             CurrentNarration = item;
             StatusMessage = $"Đang phát: {item.POI.Name}";
         });
-
-        // Lưu lịch sử narration
-        _ = SaveNarrationHistoryAsync(item, true);
     }
 
     private void OnNarrationCompleted(object? sender, NarrationQueueItem item)
@@ -224,9 +221,6 @@ public partial class MainViewModel : ObservableObject
             NarrationProgress = 0;
             StatusMessage = "Hoàn thành phát";
         });
-
-        // Cập nhật lịch sử narration
-        _ = SaveNarrationHistoryAsync(item, false, true);
     }
 
     private void OnNarrationStopped(object? sender, NarrationQueueItem item)
@@ -238,8 +232,6 @@ public partial class MainViewModel : ObservableObject
             NarrationProgress = 0;
             StatusMessage = "Đã dừng phát";
         });
-
-        _ = SaveNarrationHistoryAsync(item, false, false);
     }
 
     private void OnProgressUpdated(object? sender, double progress)
@@ -290,45 +282,6 @@ public partial class MainViewModel : ObservableObject
         };
 
         await _analyticsRepository.InsertLocationAsync(history);
-    }
-
-    private async Task SaveNarrationHistoryAsync(NarrationQueueItem item, bool isStart, bool completed = false)
-    {
-        if (isStart)
-        {
-            var history = new NarrationHistory
-            {
-                AnonymousDeviceId = await GetAnonymousDeviceIdAsync(),
-                SessionId = _sessionId,
-                POIId = item.POI.Id,
-                POIName = item.POI.Name,
-                Language = item.Language,
-                StartTime = DateTime.UtcNow,
-                TriggerType = item.TriggerType.ToString(),
-                TriggerDistance = item.TriggerDistance,
-                TriggerLatitude = CurrentLocation?.Latitude ?? 0,
-                TriggerLongitude = CurrentLocation?.Longitude ?? 0
-            };
-
-            await _analyticsRepository.InsertNarrationAsync(history);
-            return;
-        }
-
-        var existing = (await _analyticsRepository.GetNarrationsBySessionAsync(_sessionId))
-            .Where(h => h.POIId == item.POI.Id && h.EndTime == null)
-            .OrderByDescending(h => h.StartTime)
-            .FirstOrDefault();
-
-        if (existing == null)
-            return;
-
-        var endedAt = DateTime.UtcNow;
-        existing.EndTime = endedAt;
-        existing.DurationSeconds = Math.Max(1, (int)Math.Round((endedAt - existing.StartTime).TotalSeconds));
-        existing.TotalDurationSeconds = existing.DurationSeconds;
-        existing.Completed = completed;
-
-        await _analyticsRepository.UpdateNarrationAsync(existing);
     }
 
     private async Task<string> GetAnonymousDeviceIdAsync()

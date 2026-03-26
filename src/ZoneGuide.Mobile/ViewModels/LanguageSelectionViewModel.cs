@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
+using ZoneGuide.Mobile.Localization;
 using ZoneGuide.Shared.Interfaces;
 
 namespace ZoneGuide.Mobile.ViewModels;
@@ -63,6 +64,7 @@ public partial class LanguageSelectionViewModel : ObservableObject
             settings.PreferredLanguage = SelectedLanguage.Code;
             settings.HasCompletedLanguageSelection = true;
             await _settingsService.SaveAsync();
+            AppLocalizer.Instance.SetLanguage(SelectedLanguage.Code);
 
             Completed?.Invoke(this, EventArgs.Empty);
         }

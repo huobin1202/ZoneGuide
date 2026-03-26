@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ZoneGuide.Mobile.Localization;
 using ZoneGuide.Shared.Interfaces;
 using ZoneGuide.Shared.Models;
 using System.Collections.ObjectModel;
@@ -123,6 +124,7 @@ public partial class SettingsViewModel : ObservableObject
         AutoDownloadOffline = settings.AutoDownloadOffline;
         SelectedVoice = settings.PreferredVoice;
         SelectedLanguageOption = AvailableLanguages.FirstOrDefault(x => x.Code == PreferredLanguage) ?? AvailableLanguages.FirstOrDefault();
+        AppLocalizer.Instance.SetLanguage(PreferredLanguage);
 
         LastSyncTime = _syncService.LastSyncTime;
 
@@ -164,6 +166,7 @@ public partial class SettingsViewModel : ObservableObject
         settings.PreferredVoice = SelectedVoice;
 
         await _settingsService.SaveAsync();
+        AppLocalizer.Instance.SetLanguage(PreferredLanguage);
 
         // Áp dụng settings
         _narrationService.SetVolume(Volume);

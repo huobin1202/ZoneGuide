@@ -1,5 +1,6 @@
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Extensions.DependencyInjection;
+using ZoneGuide.Mobile.Localization;
 using ZoneGuide.Mobile.Views;
 using ZoneGuide.Shared.Interfaces;
 
@@ -53,6 +54,7 @@ public partial class App : Application
         try
         {
             await _settingsService.LoadAsync();
+            AppLocalizer.Instance.SetLanguage(_settingsService.Settings.PreferredLanguage);
 
             var appShell = _services.GetRequiredService<AppShell>();
             var languageSelectionPage = _services.GetRequiredService<LanguageSelectionPage>();

@@ -1,4 +1,5 @@
 using System.Globalization;
+using ZoneGuide.Mobile.Localization;
 using ZoneGuide.Mobile.Services;
 
 namespace ZoneGuide.Mobile.Converters;
@@ -235,7 +236,7 @@ public class FlexibleImageSourceConverter : IValueConverter
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is not string raw || string.IsNullOrWhiteSpace(raw))
-            return null;
+            return "dotnet_bot.png";
 
         raw = raw.Trim();
 
@@ -258,13 +259,32 @@ public class FlexibleImageSourceConverter : IValueConverter
             var normalized = ApiService.NormalizeMediaUrl(raw);
             if (Uri.TryCreate(normalized, UriKind.Absolute, out var uri))
                 return ImageSource.FromUri(uri);
+
+            if (File.Exists(normalized))
+                return ImageSource.FromFile(normalized);
         }
         catch
         {
-            return null;
+            return "dotnet_bot.png";
         }
 
-        return null;
+        return "dotnet_bot.png";
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+public class LocalizedCategoryConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is string category)
+            return AppLocalizer.Instance.TranslateCategory(category);
+
+        return AppLocalizer.Instance.Translate("category_other");
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

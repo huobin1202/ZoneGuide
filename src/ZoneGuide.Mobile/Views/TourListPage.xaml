@@ -44,7 +44,7 @@
 
                         <Grid RowDefinitions="180,Auto">
                             <Grid Grid.Row="0">
-                                <Image Source="{Binding ThumbnailUrl}"
+                                <Image Source="{Binding ThumbnailUrl, Converter={StaticResource FlexibleImageSourceConverter}}"
                                        Aspect="AspectFill"
                                        BackgroundColor="#E5E7EB" />
                                 <BoxView Color="#66000000" />

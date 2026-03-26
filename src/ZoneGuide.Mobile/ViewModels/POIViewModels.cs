@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using ZoneGuide.Mobile.Localization;
 using ZoneGuide.Mobile.Services;
 using ZoneGuide.Shared.Interfaces;
 using ZoneGuide.Shared.Models;
@@ -214,15 +215,15 @@ public partial class POIListViewModel : ObservableObject
     public static string BuildPlaybackStatusText(bool isPlaying, bool isPaused, double progress)
     {
         if (isPaused)
-            return "Đã tạm dừng";
+            return AppLocalizer.Instance.Translate("poi_detail_ready");
 
         if (isPlaying)
-            return $"Đang phát {Math.Round(progress * 100, MidpointRounding.AwayFromZero).ToString(CultureInfo.InvariantCulture)}%";
+            return $"{AppLocalizer.Instance.Translate("poi_detail_now_playing")} {Math.Round(progress * 100, MidpointRounding.AwayFromZero).ToString(CultureInfo.InvariantCulture)}%";
 
         if (progress >= 1)
-            return "Đã phát xong";
+            return AppLocalizer.Instance.Translate("poi_detail_now_playing");
 
-        return "Sẵn sàng phát";
+        return AppLocalizer.Instance.Translate("poi_detail_ready");
     }
 
     partial void OnSearchTextChanged(string value)
@@ -301,7 +302,7 @@ public partial class POIDetailViewModel : ObservableObject
     private string progressText = "0%";
 
     [ObservableProperty]
-    private string playbackStatusText = "Sẵn sàng phát";
+    private string playbackStatusText = "Ready";
 
     [ObservableProperty]
     private string imageSource = "dotnet_bot.png";

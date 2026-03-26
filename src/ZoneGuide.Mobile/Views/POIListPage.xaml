@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
              xmlns:models="clr-namespace:ZoneGuide.Shared.Models;assembly=ZoneGuide.Shared"
+             xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
              x:Class="ZoneGuide.Mobile.Views.POIListPage"
              x:DataType="vm:POIListViewModel"
              Shell.NavBarIsVisible="False"
@@ -15,7 +16,7 @@
                 StrokeShape="RoundRectangle 0,0,28,28"
                 Padding="20,28,20,24">
             <VerticalStackLayout Spacing="18">
-                <Label Text="Địa điểm"
+                    <Label Text="{local:Translate pois_title}"
                        FontSize="30"
                        FontAttributes="Bold"
                        TextColor="White" />
@@ -32,7 +33,7 @@
                                VerticalTextAlignment="Center" />
                         <Entry Grid.Column="1"
                                Text="{Binding SearchText}"
-                               Placeholder="Tìm kiếm điểm..."
+                               Placeholder="{local:Translate pois_search_placeholder}"
                                ClearButtonVisibility="WhileEditing"
                                BackgroundColor="Transparent"
                                Margin="0,0,0,0" />
@@ -59,7 +60,7 @@
                         StrokeShape="RoundRectangle 14"
                         Padding="10,0">
                     <Picker WidthRequest="150"
-                            Title="Lọc"
+                            Title="{local:Translate pois_filter_title}"
                             ItemsSource="{Binding Categories}"
                             SelectedItem="{Binding SelectedCategory}"
                             TitleColor="{StaticResource Gray500}"
@@ -79,11 +80,11 @@
                                              VerticalOptions="Center"
                                              Padding="32,72"
                                              Spacing="10">
-                            <Label Text="Không có địa điểm phù hợp"
+                            <Label Text="{local:Translate pois_empty_title}"
                                    FontSize="18"
                                    FontAttributes="Bold"
                                    HorizontalTextAlignment="Center" />
-                            <Label Text="Thử đổi từ khóa tìm kiếm hoặc bộ lọc danh mục."
+                            <Label Text="{local:Translate pois_empty_subtitle}"
                                    FontSize="13"
                                    TextColor="{StaticResource Gray500}"
                                    HorizontalTextAlignment="Center" />
@@ -111,7 +112,7 @@
                                            Padding="0"
                                            BackgroundColor="#ECEAF8"
                                            IsClippedToBounds="True">
-                                        <Image Source="{Binding ImageUrl}"
+                                                                                <Image Source="{Binding ImageUrl, Converter={StaticResource FlexibleImageSourceConverter}}"
                                                Aspect="AspectFill" />
                                     </Frame>
 
@@ -127,7 +128,7 @@
                                                 StrokeShape="RoundRectangle 10"
                                                 Padding="8,2"
                                                 HorizontalOptions="Start">
-                                            <Label Text="{Binding Category}"
+                                              <Label Text="{Binding Category, Converter={StaticResource LocalizedCategoryConverter}}"
                                                    FontSize="11"
                                                    TextColor="{StaticResource Primary}" />
                                         </Border>

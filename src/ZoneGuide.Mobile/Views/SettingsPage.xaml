@@ -2,6 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
+             xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
              x:Class="ZoneGuide.Mobile.Views.SettingsPage"
              x:DataType="vm:SettingsViewModel"
              Shell.NavBarIsVisible="False"
@@ -13,7 +14,7 @@
                 StrokeThickness="0"
                 StrokeShape="RoundRectangle 0,0,28,28"
                 Padding="20,28,20,22">
-            <Label Text="Cài đặt"
+            <Label Text="{local:Translate settings_title}"
                    FontSize="30"
                    FontAttributes="Bold"
                    TextColor="White" />
@@ -23,7 +24,7 @@
             <VerticalStackLayout Spacing="16"
                                  Padding="16,14,16,30">
                 <VerticalStackLayout Spacing="8">
-                    <Label Text="Âm thanh"
+                    <Label Text="{local:Translate settings_audio}"
                            FontSize="18"
                            FontAttributes="Bold" />
                     <Frame Padding="16"
@@ -33,7 +34,7 @@
                             <Grid ColumnDefinitions="*,Auto"
                                   RowDefinitions="Auto,Auto"
                                   RowSpacing="6">
-                                <Label Text="Ngôn ngữ"
+                                <Label Text="{local:Translate settings_language}"
                                        FontSize="14"
                                        TextColor="{StaticResource Gray500}" />
                                 <Picker Grid.Row="1"
@@ -46,7 +47,7 @@
                             <Grid ColumnDefinitions="*,Auto"
                                   RowDefinitions="Auto,Auto"
                                   RowSpacing="6">
-                                <Label Text="Giọng đọc"
+                                <Label Text="{local:Translate settings_voice}"
                                        FontSize="14"
                                        TextColor="{StaticResource Gray500}" />
                                 <Picker Grid.Row="1"
@@ -87,7 +88,7 @@
                                         Value="{Binding Volume}" />
                             </Grid>
 
-                            <Button Text="Test giọng đọc"
+                                <Button Text="{local:Translate settings_test_voice}"
                                     BackgroundColor="{StaticResource Secondary}"
                                     Command="{Binding TestTTSCommand}" />
                         </VerticalStackLayout>
@@ -218,7 +219,7 @@
                 </VerticalStackLayout>
 
                 <VerticalStackLayout Spacing="8">
-                    <Label Text="Đồng bộ"
+                    <Label Text="{local:Translate settings_sync}"
                            FontSize="18"
                            FontAttributes="Bold" />
                     <Frame Padding="16"
@@ -234,7 +235,7 @@
                                     Command="{Binding SyncDataCommand}"
                                     IsEnabled="{Binding IsSyncing, Converter={StaticResource InverseBoolConverter}}" />
 
-                            <Button Text="Tải lên dữ liệu phân tích"
+                                <Button Text="{local:Translate settings_upload_analytics}"
                                     BackgroundColor="{StaticResource Secondary}"
                                     Command="{Binding UploadAnalyticsCommand}" />
                         </VerticalStackLayout>
@@ -254,7 +255,7 @@
                     </VerticalStackLayout>
                 </Frame>
 
-                <Button Text="Lưu cài đặt"
+              <Button Text="{local:Translate settings_save}"
                         HeightRequest="56"
                         CornerRadius="24"
                         FontSize="18"

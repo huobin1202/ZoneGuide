@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
              xmlns:maps="clr-namespace:Microsoft.Maui.Controls.Maps;assembly=Microsoft.Maui.Controls.Maps"
+             xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
              x:Class="ZoneGuide.Mobile.Views.MapPage"
              x:DataType="vm:MapViewModel"
              Shell.NavBarIsVisible="False"
@@ -15,7 +16,7 @@
                 StrokeShape="RoundRectangle 0,0,28,28"
                 Padding="20,28,20,24">
             <VerticalStackLayout Spacing="18">
-                <Label Text="Bản đồ"
+                    <Label Text="{local:Translate map_title}"
                        FontSize="30"
                        FontAttributes="Bold"
                        TextColor="White" />
@@ -24,7 +25,7 @@
                         StrokeThickness="0"
                         StrokeShape="RoundRectangle 18"
                         Padding="8,0">
-                    <SearchBar Placeholder="Tìm kiếm địa điểm..."
+                    <SearchBar Placeholder="{local:Translate map_search_placeholder}"
                                Text="{Binding SearchQuery}"
                                SearchCommand="{Binding PerformSearchCommand}"
                                BackgroundColor="Transparent" />
@@ -71,7 +72,7 @@
                                     StrokeThickness="0"
                                     StrokeShape="RoundRectangle 10"
                                     Padding="8,2">
-                                <Label Text="{Binding SelectedPOI.Category}"
+                                    <Label Text="{Binding SelectedPOI.Category, Converter={StaticResource LocalizedCategoryConverter}}"
                                        FontSize="11"
                                        TextColor="{StaticResource Primary}" />
                             </Border>

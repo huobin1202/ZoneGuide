@@ -2,6 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
+             xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
              x:Class="ZoneGuide.Mobile.Views.HistoryPage"
              x:Name="HistoryRoot"
              x:DataType="vm:HistoryViewModel"
@@ -15,11 +16,11 @@
                 StrokeShape="RoundRectangle 0,0,28,28"
                 Padding="20,28,20,24">
             <VerticalStackLayout Spacing="14">
-                <Label Text="Lịch sử"
+                <Label Text="{local:Translate history_title}"
                        FontSize="30"
                        FontAttributes="Bold"
                        TextColor="White" />
-                <Label Text="Các địa điểm bạn đã nghe thuyết minh"
+                <Label Text="{local:Translate history_subtitle}"
                        FontSize="14"
                        TextColor="#DAD6FF" />
 
@@ -55,11 +56,11 @@
                     <VerticalStackLayout Padding="32,80"
                                          Spacing="10"
                                          HorizontalOptions="Center">
-                        <Label Text="Không có lịch sử nghe"
+                        <Label Text="{local:Translate history_empty_title}"
                                FontSize="18"
                                FontAttributes="Bold"
                                HorizontalTextAlignment="Center" />
-                        <Label Text="Khi bạn phát một địa điểm, lịch sử sẽ xuất hiện ở đây."
+                        <Label Text="{local:Translate history_empty_subtitle}"
                                FontSize="13"
                                TextColor="{StaticResource Gray500}"
                                HorizontalTextAlignment="Center" />
@@ -92,7 +93,7 @@
                                        CornerRadius="14"
                                        BackgroundColor="#ECEAF8"
                                        IsClippedToBounds="True">
-                                    <Image Source="{Binding ImageUrl}"
+                                    <Image Source="{Binding ImageUrl, Converter={StaticResource FlexibleImageSourceConverter}}"
                                            Aspect="AspectFill" />
                                 </Frame>
 
@@ -113,7 +114,7 @@
                                                 StrokeThickness="0"
                                                 StrokeShape="RoundRectangle 10"
                                                 Padding="8,2">
-                                            <Label Text="{Binding Category}"
+                                            <Label Text="{Binding Category, Converter={StaticResource LocalizedCategoryConverter}}"
                                                    FontSize="11"
                                                    TextColor="{StaticResource Primary}" />
                                         </Border>
@@ -135,19 +136,19 @@
                                 <VerticalStackLayout Grid.Column="2"
                                                      Spacing="10"
                                                      VerticalOptions="Center">
-                                    <Button Text="▶"
-                                            WidthRequest="44"
+                                       <Button Text="{local:Translate history_replay}"
+                                              WidthRequest="72"
                                             HeightRequest="44"
                                             CornerRadius="22"
-                                            FontSize="16"
+                                              FontSize="11"
                                             Padding="0"
                                             Command="{Binding BindingContext.ReplayCommand, Source={x:Reference HistoryRoot}}"
                                             CommandParameter="{Binding .}" />
-                                    <Button Text="⌫"
-                                            WidthRequest="36"
+                                       <Button Text="{local:Translate history_delete}"
+                                              WidthRequest="72"
                                             HeightRequest="36"
                                             CornerRadius="18"
-                                            FontSize="12"
+                                              FontSize="11"
                                             Padding="0"
                                             BackgroundColor="#F4F4F7"
                                             TextColor="{StaticResource Gray500}"
