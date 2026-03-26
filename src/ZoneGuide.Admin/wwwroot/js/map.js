@@ -53,13 +53,12 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
         });
 
         // Use standard Leaflet colors from local offline files
-        var blueIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-blue.png'});
-        var redIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-red.png'});
         var foodIcon = new CustomIcon({iconUrl: '/images/markers/food-dish-svgrepo-com.svg'});
-        var greenIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-green.png'});
-        var orangeIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-orange.png'});
-        var violetIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-violet.png'});
-        var yellowIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-yellow.png'});
+        var entertainmentIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-yellow.png'});
+        var travelIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-green.png'});
+        var servicesIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-blue.png'});
+        var shoppingIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-orange.png'});
+        var otherIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-gray.png'});
 
         function getCustomIcon(category) {
             switch((category || '').toLowerCase()) {
@@ -70,25 +69,25 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
                 case 'entertainment':
                 case 'giải trí':
                 case 'giai tri':
-                    return yellowIcon;
+                    return entertainmentIcon;
                 case 'travel':
                 case 'du lịch':
                 case 'du lich':
-                    return greenIcon;
+                    return travelIcon;
                 case 'services':
                 case 'dịch vụ':
                 case 'dich vu':
-                    return orangeIcon;
+                    return servicesIcon;
                 case 'shopping':
                 case 'mua sắm':
                 case 'mua sam':
-                    return violetIcon;
+                    return shoppingIcon;
                 case 'other':
                 case 'khác':
                 case 'khac':
-                    return blueIcon;
+                    return otherIcon;
                 default:
-                    return blueIcon;
+                    return otherIcon; // Mặc định cho các loại khác hoặc không xác định
             }
         }
 
