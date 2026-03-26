@@ -1,4 +1,5 @@
 using System.Globalization;
+using ZoneGuide.Mobile.Services;
 
 namespace ZoneGuide.Mobile.Converters;
 
@@ -218,6 +219,52 @@ public class OfflineButtonTextConverter : IValueConverter
         if (value is bool isOffline)
             return isOffline ? "Xóa" : "Tải xuống";
         return "Tải xuống";
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+/// <summary>
+/// Chuyển chuỗi URL/base64/file path thành ImageSource để hiển thị ảnh ổn định trên mobile.
+/// </summary>
+public class FlexibleImageSourceConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is not string raw || string.IsNullOrWhiteSpace(raw))
+            return null;
+
+        raw = raw.Trim();
+
+        try
+        {
+            if (raw.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
+            {
+                var commaIndex = raw.IndexOf(',');
+                if (commaIndex > 0)
+                {
+                    var base64 = raw[(commaIndex + 1)..];
+                    var bytes = System.Convert.FromBase64String(base64);
+                    return ImageSource.FromStream(() => new MemoryStream(bytes));
+                }
+            }
+
+            if (File.Exists(raw))
+                return ImageSource.FromFile(raw);
+
+            var normalized = ApiService.NormalizeMediaUrl(raw);
+            if (Uri.TryCreate(normalized, UriKind.Absolute, out var uri))
+                return ImageSource.FromUri(uri);
+        }
+        catch
+        {
+            return null;
+        }
+
+        return null;
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

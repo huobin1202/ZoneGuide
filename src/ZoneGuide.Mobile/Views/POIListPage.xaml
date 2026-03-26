@@ -116,35 +116,25 @@
                                     </Frame>
 
                                     <VerticalStackLayout Grid.Column="1"
-                                                         Spacing="4"
+                                                         Spacing="6"
                                                          VerticalOptions="Center">
                                         <Label Text="{Binding Name}"
                                                FontSize="18"
                                                FontAttributes="Bold"
                                                MaxLines="1" />
+                                        <Border BackgroundColor="#F2EFFF"
+                                                StrokeThickness="0"
+                                                StrokeShape="RoundRectangle 10"
+                                                Padding="8,2"
+                                                HorizontalOptions="Start">
+                                            <Label Text="{Binding Category}"
+                                                   FontSize="11"
+                                                   TextColor="{StaticResource Primary}" />
+                                        </Border>
                                         <Label Text="{Binding ShortDescription}"
                                                FontSize="13"
                                                TextColor="{StaticResource Gray500}"
-                                               MaxLines="2" />
-                                        <HorizontalStackLayout Spacing="8"
-                                                               Margin="0,2,0,0">
-                                            <Border BackgroundColor="#F2EFFF"
-                                                    StrokeThickness="0"
-                                                    StrokeShape="RoundRectangle 10"
-                                                    Padding="8,2">
-                                                <Label Text="{Binding Category}"
-                                                       FontSize="11"
-                                                       TextColor="{StaticResource Primary}" />
-                                            </Border>
-                                            <Label Text="★"
-                                                   FontSize="11"
-                                                   TextColor="#F5B301"
-                                                   VerticalTextAlignment="Center" />
-                                            <Label Text="{Binding Priority, StringFormat='{}{0}/10'}"
-                                                   FontSize="11"
-                                                   TextColor="{StaticResource Gray500}"
-                                                   VerticalTextAlignment="Center" />
-                                        </HorizontalStackLayout>
+                                               MaxLines="3" />
                                     </VerticalStackLayout>
 
                                     <Button Grid.Column="2"

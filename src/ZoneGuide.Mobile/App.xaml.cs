@@ -1,4 +1,5 @@
 using Microsoft.Maui.ApplicationModel;
+using Microsoft.Extensions.DependencyInjection;
 using ZoneGuide.Mobile.Views;
 using ZoneGuide.Shared.Interfaces;
 
@@ -6,16 +7,14 @@ namespace ZoneGuide.Mobile;
 
 public partial class App : Application
 {
+    private readonly IServiceProvider _services;
     private readonly ISettingsService _settingsService;
-    private readonly AppShell _appShell;
-    private readonly LanguageSelectionPage _languageSelectionPage;
 
-    public App(ISettingsService settingsService, AppShell appShell, LanguageSelectionPage languageSelectionPage)
+    public App(IServiceProvider services, ISettingsService settingsService)
     {
         InitializeComponent();
+        _services = services;
         _settingsService = settingsService;
-        _appShell = appShell;
-        _languageSelectionPage = languageSelectionPage;
 
         // Bắt unhandled exceptions để debug
         AppDomain.CurrentDomain.UnhandledException += (s, e) =>
@@ -55,16 +54,21 @@ public partial class App : Application
         {
             await _settingsService.LoadAsync();
 
+            var appShell = _services.GetRequiredService<AppShell>();
+            var languageSelectionPage = _services.GetRequiredService<LanguageSelectionPage>();
+
             var rootPage = _settingsService.Settings.HasCompletedLanguageSelection
-                ? (Page)_appShell
-                : _languageSelectionPage;
+                ? (Page)appShell
+                : languageSelectionPage;
 
             await MainThread.InvokeOnMainThreadAsync(() => window.Page = rootPage);
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[App] Root initialization failed: {ex}");
-            await MainThread.InvokeOnMainThreadAsync(() => window.Page = _languageSelectionPage);
+
+            var fallbackPage = CreateFallbackErrorPage(ex);
+            await MainThread.InvokeOnMainThreadAsync(() => window.Page = fallbackPage);
         }
     }
 
@@ -87,6 +91,34 @@ public partial class App : Application
                     new Label
                     {
                         Text = "Dang mo ung dung...",
+                        HorizontalTextAlignment = TextAlignment.Center
+                    }
+                }
+            }
+        };
+    }
+
+    private static Page CreateFallbackErrorPage(Exception ex)
+    {
+        return new ContentPage
+        {
+            Content = new VerticalStackLayout
+            {
+                Padding = 24,
+                Spacing = 12,
+                VerticalOptions = LayoutOptions.Center,
+                HorizontalOptions = LayoutOptions.Center,
+                Children =
+                {
+                    new Label
+                    {
+                        Text = "Khong the khoi tao ung dung.",
+                        HorizontalTextAlignment = TextAlignment.Center,
+                        FontAttributes = FontAttributes.Bold
+                    },
+                    new Label
+                    {
+                        Text = ex.Message,
                         HorizontalTextAlignment = TextAlignment.Center
                     }
                 }

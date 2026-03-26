@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
+using ZoneGuide.Mobile.Services;
 using ZoneGuide.Shared.Interfaces;
 using ZoneGuide.Shared.Models;
 
@@ -37,6 +38,10 @@ public partial class HistoryViewModel : ObservableObject
         _poiRepository = poiRepository;
         _narrationService = narrationService;
         _settingsService = settingsService;
+
+        _narrationService.NarrationStarted += OnNarrationChanged;
+        _narrationService.NarrationCompleted += OnNarrationChanged;
+        _narrationService.NarrationStopped += OnNarrationChanged;
     }
 
     public async Task InitializeAsync()
@@ -115,6 +120,7 @@ public partial class HistoryViewModel : ObservableObject
         };
 
         await _narrationService.PlayImmediatelyAsync(queueItem);
+        await Shell.Current.GoToAsync($"POIDetailPage?id={poi.Id}&autoplay=true");
     }
 
     [RelayCommand]
@@ -136,6 +142,11 @@ public partial class HistoryViewModel : ObservableObject
         await LoadHistoryAsync();
     }
 
+    private void OnNarrationChanged(object? sender, NarrationQueueItem e)
+    {
+        MainThread.BeginInvokeOnMainThread(async () => await LoadHistoryAsync());
+    }
+
     private static HistoryEntryViewModel BuildHistoryItem(NarrationHistory history, POI? poi)
     {
         var localTime = history.StartTime.ToLocalTime();
@@ -152,7 +163,7 @@ public partial class HistoryViewModel : ObservableObject
             Title = poi?.Name ?? history.POIName,
             Description = poi?.ShortDescription ?? "Đã nghe thuyết minh tại địa điểm này",
             Category = poi?.Category ?? "Thuyết minh",
-            ImageUrl = poi?.ImageUrl,
+            ImageUrl = POIListViewModel.ResolveImageSource(poi?.ImageUrl),
             PlayedAt = localTime,
             PlayedAtText = FormatRelativeTime(localTime),
             DurationSeconds = durationSeconds,

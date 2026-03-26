@@ -3,36 +3,42 @@
     x:Class="ZoneGuide.Mobile.AppShell"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
     xmlns:views="clr-namespace:ZoneGuide.Mobile.Views"
     Shell.FlyoutBehavior="Disabled">
 
     <TabBar>
         <ShellContent
-            Title="Địa điểm"
+            x:Name="PoisTab"
+            Title="{local:Translate tab_pois}"
             ContentTemplate="{DataTemplate views:POIListPage}"
             Icon="location.png"
             Route="pois" />
 
         <ShellContent
-            Title="Bản đồ"
+            x:Name="MapTab"
+            Title="{local:Translate tab_map}"
             ContentTemplate="{DataTemplate views:MapPage}"
             Icon="map.png"
             Route="map" />
 
         <ShellContent
-            Title="Lịch sử"
+            x:Name="HistoryTab"
+            Title="{local:Translate tab_history}"
             ContentTemplate="{DataTemplate views:HistoryPage}"
             Icon="history.png"
             Route="history" />
 
         <ShellContent
-            Title="Tour"
+            x:Name="ToursTab"
+            Title="{local:Translate tab_tours}"
             ContentTemplate="{DataTemplate views:TourListPage}"
             Icon="route.png"
             Route="tours" />
 
         <ShellContent
-            Title="Cài đặt"
+            x:Name="SettingsTab"
+            Title="{local:Translate tab_settings}"
             ContentTemplate="{DataTemplate views:SettingsPage}"
             Icon="settings.png"
             Route="settings" />

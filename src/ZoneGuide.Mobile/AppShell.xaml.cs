@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using ZoneGuide.Mobile.Localization;
 using ZoneGuide.Mobile.Views;
 using ZoneGuide.Shared.Interfaces;
 
@@ -12,6 +13,9 @@ public partial class AppShell : Shell
     {
         InitializeComponent();
 
+        AppLocalizer.Instance.PropertyChanged += OnLocalizerPropertyChanged;
+        UpdateLocalizedTitles();
+
         // Register routes
         Routing.RegisterRoute(nameof(POIDetailPage), typeof(POIDetailPage));
         Routing.RegisterRoute(nameof(TourDetailPage), typeof(TourDetailPage));
@@ -24,6 +28,29 @@ public partial class AppShell : Shell
             return;
 
         _ = ApplySavedNarrationPreferencesAsync();
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        AppLocalizer.Instance.PropertyChanged -= OnLocalizerPropertyChanged;
+    }
+
+    private void OnLocalizerPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(e.PropertyName))
+            return;
+
+        MainThread.BeginInvokeOnMainThread(UpdateLocalizedTitles);
+    }
+
+    private void UpdateLocalizedTitles()
+    {
+        PoisTab.Title = AppLocalizer.Instance.Translate("tab_pois");
+        MapTab.Title = AppLocalizer.Instance.Translate("tab_map");
+        HistoryTab.Title = AppLocalizer.Instance.Translate("tab_history");
+        ToursTab.Title = AppLocalizer.Instance.Translate("tab_tours");
+        SettingsTab.Title = AppLocalizer.Instance.Translate("tab_settings");
     }
 
     private async Task ApplySavedNarrationPreferencesAsync()

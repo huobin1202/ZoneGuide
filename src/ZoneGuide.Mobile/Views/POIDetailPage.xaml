@@ -4,105 +4,173 @@
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
              x:Class="ZoneGuide.Mobile.Views.POIDetailPage"
              x:DataType="vm:POIDetailViewModel"
-             Title="{Binding POI.Name}">
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F6F7FB">
 
-    <ScrollView>
-        <VerticalStackLayout Spacing="16" Padding="16">
-            
-            <!-- Image -->
-            <Frame HeightRequest="200"
-                   CornerRadius="16"
-                   Padding="0"
-                   IsClippedToBounds="True"
-                   BackgroundColor="LightGray">
-                <Image Source="{Binding POI.ImageUrl}"
-                       Aspect="AspectFill" />
-            </Frame>
+    <Grid RowDefinitions="Auto,*">
+        <Grid Grid.Row="0"
+              HeightRequest="320">
+            <Image Source="{Binding ImageSource}"
+                   Aspect="AspectFill" />
 
-            <!-- Name & Description -->
-            <Label Text="{Binding POI.Name}"
-                   FontSize="24"
-                   FontAttributes="Bold" />
-            
-            <Label Text="{Binding POI.ShortDescription}"
-                   FontSize="14"
-                   TextColor="Gray" />
+            <BoxView Color="#66000000" />
 
-            <!-- Distance -->
-            <HorizontalStackLayout Spacing="8"
-                                   IsVisible="{Binding Distance, Converter={StaticResource IsNotNullConverter}}">
-                <Label Text="📍" FontSize="14" />
-                <Label Text="{Binding Distance, StringFormat='Cách {0:F0}m'}"
-                       FontSize="14"
-                       TextColor="{StaticResource Primary}" />
-            </HorizontalStackLayout>
+            <Grid Padding="16,26,16,18"
+                  RowDefinitions="Auto,*,Auto">
+                <Button Grid.Row="0"
+                        Text="←"
+                        WidthRequest="42"
+                        HeightRequest="42"
+                        CornerRadius="21"
+                        FontSize="18"
+                        Padding="0"
+                        HorizontalOptions="Start"
+                        VerticalOptions="Start"
+                        BackgroundColor="#66FFFFFF"
+                        TextColor="White"
+                        Command="{Binding BackCommand}" />
 
-            <!-- Audio Player -->
-            <Frame BackgroundColor="{StaticResource Primary}"
-                   CornerRadius="16"
-                   Padding="16">
-                <Grid RowDefinitions="Auto, Auto, Auto" RowSpacing="12">
-                    <Label Grid.Row="0"
-                           Text="Thuyết minh"
+                <VerticalStackLayout Grid.Row="2"
+                                     Spacing="10">
+                    <Border BackgroundColor="#66FFFFFF"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 12"
+                            Padding="10,4"
+                            HorizontalOptions="Start">
+                        <Label Text="{Binding CurrentPoi.Category}"
+                               TextColor="White"
+                               FontSize="12" />
+                    </Border>
+
+                    <Label Text="{Binding CurrentPoi.Name}"
+                           FontSize="28"
+                           FontAttributes="Bold"
                            TextColor="White"
-                           FontSize="16"
-                           FontAttributes="Bold" />
-                    
-                    <!-- Progress Bar -->
-                    <ProgressBar Grid.Row="1"
-                                 Progress="{Binding Progress}"
-                                 ProgressColor="White" />
-                    
-                    <!-- Controls -->
-                    <HorizontalStackLayout Grid.Row="2"
-                                           HorizontalOptions="Center"
-                                           Spacing="16">
-                        <Button Text="⏹"
-                                WidthRequest="50"
-                                HeightRequest="50"
-                                CornerRadius="25"
-                                BackgroundColor="White"
-                                TextColor="{StaticResource Primary}"
-                                Command="{Binding StopCommand}" />
-                        
-                        <Button Text="{Binding IsPlaying, Converter={StaticResource PlayPauseConverter}}"
-                                WidthRequest="60"
-                                HeightRequest="60"
-                                CornerRadius="30"
-                                BackgroundColor="White"
-                                TextColor="{StaticResource Primary}"
-                                FontSize="24"
-                                Command="{Binding PlayCommand}" />
-                    </HorizontalStackLayout>
-                </Grid>
-            </Frame>
+                           LineBreakMode="WordWrap" />
 
-            <!-- Full Description -->
-            <Label Text="Mô tả chi tiết"
-                   FontSize="18"
-                   FontAttributes="Bold"
-                   Margin="0,16,0,0" />
-            
-            <Label Text="{Binding POI.FullDescription}"
-                   FontSize="14"
-                   LineHeight="1.5" />
-
-            <!-- Actions -->
-            <Grid ColumnDefinitions="*, *" ColumnSpacing="16" Margin="0,16,0,0">
-                <Button Grid.Column="0"
-                        Text="🧭 Chỉ đường"
-                        BackgroundColor="{StaticResource Secondary}"
-                        TextColor="White"
-                        Command="{Binding NavigateCommand}" />
-                
-                <Button Grid.Column="1"
-                        Text="📤 Chia sẻ"
-                        BackgroundColor="Gray"
-                        TextColor="White"
-                        Command="{Binding ShareCommand}" />
+                    <Label Text="{Binding CurrentPoi.ShortDescription}"
+                           FontSize="14"
+                           TextColor="#F3F0FF"
+                           MaxLines="3" />
+                </VerticalStackLayout>
             </Grid>
+        </Grid>
 
-        </VerticalStackLayout>
-    </ScrollView>
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="20,-26,20,24"
+                                 Spacing="18">
+                <Border BackgroundColor="White"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 22"
+                        Padding="18">
+                    <VerticalStackLayout Spacing="14">
+                        <Grid ColumnDefinitions="*,Auto"
+                              ColumnSpacing="12">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="Đang phát"
+                                       FontSize="18"
+                                       FontAttributes="Bold"
+                                       TextColor="{StaticResource Gray900}" />
+                                <Label Text="{Binding PlaybackStatusText}"
+                                       FontSize="13"
+                                       TextColor="{StaticResource Gray500}" />
+                            </VerticalStackLayout>
+
+                            <Border BackgroundColor="#F2EFFF"
+                                    StrokeThickness="0"
+                                    StrokeShape="RoundRectangle 14"
+                                    Padding="10,6"
+                                    VerticalOptions="Center">
+                                <Label Text="{Binding ProgressText}"
+                                       FontSize="12"
+                                       TextColor="{StaticResource Primary}" />
+                            </Border>
+                        </Grid>
+
+                        <ProgressBar Progress="{Binding Progress}"
+                                     HeightRequest="8"
+                                     ProgressColor="{StaticResource Primary}"
+                                     BackgroundColor="#ECEAF8" />
+
+                        <Grid ColumnDefinitions="*,*,*"
+                              ColumnSpacing="12">
+                            <Button Grid.Column="0"
+                                    Text="■"
+                                    HeightRequest="52"
+                                    CornerRadius="16"
+                                    BackgroundColor="#F4F4F7"
+                                    TextColor="{StaticResource Gray700}"
+                                    Command="{Binding StopCommand}" />
+
+                            <Button Grid.Column="1"
+                                    Text="⏯"
+                                    HeightRequest="52"
+                                    CornerRadius="16"
+                                    BackgroundColor="{StaticResource Primary}"
+                                    TextColor="White"
+                                    Command="{Binding TogglePlayPauseCommand}" />
+
+                            <Button Grid.Column="2"
+                                    Text="➤"
+                                    HeightRequest="52"
+                                    CornerRadius="16"
+                                    BackgroundColor="#F4F4F7"
+                                    TextColor="{StaticResource Gray700}"
+                                    Command="{Binding PlayCommand}" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border BackgroundColor="White"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 22"
+                        Padding="18">
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Thông tin địa điểm"
+                               FontSize="18"
+                               FontAttributes="Bold" />
+
+                        <Label Text="{Binding CurrentPoi.FullDescription}"
+                               FontSize="14"
+                               TextColor="{StaticResource Gray700}"
+                               LineHeight="1.5" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border BackgroundColor="White"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 22"
+                        Padding="18"
+                        IsVisible="{Binding Distance}">
+                    <HorizontalStackLayout Spacing="8">
+                        <Label Text="📍"
+                               FontSize="14" />
+                        <Label Text="{Binding Distance, StringFormat='Cách {0:F0}m'}"
+                               FontSize="14"
+                               TextColor="{StaticResource Primary}" />
+                    </HorizontalStackLayout>
+                </Border>
+
+                <Grid ColumnDefinitions="*,*"
+                      ColumnSpacing="12">
+                    <Button Grid.Column="0"
+                            Text="🧭 Chỉ đường"
+                            HeightRequest="52"
+                            CornerRadius="16"
+                            BackgroundColor="{StaticResource Secondary}"
+                            TextColor="White"
+                            Command="{Binding NavigateCommand}" />
+
+                    <Button Grid.Column="1"
+                            Text="📤 Chia sẻ"
+                            HeightRequest="52"
+                            CornerRadius="16"
+                            BackgroundColor="#4B5563"
+                            TextColor="White"
+                            Command="{Binding ShareCommand}" />
+                </Grid>
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
 
 </ContentPage>
