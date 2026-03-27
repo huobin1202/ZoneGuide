@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ZoneGuide.Mobile.Localization;
+using ZoneGuide.Mobile.Services;
 using ZoneGuide.Shared.Interfaces;
 using ZoneGuide.Shared.Models;
 using System.Collections.ObjectModel;
@@ -16,6 +17,7 @@ public partial class SettingsViewModel : ObservableObject
     private readonly ISyncService _syncService;
     private readonly ITTSService _ttsService;
     private readonly INarrationService _narrationService;
+    private readonly IUserSessionService _userSessionService;
 
     [ObservableProperty]
     private string preferredLanguage = "vi-VN";
@@ -69,6 +71,9 @@ public partial class SettingsViewModel : ObservableObject
     private DateTime? lastSyncTime;
 
     [ObservableProperty]
+    private string lastSyncTimeLabel = string.Empty;
+
+    [ObservableProperty]
     private string selectedVoice = string.Empty;
 
     [ObservableProperty]
@@ -77,17 +82,22 @@ public partial class SettingsViewModel : ObservableObject
     public ObservableCollection<LanguageOptionItem> AvailableLanguages { get; } = new();
 
     public ObservableCollection<string> AvailableVoices { get; } = new();
+    public ObservableCollection<string> GpsAccuracyOptions { get; } = new();
+
+    public event EventHandler? LogoutRequested;
 
     public SettingsViewModel(
         ISettingsService settingsService,
         ISyncService syncService,
         ITTSService ttsService,
-        INarrationService narrationService)
+        INarrationService narrationService,
+        IUserSessionService userSessionService)
     {
         _settingsService = settingsService;
         _syncService = syncService;
         _ttsService = ttsService;
         _narrationService = narrationService;
+        _userSessionService = userSessionService;
 
         foreach (var option in LanguageOptionItem.CreateDefaults())
         {
@@ -96,6 +106,8 @@ public partial class SettingsViewModel : ObservableObject
 
         _syncService.SyncStarted += (s, e) => IsSyncing = true;
         _syncService.SyncCompleted += (s, e) => IsSyncing = false;
+
+        RefreshLocalizedOptions();
     }
 
     public async Task InitializeAsync()
@@ -127,12 +139,29 @@ public partial class SettingsViewModel : ObservableObject
         AppLocalizer.Instance.SetLanguage(PreferredLanguage);
 
         LastSyncTime = _syncService.LastSyncTime;
+        LastSyncTimeLabel = BuildLastSyncTimeLabel(LastSyncTime);
 
         _narrationService.SetVolume(settings.Volume);
         _narrationService.SetTTSSpeed(settings.TTSSpeed);
         await _narrationService.SetVoiceAsync(settings.PreferredVoice);
 
         await LoadVoicesAsync();
+    }
+
+    private void RefreshLocalizedOptions()
+    {
+        GpsAccuracyOptions.Clear();
+        GpsAccuracyOptions.Add(AppLocalizer.Instance.Translate("settings_gps_low"));
+        GpsAccuracyOptions.Add(AppLocalizer.Instance.Translate("settings_gps_medium"));
+        GpsAccuracyOptions.Add(AppLocalizer.Instance.Translate("settings_gps_high"));
+    }
+
+    private static string BuildLastSyncTimeLabel(DateTime? value)
+    {
+        if (!value.HasValue)
+            return string.Empty;
+
+        return $"{AppLocalizer.Instance.Translate("settings_last_sync")}: {value.Value:dd/MM/yyyy HH:mm}";
     }
 
     private async Task LoadVoicesAsync()
@@ -172,7 +201,10 @@ public partial class SettingsViewModel : ObservableObject
         _narrationService.SetVolume(Volume);
         _narrationService.SetTTSSpeed(TtsSpeed);
 
-        await Shell.Current.DisplayAlert("Thành công", "Đã lưu cài đặt", "OK");
+        await Shell.Current.DisplayAlert(
+            AppLocalizer.Instance.Translate("settings_save_success_title"),
+            AppLocalizer.Instance.Translate("settings_save_success_message"),
+            AppLocalizer.Instance.Translate("alert_ok"));
     }
 
     [RelayCommand]
@@ -183,14 +215,21 @@ public partial class SettingsViewModel : ObservableObject
 
         var success = await _syncService.SyncFromServerAsync();
         LastSyncTime = _syncService.LastSyncTime;
+        LastSyncTimeLabel = BuildLastSyncTimeLabel(LastSyncTime);
 
         if (success)
         {
-            await Shell.Current.DisplayAlert("Thành công", "Đã đồng bộ dữ liệu", "OK");
+            await Shell.Current.DisplayAlert(
+                AppLocalizer.Instance.Translate("settings_save_success_title"),
+                AppLocalizer.Instance.Translate("settings_sync_success_message"),
+                AppLocalizer.Instance.Translate("alert_ok"));
         }
         else
         {
-            await Shell.Current.DisplayAlert("Lỗi", "Không thể đồng bộ dữ liệu", "OK");
+            await Shell.Current.DisplayAlert(
+                AppLocalizer.Instance.Translate("settings_sync_error_title"),
+                AppLocalizer.Instance.Translate("settings_sync_error_message"),
+                AppLocalizer.Instance.Translate("alert_ok"));
         }
     }
 
@@ -201,11 +240,17 @@ public partial class SettingsViewModel : ObservableObject
 
         if (success)
         {
-            await Shell.Current.DisplayAlert("Thành công", "Đã tải lên dữ liệu phân tích", "OK");
+            await Shell.Current.DisplayAlert(
+                AppLocalizer.Instance.Translate("settings_save_success_title"),
+                AppLocalizer.Instance.Translate("settings_upload_success_message"),
+                AppLocalizer.Instance.Translate("alert_ok"));
         }
         else
         {
-            await Shell.Current.DisplayAlert("Lỗi", "Không thể tải lên dữ liệu", "OK");
+            await Shell.Current.DisplayAlert(
+                AppLocalizer.Instance.Translate("settings_sync_error_title"),
+                AppLocalizer.Instance.Translate("settings_upload_error_message"),
+                AppLocalizer.Instance.Translate("alert_ok"));
         }
     }
 
@@ -227,10 +272,10 @@ public partial class SettingsViewModel : ObservableObject
     private async Task ClearCacheAsync()
     {
         var confirm = await Shell.Current.DisplayAlert(
-            "Xác nhận",
-            "Bạn có chắc muốn xóa tất cả dữ liệu cache?",
-            "Xóa",
-            "Hủy");
+            AppLocalizer.Instance.Translate("settings_clear_cache_confirm_title"),
+            AppLocalizer.Instance.Translate("settings_clear_cache_confirm_message"),
+            AppLocalizer.Instance.Translate("alert_delete"),
+            AppLocalizer.Instance.Translate("alert_cancel"));
 
         if (confirm)
         {
@@ -241,8 +286,27 @@ public partial class SettingsViewModel : ObservableObject
                 Directory.Delete(offlineDir, true);
             }
 
-            await Shell.Current.DisplayAlert("Thành công", "Đã xóa cache", "OK");
+            await Shell.Current.DisplayAlert(
+                AppLocalizer.Instance.Translate("settings_save_success_title"),
+                AppLocalizer.Instance.Translate("settings_clear_cache_success_message"),
+                AppLocalizer.Instance.Translate("alert_ok"));
         }
+    }
+
+    [RelayCommand]
+    private async Task LogoutAsync()
+    {
+        var confirm = await Shell.Current.DisplayAlert(
+            AppLocalizer.Instance.Translate("settings_logout_confirm_title"),
+            AppLocalizer.Instance.Translate("settings_logout_confirm_message"),
+            AppLocalizer.Instance.Translate("settings_logout_user"),
+            AppLocalizer.Instance.Translate("alert_cancel"));
+
+        if (!confirm)
+            return;
+
+        await _userSessionService.LogoutAsync();
+        LogoutRequested?.Invoke(this, EventArgs.Empty);
     }
 
     partial void OnPreferredLanguageChanged(string value)
@@ -256,6 +320,9 @@ public partial class SettingsViewModel : ObservableObject
             return;
 
         PreferredLanguage = value.Code;
+        AppLocalizer.Instance.SetLanguage(PreferredLanguage);
+        RefreshLocalizedOptions();
+        LastSyncTimeLabel = BuildLastSyncTimeLabel(LastSyncTime);
 
         foreach (var option in AvailableLanguages)
         {
@@ -281,5 +348,10 @@ public partial class SettingsViewModel : ObservableObject
     partial void OnTtsSpeedChanged(float value)
     {
         _narrationService.SetTTSSpeed(value);
+    }
+
+    partial void OnLastSyncTimeChanged(DateTime? value)
+    {
+        LastSyncTimeLabel = BuildLastSyncTimeLabel(value);
     }
 }

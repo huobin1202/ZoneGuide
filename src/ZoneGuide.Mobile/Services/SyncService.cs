@@ -17,6 +17,8 @@ public class SyncService : ISyncService
     private readonly ITourRepository _tourRepository;
     private readonly IAnalyticsRepository _analyticsRepository;
     private readonly ISettingsService _settingsService;
+    private readonly SemaphoreSlim _syncStateLock = new(1, 1);
+    private bool _hasLoadedLastSyncTime;
 
     public bool IsSyncing { get; private set; }
     public DateTime? LastSyncTime { get; private set; }
@@ -42,6 +44,8 @@ public class SyncService : ISyncService
 
         try
         {
+            await EnsureSyncStateLoadedAsync();
+
             IsSyncing = true;
             SyncStarted?.Invoke(this, EventArgs.Empty);
 
@@ -282,5 +286,25 @@ public class SyncService : ISyncService
             IsActive = dto.IsActive,
             UpdatedAt = DateTime.UtcNow
         };
+    }
+
+    private async Task EnsureSyncStateLoadedAsync()
+    {
+        if (_hasLoadedLastSyncTime)
+            return;
+
+        await _syncStateLock.WaitAsync();
+        try
+        {
+            if (_hasLoadedLastSyncTime)
+                return;
+
+            LastSyncTime = await _settingsService.GetAsync<DateTime?>("last_sync_time");
+            _hasLoadedLastSyncTime = true;
+        }
+        finally
+        {
+            _syncStateLock.Release();
+        }
     }
 }

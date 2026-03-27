@@ -142,8 +142,15 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task PlayPOI(POI poi)
     {
-        var item = CreateNarrationItem(poi, GeofenceEventType.Enter, 0);
-        await _narrationService.PlayImmediatelyAsync(item);
+        try
+        {
+            var item = CreateNarrationItem(poi, GeofenceEventType.Enter, 0);
+            await _narrationService.PlayImmediatelyAsync(item);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainVM] PlayPOI error: {ex}");
+        }
     }
 
     private async void OnLocationChanged(object? sender, LocationData location)

@@ -14,6 +14,9 @@ namespace ZoneGuide.Mobile.ViewModels;
 /// </summary>
 public partial class MapViewModel : ObservableObject
 {
+    private const double MaxAcceptedAccuracyMeters = 1500;
+    private const double MaxAcceptedJumpKm = 80;
+
     private readonly ILocationService _locationService;
     private readonly IGeofenceService _geofenceService;
     private readonly IPOIRepository _poiRepository;
@@ -110,11 +113,39 @@ public partial class MapViewModel : ObservableObject
             // Sau đó cố lấy vị trí thực
             try
             {
-                var location = await _locationService.GetCurrentLocationAsync();
-                if (location != null)
+                if (!_locationService.IsTracking)
                 {
-                    UserLocation = new Location(location.Latitude, location.Longitude);
-                    MapSpan = MapSpan.FromCenterAndRadius(UserLocation, Distance.FromKilometers(0.5));
+                    await _locationService.StartTrackingAsync(GPSAccuracyLevel.Medium);
+                }
+
+                var location = await _locationService.GetCurrentLocationAsync();
+                if (location != null && IsValidLocation(location))
+                {
+                    var candidate = new Location(location.Latitude, location.Longitude);
+
+                    if (!IsLocationOutlier(candidate))
+                    {
+                        UserLocation = candidate;
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[MapVM] Ignored startup outlier location: {location.Latitude},{location.Longitude} (acc={location.Accuracy:F0}m)");
+                    }
+
+                    // Ưu tiên hiển thị POI trên bản đồ. Chỉ zoom vào vị trí user khi không có POI.
+                    if (_allPOIs.Count > 0)
+                    {
+                        ApplyMapSpanForPoiCollection(_allPOIs);
+                    }
+                    else
+                    {
+                        MapSpan = MapSpan.FromCenterAndRadius(UserLocation, Distance.FromKilometers(0.5));
+                    }
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("[MapVM] Current location is null/invalid, keeping POI/default center.");
                 }
             }
             catch (Exception ex)
@@ -139,13 +170,25 @@ public partial class MapViewModel : ObservableObject
     {
         try
         {
-            var pois = await _poiRepository.GetActiveAsync();
+            var pois = (await _poiRepository.GetActiveAsync())
+                .Where(p => p.Latitude is >= -90 and <= 90 && p.Longitude is >= -180 and <= 180)
+                .ToList();
+
             _allPOIs = pois;
             PopulatePins(_allPOIs);
+
+            System.Diagnostics.Debug.WriteLine($"[MapVM] Loaded POIs: {pois.Count}");
+
+            // Nếu chưa có vị trí người dùng, tự focus vào cụm POI để người dùng luôn thấy marker.
+            if (pois.Count > 0)
+            {
+                ApplyMapSpanForPoiCollection(pois);
+            }
         }
         catch (Exception ex)
         {
             ErrorMessage = ex.Message;
+            System.Diagnostics.Debug.WriteLine($"[MapVM] LoadPOIsAsync error: {ex}");
         }
     }
 
@@ -207,10 +250,26 @@ public partial class MapViewModel : ObservableObject
         else
         {
             var location = await _locationService.GetCurrentLocationAsync();
-            if (location != null)
+            if (location != null && IsValidLocation(location))
             {
-                UserLocation = new Location(location.Latitude, location.Longitude);
-                MapSpan = MapSpan.FromCenterAndRadius(UserLocation, Distance.FromKilometers(0.5));
+                var candidate = new Location(location.Latitude, location.Longitude);
+
+                if (!IsLocationOutlier(candidate))
+                {
+                    UserLocation = candidate;
+                    MapSpan = MapSpan.FromCenterAndRadius(UserLocation, Distance.FromKilometers(0.5));
+                }
+                else
+                {
+                    ErrorMessage = "Vị trí hiện tại chưa chính xác. Vui lòng thử lại.";
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[MapVM] Ignored center-on-user outlier: {location.Latitude},{location.Longitude} (acc={location.Accuracy:F0}m)");
+
+                    if (_allPOIs.Count > 0)
+                    {
+                        ApplyMapSpanForPoiCollection(_allPOIs);
+                    }
+                }
             }
         }
     }
@@ -266,12 +325,127 @@ public partial class MapViewModel : ObservableObject
         await Shell.Current.GoToAsync($"POIDetailPage?id={SelectedPOI.Id}");
     }
 
+    [RelayCommand]
+    private void DismissSelectedPOI()
+    {
+        SelectedPOI = null;
+        ShowAllMarkers();
+    }
+
+    [RelayCommand]
+    private void ShowAllMarkers()
+    {
+        SelectedPOI = null;
+
+        if (_allPOIs.Count > 0)
+        {
+            ApplyMapSpanForPoiCollection(_allPOIs, forceAll: true);
+        }
+    }
+
     private void OnLocationChanged(object? sender, LocationData location)
     {
+        if (!IsValidLocation(location))
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"[MapVM] Ignored invalid location update: {location.Latitude},{location.Longitude} (acc={location.Accuracy:F0}m)");
+            return;
+        }
+
+        var candidate = new Location(location.Latitude, location.Longitude);
+
+        if (IsLocationOutlier(candidate))
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"[MapVM] Ignored outlier location update: {location.Latitude},{location.Longitude} (acc={location.Accuracy:F0}m)");
+            return;
+        }
+
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            UserLocation = new Location(location.Latitude, location.Longitude);
+            UserLocation = candidate;
         });
+    }
+
+    private static bool IsValidLocation(LocationData location)
+    {
+        var hasValidCoordinates = location.Latitude is >= -90 and <= 90 &&
+                                  location.Longitude is >= -180 and <= 180 &&
+                                  !(Math.Abs(location.Latitude) < 0.0001 && Math.Abs(location.Longitude) < 0.0001);
+
+        var hasAcceptableAccuracy = location.Accuracy <= 0 || location.Accuracy <= MaxAcceptedAccuracyMeters;
+
+        return hasValidCoordinates && hasAcceptableAccuracy;
+    }
+
+    private bool IsLocationOutlier(Location candidate)
+    {
+        if (UserLocation != null)
+        {
+            var jumpDistance = CalculateDistanceKm(
+                UserLocation.Latitude,
+                UserLocation.Longitude,
+                candidate.Latitude,
+                candidate.Longitude);
+
+            if (jumpDistance > MaxAcceptedJumpKm)
+            {
+                return true;
+            }
+        }
+
+        if (_allPOIs.Count > 0)
+        {
+            var nearestPoiDistance = _allPOIs
+                .Select(p => CalculateDistanceKm(candidate.Latitude, candidate.Longitude, p.Latitude, p.Longitude))
+                .DefaultIfEmpty(double.MaxValue)
+                .Min();
+
+            if (nearestPoiDistance > MaxAcceptedJumpKm)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void ApplyMapSpanForPoiCollection(List<POI> pois, bool forceAll = false)
+    {
+        if (pois.Count == 0)
+            return;
+
+        // Nếu đã có vị trí người dùng và có POI gần đó, giữ camera theo người dùng.
+        if (!forceAll && UserLocation != null)
+        {
+            var hasNearbyPoi = pois.Any(p =>
+                CalculateDistanceKm(UserLocation.Latitude, UserLocation.Longitude, p.Latitude, p.Longitude) <= 20);
+
+            if (hasNearbyPoi)
+                return;
+        }
+
+        var centerLat = pois.Average(p => p.Latitude);
+        var centerLon = pois.Average(p => p.Longitude);
+
+        var radiusKm = Math.Max(1.0,
+            pois.Max(p => CalculateDistanceKm(centerLat, centerLon, p.Latitude, p.Longitude)) * 1.3);
+
+        MapSpan = MapSpan.FromCenterAndRadius(
+            new Location(centerLat, centerLon),
+            Distance.FromKilometers(radiusKm));
+    }
+
+    private static double CalculateDistanceKm(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double earthRadiusKm = 6371.0;
+        var dLat = (lat2 - lat1) * Math.PI / 180;
+        var dLon = (lon2 - lon1) * Math.PI / 180;
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(lat1 * Math.PI / 180) * Math.Cos(lat2 * Math.PI / 180) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        return earthRadiusKm * c;
     }
 
     partial void OnSelectedCategoryChanged(string? value)

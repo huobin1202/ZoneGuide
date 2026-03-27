@@ -29,7 +29,7 @@
                         <Label Text="◔"
                                TextColor="#F5C96A"
                                VerticalTextAlignment="Center" />
-                        <Label Text="{Binding TotalHistoryCount, StringFormat='{}{0} địa điểm'}"
+                        <Label Text="{Binding TotalHistoryCountText}"
                                FontSize="14"
                                TextColor="White" />
                     </HorizontalStackLayout>

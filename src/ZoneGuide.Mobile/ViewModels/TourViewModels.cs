@@ -33,6 +33,15 @@ public partial class TourListViewModel : ObservableObject
 
     public async Task InitializeAsync()
     {
+        try
+        {
+            await _syncService.SyncFromServerAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TourListVM] Server sync failed (non-fatal): {ex.Message}");
+        }
+
         await LoadToursAsync();
     }
 
@@ -64,6 +73,15 @@ public partial class TourListViewModel : ObservableObject
     [RelayCommand]
     private async Task RefreshAsync()
     {
+        try
+        {
+            await _syncService.SyncFromServerAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TourListVM] Server sync failed on refresh (non-fatal): {ex.Message}");
+        }
+
         IsRefreshing = true;
         await LoadToursAsync();
     }

@@ -1,5 +1,6 @@
 using ZoneGuide.Shared.Models;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace ZoneGuide.Mobile.Services;
 
@@ -8,7 +9,9 @@ namespace ZoneGuide.Mobile.Services;
 /// </summary>
 public class ApiService
 {
+    private const string PreferredApiBaseUrlKey = "preferred_api_base_url";
     private readonly HttpClient _httpClient;
+    private readonly List<string> _syncBaseUrls;
     
     // ⚠️ Thay đổi IP tùy theo môi trường:
     // Emulator Android: 10.0.2.2
@@ -24,6 +27,29 @@ public class ApiService
 #else
     private const string BaseUrl = "https://localhost:56040/api/";
 #endif
+
+    private static List<string> BuildSyncBaseUrls()
+    {
+#if ANDROID
+        var urls = new List<string>
+        {
+            "http://10.0.2.2:56042/api/",
+            "https://10.0.2.2:56040/api/",
+            $"http://{ServerIP}:{ServerPort}/api/"
+        };
+#else
+        var urls = new List<string>
+        {
+            "https://localhost:56040/api/",
+            "http://localhost:56042/api/"
+        };
+#endif
+
+        return urls
+            .Where(u => Uri.TryCreate(u, UriKind.Absolute, out _))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 
     public static string NormalizeMediaUrl(string url)
     {
@@ -66,6 +92,27 @@ public class ApiService
             BaseAddress = new Uri(BaseUrl),
             Timeout = TimeSpan.FromSeconds(15)
         };
+
+        _syncBaseUrls = BuildSyncBaseUrls();
+    }
+
+    private IEnumerable<string> GetOrderedBaseUrls()
+    {
+        var preferred = Preferences.Get(PreferredApiBaseUrlKey, string.Empty);
+        if (string.IsNullOrWhiteSpace(preferred))
+            return _syncBaseUrls;
+
+        return _syncBaseUrls
+            .OrderBy(url => string.Equals(url, preferred, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .ToList();
+    }
+
+    private static void SavePreferredBaseUrl(string baseUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(baseUrl))
+        {
+            Preferences.Set(PreferredApiBaseUrlKey, baseUrl);
+        }
     }
 
     #region POI
@@ -132,47 +179,61 @@ public class ApiService
 
     public async Task<SyncDataDto?> SyncDataAsync(SyncRequest request)
     {
-        try
+        // Thử nhiều endpoint để tránh lỗi do khác môi trường (emulator/LAN/localhost)
+        foreach (var syncBaseUrl in GetOrderedBaseUrls())
         {
-            // API trả về SyncResponseDto trực tiếp (không wrap ApiResponse)
-            // Gửi request tương thích với SyncRequestDto trên server
-            var serverRequest = new
+            try
             {
-                LastSyncTime = request.LastSyncTime,
-                IncludePOIs = true,
-                IncludeTours = true
-            };
-
-            var response = await _httpClient.PostAsJsonAsync("sync", serverRequest);
-            if (response.IsSuccessStatusCode)
-            {
-                var json = await response.Content.ReadAsStringAsync();
-                System.Diagnostics.Debug.WriteLine($"[ApiService] Sync response: {json[..Math.Min(json.Length, 500)]}");
-
-                var syncResponse = System.Text.Json.JsonSerializer.Deserialize<SyncResponseFromServer>(json, 
-                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-                if (syncResponse != null)
+                // API trả về SyncResponseDto trực tiếp (không wrap ApiResponse)
+                // Gửi request tương thích với SyncRequestDto trên server
+                var serverRequest = new
                 {
-                    return new SyncDataDto
+                    LastSyncTime = request.LastSyncTime,
+                    IncludePOIs = true,
+                    IncludeTours = true
+                };
+
+                var syncUri = new Uri(new Uri(syncBaseUrl), "sync");
+                var response = await _httpClient.PostAsJsonAsync(syncUri, serverRequest);
+                if (response.IsSuccessStatusCode)
+                {
+                    SavePreferredBaseUrl(syncBaseUrl);
+
+                    var json = await response.Content.ReadAsStringAsync();
+                    System.Diagnostics.Debug.WriteLine($"[ApiService] Sync OK via {syncBaseUrl}. Response: {json[..Math.Min(json.Length, 500)]}");
+
+                    var syncResponse = System.Text.Json.JsonSerializer.Deserialize<SyncResponseFromServer>(json,
+                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                    if (syncResponse != null)
                     {
-                        LastSyncTime = syncResponse.SyncedAt,
-                        POIs = syncResponse.POIs ?? new(),
-                        Tours = syncResponse.Tours ?? new(),
-                        DeletedPOIIds = syncResponse.DeletedPOIIds?
-                            .Where(id => int.TryParse(id, out _))
-                            .Select(id => int.Parse(id)).ToList() ?? new(),
-                        DeletedTourIds = syncResponse.DeletedTourIds?
-                            .Where(id => int.TryParse(id, out _))
-                            .Select(id => int.Parse(id)).ToList() ?? new()
-                    };
+                        return new SyncDataDto
+                        {
+                            LastSyncTime = syncResponse.SyncedAt,
+                            POIs = syncResponse.POIs ?? new(),
+                            Tours = syncResponse.Tours ?? new(),
+                            DeletedPOIIds = syncResponse.DeletedPOIIds?
+                                .Where(id => int.TryParse(id, out _))
+                                .Select(id => int.Parse(id)).ToList() ?? new(),
+                            DeletedTourIds = syncResponse.DeletedTourIds?
+                                .Where(id => int.TryParse(id, out _))
+                                .Select(id => int.Parse(id)).ToList() ?? new()
+                        };
+                    }
+                }
+                else
+                {
+                    var errorBody = await response.Content.ReadAsStringAsync();
+                    System.Diagnostics.Debug.WriteLine($"[ApiService] Sync failed via {syncBaseUrl}: {(int)response.StatusCode} {response.ReasonPhrase}. Body: {errorBody[..Math.Min(errorBody.Length, 500)]}");
                 }
             }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ApiService] SyncDataAsync error via {syncBaseUrl}: {ex.Message}");
+            }
         }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[ApiService] SyncDataAsync error: {ex.Message}");
-        }
+
+        System.Diagnostics.Debug.WriteLine("[ApiService] SyncDataAsync failed on all endpoints.");
         return null;
     }
 
@@ -188,6 +249,72 @@ public class ApiService
         public List<TourDto> Tours { get; set; } = new();
         public List<string> DeletedPOIIds { get; set; } = new();
         public List<string> DeletedTourIds { get; set; } = new();
+    }
+
+    #endregion
+
+    #region Auth
+
+    public async Task<AuthResponseDto> LoginAsync(LoginDto request)
+    {
+        var serializerOptions = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
+
+        string? lastError = null;
+
+        foreach (var baseUrl in GetOrderedBaseUrls())
+        {
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+                var loginUri = new Uri(new Uri(baseUrl), "auth/login");
+                var response = await _httpClient.PostAsJsonAsync(loginUri, request, cts.Token);
+                var json = await response.Content.ReadAsStringAsync(cts.Token);
+
+                var authResponse = string.IsNullOrWhiteSpace(json)
+                    ? null
+                    : JsonSerializer.Deserialize<AuthResponseDto>(json, serializerOptions);
+
+                if (response.IsSuccessStatusCode && authResponse?.Success == true)
+                {
+                    SavePreferredBaseUrl(baseUrl);
+                    System.Diagnostics.Debug.WriteLine($"[ApiService] Login OK via {baseUrl}");
+                    return authResponse;
+                }
+
+                if (authResponse != null && !string.IsNullOrWhiteSpace(authResponse.Message))
+                {
+                    lastError = authResponse.Message;
+                }
+                else
+                {
+                    lastError = $"Đăng nhập thất bại ({(int)response.StatusCode})";
+                }
+
+                System.Diagnostics.Debug.WriteLine(
+                    $"[ApiService] Login failed via {baseUrl}: {(int)response.StatusCode} {response.ReasonPhrase}");
+            }
+            catch (OperationCanceledException)
+            {
+                lastError = "Kết nối máy chủ quá chậm. Vui lòng thử lại.";
+                System.Diagnostics.Debug.WriteLine($"[ApiService] Login timeout via {baseUrl}");
+            }
+            catch (Exception ex)
+            {
+                lastError = ex.Message;
+                System.Diagnostics.Debug.WriteLine($"[ApiService] Login error via {baseUrl}: {ex.Message}");
+            }
+        }
+
+        return new AuthResponseDto
+        {
+            Success = false,
+            Message = string.IsNullOrWhiteSpace(lastError)
+                ? "Không thể kết nối máy chủ để đăng nhập"
+                : lastError
+        };
     }
 
     #endregion

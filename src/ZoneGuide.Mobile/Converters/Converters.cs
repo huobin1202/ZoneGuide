@@ -105,8 +105,10 @@ public class TrackingButtonTextConverter : IValueConverter
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is bool isTracking)
-            return isTracking ? "⏹ Dừng theo dõi" : "▶️ Bắt đầu theo dõi";
-        return "▶️ Bắt đầu theo dõi";
+            return isTracking
+                ? $"⏹ {AppLocalizer.Instance.Translate("tracking_stop", "Stop tracking")}"
+                : $"▶️ {AppLocalizer.Instance.Translate("tracking_start", "Start tracking")}";
+        return $"▶️ {AppLocalizer.Instance.Translate("tracking_start", "Start tracking")}";
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -159,8 +161,10 @@ public class SyncButtonTextConverter : IValueConverter
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is bool isSyncing)
-            return isSyncing ? "⏳ Đang đồng bộ..." : "🔄 Đồng bộ dữ liệu";
-        return "🔄 Đồng bộ dữ liệu";
+            return isSyncing
+                ? $"⏳ {AppLocalizer.Instance.Translate("sync_in_progress", "Syncing...")}"
+                : $"🔄 {AppLocalizer.Instance.Translate("settings_sync_button", "Sync data")}";
+        return $"🔄 {AppLocalizer.Instance.Translate("settings_sync_button", "Sync data")}";
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -200,8 +204,10 @@ public class OfflineStatusTextConverter : IValueConverter
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is bool isOffline)
-            return isOffline ? "✅ Đã tải offline" : "📥 Chưa tải offline";
-        return "📥 Chưa tải offline";
+            return isOffline
+                ? $"✅ {AppLocalizer.Instance.Translate("tour_detail_offline_ready", "Saved for offline")}"
+                : $"📥 {AppLocalizer.Instance.Translate("tour_detail_offline_prompt", "Not downloaded yet")}";
+        return $"📥 {AppLocalizer.Instance.Translate("tour_detail_offline_prompt", "Not downloaded yet")}";
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -218,8 +224,10 @@ public class OfflineButtonTextConverter : IValueConverter
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is bool isOffline)
-            return isOffline ? "Xóa" : "Tải xuống";
-        return "Tải xuống";
+            return isOffline
+                ? AppLocalizer.Instance.Translate("tour_detail_remove_offline", "Remove")
+                : AppLocalizer.Instance.Translate("tour_detail_download_offline", "Download");
+        return AppLocalizer.Instance.Translate("tour_detail_download_offline", "Download");
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -236,9 +244,14 @@ public class FlexibleImageSourceConverter : IValueConverter
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is not string raw || string.IsNullOrWhiteSpace(raw))
-            return "dotnet_bot.png";
+            return "location.svg";
 
         raw = raw.Trim();
+
+        if (raw.StartsWith("/", StringComparison.Ordinal) && !raw.Contains("://", StringComparison.Ordinal))
+        {
+            raw = raw[1..];
+        }
 
         try
         {
@@ -265,10 +278,10 @@ public class FlexibleImageSourceConverter : IValueConverter
         }
         catch
         {
-            return "dotnet_bot.png";
+            return "location.svg";
         }
 
-        return "dotnet_bot.png";
+        return "location.svg";
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
