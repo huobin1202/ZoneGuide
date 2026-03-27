@@ -3,23 +3,19 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
-<MudPaper Class="pa-4 mb-4" Elevation="0" Outlined="true">
-    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-        <MudStack Spacing="0">
-            <MudText Typo="Typo.h4">Danh sach Tours</MudText>
-            <MudText Typo="Typo.subtitle1" Class="mud-text-secondary">Quan ly cac tuyen tham quan du lich</MudText>
-        </MudStack>
+<MudText Typo="Typo.h4" Class="mb-4">Tour Management</MudText>
 
-        <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                   StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateDialog"
-                   Style="min-width:160px;">
-            Tao Tour moi
+<MudPaper Class="pa-4 mb-4" Elevation="1">
+    <MudToolBar>
+        <MudTextField @bind-Value="_searchString" Placeholder="Search Tours..." 
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      Immediate="true" Class="mr-4" Style="width: 300px;" />
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                   StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateDialog">
+            Add New Tour
         </MudButton>
-    </MudStack>
-
-    <MudTextField @bind-Value="_searchString" Placeholder="Tim tour..."
-                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                  Immediate="true" Class="mt-4" />
+    </MudToolBar>
 </MudPaper>
 
 @if (_loading)
@@ -28,114 +24,43 @@
 }
 else
 {
-    <MudGrid Spacing="3">
-        @foreach (var tour in FilteredTours)
-        {
-            <MudItem xs="12" sm="6" md="4" lg="4">
-                <MudPaper Outlined="true" Class="tour-card">
-                    @if (HasImage(tour))
-                    {
-                        <img src="@tour.ImageUrl" alt="@tour.Name" class="tour-card-image" />
-                    }
-                    else
-                    {
-                        <div class="tour-card-image tour-card-image-placeholder"></div>
-                    }
-
-                    <div class="tour-card-body">
-                        <MudText Typo="Typo.h6" Class="tour-name-ellipsis" title="@tour.Name">@tour.Name</MudText>
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">@TruncateText(tour.Description, 110)</MudText>
-
-                        <MudStack Row="true" Spacing="2" Class="mb-2">
-                            <MudText Typo="Typo.caption" Class="d-flex align-center mud-text-secondary">
-                                <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
-                                @FormatDuration(tour.EstimatedDurationMinutes)
-                            </MudText>
-                            <MudText Typo="Typo.caption" Class="d-flex align-center mud-text-secondary">
-                                <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1" />
-                                @tour.POIIds.Count diem
-                            </MudText>
-                        </MudStack>
-
-                        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="tour-edit-btn"
-                                       StartIcon="@Icons.Material.Filled.Edit" OnClick="@(() => OpenEditDialog(tour))">
-                                Chinh sua
-                            </MudButton>
-
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                           Color="Color.Error"
-                                           Variant="Variant.Outlined"
-                                           OnClick="@(() => ConfirmDelete(tour))" />
-                        </MudStack>
-                    </div>
-                </MudPaper>
-            </MudItem>
-        }
-
-        <MudItem xs="12" sm="6" md="4" lg="4">
-            <MudPaper Outlined="true" Class="tour-create-card" @onclick="OpenCreateDialog">
-                <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="fill-height" Spacing="2">
-                    <MudIcon Icon="@Icons.Material.Filled.Add" Size="Size.Large" Color="Color.Default" />
-                    <MudText Typo="Typo.h6" Class="mud-text-secondary">Them Tour moi</MudText>
-                </MudStack>
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
-
-    @if (!FilteredTours.Any())
-    {
-        <MudAlert Severity="Severity.Info" Class="mt-4">
-            Khong tim thay tour phu hop voi tu khoa.
-        </MudAlert>
-    }
+    <MudTable Items="@FilteredTours" Dense="true" Hover="true" Bordered="true" Striped="true">
+        <HeaderContent>
+            <MudTh><MudTableSortLabel SortBy="new Func<TourDto, object>(x => x.Name)">Name</MudTableSortLabel></MudTh>
+            <MudTh>Description</MudTh>
+            <MudTh>Duration</MudTh>
+            <MudTh>Distance</MudTh>
+            <MudTh>Difficulty</MudTh>
+            <MudTh>POIs</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh Style="width: 150px;">Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Description">@TruncateText(context.Description, 50)</MudTd>
+            <MudTd DataLabel="Duration">@FormatDuration(context.EstimatedDurationMinutes)</MudTd>
+            <MudTd DataLabel="Distance">@(context.DistanceKm.ToString("F1")) km</MudTd>
+            <MudTd DataLabel="Difficulty">@context.Difficulty</MudTd>
+            <MudTd DataLabel="POIs">@context.POIIds.Count</MudTd>
+            <MudTd DataLabel="Status">
+                <MudChip T="string" Color="@(context.IsActive ? Color.Success : Color.Error)" Size="Size.Small">
+                    @(context.IsActive ? "Active" : "Inactive")
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Actions">
+                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" 
+                               OnClick="@(() => ViewTourDetails(context.Id))" Title="View Details" />
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" 
+                               OnClick="@(() => OpenEditDialog(context))" Title="Edit" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" 
+                               Color="Color.Error" OnClick="@(() => ConfirmDelete(context))" Title="Delete" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No tours found.</MudText>
+        </NoRecordsContent>
+    </MudTable>
 }
-
-<style>
-    .tour-card {
-        border-radius: 16px;
-        overflow: hidden;
-    }
-
-    .tour-card-image {
-        width: 100%;
-        height: 170px;
-        object-fit: cover;
-        display: block;
-    }
-
-    .tour-card-image-placeholder {
-        background: linear-gradient(140deg, #23243b, #0f111c 60%, #3d3f5c);
-    }
-
-    .tour-card-body {
-        padding: 20px;
-    }
-
-    .tour-name-ellipsis {
-        display: block;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .tour-edit-btn {
-        flex: 1;
-    }
-
-    .tour-create-card {
-        height: 100%;
-        min-height: 356px;
-        border-style: dashed;
-        border-width: 2px;
-        cursor: pointer;
-        border-color: #d8dceb;
-    }
-
-    .fill-height {
-        min-height: 356px;
-    }
-</style>
 
 @code {
     private List<TourDto> _tours = new();
@@ -147,11 +72,6 @@ else
         : _tours.Where(t => 
             t.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
             (t.Description?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false));
-
-    private static bool HasImage(TourDto tour)
-    {
-        return !string.IsNullOrWhiteSpace(tour.ImageUrl);
-    }
 
     protected override async Task OnInitializedAsync()
     {

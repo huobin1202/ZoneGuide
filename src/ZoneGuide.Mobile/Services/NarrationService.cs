@@ -17,18 +17,14 @@ public class NarrationService : INarrationService, IDisposable
 
     private readonly ITTSService _ttsService;
     private readonly IAudioService _audioService;
-    private readonly IAnalyticsRepository _analyticsRepository;
-    private readonly ISettingsService _settingsService;
     
     private readonly ConcurrentQueue<NarrationQueueItem> _queue = new();
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private readonly object _lock = new();
     
     private NarrationQueueItem? _currentItem;
-    private NarrationHistory? _activeHistory;
     private CancellationTokenSource? _cancellationTokenSource;
     private bool _isProcessing;
-    private readonly string _sessionId = Guid.NewGuid().ToString("N");
 
     public bool IsPlaying { get; private set; }
     public bool IsPaused { get; private set; }
@@ -36,16 +32,10 @@ public class NarrationService : INarrationService, IDisposable
     public IReadOnlyList<NarrationQueueItem> Queue => _queue.ToList().AsReadOnly();
     public double CurrentProgress { get; private set; }
 
-    public NarrationService(
-        ITTSService ttsService,
-        IAudioService audioService,
-        IAnalyticsRepository analyticsRepository,
-        ISettingsService settingsService)
+    public NarrationService(ITTSService ttsService, IAudioService audioService)
     {
         _ttsService = ttsService;
         _audioService = audioService;
-        _analyticsRepository = analyticsRepository;
-        _settingsService = settingsService;
 
         // Subscribe to events
         _ttsService.SpeakCompleted += OnTTSCompleted;
@@ -138,7 +128,6 @@ public class NarrationService : INarrationService, IDisposable
             
             await _ttsService.StopAsync();
             await _audioService.StopAsync();
-            await CloseHistoryRecordAsync(false);
             
             NarrationStopped?.Invoke(this, stoppedItem);
             _currentItem = null;
@@ -198,7 +187,6 @@ public class NarrationService : INarrationService, IDisposable
             {
                 _currentItem = item;
                 _currentItem.Status = NarrationStatus.Playing;
-                await StartHistoryRecordAsync(_currentItem);
                 
                 IsPlaying = true;
                 IsPaused = false;
@@ -245,7 +233,6 @@ public class NarrationService : INarrationService, IDisposable
                     if (!_cancellationTokenSource.Token.IsCancellationRequested)
                     {
                         _currentItem.Status = NarrationStatus.Completed;
-                        await CloseHistoryRecordAsync(true);
                         NarrationCompleted?.Invoke(this, _currentItem);
                     }
                 }
@@ -256,7 +243,6 @@ public class NarrationService : INarrationService, IDisposable
                 catch (Exception ex)
                 {
                     _currentItem.Status = NarrationStatus.Error;
-                    await CloseHistoryRecordAsync(false);
                     NarrationError?.Invoke(this, ex.Message);
                 }
 
@@ -287,78 +273,6 @@ public class NarrationService : INarrationService, IDisposable
     {
         CurrentProgress = progress;
         ProgressUpdated?.Invoke(this, progress);
-    }
-
-    private async Task StartHistoryRecordAsync(NarrationQueueItem item)
-    {
-        try
-        {
-            _activeHistory = new NarrationHistory
-            {
-                AnonymousDeviceId = await GetAnonymousDeviceIdAsync(),
-                SessionId = _sessionId,
-                POIId = item.POI.Id,
-                POIName = item.POI.Name,
-                Language = string.IsNullOrWhiteSpace(item.Language)
-                    ? _settingsService.Settings.PreferredLanguage
-                    : item.Language,
-                StartTime = DateTime.UtcNow,
-                TriggerType = item.TriggerType.ToString(),
-                TriggerDistance = item.TriggerDistance,
-                TriggerLatitude = 0,
-                TriggerLongitude = 0
-            };
-
-            await _analyticsRepository.InsertNarrationAsync(_activeHistory);
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[NarrationService] StartHistoryRecordAsync failed: {ex.Message}");
-            _activeHistory = null;
-        }
-    }
-
-    private async Task CloseHistoryRecordAsync(bool completed)
-    {
-        if (_activeHistory == null)
-            return;
-
-        try
-        {
-            var endedAt = DateTime.UtcNow;
-            _activeHistory.EndTime = endedAt;
-            _activeHistory.DurationSeconds = Math.Max(1, (int)Math.Round((endedAt - _activeHistory.StartTime).TotalSeconds));
-            _activeHistory.TotalDurationSeconds = _activeHistory.DurationSeconds;
-            _activeHistory.Completed = completed;
-
-            await _analyticsRepository.UpdateNarrationAsync(_activeHistory);
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[NarrationService] CloseHistoryRecordAsync failed: {ex.Message}");
-        }
-        finally
-        {
-            _activeHistory = null;
-        }
-    }
-
-    private async Task<string> GetAnonymousDeviceIdAsync()
-    {
-        try
-        {
-            var deviceId = await _settingsService.GetAsync<string>("anonymous_device_id");
-            if (!string.IsNullOrWhiteSpace(deviceId))
-                return deviceId;
-
-            deviceId = Guid.NewGuid().ToString("N")[..16];
-            await _settingsService.SetAsync("anonymous_device_id", deviceId);
-            return deviceId;
-        }
-        catch
-        {
-            return Guid.NewGuid().ToString("N")[..16];
-        }
     }
 
     public void Dispose()

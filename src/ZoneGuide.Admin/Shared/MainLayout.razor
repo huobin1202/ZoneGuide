@@ -5,8 +5,6 @@
 @inject HttpClient Http
 @using ZoneGuide.Shared.Models
 
-@if (_initialized)
-{
 <MudLayout>
     <MudAppBar Elevation="1">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
@@ -16,7 +14,7 @@
 
         @if (_currentUser != null)
         {
-            <MudAvatar Size="Size.Medium" Class="mr-3 cursor-pointer" Color="Color.Primary" Style="background-color: #22ffd6 !important;"
+            <MudAvatar Size="Size.Medium" Class="mr-3 cursor-pointer" Color="Color.Primary" Style="background-color: #22ffd6 !important;" 
             onclick="@(() => Navigation.NavigateTo("/profile"))">
                     @if (!string.IsNullOrEmpty(_currentUser.AvatarUrl))
                     {
@@ -80,16 +78,16 @@
             else if (_isContributor)
             {
                 <!-- Contributor Menu -->
-                <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
+                <MudNavLink Href="/my-contributions" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
                     Trang chủ
                 </MudNavLink>
                 <MudDivider Class="my-2" />
-                <MudText Typo="Typo.caption" Class="px-4 mud-text-secondary">Quản lý</MudText>
-                <MudNavLink Href="/contributor-pois" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Map">
+                <MudText Typo="Typo.caption" Class="px-4 mud-text-secondary">Đóng góp của tôi</MudText>
+                <MudNavLink Href="/my-contributions" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.EditLocation">
                     Quản lý POI
                 </MudNavLink>
-                <MudNavLink Href="/my-contributions" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.EditLocation">
-                    Đóng góp của tôi
+                <MudNavLink Href="/poi-map" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Map">
+                    Xem bản đồ POI
                 </MudNavLink>
                 <MudDivider Class="my-2" />
                 <MudText Typo="Typo.caption" Class="px-4 mud-text-secondary">Tài khoản</MudText>
@@ -116,13 +114,6 @@
         </MudContainer>
     </MudMainContent>
 </MudLayout>
-}
-else
-{
-    <MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center" Style="height: 100vh;">
-        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-    </MudContainer>
-}
 
 @code {
     private bool _drawerOpen = true;
@@ -130,17 +121,16 @@ else
     private bool _isAdmin => _currentUser?.Role == "Admin";
     private bool _isContributor => _currentUser?.Role == "Contributor";
     private bool _initialized = false;
-
+    protected override async Task OnInitializedAsync()
+    {
+        // Load user từ LocalStorage
+        _currentUser = await LocalStorage.GetItemAsync<UserDto>("user");
+    }
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             await LoadCurrentUser();
-            if (_currentUser == null)
-            {
-                Navigation.NavigateTo("/login");
-                return;
-            }
             _initialized = true;
             StateHasChanged();
         }

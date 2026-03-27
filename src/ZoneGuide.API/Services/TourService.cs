@@ -29,7 +29,6 @@ public class TourService : ITourService
     public async Task<List<TourDto>> GetAllAsync()
     {
         var entities = await _context.Tours
-            .Include(t => t.POIIds)
             .Where(t => t.IsActive)
             .OrderBy(t => t.Name)
             .ToListAsync();
@@ -42,9 +41,7 @@ public class TourService : ITourService
         if (!int.TryParse(id, out var intId))
             return null;
             
-        var entity = await _context.Tours
-            .Include(t => t.POIIds)
-            .FirstOrDefaultAsync(t => t.Id == intId);
+        var entity = await _context.Tours.FindAsync(intId);
         return entity != null ? MapToDto(entity) : null;
     }
 
@@ -53,9 +50,7 @@ public class TourService : ITourService
         if (!int.TryParse(id, out var intId))
             return null;
             
-        var entity = await _context.Tours
-            .Include(t => t.POIIds)
-            .FirstOrDefaultAsync(t => t.Id == intId);
+        var entity = await _context.Tours.FindAsync(intId);
         if (entity == null)
             return null;
 
@@ -97,14 +92,6 @@ public class TourService : ITourService
                         POIId = poiIntId,
                         Order = i
                     });
-
-                    var poi = await _context.POIs.FindAsync(poiIntId);
-                    if (poi != null)
-                    {
-                        poi.TourId = entity.Id;
-                        poi.OrderInTour = i;
-                        poi.UpdatedAt = DateTime.UtcNow;
-                    }
                 }
             }
             await _context.SaveChangesAsync();
@@ -139,21 +126,8 @@ public class TourService : ITourService
         // Update POI associations if provided
         if (dto.POIIds != null)
         {
-            var oldPoiIds = entity.POIIds.Select(p => p.POIId).ToList();
-
             // Remove existing POI associations
             _context.TourPOIs.RemoveRange(entity.POIIds);
-
-            foreach (var oldPoiId in oldPoiIds)
-            {
-                var oldPoi = await _context.POIs.FindAsync(oldPoiId);
-                if (oldPoi != null && oldPoi.TourId == intId)
-                {
-                    oldPoi.TourId = null;
-                    oldPoi.OrderInTour = 0;
-                    oldPoi.UpdatedAt = DateTime.UtcNow;
-                }
-            }
             
             // Add new associations with order
             for (int i = 0; i < dto.POIIds.Count; i++)
@@ -166,14 +140,6 @@ public class TourService : ITourService
                         POIId = poiIntId,
                         Order = i
                     });
-
-                    var poi = await _context.POIs.FindAsync(poiIntId);
-                    if (poi != null)
-                    {
-                        poi.TourId = intId;
-                        poi.OrderInTour = i;
-                        poi.UpdatedAt = DateTime.UtcNow;
-                    }
                 }
             }
             entity.POICount = dto.POIIds.Count;
@@ -211,19 +177,7 @@ public class TourService : ITourService
             return null;
 
         // Remove existing POI associations
-        var oldPoiIds = entity.POIIds.Select(p => p.POIId).ToList();
         _context.TourPOIs.RemoveRange(entity.POIIds);
-
-        foreach (var oldPoiId in oldPoiIds)
-        {
-            var oldPoi = await _context.POIs.FindAsync(oldPoiId);
-            if (oldPoi != null && oldPoi.TourId == intId)
-            {
-                oldPoi.TourId = null;
-                oldPoi.OrderInTour = 0;
-                oldPoi.UpdatedAt = DateTime.UtcNow;
-            }
-        }
 
         // Add new associations with order
         for (int i = 0; i < poiIds.Count; i++)
@@ -236,14 +190,6 @@ public class TourService : ITourService
                     POIId = poiIntId,
                     Order = i
                 });
-
-                var poi = await _context.POIs.FindAsync(poiIntId);
-                if (poi != null)
-                {
-                    poi.TourId = intId;
-                    poi.OrderInTour = i;
-                    poi.UpdatedAt = DateTime.UtcNow;
-                }
             }
         }
 
@@ -272,7 +218,7 @@ public class TourService : ITourService
             DifficultyLevel = entity.DifficultyLevel,
             WheelchairAccessible = entity.WheelchairAccessible,
             IsActive = entity.IsActive,
-            POIIds = entity.POIIds?.OrderBy(p => p.Order).Select(p => p.POIId.ToString()).ToList() ?? new List<string>()
+            POIIds = entity.POIIds?.Select(p => p.POIId.ToString()).ToList() ?? new List<string>()
         };
     }
 }

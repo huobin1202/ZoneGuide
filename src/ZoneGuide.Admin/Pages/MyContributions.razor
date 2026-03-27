@@ -23,6 +23,15 @@
                             Xin chào, @_currentUser?.DisplayName! Quản lý các POI bạn đã đóng góp.
                         </MudText>
                     </div>
+                    <div class="d-flex gap-2">
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Primary" 
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="OpenAddDialog">
+                            Thêm POI mới
+                        </MudButton>
+              
+                    </div>
                 </div>
             </MudPaper>
         </MudItem>
@@ -244,16 +253,52 @@
         };
     }
     
- 
+    private async Task OpenAddDialog()
+    {
+        var parameters = new DialogParameters<ContributorPOIDialog>
+        {
+            { x => x.Contribution, null },
+            { x => x.IsEdit, false }
+        };
+        
+        var options = new DialogOptions 
+        { 
+            MaxWidth = MaxWidth.Medium, 
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+        
+        var dialog = await DialogService.ShowAsync<ContributorPOIDialog>("Thêm POI mới", parameters, options);
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled)
+        {
+            await LoadContributions();
+        }
+    }
+    
     private async Task OpenEditDialog(POIContributionDto contribution)
     {
-        // Điều hướng tới trang Quản lý POI với cờ/id hoặc thông số để nó tự mở sửa.
-        // Tuy nhiên do chưa có hệ thống parameter query trọn vẹn ở màn hình ContributorPOIs
-        // để auto-open edit mode, cách tốt nhất là chuyển hướng sang trang Contributor POIs nói chung,
-        // hoặc lưu tạm ID cần sửa xuống LocalStorage rồi điều hướng qua đó xử lý tiếp.
+        var parameters = new DialogParameters<ContributorPOIDialog>
+        {
+            { x => x.Contribution, contribution },
+            { x => x.IsEdit, true }
+        };
         
-        await LocalStorage.SetItemAsync("edit_poi_id", contribution.Id);
-        Navigation.NavigateTo("/contributor-pois");
+        var options = new DialogOptions 
+        { 
+            MaxWidth = MaxWidth.Medium, 
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+        
+        var dialog = await DialogService.ShowAsync<ContributorPOIDialog>("Sửa POI", parameters, options);
+        var result = await dialog.Result;
+        
+        if (result != null && !result.Canceled)
+        {
+            await LoadContributions();
+        }
     }
     
     private async Task SubmitForReview(POIContributionDto contribution)

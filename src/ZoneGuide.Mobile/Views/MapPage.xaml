@@ -3,115 +3,98 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
              xmlns:maps="clr-namespace:Microsoft.Maui.Controls.Maps;assembly=Microsoft.Maui.Controls.Maps"
-             xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
              x:Class="ZoneGuide.Mobile.Views.MapPage"
              x:DataType="vm:MapViewModel"
-             Shell.NavBarIsVisible="False"
-             BackgroundColor="#F6F7FB">
+             Title="Bản đồ">
 
-    <Grid RowDefinitions="Auto,*">
-        <Border Grid.Row="0"
-                BackgroundColor="{StaticResource Primary}"
-                StrokeThickness="0"
-                StrokeShape="RoundRectangle 0,0,28,28"
-                Padding="20,28,20,24">
-            <VerticalStackLayout Spacing="18">
-                    <Label Text="{local:Translate map_title}"
-                       FontSize="30"
-                       FontAttributes="Bold"
-                       TextColor="White" />
+    <Grid RowDefinitions="*, Auto, Auto">
+        
+        <!-- Map -->
+        <maps:Map x:Name="MainMap"
+                  Grid.Row="0"
+                  IsShowingUser="True"
+                  MapType="Street">
+        </maps:Map>
 
-                <Border BackgroundColor="White"
-                        StrokeThickness="0"
-                        StrokeShape="RoundRectangle 18"
-                        Padding="8,0">
-                    <SearchBar Placeholder="{local:Translate map_search_placeholder}"
-                               Text="{Binding SearchQuery}"
-                               SearchCommand="{Binding PerformSearchCommand}"
-                               BackgroundColor="Transparent" />
-                </Border>
+        <!-- Search Bar Overlay -->
+        <Frame Grid.Row="0"
+               Margin="16,16,16,0"
+               Padding="0"
+               CornerRadius="8"
+               VerticalOptions="Start"
+               BackgroundColor="White"
+               HasShadow="True">
+            <VerticalStackLayout>
+                <SearchBar Placeholder="Tìm kiếm địa điểm..."
+                           Text="{Binding SearchQuery}"
+                           SearchCommand="{Binding PerformSearchCommand}" />
+                <Picker Title="Lọc theo danh mục"
+                        ItemsSource="{Binding Categories}"
+                        SelectedItem="{Binding SelectedCategory}"
+                        Margin="16,0,16,8" />
             </VerticalStackLayout>
-        </Border>
+        </Frame>
 
-        <Grid Grid.Row="1"
-              Margin="0,12,0,0">
-            <maps:Map x:Name="MainMap"
-                      IsShowingUser="True"
-                      MapType="Street" />
-
-            <Button Text="◎"
-                    WidthRequest="52"
-                    HeightRequest="52"
-                    CornerRadius="26"
-                    Padding="0"
+        <!-- Floating buttons -->
+        <VerticalStackLayout Grid.Row="0"
+                             HorizontalOptions="End"
+                             VerticalOptions="End"
+                             Margin="16"
+                             Spacing="8">
+            
+            <Button Text="📍"
+                    WidthRequest="50"
+                    HeightRequest="50"
+                    CornerRadius="25"
+                    BackgroundColor="{StaticResource Primary}"
+                    TextColor="White"
                     FontSize="20"
-                    HorizontalOptions="End"
-                    VerticalOptions="Start"
-                    Margin="0,18,18,0"
                     Command="{Binding CenterOnUserCommand}" />
+        </VerticalStackLayout>
 
-            <Border BackgroundColor="White"
-                    StrokeThickness="0"
-                    StrokeShape="RoundRectangle 22"
-                    Margin="16,0,16,16"
-                    Padding="14"
-                    VerticalOptions="End"
-                    IsVisible="{Binding SelectedPOI, Converter={StaticResource IsNotNullConverter}}">
-                <Grid ColumnDefinitions="*,Auto"
-                      ColumnSpacing="12">
-                    <VerticalStackLayout Spacing="4">
-                        <Label Text="{Binding SelectedPOI.Name}"
-                               FontSize="18"
-                               FontAttributes="Bold" />
-                        <Label Text="{Binding SelectedPOI.ShortDescription}"
-                               FontSize="13"
-                               TextColor="{StaticResource Gray500}"
-                               MaxLines="2" />
-                        <HorizontalStackLayout Spacing="8">
-                            <Border BackgroundColor="#F2EFFF"
-                                    StrokeThickness="0"
-                                    StrokeShape="RoundRectangle 10"
-                                    Padding="8,2">
-                                    <Label Text="{Binding SelectedPOI.Category, Converter={StaticResource LocalizedCategoryConverter}}"
-                                       FontSize="11"
-                                       TextColor="{StaticResource Primary}" />
-                            </Border>
-                            <Label Text="{Binding SelectedPOI.Priority, StringFormat='Ưu tiên {0}'}"
-                                   FontSize="11"
-                                   TextColor="{StaticResource Gray500}"
-                                   VerticalTextAlignment="Center" />
-                        </HorizontalStackLayout>
-                    </VerticalStackLayout>
+        <!-- POI Info Card -->
+        <Frame Grid.Row="1"
+               Margin="16,8"
+               Padding="12"
+               CornerRadius="12"
+               BackgroundColor="White"
+               IsVisible="{Binding SelectedPOI, Converter={StaticResource IsNotNullConverter}}">
+            <Grid ColumnDefinitions="*, Auto">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="{Binding SelectedPOI.Name}"
+                           FontSize="16"
+                           FontAttributes="Bold" />
+                    <Label Text="{Binding SelectedPOI.ShortDescription}"
+                           FontSize="12"
+                           TextColor="Gray"
+                           MaxLines="2" />
+                </VerticalStackLayout>
+                
+                <HorizontalStackLayout Grid.Column="1" Spacing="8">
+                    <Button Text="▶"
+                            WidthRequest="44"
+                            HeightRequest="44"
+                            CornerRadius="22"
+                            BackgroundColor="{StaticResource Primary}"
+                            Command="{Binding PlaySelectedPOICommand}" />
+                    <Button Text="🧭"
+                            WidthRequest="44"
+                            HeightRequest="44"
+                            CornerRadius="22"
+                            BackgroundColor="{StaticResource Secondary}"
+                            Command="{Binding NavigateToPOICommand}" />
+                </HorizontalStackLayout>
+            </Grid>
+        </Frame>
 
-                    <VerticalStackLayout Grid.Column="1"
-                                         Spacing="10"
-                                         VerticalOptions="Center">
-                        <Button Text="▶"
-                                WidthRequest="46"
-                                HeightRequest="46"
-                                CornerRadius="23"
-                                Padding="0"
-                                FontSize="16"
-                                Command="{Binding PlaySelectedPOICommand}" />
-                        <Button Text="↗"
-                                WidthRequest="40"
-                                HeightRequest="40"
-                                CornerRadius="20"
-                                Padding="0"
-                                FontSize="15"
-                                BackgroundColor="#EEE9FF"
-                                TextColor="{StaticResource Primary}"
-                                Command="{Binding NavigateToPOICommand}" />
-                    </VerticalStackLayout>
-                </Grid>
-            </Border>
+        <!-- Loading indicator -->
+        <ActivityIndicator Grid.Row="0"
+                           IsRunning="{Binding IsLoading}"
+                           IsVisible="{Binding IsLoading}"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"
+                           Color="{StaticResource Primary}" />
 
-            <ActivityIndicator IsRunning="{Binding IsLoading}"
-                               IsVisible="{Binding IsLoading}"
-                               HorizontalOptions="Center"
-                               VerticalOptions="Center"
-                               Color="{StaticResource Primary}" />
-        </Grid>
     </Grid>
 
 </ContentPage>
