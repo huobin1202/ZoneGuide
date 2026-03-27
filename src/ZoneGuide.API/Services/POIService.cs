@@ -57,26 +57,12 @@ public interface IPOIService
     {
         if (!int.TryParse(tourId, out var intTourId))
             return new List<POIDto>();
-
-        var poiIdsByOrder = await _context.TourPOIs
-            .Where(tp => tp.TourId == intTourId)
-            .OrderBy(tp => tp.Order)
-            .Select(tp => tp.POIId)
-            .ToListAsync();
-
-        if (!poiIdsByOrder.Any())
-            return new List<POIDto>();
-
-        var poiIdSet = poiIdsByOrder.ToHashSet();
-        var poiById = await _context.POIs
+            
+        var entities = await _context.POIs
             .Include(p => p.Translations)
-            .Where(p => p.IsActive && poiIdSet.Contains(p.Id))
-            .ToDictionaryAsync(p => p.Id);
-
-        var entities = poiIdsByOrder
-            .Where(id => poiById.ContainsKey(id))
-            .Select(id => poiById[id])
-            .ToList();
+            .Where(p => p.TourId == intTourId && p.IsActive)
+            .OrderBy(p => p.OrderInTour)
+            .ToListAsync();
 
         return entities.Select(MapToDto).ToList();
     }
@@ -140,7 +126,6 @@ public interface IPOIService
             Longitude = dto.Longitude,
             TriggerRadiusMeters = dto.TriggerRadiusMeters,
             TriggerRadius = dto.TriggerRadiusMeters,
-            ApproachRadius = dto.ApproachRadius,
             Priority = dto.Priority,
             AudioUrl = dto.AudioUrl,
             AudioDurationSeconds = dto.AudioDurationSeconds,
@@ -179,7 +164,6 @@ public interface IPOIService
             entity.TriggerRadiusMeters = dto.TriggerRadiusMeters.Value;
             entity.TriggerRadius = dto.TriggerRadiusMeters.Value;
         }
-        if (dto.ApproachRadius.HasValue) entity.ApproachRadius = dto.ApproachRadius.Value;
         if (dto.Priority.HasValue) entity.Priority = dto.Priority.Value;
         if (dto.AudioUrl != null) entity.AudioUrl = dto.AudioUrl;
         if (dto.AudioDurationSeconds.HasValue) entity.AudioDurationSeconds = dto.AudioDurationSeconds.Value;
@@ -240,28 +224,8 @@ public interface IPOIService
         if (entity == null)
             return false;
 
-        var deletedAt = DateTime.UtcNow;
-
         entity.IsActive = false;
-        entity.UpdatedAt = deletedAt;
-
-        var deletedRecord = await _context.DeletedRecords
-            .FirstOrDefaultAsync(d => d.EntityType == "POI" && d.EntityId == entity.Id.ToString());
-
-        if (deletedRecord == null)
-        {
-            _context.DeletedRecords.Add(new DeletedRecordEntity
-            {
-                EntityType = "POI",
-                EntityId = entity.Id.ToString(),
-                DeletedAt = deletedAt
-            });
-        }
-        else
-        {
-            deletedRecord.DeletedAt = deletedAt;
-        }
-
+        entity.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         return true;
     }

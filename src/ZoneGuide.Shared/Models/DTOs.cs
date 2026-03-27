@@ -69,7 +69,6 @@ public class CreatePOIDto
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public double TriggerRadiusMeters { get; set; } = 50;
-    public double ApproachRadius { get; set; } = 100;
     public int Priority { get; set; } = 1;
     public string? AudioUrl { get; set; }
     public int? AudioDurationSeconds { get; set; }
@@ -91,7 +90,6 @@ public class UpdatePOIDto
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
     public double? TriggerRadiusMeters { get; set; }
-    public double? ApproachRadius { get; set; }
     public int? Priority { get; set; }
     public string? AudioUrl { get; set; }
     public int? AudioDurationSeconds { get; set; }

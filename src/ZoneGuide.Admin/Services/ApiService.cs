@@ -25,9 +25,6 @@ public interface IApiService
     Task<List<TopPOIDto>> GetTopPOIsAsync(int count = 10);
     Task<List<HeatmapPointDto>> GetHeatmapDataAsync(DateTime? from = null, DateTime? to = null);
 
-    // TTS
-    Task<string?> GenerateTtsAsync(string text, string language);
-
     // Generic
     Task<T?> GetAsync<T>(string url) where T : class;
 }
@@ -253,24 +250,6 @@ public class ApiService : IApiService
         try
         {
             return await _httpClient.GetFromJsonAsync<T>($"api/{url}");
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    public async Task<string?> GenerateTtsAsync(string text, string language)
-    {
-        try
-        {
-            var response = await _httpClient.PostAsJsonAsync("api/tts/generate", new { text, language });
-            if (response.IsSuccessStatusCode)
-            {
-                var result = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
-                return result.GetProperty("audioUrl").GetString();
-            }
-            return null;
         }
         catch
         {

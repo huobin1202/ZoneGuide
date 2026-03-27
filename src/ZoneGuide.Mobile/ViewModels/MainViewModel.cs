@@ -66,7 +66,6 @@ public partial class MainViewModel : ObservableObject
         _geofenceService.GeofenceTriggered += OnGeofenceTriggered;
         _narrationService.NarrationStarted += OnNarrationStarted;
         _narrationService.NarrationCompleted += OnNarrationCompleted;
-        _narrationService.NarrationStopped += OnNarrationStopped;
         _narrationService.ProgressUpdated += OnProgressUpdated;
     }
 
@@ -210,6 +209,9 @@ public partial class MainViewModel : ObservableObject
             CurrentNarration = item;
             StatusMessage = $"Đang phát: {item.POI.Name}";
         });
+
+        // Lưu lịch sử narration
+        _ = SaveNarrationHistoryAsync(item, true);
     }
 
     private void OnNarrationCompleted(object? sender, NarrationQueueItem item)
@@ -221,17 +223,9 @@ public partial class MainViewModel : ObservableObject
             NarrationProgress = 0;
             StatusMessage = "Hoàn thành phát";
         });
-    }
 
-    private void OnNarrationStopped(object? sender, NarrationQueueItem item)
-    {
-        MainThread.BeginInvokeOnMainThread(() =>
-        {
-            IsPlaying = false;
-            CurrentNarration = null;
-            NarrationProgress = 0;
-            StatusMessage = "Đã dừng phát";
-        });
+        // Cập nhật lịch sử narration
+        _ = SaveNarrationHistoryAsync(item, false);
     }
 
     private void OnProgressUpdated(object? sender, double progress)
@@ -282,6 +276,28 @@ public partial class MainViewModel : ObservableObject
         };
 
         await _analyticsRepository.InsertLocationAsync(history);
+    }
+
+    private async Task SaveNarrationHistoryAsync(NarrationQueueItem item, bool isStart)
+    {
+        if (isStart)
+        {
+            var history = new NarrationHistory
+            {
+                AnonymousDeviceId = await GetAnonymousDeviceIdAsync(),
+                SessionId = _sessionId,
+                POIId = item.POI.Id,
+                POIName = item.POI.Name,
+                Language = item.Language,
+                StartTime = DateTime.UtcNow,
+                TriggerType = item.TriggerType.ToString(),
+                TriggerDistance = item.TriggerDistance,
+                TriggerLatitude = CurrentLocation?.Latitude ?? 0,
+                TriggerLongitude = CurrentLocation?.Longitude ?? 0
+            };
+
+            await _analyticsRepository.InsertNarrationAsync(history);
+        }
     }
 
     private async Task<string> GetAnonymousDeviceIdAsync()

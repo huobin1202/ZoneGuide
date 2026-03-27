@@ -64,7 +64,6 @@ public interface IAnalyticsRepository
     // Narration History
     Task<int> InsertNarrationAsync(NarrationHistory narration);
     Task<int> UpdateNarrationAsync(NarrationHistory narration);
-    Task<int> DeleteNarrationAsync(int narrationId);
     Task<List<NarrationHistory>> GetNarrationsBySessionAsync(string sessionId);
     Task<List<NarrationHistory>> GetNarrationsByPOIAsync(int poiId);
     Task<List<NarrationHistory>> GetNarrationsByDateRangeAsync(DateTime start, DateTime end);

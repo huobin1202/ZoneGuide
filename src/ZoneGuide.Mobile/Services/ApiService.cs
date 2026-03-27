@@ -25,34 +25,6 @@ public class ApiService
     private const string BaseUrl = "https://localhost:56040/api/";
 #endif
 
-    public static string NormalizeMediaUrl(string url)
-    {
-        if (string.IsNullOrWhiteSpace(url))
-            return string.Empty;
-
-        var trimmed = url.Trim();
-        if (Uri.TryCreate(trimmed, UriKind.Absolute, out _))
-            return trimmed;
-
-#if ANDROID
-        var serverRoot = $"http://{ServerIP}:{ServerPort}";
-#else
-        const string serverRoot = "https://localhost:56040";
-#endif
-
-        if (trimmed.StartsWith("/", StringComparison.Ordinal))
-            return $"{serverRoot}{trimmed}";
-
-        if (trimmed.StartsWith("uploads/", StringComparison.OrdinalIgnoreCase) ||
-            trimmed.StartsWith("images/", StringComparison.OrdinalIgnoreCase) ||
-            trimmed.StartsWith("media/", StringComparison.OrdinalIgnoreCase))
-        {
-            return $"{serverRoot}/{trimmed}";
-        }
-
-        return trimmed;
-    }
-
     public ApiService()
     {
         var handler = new HttpClientHandler
