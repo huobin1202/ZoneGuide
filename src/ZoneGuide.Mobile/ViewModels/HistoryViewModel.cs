@@ -25,6 +25,9 @@ public partial class HistoryViewModel : ObservableObject
     private int totalHistoryCount;
 
     [ObservableProperty]
+    private string totalHistoryCountText = "0";
+
+    [ObservableProperty]
     private string totalDurationText = "0 phút";
 
     public ObservableCollection<HistoryDayGroup> HistoryGroups { get; } = new();
@@ -72,6 +75,7 @@ public partial class HistoryViewModel : ObservableObject
                 .ToList();
 
             TotalHistoryCount = items.Count;
+            TotalHistoryCountText = $"{TotalHistoryCount} {AppLocalizer.Instance.Translate("history_places_count")}";
             TotalDurationText = FormatTotalDuration(items.Sum(x => Math.Max(x.DurationSeconds, 0)));
 
             HistoryGroups.Clear();
@@ -135,7 +139,7 @@ public partial class HistoryViewModel : ObservableObject
 
         var confirm = await Shell.Current.DisplayAlert(
             AppLocalizer.Instance.Translate("history_delete"),
-            $"Xóa mục lịch sử của '{item.Title}'?",
+            string.Format(AppLocalizer.Instance.Translate("history_delete_confirm"), item.Title),
             AppLocalizer.Instance.Translate("alert_delete"),
             AppLocalizer.Instance.Translate("alert_cancel"));
 
@@ -206,27 +210,27 @@ public partial class HistoryViewModel : ObservableObject
     private static string FormatDuration(int seconds)
     {
         if (seconds <= 0)
-            return "0 phút";
+            return $"0 {AppLocalizer.Instance.Translate("duration_minute")}";
 
         var duration = TimeSpan.FromSeconds(seconds);
         if (duration.TotalHours >= 1)
-            return $"{(int)duration.TotalHours}g {duration.Minutes}p";
+            return $"{(int)duration.TotalHours}{AppLocalizer.Instance.Translate("duration_hour_short")} {duration.Minutes}{AppLocalizer.Instance.Translate("duration_minute_short")}";
         if (duration.TotalMinutes >= 1)
-            return $"{Math.Max(1, (int)Math.Round(duration.TotalMinutes))} phút";
+            return $"{Math.Max(1, (int)Math.Round(duration.TotalMinutes))} {AppLocalizer.Instance.Translate("duration_minute")}";
 
-        return $"{seconds}s";
+        return $"{seconds}{AppLocalizer.Instance.Translate("duration_second_short")}";
     }
 
     private static string FormatTotalDuration(int seconds)
     {
         if (seconds <= 0)
-            return "0 phút";
+            return $"0 {AppLocalizer.Instance.Translate("duration_minute")}";
 
         var duration = TimeSpan.FromSeconds(seconds);
         if (duration.TotalHours >= 1)
-            return $"{(int)duration.TotalHours}g {duration.Minutes}p";
+            return $"{(int)duration.TotalHours}{AppLocalizer.Instance.Translate("duration_hour_short")} {duration.Minutes}{AppLocalizer.Instance.Translate("duration_minute_short")}";
 
-        return $"{Math.Max(1, (int)Math.Round(duration.TotalMinutes))} phút";
+        return $"{Math.Max(1, (int)Math.Round(duration.TotalMinutes))} {AppLocalizer.Instance.Translate("duration_minute")}";
     }
 }
 

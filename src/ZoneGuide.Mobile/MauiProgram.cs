@@ -39,6 +39,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<ISettingsService, SettingsService>();
         builder.Services.AddSingleton<ISyncService, SyncService>();
         builder.Services.AddSingleton<ApiService>();
+        builder.Services.AddSingleton<IUserSessionService, UserSessionService>();
         
         // Register Repositories
         builder.Services.AddSingleton<IPOIRepository, POIRepository>();
@@ -54,6 +55,7 @@ public static class MauiProgram
         builder.Services.AddTransient<LanguageSelectionViewModel>();
         builder.Services.AddTransient<POIDetailViewModel>();
         builder.Services.AddTransient<TourDetailViewModel>();
+        builder.Services.AddTransient<LoginViewModel>();
         builder.Services.AddSingleton<SettingsViewModel>();
 
         // Register Views
@@ -66,6 +68,7 @@ public static class MauiProgram
         builder.Services.AddTransient<LanguageSelectionPage>();
         builder.Services.AddTransient<POIDetailPage>();
         builder.Services.AddTransient<TourDetailPage>();
+        builder.Services.AddTransient<LoginPage>();
         builder.Services.AddSingleton<SettingsPage>();
 
         return builder.Build();

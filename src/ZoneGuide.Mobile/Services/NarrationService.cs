@@ -19,6 +19,7 @@ public class NarrationService : INarrationService, IDisposable
     private readonly IAudioService _audioService;
     private readonly IAnalyticsRepository _analyticsRepository;
     private readonly ISettingsService _settingsService;
+    private readonly ApiService _apiService;
     
     private readonly ConcurrentQueue<NarrationQueueItem> _queue = new();
     private readonly SemaphoreSlim _semaphore = new(1, 1);
@@ -40,12 +41,14 @@ public class NarrationService : INarrationService, IDisposable
         ITTSService ttsService,
         IAudioService audioService,
         IAnalyticsRepository analyticsRepository,
-        ISettingsService settingsService)
+        ISettingsService settingsService,
+        ApiService apiService)
     {
         _ttsService = ttsService;
         _audioService = audioService;
         _analyticsRepository = analyticsRepository;
         _settingsService = settingsService;
+        _apiService = apiService;
 
         // Subscribe to events
         _ttsService.SpeakCompleted += OnTTSCompleted;
@@ -109,12 +112,13 @@ public class NarrationService : INarrationService, IDisposable
         if (!IsPlaying)
             return;
 
-        if (_currentItem != null)
+        var currentItem = _currentItem;
+        if (currentItem != null)
         {
-            _currentItem.Status = NarrationStatus.Paused;
+            currentItem.Status = NarrationStatus.Paused;
         }
 
-        if (!string.IsNullOrEmpty(_currentItem?.AudioPath))
+        if (!string.IsNullOrEmpty(currentItem?.AudioPath))
         {
             await _audioService.PauseAsync();
         }
@@ -131,17 +135,22 @@ public class NarrationService : INarrationService, IDisposable
     {
         _cancellationTokenSource?.Cancel();
 
-        if (_currentItem != null)
+        var currentItem = _currentItem;
+
+        if (currentItem != null)
         {
-            var stoppedItem = _currentItem;
-            stoppedItem.Status = NarrationStatus.Cancelled;
+            currentItem.Status = NarrationStatus.Cancelled;
             
             await _ttsService.StopAsync();
             await _audioService.StopAsync();
             await CloseHistoryRecordAsync(false);
             
-            NarrationStopped?.Invoke(this, stoppedItem);
-            _currentItem = null;
+            NarrationStopped?.Invoke(this, currentItem);
+
+            if (ReferenceEquals(_currentItem, currentItem))
+            {
+                _currentItem = null;
+            }
         }
 
         IsPlaying = false;
@@ -197,14 +206,14 @@ public class NarrationService : INarrationService, IDisposable
             while (_queue.TryDequeue(out var item) && !_cancellationTokenSource.Token.IsCancellationRequested)
             {
                 _currentItem = item;
-                _currentItem.Status = NarrationStatus.Playing;
-                await StartHistoryRecordAsync(_currentItem);
+                item.Status = NarrationStatus.Playing;
+                await StartHistoryRecordAsync(item);
                 
                 IsPlaying = true;
                 IsPaused = false;
                 CurrentProgress = 0;
 
-                NarrationStarted?.Invoke(this, _currentItem);
+                NarrationStarted?.Invoke(this, item);
 
                 try
                 {
@@ -244,9 +253,9 @@ public class NarrationService : INarrationService, IDisposable
 
                     if (!_cancellationTokenSource.Token.IsCancellationRequested)
                     {
-                        _currentItem.Status = NarrationStatus.Completed;
+                        item.Status = NarrationStatus.Completed;
                         await CloseHistoryRecordAsync(true);
-                        NarrationCompleted?.Invoke(this, _currentItem);
+                        NarrationCompleted?.Invoke(this, item);
                     }
                 }
                 catch (OperationCanceledException)
@@ -255,12 +264,15 @@ public class NarrationService : INarrationService, IDisposable
                 }
                 catch (Exception ex)
                 {
-                    _currentItem.Status = NarrationStatus.Error;
+                    item.Status = NarrationStatus.Error;
                     await CloseHistoryRecordAsync(false);
                     NarrationError?.Invoke(this, ex.Message);
                 }
 
-                _currentItem = null;
+                if (ReferenceEquals(_currentItem, item))
+                {
+                    _currentItem = null;
+                }
             }
         }
         finally
@@ -332,6 +344,7 @@ public class NarrationService : INarrationService, IDisposable
             _activeHistory.Completed = completed;
 
             await _analyticsRepository.UpdateNarrationAsync(_activeHistory);
+            await UploadSingleNarrationAsync(_activeHistory);
         }
         catch (Exception ex)
         {
@@ -358,6 +371,45 @@ public class NarrationService : INarrationService, IDisposable
         catch
         {
             return Guid.NewGuid().ToString("N")[..16];
+        }
+    }
+
+    private async Task UploadSingleNarrationAsync(NarrationHistory history)
+    {
+        try
+        {
+            var deviceId = await GetAnonymousDeviceIdAsync();
+            var payload = new AnalyticsUploadDto
+            {
+                AnonymousDeviceId = deviceId,
+                Locations = new List<LocationHistoryDto>(),
+                Narrations = new List<NarrationHistoryDto>
+                {
+                    new()
+                    {
+                        SessionId = history.SessionId,
+                        POIId = history.POIId.ToString(),
+                        POIName = history.POIName,
+                        Language = history.Language,
+                        StartTime = history.StartTime,
+                        EndTime = history.EndTime,
+                        DurationSeconds = history.DurationSeconds,
+                        TotalDurationSeconds = history.TotalDurationSeconds,
+                        Completed = history.Completed,
+                        TriggerType = history.TriggerType,
+                        TriggerDistance = history.TriggerDistance,
+                        TriggerLatitude = history.TriggerLatitude,
+                        TriggerLongitude = history.TriggerLongitude
+                    }
+                }
+            };
+
+            var uploaded = await _apiService.UploadAnalyticsAsync(payload);
+            System.Diagnostics.Debug.WriteLine($"[NarrationService] Auto upload analytics: {(uploaded ? "ok" : "failed")}");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[NarrationService] UploadSingleNarrationAsync failed: {ex.Message}");
         }
     }
 

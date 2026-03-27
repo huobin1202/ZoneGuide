@@ -116,6 +116,15 @@ public partial class POIListViewModel : ObservableObject
     [RelayCommand]
     private async Task RefreshAsync()
     {
+        try
+        {
+            await _syncService.SyncFromServerAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[POIListVM] Server sync failed on refresh (non-fatal): {ex.Message}");
+        }
+
         IsRefreshing = true;
         await LoadPOIsAsync();
     }
@@ -155,7 +164,15 @@ public partial class POIListViewModel : ObservableObject
         if (poi == null)
             return;
 
-        await Shell.Current.GoToAsync($"POIDetailPage?id={poi.Id}");
+        try
+        {
+            await Shell.Current.GoToAsync($"POIDetailPage?id={poi.Id}");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[POIListVM] ViewDetail error: {ex}");
+            await Shell.Current.DisplayAlert("Lỗi", "Không thể mở chi tiết địa điểm", "OK");
+        }
     }
 
     [RelayCommand]
@@ -164,9 +181,17 @@ public partial class POIListViewModel : ObservableObject
         if (poi == null)
             return;
 
-        var item = CreateQueueItem(poi);
-        await _narrationService.PlayImmediatelyAsync(item);
-        await Shell.Current.GoToAsync($"POIDetailPage?id={poi.Id}&autoplay=true");
+        try
+        {
+            var item = CreateQueueItem(poi);
+            await _narrationService.PlayImmediatelyAsync(item);
+            await Shell.Current.GoToAsync($"POIDetailPage?id={poi.Id}&autoplay=true");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[POIListVM] PlayPOI error: {ex}");
+            await Shell.Current.DisplayAlert("Lỗi", "Không thể phát thuyết minh", "OK");
+        }
     }
 
     internal static NarrationQueueItem CreateQueueItem(POI poi)
@@ -187,7 +212,7 @@ public partial class POIListViewModel : ObservableObject
     public static string ResolveImageSource(string? imageUrl)
     {
         if (string.IsNullOrWhiteSpace(imageUrl))
-            return "dotnet_bot.png";
+            return "location.svg";
 
         var trimmed = imageUrl.Trim();
 
@@ -305,7 +330,7 @@ public partial class POIDetailViewModel : ObservableObject
     private string playbackStatusText = "Ready";
 
     [ObservableProperty]
-    private string imageSource = "dotnet_bot.png";
+    private string imageSource = "location.svg";
 
     public POIDetailViewModel(
         IPOIRepository poiRepository,
@@ -356,16 +381,24 @@ public partial class POIDetailViewModel : ObservableObject
         if (CurrentPoi == null)
             return;
 
-        var isCurrentPoi = _narrationService.CurrentItem?.POI.Id == CurrentPoi.Id;
-        if (isCurrentPoi && _narrationService.IsPaused)
+        try
         {
-            await _narrationService.ResumeAsync();
-            SyncFromNarrationService();
-            return;
-        }
+            var isCurrentPoi = _narrationService.CurrentItem?.POI.Id == CurrentPoi.Id;
+            if (isCurrentPoi && _narrationService.IsPaused)
+            {
+                await _narrationService.ResumeAsync();
+                SyncFromNarrationService();
+                return;
+            }
 
-        await _narrationService.PlayImmediatelyAsync(POIListViewModel.CreateQueueItem(CurrentPoi));
-        SyncFromNarrationService();
+            await _narrationService.PlayImmediatelyAsync(POIListViewModel.CreateQueueItem(CurrentPoi));
+            SyncFromNarrationService();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[POIDetailVM] PlayAsync error: {ex}");
+            await Shell.Current.DisplayAlert("Lỗi", "Không thể phát thuyết minh", "OK");
+        }
     }
 
     [RelayCommand]
@@ -388,15 +421,29 @@ public partial class POIDetailViewModel : ObservableObject
     [RelayCommand]
     private async Task PauseAsync()
     {
-        await _narrationService.PauseAsync();
-        SyncFromNarrationService();
+        try
+        {
+            await _narrationService.PauseAsync();
+            SyncFromNarrationService();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[POIDetailVM] PauseAsync error: {ex}");
+        }
     }
 
     [RelayCommand]
     private async Task StopAsync()
     {
-        await _narrationService.StopAsync();
-        SyncFromNarrationService();
+        try
+        {
+            await _narrationService.StopAsync();
+            SyncFromNarrationService();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[POIDetailVM] StopAsync error: {ex}");
+        }
     }
 
     [RelayCommand]
@@ -408,7 +455,7 @@ public partial class POIDetailViewModel : ObservableObject
             return;
         }
 
-        await Shell.Current.GoToAsync("//MainPage");
+        await Shell.Current.GoToAsync("//pois");
     }
 
     [RelayCommand]

@@ -48,7 +48,7 @@
         </Grid>
 
         <ScrollView Grid.Row="1">
-            <VerticalStackLayout Padding="16,-20,16,24"
+                     <VerticalStackLayout Padding="16,-20,16,108"
                                  Spacing="14">
                 <Border BackgroundColor="White"
                         StrokeThickness="0"
@@ -153,7 +153,7 @@
 
                     <CollectionView ItemsSource="{Binding POIs}"
                                     SelectionMode="None"
-                                    HeightRequest="210">
+                                    HeightRequest="230">
                         <CollectionView.ItemsLayout>
                             <LinearItemsLayout Orientation="Horizontal" ItemSpacing="10" />
                         </CollectionView.ItemsLayout>

@@ -156,6 +156,34 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine("Password: Admin@123");
         Console.WriteLine("===========================================");
     }
+
+    // Seed default mobile user account if not exists
+    if (!db.Users.Any(u => u.Email == "user@ZoneGuide.com"))
+    {
+        using var userHmac = new System.Security.Cryptography.HMACSHA512();
+        var userSalt = Convert.ToBase64String(userHmac.Key);
+        var userHash = Convert.ToBase64String(userHmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes("User@123")));
+
+        var normalUser = new ZoneGuide.API.Data.UserEntity
+        {
+            Email = "user@ZoneGuide.com",
+            PasswordHash = userHash,
+            PasswordSalt = userSalt,
+            DisplayName = "Mobile User",
+            Role = ZoneGuide.Shared.Models.UserRole.User,
+            Status = ZoneGuide.Shared.Models.UserStatus.Active,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        db.Users.Add(normalUser);
+        db.SaveChanges();
+
+        Console.WriteLine("===========================================");
+        Console.WriteLine("Default user account created:");
+        Console.WriteLine("Email: user@ZoneGuide.com");
+        Console.WriteLine("Password: User@123");
+        Console.WriteLine("===========================================");
+    }
 }
 
 app.Run();

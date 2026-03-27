@@ -39,16 +39,32 @@
                       IsShowingUser="True"
                       MapType="Street" />
 
-            <Button Text="◎"
-                    WidthRequest="52"
-                    HeightRequest="52"
-                    CornerRadius="26"
+                <VerticalStackLayout HorizontalOptions="End"
+                         VerticalOptions="Start"
+                         Margin="0,18,18,0"
+                         Spacing="10">
+                <Button Text="◉"
+                    WidthRequest="48"
+                    HeightRequest="48"
+                    CornerRadius="24"
                     Padding="0"
-                    FontSize="20"
-                    HorizontalOptions="End"
-                    VerticalOptions="Start"
-                    Margin="0,18,18,0"
-                    Command="{Binding CenterOnUserCommand}" />
+                    FontSize="18"
+                    BackgroundColor="White"
+                    TextColor="{StaticResource Primary}"
+                    Command="{Binding ShowAllMarkersCommand}"
+                    SemanticProperties.Hint="Hiển thị tất cả marker" />
+
+                <Button Text="◎"
+                    WidthRequest="48"
+                    HeightRequest="48"
+                    CornerRadius="24"
+                    Padding="0"
+                    FontSize="18"
+                    BackgroundColor="White"
+                    TextColor="{StaticResource Primary}"
+                    Command="{Binding CenterOnUserCommand}"
+                    SemanticProperties.Hint="Định vị vị trí hiện tại" />
+                </VerticalStackLayout>
 
             <Border BackgroundColor="White"
                     StrokeThickness="0"
@@ -57,8 +73,10 @@
                     Padding="14"
                     VerticalOptions="End"
                     IsVisible="{Binding SelectedPOI, Converter={StaticResource IsNotNullConverter}}">
-                <Grid ColumnDefinitions="*,Auto"
-                      ColumnSpacing="12">
+                                <Grid ColumnDefinitions="*,Auto"
+                                            RowDefinitions="Auto,*"
+                                            ColumnSpacing="12"
+                                            RowSpacing="8">
                     <VerticalStackLayout Spacing="4">
                         <Label Text="{Binding SelectedPOI.Name}"
                                FontSize="18"
@@ -83,7 +101,20 @@
                         </HorizontalStackLayout>
                     </VerticalStackLayout>
 
+                            <Button Grid.Column="1"
+                                Grid.Row="0"
+                                Text="✕"
+                                WidthRequest="34"
+                                HeightRequest="34"
+                                CornerRadius="17"
+                                Padding="0"
+                                FontSize="13"
+                                BackgroundColor="#EFEAFD"
+                                TextColor="{StaticResource Primary}"
+                                Command="{Binding DismissSelectedPOICommand}" />
+
                     <VerticalStackLayout Grid.Column="1"
+                                     Grid.Row="1"
                                          Spacing="10"
                                          VerticalOptions="Center">
                         <Button Text="▶"

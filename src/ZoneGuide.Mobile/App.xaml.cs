@@ -1,6 +1,7 @@
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Extensions.DependencyInjection;
 using ZoneGuide.Mobile.Localization;
+using ZoneGuide.Mobile.Services;
 using ZoneGuide.Mobile.Views;
 using ZoneGuide.Shared.Interfaces;
 
@@ -10,12 +11,14 @@ public partial class App : Application
 {
     private readonly IServiceProvider _services;
     private readonly ISettingsService _settingsService;
+    private readonly IUserSessionService _userSessionService;
 
-    public App(IServiceProvider services, ISettingsService settingsService)
+    public App(IServiceProvider services, ISettingsService settingsService, IUserSessionService userSessionService)
     {
         InitializeComponent();
         _services = services;
         _settingsService = settingsService;
+        _userSessionService = userSessionService;
 
         // Bắt unhandled exceptions để debug
         AppDomain.CurrentDomain.UnhandledException += (s, e) =>
@@ -58,9 +61,12 @@ public partial class App : Application
 
             var appShell = _services.GetRequiredService<AppShell>();
             var languageSelectionPage = _services.GetRequiredService<LanguageSelectionPage>();
+            var loginPage = _services.GetRequiredService<LoginPage>();
+
+            var isLoggedIn = await _userSessionService.IsAuthenticatedAsync();
 
             var rootPage = _settingsService.Settings.HasCompletedLanguageSelection
-                ? (Page)appShell
+                ? (isLoggedIn ? (Page)appShell : loginPage)
                 : languageSelectionPage;
 
             await MainThread.InvokeOnMainThreadAsync(() => window.Page = rootPage);

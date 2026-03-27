@@ -59,7 +59,7 @@
                             <Grid RowDefinitions="Auto,Auto"
                                   RowSpacing="6">
                                 <Grid ColumnDefinitions="*,Auto">
-                                    <Label Text="Tốc độ đọc"
+                                    <Label Text="{local:Translate settings_speed}"
                                            FontSize="14" />
                                     <Label Grid.Column="1"
                                            Text="{Binding TtsSpeed, StringFormat='{0:F1}x'}"
@@ -75,7 +75,7 @@
                             <Grid RowDefinitions="Auto,Auto"
                                   RowSpacing="6">
                                 <Grid ColumnDefinitions="*,Auto">
-                                    <Label Text="Âm lượng"
+                                    <Label Text="{local:Translate settings_volume}"
                                            FontSize="14" />
                                     <Label Grid.Column="1"
                                            Text="{Binding Volume, StringFormat='{0:P0}'}"
@@ -96,7 +96,7 @@
                 </VerticalStackLayout>
 
                 <VerticalStackLayout Spacing="8">
-                    <Label Text="GPS và vị trí"
+                    <Label Text="{local:Translate settings_gps}"
                            FontSize="18"
                            FontAttributes="Bold" />
                     <Frame Padding="16"
@@ -105,25 +105,18 @@
                         <VerticalStackLayout Spacing="16">
                             <Grid RowDefinitions="Auto,Auto"
                                   RowSpacing="6">
-                                <Label Text="Độ chính xác GPS"
+                                                        <Label Text="{local:Translate settings_gps_accuracy}"
                                        FontSize="14"
                                        TextColor="{StaticResource Gray500}" />
                                 <Picker Grid.Row="1"
-                                        SelectedIndex="{Binding GpsAccuracyIndex}">
-                                    <Picker.ItemsSource>
-                                        <x:Array Type="{x:Type x:String}">
-                                            <x:String>Thấp (tiết kiệm pin)</x:String>
-                                            <x:String>Trung bình</x:String>
-                                            <x:String>Cao (chính xác nhất)</x:String>
-                                        </x:Array>
-                                    </Picker.ItemsSource>
-                                </Picker>
+                                                                      SelectedIndex="{Binding GpsAccuracyIndex}"
+                                                                      ItemsSource="{Binding GpsAccuracyOptions}" />
                             </Grid>
 
                             <Grid RowDefinitions="Auto,Auto"
                                   RowSpacing="6">
                                 <Grid ColumnDefinitions="*,Auto">
-                                    <Label Text="Bán kính kích hoạt"
+                                    <Label Text="{local:Translate settings_trigger_radius}"
                                            FontSize="14" />
                                     <Label Grid.Column="1"
                                            Text="{Binding TriggerRadius, StringFormat='{0:F0}m'}"
@@ -139,7 +132,7 @@
                             <Grid RowDefinitions="Auto,Auto"
                                   RowSpacing="6">
                                 <Grid ColumnDefinitions="*,Auto">
-                                    <Label Text="Bán kính cảnh báo"
+                                    <Label Text="{local:Translate settings_approach_radius}"
                                            FontSize="14" />
                                     <Label Grid.Column="1"
                                            Text="{Binding ApproachRadius, StringFormat='{0:F0}m'}"
@@ -155,7 +148,7 @@
                             <Grid RowDefinitions="Auto,Auto"
                                   RowSpacing="6">
                                 <Grid ColumnDefinitions="*,Auto">
-                                    <Label Text="Thời gian chờ"
+                                    <Label Text="{local:Translate settings_cooldown}"
                                            FontSize="14" />
                                     <Label Grid.Column="1"
                                            Text="{Binding CooldownSeconds, StringFormat='{0}s'}"
@@ -172,7 +165,7 @@
                 </VerticalStackLayout>
 
                 <VerticalStackLayout Spacing="8">
-                    <Label Text="Hành vi"
+                    <Label Text="{local:Translate settings_behavior}"
                            FontSize="18"
                            FontAttributes="Bold" />
                     <Frame Padding="16"
@@ -180,35 +173,35 @@
                            BackgroundColor="White">
                         <VerticalStackLayout Spacing="14">
                             <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="Tự động phát khi vào vùng"
+                                <Label Text="{local:Translate settings_auto_play}"
                                        FontSize="14"
                                        VerticalOptions="Center" />
                                 <Switch Grid.Column="1"
                                         IsToggled="{Binding AutoPlayOnEnter}" />
                             </Grid>
                             <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="Thông báo khi đến gần"
+                                <Label Text="{local:Translate settings_notify_approach}"
                                        FontSize="14"
                                        VerticalOptions="Center" />
                                 <Switch Grid.Column="1"
                                         IsToggled="{Binding NotifyOnApproach}" />
                             </Grid>
                             <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="Theo dõi ở nền"
+                                <Label Text="{local:Translate settings_background_tracking}"
                                        FontSize="14"
                                        VerticalOptions="Center" />
                                 <Switch Grid.Column="1"
                                         IsToggled="{Binding BackgroundTracking}" />
                             </Grid>
                             <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="Chế độ tiết kiệm pin"
+                                <Label Text="{local:Translate settings_battery_saver}"
                                        FontSize="14"
                                        VerticalOptions="Center" />
                                 <Switch Grid.Column="1"
                                         IsToggled="{Binding BatterySaverMode}" />
                             </Grid>
                             <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="Chế độ Offline"
+                                <Label Text="{local:Translate settings_offline_mode}"
                                        FontSize="14"
                                        VerticalOptions="Center" />
                                 <Switch Grid.Column="1"
@@ -226,7 +219,7 @@
                            CornerRadius="18"
                            BackgroundColor="White">
                         <VerticalStackLayout Spacing="12">
-                            <Label Text="{Binding LastSyncTime, StringFormat='Lần cuối: {0:dd/MM/yyyy HH:mm}'}"
+                            <Label Text="{Binding LastSyncTimeLabel}"
                                    FontSize="12"
                                    TextColor="{StaticResource Gray500}"
                                    IsVisible="{Binding LastSyncTime, Converter={StaticResource IsNotNullConverter}}" />
@@ -246,10 +239,14 @@
                        CornerRadius="18"
                        BackgroundColor="White">
                     <VerticalStackLayout Spacing="12">
-                        <Label Text="Khác"
+                     <Label Text="{local:Translate settings_other}"
                                FontSize="18"
                                FontAttributes="Bold" />
-                        <Button Text="Xóa cache"
+                   <Button Text="{local:Translate settings_logout_user}"
+                                BackgroundColor="#DC2626"
+                                TextColor="White"
+                                Command="{Binding LogoutCommand}" />
+                     <Button Text="{local:Translate settings_clear_cache}"
                                 BackgroundColor="{StaticResource Gray500}"
                                 Command="{Binding ClearCacheCommand}" />
                     </VerticalStackLayout>
