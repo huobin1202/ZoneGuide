@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
+             xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
+             x:Class="ZoneGuide.Mobile.Views.HistoryPage"
+             x:Name="HistoryRoot"
+             x:DataType="vm:HistoryViewModel"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F6F7FB">
+
+    <Grid RowDefinitions="Auto,*">
+        <Border Grid.Row="0"
+                BackgroundColor="{StaticResource Primary}"
+                StrokeThickness="0"
+                StrokeShape="RoundRectangle 0,0,28,28"
+                Padding="20,28,20,24">
+            <VerticalStackLayout Spacing="14">
+                <Label Text="{local:Translate history_title}"
+                       FontSize="30"
+                       FontAttributes="Bold"
+                       TextColor="White" />
+                <Label Text="{local:Translate history_subtitle}"
+                       FontSize="14"
+                       TextColor="#DAD6FF" />
+
+                <HorizontalStackLayout Spacing="20">
+                    <HorizontalStackLayout Spacing="6">
+                        <Label Text="◔"
+                               TextColor="#F5C96A"
+                               VerticalTextAlignment="Center" />
+                        <Label Text="{Binding TotalHistoryCount, StringFormat='{}{0} địa điểm'}"
+                               FontSize="14"
+                               TextColor="White" />
+                    </HorizontalStackLayout>
+                    <HorizontalStackLayout Spacing="6">
+                        <Label Text="◷"
+                               TextColor="#F5C96A"
+                               VerticalTextAlignment="Center" />
+                        <Label Text="{Binding TotalDurationText}"
+                               FontSize="14"
+                               TextColor="White" />
+                    </HorizontalStackLayout>
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+        </Border>
+
+        <RefreshView Grid.Row="1"
+                     IsRefreshing="{Binding IsRefreshing}"
+                     Command="{Binding RefreshCommand}">
+            <CollectionView Margin="0,12,0,0"
+                            IsGrouped="True"
+                            ItemsSource="{Binding HistoryGroups}"
+                            SelectionMode="None">
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout Padding="32,80"
+                                         Spacing="10"
+                                         HorizontalOptions="Center">
+                        <Label Text="{local:Translate history_empty_title}"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               HorizontalTextAlignment="Center" />
+                        <Label Text="{local:Translate history_empty_subtitle}"
+                               FontSize="13"
+                               TextColor="{StaticResource Gray500}"
+                               HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+
+                <CollectionView.GroupHeaderTemplate>
+                    <DataTemplate x:DataType="vm:HistoryDayGroup">
+                        <Label Text="{Binding Title}"
+                               Margin="20,12,20,6"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               TextColor="{StaticResource Gray900}" />
+                    </DataTemplate>
+                </CollectionView.GroupHeaderTemplate>
+
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:HistoryEntryViewModel">
+                        <Frame Margin="16,6"
+                               Padding="12"
+                               BackgroundColor="White"
+                               CornerRadius="18"
+                               HasShadow="False">
+                            <Grid ColumnDefinitions="74,*,Auto"
+                                  ColumnSpacing="12">
+                                <Frame Grid.Column="0"
+                                       WidthRequest="74"
+                                       HeightRequest="74"
+                                       Padding="0"
+                                       CornerRadius="14"
+                                       BackgroundColor="#ECEAF8"
+                                       IsClippedToBounds="True">
+                                    <Image Source="{Binding ImageUrl, Converter={StaticResource FlexibleImageSourceConverter}}"
+                                           Aspect="AspectFill" />
+                                </Frame>
+
+                                <VerticalStackLayout Grid.Column="1"
+                                                     Spacing="4"
+                                                     VerticalOptions="Center">
+                                    <Label Text="{Binding Title}"
+                                           FontSize="17"
+                                           FontAttributes="Bold"
+                                           MaxLines="1" />
+                                    <Label Text="{Binding Description}"
+                                           FontSize="13"
+                                           TextColor="{StaticResource Gray500}"
+                                           MaxLines="2" />
+                                    <HorizontalStackLayout Spacing="8"
+                                                           Margin="0,2,0,0">
+                                        <Border BackgroundColor="#F2EFFF"
+                                                StrokeThickness="0"
+                                                StrokeShape="RoundRectangle 10"
+                                                Padding="8,2">
+                                            <Label Text="{Binding Category, Converter={StaticResource LocalizedCategoryConverter}}"
+                                                   FontSize="11"
+                                                   TextColor="{StaticResource Primary}" />
+                                        </Border>
+                                        <Label Text="{Binding DurationText}"
+                                               FontSize="11"
+                                               TextColor="{StaticResource Gray500}"
+                                               VerticalTextAlignment="Center" />
+                                        <Label Text="•"
+                                               FontSize="11"
+                                               TextColor="{StaticResource Gray400}"
+                                               VerticalTextAlignment="Center" />
+                                        <Label Text="{Binding PlayedAtText}"
+                                               FontSize="11"
+                                               TextColor="{StaticResource Gray500}"
+                                               VerticalTextAlignment="Center" />
+                                    </HorizontalStackLayout>
+                                </VerticalStackLayout>
+
+                                <VerticalStackLayout Grid.Column="2"
+                                                     Spacing="10"
+                                                     VerticalOptions="Center">
+                                       <Button Text="{local:Translate history_replay}"
+                                              WidthRequest="72"
+                                            HeightRequest="44"
+                                            CornerRadius="22"
+                                              FontSize="11"
+                                            Padding="0"
+                                            Command="{Binding BindingContext.ReplayCommand, Source={x:Reference HistoryRoot}}"
+                                            CommandParameter="{Binding .}" />
+                                       <Button Text="{local:Translate history_delete}"
+                                              WidthRequest="72"
+                                            HeightRequest="36"
+                                            CornerRadius="18"
+                                              FontSize="11"
+                                            Padding="0"
+                                            BackgroundColor="#F4F4F7"
+                                            TextColor="{StaticResource Gray500}"
+                                            Command="{Binding BindingContext.DeleteCommand, Source={x:Reference HistoryRoot}}"
+                                            CommandParameter="{Binding .}" />
+                                </VerticalStackLayout>
+                            </Grid>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </RefreshView>
+    </Grid>
+
+</ContentPage>

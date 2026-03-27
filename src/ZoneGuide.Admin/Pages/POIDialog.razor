@@ -1,5 +1,8 @@
 @inject IApiService ApiService
 @inject IJSRuntime JS
+@inject WebTtsService WebTts
+@inject ISnackbar Snackbar
+@implements IDisposable
 
 <MudDialog Style="max-width: 900px;">
     <DialogContent>
@@ -57,23 +60,27 @@
                         ResetValueOnEmptyText="true" />
 
                     <MudGrid Class="mt-3">
-                        <MudItem xs="6">
+                        <MudItem xs="12" sm="4">
                             <MudNumericField @bind-Value="_model.TriggerRadiusMeters"
                                              Label="Bán kính kích hoạt (m)" Min="20" Max="150" />
                         </MudItem>
-                        <MudItem xs="6">
+                        <MudItem xs="12" sm="4">
+                            <MudNumericField @bind-Value="_model.ApproachRadius"
+                                             Label="Bán kính thuyết minh (m)" Min="20" Max="500" />
+                        </MudItem>
+                        <MudItem xs="12" sm="4">
                             <MudNumericField @bind-Value="_model.Priority" Label="Độ ưu tiên" Min="1" Max="5" />
                         </MudItem>
                     </MudGrid>
 
                     <MudSelect T="string" @bind-Value="_model.Category" Label="Danh mục" Class="mt-3"
                                Required="true" RequiredError="Vui lòng chọn danh mục">
-                        <MudSelectItem Value="@("Ăn uống")">Ăn uống</MudSelectItem>
-                        <MudSelectItem Value="@("Du lịch")">Du lịch</MudSelectItem>
-                        <MudSelectItem Value="@("Dịch vụ")">Dịch vụ</MudSelectItem>
-                        <MudSelectItem Value="@("Mua sắm")">Mua sắm</MudSelectItem>
-                        <MudSelectItem Value="@("Giải trí")">Giải trí</MudSelectItem>
-                        <MudSelectItem Value="@("Khác")">Khác</MudSelectItem>
+                        <MudSelectItem Value="@( "Du lịch")">Du lịch</MudSelectItem>
+                        <MudSelectItem Value="@( "Dịch vụ")">Dịch vụ</MudSelectItem>
+                        <MudSelectItem Value="@( "Ăn uống")">Ăn uống</MudSelectItem>
+                        <MudSelectItem Value="@( "Giải trí")">Giải trí</MudSelectItem>
+                        <MudSelectItem Value="@( "Mua sắm")">Mua sắm</MudSelectItem>
+                        <MudSelectItem Value="@( "Khác")">Khác</MudSelectItem>
                     </MudSelect>
 
                     <MudFileUpload T="IBrowserFile" Accept=".png, .jpg, .jpeg" FilesChanged="UploadImage" Class="mt-3">
@@ -125,16 +132,39 @@
 
                 <MudSelect @bind-Value="_model.Language" Label="Ngôn ngữ chính" Class="mb-3">
                     <MudSelectItem Value="@("vi-VN")">🇻🇳 Tiếng Việt</MudSelectItem>
-                    <MudSelectItem Value="@("en-US")">🇺🇸 English</MudSelectItem>
+                    <MudSelectItem Value="@("en-US")">🇺🇸 English (US)</MudSelectItem>
+                    <MudSelectItem Value="@("en-GB")">🇬🇧 English (UK)</MudSelectItem>
                     <MudSelectItem Value="@("ja-JP")">🇯🇵 日本語</MudSelectItem>
                     <MudSelectItem Value="@("ko-KR")">🇰🇷 한국어</MudSelectItem>
                     <MudSelectItem Value="@("zh-CN")">🇨🇳 中文</MudSelectItem>
+                    <MudSelectItem Value="@("fr-FR")">🇫🇷 Français</MudSelectItem>
+                    <MudSelectItem Value="@("de-DE")">🇩🇪 Deutsch</MudSelectItem>
                 </MudSelect>
 
                 <MudTextField @bind-Value="_model.TTSScript" Label="Script TTS (Text-to-Speech)" 
-                              Lines="6" Class="mb-3"
+                              Lines="6" Class="mb-2"
                               Placeholder="Nhập nội dung thuyết minh sẽ được đọc tự động khi người dùng đến gần..."
                               HelperText="Nội dung này sẽ được đọc bằng giọng nói tự động nếu không có file audio" />
+
+                <MudSlider T="double" @bind-Value="_dialogTtsRate" Min="0.75" Max="1.25" Step="0.05" Color="Color.Primary" Class="mb-2">
+                    Tốc độ đọc: @_dialogTtsRate.ToString("F2") (1 = mặc định)
+                </MudSlider>
+                @if (_ttsVoices.Count > 0)
+                {
+                    <MudSelect T="string" @bind-Value="_dialogTtsVoiceUri" Label="Giọng đọc (tùy chọn)" Variant="Variant.Outlined" Dense="true" Clearable="true" Class="mb-2">
+                        <MudSelectItem T="string" Value="@("")">Tự động theo ngôn ngữ</MudSelectItem>
+                        @foreach (var v in FilteredDialogTtsVoices(_model.Language).OrderBy(x => x.Name))
+                        {
+                            <MudSelectItem T="string" Value="@v.VoiceUri">@v.Name (@v.Lang)</MudSelectItem>
+                        }
+                    </MudSelect>
+                }
+                <div class="d-flex gap-2 mb-3 flex-wrap">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.VolumeUp" OnClick="PreviewMainTtsAsync">Nghe thử TTS</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Stop" OnClick="StopTtsAsync">Dừng</MudButton>
+                </div>
             </MudTabPanel>
 
             <MudTabPanel Text="Bản dịch" Icon="@Icons.Material.Filled.Translate">
@@ -177,6 +207,11 @@
                         <MudTextField @bind-Value="trans.TTSScript" Label="TTS Script (dịch)" 
                                       Class="mt-2" Dense="true" Lines="3"
                                       Placeholder="Nội dung thuyết minh bằng ngôn ngữ này..." />
+                        <div class="d-flex gap-2 align-center mt-1 flex-wrap">
+                            <MudButton Variant="Variant.Text" Color="Color.Secondary" Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.VolumeUp"
+                                       OnClick="@(() => PreviewTranslationTtsAsync(trans))">Nghe thử (theo ngôn ngữ dịch)</MudButton>
+                        </div>
                         <MudTextField @bind-Value="trans.AudioUrl" Label="URL Audio (dịch)" 
                                       Class="mt-2" Dense="true" />
                     </MudPaper>
@@ -209,6 +244,25 @@
     private string _searchAddress = "";
     private POIFormModel _model = new();
 
+    private List<WebTtsVoiceInfo> _ttsVoices = new();
+    private string _dialogTtsVoiceUri = "";
+    private double _dialogTtsRate = 1.0;
+    private bool _dialogTtsVoicesLoaded;
+
+    private IEnumerable<WebTtsVoiceInfo> FilteredDialogTtsVoices(string? langTag)
+    {
+        var tag = string.IsNullOrEmpty(langTag) ? _model.Language : langTag!;
+        return _ttsVoices.Where(v => DialogVoiceMatches(v, tag));
+    }
+
+    private static bool DialogVoiceMatches(WebTtsVoiceInfo v, string? lang)
+    {
+        if (string.IsNullOrEmpty(lang)) return true;
+        var primary = lang.Trim().Replace('_', '-').Split('-')[0];
+        var vl = (v.Lang ?? "").Replace('_', '-');
+        return vl.StartsWith(primary, StringComparison.OrdinalIgnoreCase);
+    }
+
     public class OsmAddressResult
     {
         [System.Text.Json.Serialization.JsonPropertyName("display_name")]
@@ -236,6 +290,7 @@
                 Latitude = POI.Latitude,
                 Longitude = POI.Longitude,
                 TriggerRadiusMeters = POI.TriggerRadiusMeters,
+                ApproachRadius = POI.ApproachRadius,
                 Priority = POI.Priority,
                 Category = POI.Category,
                 ImageUrl = POI.ImageUrl,
@@ -267,6 +322,19 @@
         if (firstRender)
         {
             await InitPickerMap();
+            if (!_dialogTtsVoicesLoaded)
+            {
+                _dialogTtsVoicesLoaded = true;
+                try
+                {
+                    _ttsVoices = (await WebTts.GetVoicesAsync()).ToList();
+                    await InvokeAsync(StateHasChanged);
+                }
+                catch
+                {
+                    // bỏ qua nếu circuit/JS chưa sẵn sàng
+                }
+            }
         }
     }
 
@@ -361,6 +429,40 @@
 
     private void Cancel() => MudDialog.Cancel();
 
+    private async Task PreviewMainTtsAsync()
+    {
+        await PreviewDialogTtsAsync(_model.TTSScript, _model.Language, useSelectedVoice: true);
+    }
+
+    private async Task PreviewTranslationTtsAsync(POITranslationDto trans)
+    {
+        await PreviewDialogTtsAsync(trans.TTSScript, trans.LanguageCode, useSelectedVoice: false);
+    }
+
+    private async Task PreviewDialogTtsAsync(string? text, string? lang, bool useSelectedVoice)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            Snackbar.Add("Chưa có nội dung TTS để đọc", Severity.Warning);
+            return;
+        }
+
+        var voiceUri = useSelectedVoice && !string.IsNullOrEmpty(_dialogTtsVoiceUri) ? _dialogTtsVoiceUri : null;
+        var r = await WebTts.SpeakAsync(text, lang ?? "vi-VN", _dialogTtsRate, 1.0, 1.0, voiceUri);
+        if (!r.Ok)
+        {
+            if (r.Error == "no-tts")
+                Snackbar.Add("Trình duyệt không hỗ trợ Text-to-Speech.", Severity.Error);
+            else if (r.Error != "empty-text")
+                Snackbar.Add($"Không thể phát TTS: {r.Error}", Severity.Error);
+        }
+    }
+
+    private async Task StopTtsAsync()
+    {
+        await WebTts.StopAsync();
+    }
+
     private async Task Submit()
     {
         await _form.Validate();
@@ -380,6 +482,7 @@
                     Latitude = _model.Latitude ?? 0,
                     Longitude = _model.Longitude ?? 0,
                     TriggerRadiusMeters = _model.TriggerRadiusMeters,
+                    ApproachRadius = _model.ApproachRadius,
                     Priority = _model.Priority,
                     Category = _model.Category,
                     ImageUrl = _model.ImageUrl,
@@ -408,6 +511,7 @@
                     Latitude = _model.Latitude ?? 0,
                     Longitude = _model.Longitude ?? 0,
                     TriggerRadiusMeters = _model.TriggerRadiusMeters,
+                    ApproachRadius = _model.ApproachRadius,
                     Priority = _model.Priority,
                     Category = _model.Category,
                     ImageUrl = _model.ImageUrl,
@@ -472,6 +576,7 @@
 
     public void Dispose()
     {
+        _ = WebTts.StopAsync();
         _dotNetRef?.Dispose();
     }
 
@@ -483,6 +588,7 @@
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
         public double TriggerRadiusMeters { get; set; } = 50;
+        public double ApproachRadius { get; set; } = 100;
         public int Priority { get; set; } = 1;
         public string? Category { get; set; }
         public string? ImageUrl { get; set; }

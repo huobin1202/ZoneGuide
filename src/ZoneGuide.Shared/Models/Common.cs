@@ -129,6 +129,11 @@ public enum NarrationStatus
 public class AppSettings
 {
     /// <summary>
+    /// Đã hoàn thành bước chọn ngôn ngữ lần đầu hay chưa
+    /// </summary>
+    public bool HasCompletedLanguageSelection { get; set; }
+
+    /// <summary>
     /// Ngôn ngữ ưa thích
     /// </summary>
     public string PreferredLanguage { get; set; } = "vi-VN";

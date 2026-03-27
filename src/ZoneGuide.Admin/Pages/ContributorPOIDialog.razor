@@ -76,12 +76,12 @@
 
                     <MudSelect T="string" @bind-Value="_model.Category" Label="Danh mục" Class="mt-3"
                                Required="true" RequiredError="Vui lòng chọn danh mục">
-                        <MudSelectItem Value="@("Ăn uống")">Ăn uống</MudSelectItem>
-                        <MudSelectItem Value="@("Du lịch")">Du lịch</MudSelectItem>
-                        <MudSelectItem Value="@("Dịch vụ")">Dịch vụ</MudSelectItem>
-                        <MudSelectItem Value="@("Mua sắm")">Mua sắm</MudSelectItem>
-                        <MudSelectItem Value="@("Giải trí")">Giải trí</MudSelectItem>
-                        <MudSelectItem Value="@("Khác")">Khác</MudSelectItem>
+                        <MudSelectItem Value="@( "Du lịch")">Du lịch</MudSelectItem>
+                        <MudSelectItem Value="@( "Dịch vụ")">Dịch vụ</MudSelectItem>
+                        <MudSelectItem Value="@( "Ăn uống")">Ăn uống</MudSelectItem>
+                        <MudSelectItem Value="@( "Giải trí")">Giải trí</MudSelectItem>
+                        <MudSelectItem Value="@( "Mua sắm")">Mua sắm</MudSelectItem>
+                        <MudSelectItem Value="@( "Khác")">Khác</MudSelectItem>
                     </MudSelect>
 
                     <MudFileUpload T="IBrowserFile" Accept=".png, .jpg, .jpeg" FilesChanged="UploadImage" Class="mt-3">

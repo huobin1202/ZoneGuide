@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ZoneGuide.Mobile.Localization;
 using ZoneGuide.Shared.Interfaces;
 using ZoneGuide.Shared.Models;
 using System.Collections.ObjectModel;
@@ -46,7 +47,7 @@ public partial class TourListViewModel : ObservableObject
         try
         {
             var tours = await _tourRepository.GetActiveAsync();
-            
+
             Tours.Clear();
             foreach (var tour in tours)
             {
@@ -84,6 +85,7 @@ public partial class TourDetailViewModel : ObservableObject
     private readonly IPOIRepository _poiRepository;
     private readonly ISyncService _syncService;
     private readonly IGeofenceService _geofenceService;
+    private readonly AppLocalizer _localizer = AppLocalizer.Instance;
 
     [ObservableProperty]
     private int tourId;
@@ -100,6 +102,21 @@ public partial class TourDetailViewModel : ObservableObject
     [ObservableProperty]
     private double downloadProgress;
 
+    [ObservableProperty]
+    private string offlineStatusText = string.Empty;
+
+    [ObservableProperty]
+    private string offlineActionText = string.Empty;
+
+    [ObservableProperty]
+    private Color offlineCardBackground = Colors.Gray;
+
+    [ObservableProperty]
+    private string distanceDisplay = "0m";
+
+    [ObservableProperty]
+    private string highlightsText = string.Empty;
+
     public ObservableCollection<POI> POIs { get; } = new();
 
     public TourDetailViewModel(
@@ -112,6 +129,7 @@ public partial class TourDetailViewModel : ObservableObject
         _poiRepository = poiRepository;
         _syncService = syncService;
         _geofenceService = geofenceService;
+        RefreshDisplayState();
     }
 
     async partial void OnTourIdChanged(int value)
@@ -119,14 +137,29 @@ public partial class TourDetailViewModel : ObservableObject
         await LoadTourAsync();
     }
 
+    partial void OnIsOfflineAvailableChanged(bool value)
+    {
+        RefreshDisplayState();
+    }
+
+    partial void OnIsDownloadingChanged(bool value)
+    {
+        RefreshDisplayState();
+    }
+
+    partial void OnTourChanged(Tour? value)
+    {
+        RefreshDisplayState();
+    }
+
     private async Task LoadTourAsync()
     {
         Tour = await _tourRepository.GetByIdAsync(TourId);
-        
+
         if (Tour != null)
         {
             IsOfflineAvailable = await _syncService.IsTourOfflineAvailableAsync(TourId);
-            
+
             var pois = await _poiRepository.GetByTourIdAsync(TourId);
             POIs.Clear();
             foreach (var poi in pois)
@@ -134,6 +167,60 @@ public partial class TourDetailViewModel : ObservableObject
                 POIs.Add(poi);
             }
         }
+        else
+        {
+            POIs.Clear();
+        }
+
+        RefreshDisplayState();
+    }
+
+    private void RefreshDisplayState()
+    {
+        DistanceDisplay = Tour == null
+            ? "0m"
+            : $"{Tour.EstimatedDistanceMeters:F0}m";
+
+        HighlightsText = BuildHighlightsText();
+
+        if (IsDownloading)
+        {
+            OfflineCardBackground = Color.FromArgb("#F59E0B");
+            OfflineStatusText = _localizer.Translate("tour_detail_downloading", "Downloading content for offline use");
+            OfflineActionText = _localizer.Translate("tour_detail_downloading_short", "Downloading");
+            return;
+        }
+
+        if (IsOfflineAvailable)
+        {
+            OfflineCardBackground = Color.FromArgb("#10B981");
+            OfflineStatusText = _localizer.Translate("tour_detail_offline_ready", "Saved on this device and ready without internet");
+            OfflineActionText = _localizer.Translate("tour_detail_remove_offline", "Remove");
+            return;
+        }
+
+        OfflineCardBackground = Color.FromArgb("#6366F1");
+        OfflineStatusText = _localizer.Translate("tour_detail_offline_prompt", "Download images and stops for use when connection is limited");
+        OfflineActionText = _localizer.Translate("tour_detail_download_offline", "Download");
+    }
+
+    private string BuildHighlightsText()
+    {
+        if (POIs.Count == 0)
+            return _localizer.Translate("tour_detail_highlights_empty", "Explore the route to discover featured stops.");
+
+        var names = POIs
+            .Where(p => !string.IsNullOrWhiteSpace(p.Name))
+            .Take(4)
+            .Select(p => p.Name?.Trim())
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Cast<string>()
+            .ToList();
+
+        if (names.Count == 0)
+            return _localizer.Translate("tour_detail_highlights_empty", "Explore the route to discover featured stops.");
+
+        return string.Join(" • ", names);
     }
 
     [RelayCommand]
@@ -142,11 +229,9 @@ public partial class TourDetailViewModel : ObservableObject
         if (Tour == null || POIs.Count == 0)
             return;
 
-        // Thêm tất cả POI của tour vào geofence
         _geofenceService.ClearPOIs();
         _geofenceService.AddPOIs(POIs);
 
-        // Chuyển sang trang Map
         await Shell.Current.GoToAsync("//map");
     }
 
@@ -175,16 +260,23 @@ public partial class TourDetailViewModel : ObservableObject
 
             if (success)
             {
-                await Shell.Current.DisplayAlert("Thành công", "Đã tải nội dung offline", "OK");
+                await Shell.Current.DisplayAlert(
+                    _localizer.Translate("tour_detail_download_success_title", "Success"),
+                    _localizer.Translate("tour_detail_download_success_message", "Offline content downloaded successfully"),
+                    _localizer.Translate("alert_ok", "OK"));
             }
             else
             {
-                await Shell.Current.DisplayAlert("Lỗi", "Không thể tải nội dung offline", "OK");
+                await Shell.Current.DisplayAlert(
+                    _localizer.Translate("tour_detail_download_error_title", "Error"),
+                    _localizer.Translate("tour_detail_download_error_message", "Unable to download offline content"),
+                    _localizer.Translate("alert_ok", "OK"));
             }
         }
         finally
         {
             IsDownloading = false;
+            RefreshDisplayState();
         }
     }
 
@@ -192,15 +284,16 @@ public partial class TourDetailViewModel : ObservableObject
     private async Task DeleteOfflineAsync()
     {
         var confirm = await Shell.Current.DisplayAlert(
-            "Xác nhận", 
-            "Bạn có chắc muốn xóa nội dung offline?", 
-            "Xóa", 
-            "Hủy");
+            _localizer.Translate("tour_detail_delete_confirm_title", "Confirm"),
+            _localizer.Translate("tour_detail_delete_confirm_message", "Do you want to remove offline content for this tour?"),
+            _localizer.Translate("alert_delete", "Delete"),
+            _localizer.Translate("alert_cancel", "Cancel"));
 
         if (confirm)
         {
             var success = await _syncService.DeleteTourOfflineAsync(TourId);
             IsOfflineAvailable = !success;
+            RefreshDisplayState();
         }
     }
 
