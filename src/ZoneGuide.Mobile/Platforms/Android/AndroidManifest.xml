@@ -13,14 +13,6 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyBrvawp2yWPR_8HPkZ8ZLM1KBh4UijMJ7I" />
         
-        <!-- Foreground service cho GPS tracking -->
-        <service 
-            android:name="com.ZoneGuide.app.LocationForegroundService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="location"
-            tools:replace="android:name" />
-            
     </application>
     
     <!-- Quyền GPS -->

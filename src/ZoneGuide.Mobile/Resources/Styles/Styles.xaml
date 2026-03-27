@@ -20,6 +20,8 @@
     <converters:EnumToBoolConverter x:Key="EnumToBoolConverter" />
     <converters:OfflineStatusTextConverter x:Key="OfflineStatusTextConverter" />
     <converters:OfflineButtonTextConverter x:Key="OfflineButtonTextConverter" />
+    <converters:FlexibleImageSourceConverter x:Key="FlexibleImageSourceConverter" />
+    <converters:LocalizedCategoryConverter x:Key="LocalizedCategoryConverter" />
 
     <!-- Default Styles -->
     <Style TargetType="ActivityIndicator">

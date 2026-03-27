@@ -22,6 +22,14 @@ public class SettingsService : ISettingsService
             if (!string.IsNullOrEmpty(json))
             {
                 _settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+
+                using var document = JsonDocument.Parse(json);
+                if (document.RootElement.ValueKind == JsonValueKind.Object &&
+                    !document.RootElement.TryGetProperty(nameof(AppSettings.HasCompletedLanguageSelection), out _))
+                {
+                    // Dữ liệu cũ chưa có cờ onboarding: xem như đã dùng app rồi để tránh hỏi lại.
+                    _settings.HasCompletedLanguageSelection = true;
+                }
             }
         }
         catch

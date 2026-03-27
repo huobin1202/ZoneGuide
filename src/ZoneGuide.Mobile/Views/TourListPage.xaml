@@ -3,22 +3,25 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
              xmlns:models="clr-namespace:ZoneGuide.Shared.Models;assembly=ZoneGuide.Shared"
+             xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
              x:Class="ZoneGuide.Mobile.Views.TourListPage"
              x:DataType="vm:TourListViewModel"
-             Title="Tours">
+             Title="{local:Translate tours_title}">
 
     <RefreshView IsRefreshing="{Binding IsRefreshing}"
                  Command="{Binding RefreshCommand}">
         <CollectionView ItemsSource="{Binding Tours}"
-                        SelectionMode="None">
+                        SelectionMode="None"
+                        Margin="0,8,0,16">
             <CollectionView.EmptyView>
                 <VerticalStackLayout HorizontalOptions="Center"
                                      VerticalOptions="Center"
-                                     Padding="32">
+                                     Padding="32"
+                                     Spacing="8">
                     <Label Text="🗺️"
                            FontSize="48"
                            HorizontalOptions="Center" />
-                    <Label Text="Chưa có tour nào"
+                    <Label Text="{local:Translate tours_empty_title}"
                            FontSize="16"
                            TextColor="Gray"
                            HorizontalOptions="Center" />
@@ -29,56 +32,121 @@
                 <DataTemplate x:DataType="models:Tour">
                     <Frame Margin="16,8"
                            Padding="0"
-                           CornerRadius="16"
+                           CornerRadius="20"
+                           HasShadow="False"
+                           BorderColor="#E5E7EB"
                            BackgroundColor="White"
-                           BorderColor="LightGray"
                            IsClippedToBounds="True">
                         <Frame.GestureRecognizers>
                             <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:TourListViewModel}}, Path=ViewDetailCommand}"
                                                   CommandParameter="{Binding .}" />
                         </Frame.GestureRecognizers>
 
-                        <Grid RowDefinitions="120, Auto">
-                            <!-- Thumbnail -->
-                            <Image Grid.Row="0"
-                                   Source="{Binding ThumbnailUrl}"
-                                   Aspect="AspectFill"
-                                   BackgroundColor="LightGray" />
-                            
-                            <!-- Info -->
-                            <VerticalStackLayout Grid.Row="1" Padding="12" Spacing="4">
-                                <Label Text="{Binding Name}"
-                                       FontSize="18"
-                                       FontAttributes="Bold"
-                                       MaxLines="1" />
-                                
-                                <Label Text="{Binding Description}"
-                                       FontSize="12"
-                                       TextColor="Gray"
-                                       MaxLines="2" />
+                        <Grid RowDefinitions="180,Auto">
+                            <Grid Grid.Row="0">
+                                <Image Source="{Binding ThumbnailUrl, Converter={StaticResource FlexibleImageSourceConverter}}"
+                                       Aspect="AspectFill"
+                                       BackgroundColor="#E5E7EB" />
+                                <BoxView Color="#66000000" />
+                                <VerticalStackLayout Padding="16"
+                                                     Spacing="6"
+                                                     VerticalOptions="End">
+                                    <Label Text="{Binding Name}"
+                                           FontSize="22"
+                                           FontAttributes="Bold"
+                                           TextColor="White"
+                                           MaxLines="2"
+                                           LineBreakMode="TailTruncation" />
+                                    <Label Text="{Binding Description}"
+                                           FontSize="13"
+                                           TextColor="#F3F4F6"
+                                           MaxLines="2"
+                                           LineBreakMode="TailTruncation" />
+                                </VerticalStackLayout>
+                            </Grid>
 
-                                <HorizontalStackLayout Spacing="16" Margin="0,8,0,0">
-                                    <HorizontalStackLayout Spacing="4">
-                                        <Label Text="📍" FontSize="12" />
-                                        <Label Text="{Binding POICount, StringFormat='{0} điểm'}"
-                                               FontSize="12"
-                                               TextColor="Gray" />
-                                    </HorizontalStackLayout>
-                                    
-                                    <HorizontalStackLayout Spacing="4">
-                                        <Label Text="⏱️" FontSize="12" />
-                                        <Label Text="{Binding EstimatedDurationMinutes, StringFormat='{0} phút'}"
-                                               FontSize="12"
-                                               TextColor="Gray" />
-                                    </HorizontalStackLayout>
-                                    
-                                    <HorizontalStackLayout Spacing="4">
-                                        <Label Text="🚶" FontSize="12" />
-                                        <Label Text="{Binding EstimatedDistanceMeters, StringFormat='{0:F0}m'}"
-                                               FontSize="12"
-                                               TextColor="Gray" />
-                                    </HorizontalStackLayout>
-                                </HorizontalStackLayout>
+                            <VerticalStackLayout Grid.Row="1"
+                                                 Padding="16"
+                                                 Spacing="14">
+                                <Grid ColumnDefinitions="*,*,*"
+                                      ColumnSpacing="10">
+                                    <Frame Grid.Column="0"
+                                           Padding="12,10"
+                                           CornerRadius="14"
+                                           HasShadow="False"
+                                           BorderColor="#E5E7EB"
+                                           BackgroundColor="#F9FAFB">
+                                        <VerticalStackLayout Spacing="4"
+                                                             HorizontalOptions="Center">
+                                            <Label Text="📍"
+                                                   FontSize="16"
+                                                   HorizontalOptions="Center" />
+                                            <Label Text="{Binding POICount}"
+                                                   FontSize="16"
+                                                   FontAttributes="Bold"
+                                                   HorizontalOptions="Center" />
+                                            <Label Text="{local:Translate tour_detail_points}"
+                                                   FontSize="11"
+                                                   TextColor="#6B7280"
+                                                   HorizontalOptions="Center" />
+                                        </VerticalStackLayout>
+                                    </Frame>
+
+                                    <Frame Grid.Column="1"
+                                           Padding="12,10"
+                                           CornerRadius="14"
+                                           HasShadow="False"
+                                           BorderColor="#E5E7EB"
+                                           BackgroundColor="#F9FAFB">
+                                        <VerticalStackLayout Spacing="4"
+                                                             HorizontalOptions="Center">
+                                            <Label Text="⏱️"
+                                                   FontSize="16"
+                                                   HorizontalOptions="Center" />
+                                            <Label Text="{Binding EstimatedDurationMinutes}"
+                                                   FontSize="16"
+                                                   FontAttributes="Bold"
+                                                   HorizontalOptions="Center" />
+                                            <Label Text="{local:Translate tour_detail_duration}"
+                                                   FontSize="11"
+                                                   TextColor="#6B7280"
+                                                   HorizontalOptions="Center" />
+                                        </VerticalStackLayout>
+                                    </Frame>
+
+                                    <Frame Grid.Column="2"
+                                           Padding="12,10"
+                                           CornerRadius="14"
+                                           HasShadow="False"
+                                           BorderColor="#E5E7EB"
+                                           BackgroundColor="#F9FAFB">
+                                        <VerticalStackLayout Spacing="4"
+                                                             HorizontalOptions="Center">
+                                            <Label Text="🚶"
+                                                   FontSize="16"
+                                                   HorizontalOptions="Center" />
+                                            <Label Text="{Binding EstimatedDistanceMeters, StringFormat='{}{0:F0}m'}"
+                                                   FontSize="16"
+                                                   FontAttributes="Bold"
+                                                   HorizontalOptions="Center" />
+                                            <Label Text="{local:Translate tour_detail_distance}"
+                                                   FontSize="11"
+                                                   TextColor="#6B7280"
+                                                   HorizontalOptions="Center" />
+                                        </VerticalStackLayout>
+                                    </Frame>
+                                </Grid>
+
+                                <Label Text="{local:Translate tour_detail_about}"
+                                       FontSize="13"
+                                       FontAttributes="Bold"
+                                       TextColor="#111827" />
+
+                                <Label Text="{Binding Description}"
+                                       FontSize="13"
+                                       TextColor="#6B7280"
+                                       MaxLines="3"
+                                       LineBreakMode="TailTruncation" />
                             </VerticalStackLayout>
                         </Grid>
                     </Frame>

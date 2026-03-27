@@ -43,6 +43,7 @@ builder.Services.AddScoped(sp =>
 
 // Configure IApiService to use the Scoped HttpClient
 builder.Services.AddScoped<IApiService, ApiService>();
+builder.Services.AddScoped<WebTtsService>();
 
 var app = builder.Build();
 

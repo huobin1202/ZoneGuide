@@ -80,3 +80,5 @@ secrets.json
 *.sqlite
 *.mdf
 *.ldf
+
+.fake

@@ -1,0 +1,593 @@
+@page "/contributor-pois"
+@using ZoneGuide.Shared.Models
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject IApiService ApiService
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+<MudGrid Spacing="0">
+    <MudItem xs="12" md="4" Style="height: calc(100vh - 64px); display: flex; flex-direction: column; border-right: 1px solid var(--mud-palette-lines-default); background-color: #f7f9fa;">
+        <MudTabs Elevation="0" Rounded="false" ApplyEffectsToContainer="true" @bind-ActivePanelIndex="_activeTabIndex" Style="flex-grow: 1; display: flex; flex-direction: column; background-color: white;">
+            <MudTabPanel Text="@($"Danh sách  ({_myContributions.Count})")">
+                <div style="flex-grow: 1; overflow-y: auto; height: calc(100vh - 120px);" class="px-4 pb-4 pt-4">
+                    @if (_isEditMode && _editModel != null)
+                    {
+                        <div class="d-flex justify-space-between align-center mb-4">
+                            <MudText Typo="Typo.h6">
+                                <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Class="mr-2"/>
+                                Chỉnh sửa đóng góp
+                            </MudText>
+                            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="CancelEdit" />
+                        </div>
+                        
+                        <MudForm @ref="_editForm" @bind-IsValid="_isValid">
+                            <MudTextField @bind-Value="_editModel.Name" Label="Tên địa điểm" Required="true" 
+                                          RequiredError="Tên là bắt buộc" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
+                            
+                            <MudText Typo="Typo.caption" Class="mb-1 mt-3 d-block">Danh mục</MudText>
+                            <div class="d-flex gap-2" style="overflow-x: auto; padding-bottom: 4px;">
+                                @foreach(var cat in new[] { ("Du lịch", Icons.Material.Filled.Museum), ("Dịch vụ", Icons.Material.Filled.MiscellaneousServices), ("Ăn uống", Icons.Material.Filled.LocalDining), ("Giải trí", Icons.Material.Filled.EmojiEvents), ("Mua sắm", Icons.Material.Filled.LocalMall), ("Khác", Icons.Material.Filled.Place) })
+                                {
+                                    var isSelected = _editModel.Category == cat.Item1;
+                                    <div @onclick="() => _editModel.Category = cat.Item1" 
+                                         style="@($"cursor: pointer; min-width: 64px; height: 60px; border-radius: 8px; border: {(isSelected ? "2px solid var(--mud-palette-primary)" : "1px solid var(--mud-palette-lines-default)")}; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: {(isSelected ? "var(--mud-palette-primary-hover)" : "transparent")};")">
+                                        <MudIcon Icon="@cat.Item2" Color="@(isSelected ? Color.Primary : Color.Error)" Size="Size.Small" />
+                                        <span style="font-size: 10px; margin-top: 4px; color: @(isSelected ? "var(--mud-palette-primary)" : "inherit")">@cat.Item1</span>
+                                    </div>
+                                }
+                            </div>
+
+                            <MudTextField @bind-Value="_editModel.ShortDescription" Label="Mô tả ngắn" 
+                                          Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
+
+                            <MudTextField @bind-Value="_editModel.FullDescription" Label="Mô tả chi tiết" 
+                                          Lines="3" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
+
+                            <MudGrid Class="mt-1">
+                                <MudItem xs="6">
+                                    <MudTextField @bind-Value="_editModel.Latitude" Label="Vĩ độ" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudTextField @bind-Value="_editModel.Longitude" Label="Kinh độ" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                            </MudGrid>
+
+                            <MudFileUpload T="IBrowserFile" Accept=".png, .jpg, .jpeg" FilesChanged="UploadImage" Class="mt-3">
+                                <ActivatorContent>
+                                    <MudButton HtmlTag="label"
+                                               Variant="Variant.Outlined"
+                                               Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.CloudUpload"
+                                               FullWidth="true"
+                                               Style="border-style: dashed; border-width: 2px; padding: 20px;">
+                                        Tải lên hình ảnh
+                                    </MudButton>
+                                </ActivatorContent>
+                            </MudFileUpload>
+
+                            @if (!string.IsNullOrEmpty(_editModel.ImageUrl))
+                            {
+                                <div class="mt-2 text-center">
+                                    <img src="@_editModel.ImageUrl" style="max-height: 150px; max-width: 100%; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" />
+                                </div>
+                            }
+
+                            <div class="d-flex justify-space-between gap-4 mt-6">
+                                <MudButton Variant="Variant.Text" OnClick="CancelEdit" FullWidth="true">Hủy</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                                           Disabled="!_isValid" OnClick="SubmitEdit" FullWidth="true">Lưu thay đổi</MudButton>
+                            </div>
+                            <div class="mb-4"></div>
+                        </MudForm>
+                    }
+                    else
+                    {
+                        <MudPaper Elevation="1" Class="pa-4 panel-card mb-3">
+                            <div class="d-flex justify-space-between align-center mb-3">
+                                <div>
+                                    <MudText Typo="Typo.h6">Đóng góp của tôi</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">@_myContributions.Count tổng • @FilteredContributions.Count() đang hiển thị</MudText>
+                                </div>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => { _activeTabIndex = 1; _isEditMode = false; })">Thêm đóng góp</MudButton>
+                            </div>
+                            <MudTextField @bind-Value="_searchString" Immediate="true" Placeholder="Tìm kiếm đóng góp..." 
+                                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-0" />
+                        </MudPaper>
+
+                        @if (_loading)
+                        {
+                            <div class="d-flex justify-center pa-4"><MudProgressCircular Indeterminate="true" /></div>
+                        }
+                        else
+                        {
+                            @foreach (var contrib in FilteredContributions)
+                            {
+                                <MudCard Class="mb-3 poi-card" @onclick="() => FocusMapOnContribution(contrib)">
+                                    <div class="poi-card-body">
+                                        <img class="poi-thumb-img" src="@(string.IsNullOrEmpty(contrib.ImageUrl) ? "/images/placeholder.png" : contrib.ImageUrl)" alt="Ảnh địa điểm" />
+                                        <div class="poi-main">
+                                            <div class="d-flex justify-space-between align-center mb-1">
+                                                <MudText Typo="Typo.subtitle1" Class="text-truncate"><b>@contrib.Name</b></MudText>
+                                                <div class="d-flex gap-1">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" title="Chỉnh sửa" OnClick="() => EditContribution(contrib)" />
+                                                </div>
+                                            </div>
+                                            <div class="d-flex gap-2 mb-1 flex-wrap">
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="ma-0">@contrib.Category</MudChip>
+                                                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(contrib.Status)" Class="ma-0">@contrib.Status</MudChip>
+                                            </div>
+                                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-1 d-flex align-center gap-1">
+                                                <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" />
+                                                @($"{contrib.Latitude:F6}, {contrib.Longitude:F6}")
+                                            </MudText>
+                                            <MudText Typo="Typo.body2" Color="Color.Default" Class="clamp-2">
+                                                @(contrib.ShortDescription ?? "Không có mô tả")
+                                            </MudText>
+                                        </div>
+                                    </div>
+                                </MudCard>
+                            }
+                            
+                            @if (!FilteredContributions.Any())
+                            {
+                                <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary" Class="mt-4">Chưa có đóng góp nào.</MudText>
+                            }
+                        }
+                    }
+                </div>
+            </MudTabPanel>
+
+            <MudTabPanel Text="+ Thêm mới">
+                <div style="flex-grow: 1; overflow-y: auto; height: calc(100vh - 120px);" class="px-4 pb-4 pt-4">
+                    <MudText Typo="Typo.body2" Class="mb-4" Color="Color.Primary">
+                        <MudIcon Icon="@Icons.Material.Filled.TouchApp" Size="Size.Small" />
+                        Click vào bản đồ để chọn tọa độ
+                    </MudText>
+                    
+                    <MudForm @ref="_createForm" @bind-IsValid="_isValid">
+                        <MudTextField @bind-Value="_newContrib.Name" Label="Tên địa điểm" Required="true" 
+                                      RequiredError="Tên là bắt buộc" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
+                        
+                        <MudText Typo="Typo.caption" Class="mb-1 mt-3 d-block">Danh mục</MudText>
+                        <div class="d-flex gap-2" style="overflow-x: auto; padding-bottom: 4px;">
+                            @foreach(var cat in new[] { ("Du lịch", Icons.Material.Filled.Museum), ("Dịch vụ", Icons.Material.Filled.MiscellaneousServices), ("Ăn uống", Icons.Material.Filled.LocalDining), ("Giải trí", Icons.Material.Filled.EmojiEvents), ("Mua sắm", Icons.Material.Filled.LocalMall), ("Khác", Icons.Material.Filled.Place) })
+                            {
+                                var isSelected = _newContrib.Category == cat.Item1;
+                                <div @onclick="() => _newContrib.Category = cat.Item1" 
+                                     style="@($"cursor: pointer; min-width: 64px; height: 60px; border-radius: 8px; border: {(isSelected ? "2px solid var(--mud-palette-primary)" : "1px solid var(--mud-palette-lines-default)")}; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: {(isSelected ? "var(--mud-palette-primary-hover)" : "transparent")};")">
+                                    <MudIcon Icon="@cat.Item2" Color="@(isSelected ? Color.Primary : Color.Error)" Size="Size.Small" />
+                                    <span style="font-size: 10px; margin-top: 4px; color: @(isSelected ? "var(--mud-palette-primary)" : "inherit")">@cat.Item1</span>
+                                </div>
+                            }
+                        </div>
+
+                        <MudTextField @bind-Value="_newContrib.ShortDescription" Label="Mô tả ngắn" 
+                                      Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
+
+                        <MudTextField @bind-Value="_newContrib.FullDescription" Label="Mô tả chi tiết" 
+                                      Lines="3" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
+
+                        <MudGrid Class="mt-1">
+                            <MudItem xs="6">
+                                <MudTextField @bind-Value="_newContrib.Latitude" Label="Vĩ độ" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudTextField @bind-Value="_newContrib.Longitude" Label="Kinh độ" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            </MudItem>
+                        </MudGrid>
+
+                        <MudFileUpload T="IBrowserFile" Accept=".png, .jpg, .jpeg" FilesChanged="UploadImage" Class="mt-3">
+                            <ActivatorContent>
+                                <MudButton HtmlTag="label"
+                                           Variant="Variant.Outlined"
+                                           Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.CloudUpload"
+                                           FullWidth="true"
+                                           Style="border-style: dashed; border-width: 2px; padding: 20px;">
+                                    Tải lên hình ảnh
+                                </MudButton>
+                            </ActivatorContent>
+                        </MudFileUpload>
+
+                        @if (!string.IsNullOrEmpty(_newContrib.ImageUrl))
+                        {
+                            <div class="mt-2 text-center">
+                                <img src="@_newContrib.ImageUrl" style="max-height: 150px; max-width: 100%; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" />
+                            </div>
+                        }
+
+                        <MudTextField @bind-Value="_newContrib.ContributorNotes" Label="Ghi chú" 
+                                      Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
+
+                        <div class="d-flex justify-space-between gap-4 mt-6">
+                            <MudButton Variant="Variant.Text" OnClick="CancelCreate" FullWidth="true">Hủy</MudButton>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                                       Disabled="!_isValid" OnClick="SubmitCreate" FullWidth="true">Lưu & Thêm</MudButton>
+                        </div>
+                        <div class="mb-4"></div>
+                    </MudForm>
+                </div>
+            </MudTabPanel>
+
+        </MudTabs>
+    </MudItem>
+
+    <!-- Map Area -->
+    <MudItem xs="12" md="8" Style="height: calc(100vh - 64px); position: relative;">
+        <div id="contributor-poi-map" style="width: 100%; height: 100%; z-index: 1;"></div>
+        <MudPaper Elevation="8" Class="pa-3 map-overlay" Style="top: 10px; left: 50px; width: 320px;">
+            <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">Tìm kiếm trên bản đồ</MudText>
+            <div class="d-flex align-center gap-2">
+                <MudTextField @bind-Value="_mapSearchQuery" Placeholder="Nhập địa chỉ hoặc địa danh..." Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="flex-grow-1" OnKeyDown="@(async e => { if (e.Key == "Enter") await SearchOnMap(); })" />
+                <MudIconButton Icon="@Icons.Material.Filled.ArrowForward" Color="Color.Primary" Variant="Variant.Filled" OnClick="SearchOnMap" title="Tìm vị trí" />
+            </div>
+        </MudPaper>
+        
+        <MudPaper Class="pa-2 d-flex gap-4 align-center" Elevation="4" Style="position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 2; border-radius: 8px;">
+            <div class="text-center px-4">
+                <MudText Typo="Typo.h6" Color="Color.Primary"><b>@_allPoisForMap.Count</b></MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Tổng Địa điểm Chung</MudText>
+            </div>
+             <MudDivider Vertical="true" FlexItem="true" />
+             <div class="text-center px-4">
+                <MudText Typo="Typo.h6" Color="Color.Info"><b>@_myContributions.Count</b></MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Địa điểm Của Tôi</MudText>
+            </div>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<style>
+    .panel-card {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #e7ebf0;
+    }
+    .poi-card {
+        border: 1px solid #e7ebf0;
+        border-radius: 12px;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+    }
+    .poi-card-body { display: flex; gap: 12px; padding: 12px; align-items: flex-start; }
+    .poi-thumb-img {
+        width: 88px;
+        height: 88px;
+        object-fit: cover;
+        border-radius: 12px;
+        background: #f0f2f5;
+        flex-shrink: 0;
+    }
+    .poi-main { flex: 1; min-width: 0; }
+    .clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .map-overlay {
+        position: absolute;
+        z-index: 2;
+        background: rgba(255,255,255,0.95);
+        backdrop-filter: blur(8px);
+        border-radius: 12px;
+        box-shadow: 0 14px 30px rgba(0,0,0,0.16);
+        border: 1px solid #e7ebf0;
+    }
+</style>
+
+@code {
+    private int _activeTabIndex = 0;
+    private List<POIContributionDto> _myContributions = new();
+    private List<POIDto> _allPoisForMap = new();
+    private string _mapSearchQuery = "";
+    
+    private bool _loading = true;
+    private bool _mapInitialized = false;
+    private bool _isEditMode = false;
+    private string _searchString = "";
+    private DotNetObjectReference<ContributorPOIs>? _dotNetRef;
+
+    private MudForm _createForm = null!;
+    private MudForm _editForm = null!;
+    private bool _isValid;
+    private CreatePOIContributionDto _newContrib = new() { Category = "Khác" };
+    private POIContributionDto? _editModel;
+
+    private IEnumerable<POIContributionDto> FilteredContributions =>
+        string.IsNullOrWhiteSpace(_searchString)
+            ? _myContributions
+            : _myContributions.Where(p => 
+                p.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+                (p.ShortDescription?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync()
+    {
+        _dotNetRef = DotNetObjectReference.Create(this);
+        await LoadData();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender || (!_loading && !_mapInitialized && _allPoisForMap.Any()))
+        {
+            _mapInitialized = true;
+            await InitializeMap();
+            
+            // Check if we arrived here from MyContributions grid to edit a specific POI
+            var editIdStr = await LocalStorage.GetItemAsync<string>("edit_poi_id");
+            if (!string.IsNullOrEmpty(editIdStr) && int.TryParse(editIdStr, out int editId))
+            {
+                await LocalStorage.RemoveItemAsync("edit_poi_id");
+                var targetPoi = _myContributions.FirstOrDefault(p => p.Id == editId);
+                if (targetPoi != null)
+                {
+                   await EditContribution(targetPoi);
+                   StateHasChanged();
+                }
+            }
+        }
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        try
+        {
+            _allPoisForMap = await ApiService.GetPOIsAsync();
+            
+            var response = await Http.GetAsync("api/contributions/my");
+            if (response.IsSuccessStatusCode)
+            {
+                 var result = await response.Content.ReadFromJsonAsync<List<POIContributionDto>>();
+                 if (result != null)
+                 {
+                     _myContributions = result;
+                 }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading stuff {ex.Message}");
+        }
+        _loading = false;
+        StateHasChanged();
+        
+        if (_mapInitialized)
+        {
+             await InitializeMap();
+        }
+    }
+
+    private async Task InitializeMap()
+    {
+        try
+        {
+            var activePois = _allPoisForMap.Where(p => p.IsActive).ToList();
+            double centerLat = activePois.Any() ? activePois.Average(p => p.Latitude) : 10.762622;
+            double centerLng = activePois.Any() ? activePois.Average(p => p.Longitude) : 106.660172;
+
+            var poiData = activePois.Select(p => new
+            {
+                id = p.Id,
+                name = p.Name,
+                lat = p.Latitude,
+                lng = p.Longitude,
+                description = p.ShortDescription ?? "",
+                thumbnailUrl = p.ThumbnailUrl ?? p.ImageUrl,
+                category = p.Category,
+                isActive = p.IsActive,
+                audioUrl = p.AudioUrl,
+                isDraft = false
+            }).ToList();
+
+            // Thêm các đóng góp chưa duyệt (nháp) của chính user này vào bản đồ
+            var myDrafts = _myContributions.Where(m => m.Status != POIApprovalStatus.Approved.ToString());
+            foreach (var draft in myDrafts)
+            {
+                poiData.Add(new
+                {
+                    id = draft.Id.ToString(),
+                    name = $"{draft.Name} (Nháp)",
+                    lat = draft.Latitude ?? 0.0,
+                    lng = draft.Longitude ?? 0.0,
+                    description = draft.ShortDescription ?? "",
+                    thumbnailUrl = draft.ImageUrl,
+                    category = draft.Category,
+                    isActive = false,
+                    audioUrl = (string?)null,
+                    isDraft = true
+                });
+            }
+
+            await JS.InvokeVoidAsync("initPOIMap", "contributor-poi-map", centerLat, centerLng, poiData, _dotNetRef);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Could not center map: " + ex.Message);
+        }
+    }
+
+    private async Task FocusMapOnContribution(POIContributionDto contrib)
+    {
+         await JS.InvokeVoidAsync("addTempMarkerToPOIMap", contrib.Latitude, contrib.Longitude, false);
+    }
+
+    private async Task EditContribution(POIContributionDto contrib)
+    {
+        _editModel = new POIContributionDto
+        {
+            Id = contrib.Id,
+            Name = contrib.Name,
+            Category = contrib.Category,
+            ShortDescription = contrib.ShortDescription,
+            FullDescription = contrib.FullDescription,
+            Latitude = contrib.Latitude,
+            Longitude = contrib.Longitude,
+            ImageUrl = contrib.ImageUrl
+        };
+        _isEditMode = true;
+        _activeTabIndex = 0; // Đảm bảo đang ở tab danh sách
+        
+        await FocusMapOnContribution(contrib);
+    }
+
+    [JSInvokable]
+    public Task OnMapMarkerClicked(string poiId)
+    {
+        return Task.CompletedTask;
+    }
+
+    [JSInvokable]
+    public async Task OnMapClicked(double lat, double lng)
+    {
+        if (_activeTabIndex == 1) // Thêm mới
+        {
+            _newContrib.Latitude = Math.Round(lat, 6);
+            _newContrib.Longitude = Math.Round(lng, 6);
+            
+            await JS.InvokeVoidAsync("addTempMarkerToPOIMap", lat, lng, false);
+            StateHasChanged();
+        }
+        else if (_activeTabIndex == 0 && _isEditMode && _editModel != null) // Sửa
+        {
+            _editModel.Latitude = Math.Round(lat, 6);
+            _editModel.Longitude = Math.Round(lng, 6);
+            
+            await JS.InvokeVoidAsync("addTempMarkerToPOIMap", lat, lng, false);
+            StateHasChanged();
+        }
+    }
+
+    private void CancelEdit()
+    {
+        _editModel = null;
+        _isEditMode = false;
+        _isValid = false;
+        JS.InvokeVoidAsync("removeTempMarkerFromPOIMap");
+    }
+
+    private async Task SubmitEdit()
+    {
+        if (_editModel == null) return;
+        
+        try
+        {
+            var response = await Http.PutAsJsonAsync($"api/contributions/{_editModel.Id}", _editModel);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Sửa đóng góp thành công", Severity.Success);
+                CancelEdit();
+                await LoadData();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Lỗi: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void CancelCreate()
+    {
+        _newContrib = new CreatePOIContributionDto { Category = "Khác" };
+        _isValid = false;
+        JS.InvokeVoidAsync("removeTempMarkerFromPOIMap");
+        _activeTabIndex = 0;
+    }
+
+    private async Task SubmitCreate()
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/contributions", _newContrib);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Thêm đóng góp thành công", Severity.Success);
+                _activeTabIndex = 0;
+                _newContrib = new CreatePOIContributionDto { Category = "Khác" };
+                await JS.InvokeVoidAsync("removeTempMarkerFromPOIMap");
+                await LoadData();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Lỗi: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task UploadImage(IBrowserFile file)
+    {
+        try
+        {
+            var maxAllowedSize = 5 * 1024 * 1024; // 5MB
+            var stream = file.OpenReadStream(maxAllowedSize);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var base64 = Convert.ToBase64String(ms.ToArray());
+            var format = file.ContentType;
+            
+            if (_isEditMode && _editModel != null)
+            {
+                _editModel.ImageUrl = $"data:{format};base64,{base64}";
+            }
+            else
+            {
+                _newContrib.ImageUrl = $"data:{format};base64,{base64}";
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi tải ảnh lên: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private Color GetStatusColor(string statusString) 
+    {
+        if (Enum.TryParse<POIApprovalStatus>(statusString, out var status))
+        {
+            return status switch
+            {
+                POIApprovalStatus.Approved => Color.Success,
+                POIApprovalStatus.Pending => Color.Warning,
+                POIApprovalStatus.Rejected => Color.Error,
+                POIApprovalStatus.NeedsRevision => Color.Info,
+                _ => Color.Default
+            };
+        }
+        return Color.Default;
+    }
+
+    private async Task SearchOnMap()
+    {
+        if (string.IsNullOrWhiteSpace(_mapSearchQuery))
+        {
+            Snackbar.Add("Vui lòng nhập địa chỉ hoặc tên địa danh", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync("searchAddressOnMainMap", _mapSearchQuery);
+        }
+        catch
+        {
+            Snackbar.Add("Không thể tìm kiếm trên bản đồ", Severity.Error);
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_dotNetRef != null)
+        {
+            _dotNetRef.Dispose();
+        }
+    }
+}

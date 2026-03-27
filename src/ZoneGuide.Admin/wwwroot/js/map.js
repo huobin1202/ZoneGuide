@@ -1,19 +1,23 @@
 // POI Map Functions using Leaflet
 var poiMap = null;
 var markers = [];
+var tempMarker = null;
+var searchResultMarker = null;
 
 // Picker map for dialog
 var pickerMap = null;
 var pickerMarker = null;
 var dotNetRef = null;
 
-window.initPOIMap = function (elementId, centerLat, centerLng, poiData) {
+window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetReference) {
     // Destroy existing map if any
     if (poiMap) {
         poiMap.remove();
         poiMap = null;
     }
     markers = [];
+    searchResultMarker = null;
+    dotNetRef = dotNetReference;
 
     // Initialize map
     poiMap = L.map(elementId, {
@@ -49,52 +53,68 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData) {
         });
 
         // Use standard Leaflet colors from local offline files
-        var blueIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-blue.png'});
-        var redIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-red.png'});
         var foodIcon = new CustomIcon({iconUrl: '/images/markers/food-dish-svgrepo-com.svg'});
-        var greenIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-green.png'});
-        var orangeIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-orange.png'});
-        var violetIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-violet.png'});
-        var yellowIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-yellow.png'});
+        var entertainmentIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-yellow.png'});
+        var travelIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-green.png'});
+        var servicesIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-blue.png'});
+        var shoppingIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-orange.png'});
+        var otherIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-gray.png'});
 
         function getCustomIcon(category) {
             switch((category || '').toLowerCase()) {
-          
                 case 'food':
                 case 'ăn uống':
+                case 'an uong':
                     return foodIcon;
-                case 'travel':
-                case 'du lịch':
-                    return greenIcon;
-                case 'services':
-                case 'dịch vụ':
-                    return orangeIcon;
-                case 'shopping':
-                case 'mua sắm':
-                    return violetIcon;
                 case 'entertainment':
                 case 'giải trí':
-                    return yellowIcon;
+                case 'giai tri':
+                    return entertainmentIcon;
+                case 'travel':
+                case 'du lịch':
+                case 'du lich':
+                    return travelIcon;
+                case 'services':
+                case 'dịch vụ':
+                case 'dich vu':
+                    return servicesIcon;
+                case 'shopping':
+                case 'mua sắm':
+                case 'mua sam':
+                    return shoppingIcon;
                 case 'other':
                 case 'khác':
-                    return blueIcon;
-
+                case 'khac':
+                    return otherIcon;
                 default:
-                    return blueIcon;
+                    return otherIcon; // Mặc định cho các loại khác hoặc không xác định
             }
         }
 
         poiData.forEach(function (poi) {
+            var fallbackImageUrl = '/images/placeholder.png';
+            var imageUrl = (poi.imageUrl && poi.imageUrl.trim()) ? poi.imageUrl : fallbackImageUrl;
+
             var marker = L.marker([poi.lat, poi.lng], { icon: getCustomIcon(poi.category) })
                 .addTo(poiMap)
                 .bindPopup(
-                    '<div style="min-width: 200px;">' +
-                    '<h4 style="margin: 0 0 8px 0; color: #1976D2;">' + poi.name + '</h4>' +
-                    '<p style="margin: 0 0 4px 0;"><strong>Category:</strong> ' + poi.category + '</p>' +
-                    '<p style="margin: 0 0 4px 0;"><strong>Lat:</strong> ' + poi.lat.toFixed(6) + '</p>' +
-                    '<p style="margin: 0 0 4px 0;"><strong>Lng:</strong> ' + poi.lng.toFixed(6) + '</p>' +
-                    (poi.description ? '<p style="margin: 8px 0 0 0;">' + poi.description + '</p>' : '') +
-                    '</div>'
+                    '<div style="width: 250px; max-width: 250px; padding: 0; overflow: hidden;">' +
+                    '<img src="' + imageUrl + '" onerror="this.onerror=null;this.src=\'' + fallbackImageUrl + '\';" style="width: 100%; height: 120px; object-fit: cover; border-top-left-radius: 8px; border-top-right-radius: 8px; margin-bottom: 8px; display: block;" />' +
+                    '<div style="padding: 4px 8px 8px 8px;">' +
+                    '<h4 style="margin: 0 0 6px 0; color: #333; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' + poi.name + '</h4>' +
+                    '<div style="display: flex; align-items: center; margin-bottom: 8px;">' +
+                        '<span style="background-color: #E3F2FD; color: #1976D2; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">' +
+                            '🏛 ' + poi.category + 
+                        '</span>' +
+                    '</div>' +
+                    '<p style="margin: 0 0 8px 0; font-size: 13px; color: #555; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">' + 
+                    (poi.description ? poi.description : 'Không có mô tả') + '</p>' +
+                    '<p style="margin: 0; font-size: 12px; color: #888;">' +
+                    '📍 ' + poi.lat.toFixed(6) + ', ' + poi.lng.toFixed(6) + '</p>' +
+                    '</div></div>', {
+                        className: 'custom-poi-popup',
+                        minWidth: 250
+                    }
                 );
 
             marker.poiId = poi.id;
@@ -108,6 +128,12 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData) {
             poiMap.fitBounds(bounds, { padding: [50, 50] });
         }
     }
+
+    poiMap.on('click', function(e) {
+        if (dotNetRef) {
+            dotNetRef.invokeMethodAsync('OnMapClicked', e.latlng.lat, e.latlng.lng);
+        }
+    });
 
     // Invalidate size after a small delay to ensure proper rendering
     setTimeout(function () {
@@ -137,6 +163,112 @@ window.addMarkerToMap = function (lat, lng, name, description) {
         poiMap.setView([lat, lng], 16);
         marker.openPopup();
     }
+};
+
+window.addTempMarkerToPOIMap = function (lat, lng, dontChangeView) {
+    if (poiMap) {
+        if (tempMarker) {
+            tempMarker.setLatLng([lat, lng]);
+        } else {
+            var redIcon = L.icon({
+                iconUrl: '/images/markers/marker-icon-2x-red.png',
+                shadowUrl: '/images/markers/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+            });
+            tempMarker = L.marker([lat, lng], {
+                draggable: true,
+                icon: redIcon
+            }).addTo(poiMap);
+
+            tempMarker.on('dragend', function (e) {
+                var position = tempMarker.getLatLng();
+                if (dotNetRef) {
+                    dotNetRef.invokeMethodAsync('OnMapClicked', position.lat, position.lng);
+                }
+            });
+        }
+        
+        if (!dontChangeView) {
+            poiMap.setView([lat, lng], 16);
+        }
+    }
+};
+
+window.removeTempMarkerFromPOIMap = function () {
+    if (tempMarker && poiMap) {
+        poiMap.removeLayer(tempMarker);
+        tempMarker = null;
+    }
+};
+
+function showSearchResultMarker(lat, lng, displayName) {
+    if (!poiMap) {
+        return;
+    }
+
+    if (!searchResultMarker) {
+        var purpleIcon = L.icon({
+            iconUrl: '/images/markers/marker-icon-2x-violet.png',
+            shadowUrl: '/images/markers/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        searchResultMarker = L.marker([lat, lng], { icon: purpleIcon }).addTo(poiMap);
+    } else {
+        searchResultMarker.setLatLng([lat, lng]);
+    }
+
+    searchResultMarker.bindPopup('<b>Tìm kiếm</b><br />' + displayName).openPopup();
+    poiMap.setView([lat, lng], 16);
+}
+
+window.showSearchResultOnMainMap = function (lat, lng, displayName) {
+    showSearchResultMarker(lat, lng, displayName || 'Vị trí đã chọn');
+};
+
+// ==========================================
+// Search on main POI map (admin & contributor)
+// ==========================================
+window.searchAddressOnMainMap = function (address) {
+    if (!poiMap) {
+        return;
+    }
+
+    if (!address || !address.trim()) {
+        alert('Vui lòng nhập địa chỉ hoặc tên địa danh.');
+        return;
+    }
+
+    var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(address.trim());
+
+    fetch(url, {
+        headers: {
+            'Accept-Language': 'vi',
+            'User-Agent': 'ZoneGuide/1.0 (map search)'
+        }
+    })
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+            if (!data || data.length === 0) {
+                alert('Không tìm thấy địa điểm phù hợp.');
+                return;
+            }
+
+            var lat = parseFloat(data[0].lat);
+            var lng = parseFloat(data[0].lon);
+            var displayName = data[0].display_name || address;
+            showSearchResultMarker(lat, lng, displayName);
+        })
+        .catch(function (error) {
+            console.error('Search error:', error);
+            alert('Lỗi tìm kiếm địa chỉ.');
+        });
 };
 
 // ==========================================
