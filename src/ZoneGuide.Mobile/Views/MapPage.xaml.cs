@@ -4,10 +4,11 @@ using Microsoft.Maui.Maps;
 
 namespace ZoneGuide.Mobile.Views;
 
-public partial class MapPage : ContentPage
+public partial class MapPage : ContentPage, IQueryAttributable
 {
     private readonly MapViewModel _viewModel;
     private int _lastRenderedPinCount = -1;
+    private Polyline? _tourRoutePolyline;
 
     public MapPage(MapViewModel viewModel)
     {
@@ -18,6 +19,7 @@ public partial class MapPage : ContentPage
             BindingContext = viewModel;
             
             _viewModel.POIs.CollectionChanged += (s, e) => UpdateMapPins();
+            _viewModel.TourRoutePoints.CollectionChanged += (s, e) => UpdateTourRoute();
             _viewModel.PropertyChanged += (s, e) => {
                 if (e.PropertyName == nameof(MapViewModel.MapSpan))
                 {
@@ -43,16 +45,103 @@ public partial class MapPage : ContentPage
         {
             await _viewModel.InitializeAsync();
             UpdateMapPins();
+            UpdateTourRoute();
             UpdateMapRegion();
 
             // Map control trong Shell có thể khởi tạo chậm hơn vòng đời trang.
             await Task.Delay(250);
             UpdateMapPins();
+            UpdateTourRoute();
             UpdateMapRegion();
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[MapPage] OnAppearing Error: {ex}");
+        }
+    }
+
+    public void ApplyQueryAttributes(IDictionary<string, object> query)
+    {
+        try
+        {
+            var tourId = TryGetIntQueryValue(query, "tourId");
+            var startTour = TryGetBoolQueryValue(query, "startTour");
+
+            _viewModel.SetTourRequest(tourId, startTour);
+
+            if (!startTour || !tourId.HasValue)
+                return;
+
+            _ = MainThread.InvokeOnMainThreadAsync(async () =>
+            {
+                await _viewModel.ApplyTourRequestAsync();
+                UpdateMapPins();
+                UpdateTourRoute();
+                UpdateMapRegion();
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MapPage] ApplyQueryAttributes error: {ex.Message}");
+        }
+    }
+
+    private static int? TryGetIntQueryValue(IDictionary<string, object> query, string key)
+    {
+        var value = TryGetStringQueryValue(query, key);
+        return int.TryParse(value, out var parsed) ? parsed : null;
+    }
+
+    private static bool TryGetBoolQueryValue(IDictionary<string, object> query, string key)
+    {
+        var value = TryGetStringQueryValue(query, key);
+        return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? TryGetStringQueryValue(IDictionary<string, object> query, string key)
+    {
+        if (!query.TryGetValue(key, out var value) || value == null)
+            return null;
+
+        return Uri.UnescapeDataString(value.ToString() ?? string.Empty);
+    }
+
+    private void UpdateTourRoute()
+    {
+        try
+        {
+            if (MainMap == null)
+                return;
+
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                if (_tourRoutePolyline != null)
+                {
+                    MainMap.MapElements.Remove(_tourRoutePolyline);
+                    _tourRoutePolyline = null;
+                }
+
+                if (_viewModel.TourRoutePoints.Count < 2)
+                    return;
+
+                var polyline = new Polyline
+                {
+                    StrokeColor = Color.FromArgb("#4F2DD9"),
+                    StrokeWidth = 6
+                };
+
+                foreach (var point in _viewModel.TourRoutePoints)
+                {
+                    polyline.Geopath.Add(point);
+                }
+
+                MainMap.MapElements.Add(polyline);
+                _tourRoutePolyline = polyline;
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MapPage] UpdateTourRoute Error: {ex}");
         }
     }
 

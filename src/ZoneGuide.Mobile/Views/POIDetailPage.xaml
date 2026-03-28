@@ -67,33 +67,32 @@
                         StrokeShape="RoundRectangle 22"
                         Padding="18">
                     <VerticalStackLayout Spacing="14">
-                        <Grid ColumnDefinitions="*,Auto"
-                              ColumnSpacing="12">
-                            <VerticalStackLayout Spacing="4">
-                                <Label Text="{local:Translate poi_detail_now_playing}"
-                                       FontSize="18"
-                                       FontAttributes="Bold"
-                                       TextColor="{StaticResource Gray900}" />
-                                <Label Text="{Binding PlaybackStatusText}"
-                                       FontSize="13"
-                                       TextColor="{StaticResource Gray500}" />
-                            </VerticalStackLayout>
+                       <VerticalStackLayout Spacing="4">
+                        <Label Text="{local:Translate poi_detail_now_playing}"
+                            FontSize="18"
+                            FontAttributes="Bold"
+                            TextColor="{StaticResource Gray900}" />
+                        <Label Text="{Binding PlaybackStatusText}"
+                            FontSize="13"
+                            TextColor="{StaticResource Gray500}" />
+                       </VerticalStackLayout>
 
-                            <Border BackgroundColor="#F2EFFF"
-                                    StrokeThickness="0"
-                                    StrokeShape="RoundRectangle 14"
-                                    Padding="10,6"
-                                    VerticalOptions="Center">
-                                <Label Text="{Binding ProgressText}"
-                                       FontSize="12"
-                                       TextColor="{StaticResource Primary}" />
-                            </Border>
-                        </Grid>
+                       <Grid ColumnDefinitions="*,Auto"
+                          ColumnSpacing="10">
+                        <ProgressBar Grid.Column="0"
+                                  Progress="{Binding Progress}"
+                                  HeightRequest="8"
+                                  VerticalOptions="Center"
+                                  ProgressColor="{StaticResource Primary}"
+                                  BackgroundColor="#ECEAF8" />
 
-                        <ProgressBar Progress="{Binding Progress}"
-                                     HeightRequest="8"
-                                     ProgressColor="{StaticResource Primary}"
-                                     BackgroundColor="#ECEAF8" />
+                        <Label Grid.Column="1"
+                            Text="{Binding ProgressText}"
+                            FontSize="12"
+                            FontAttributes="Bold"
+                            TextColor="{StaticResource Primary}"
+                            VerticalTextAlignment="Center" />
+                       </Grid>
 
                         <Button Text="⏯"
                                 HeightRequest="52"

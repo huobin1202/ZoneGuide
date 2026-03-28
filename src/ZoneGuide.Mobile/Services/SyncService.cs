@@ -17,6 +17,7 @@ public class SyncService : ISyncService
     private readonly ITourRepository _tourRepository;
     private readonly IAnalyticsRepository _analyticsRepository;
     private readonly ISettingsService _settingsService;
+    private readonly INarrationService _narrationService;
     private readonly SemaphoreSlim _syncStateLock = new(1, 1);
     private bool _hasLoadedLastSyncTime;
 
@@ -28,13 +29,15 @@ public class SyncService : ISyncService
         IPOIRepository poiRepository,
         ITourRepository tourRepository,
         IAnalyticsRepository analyticsRepository,
-        ISettingsService settingsService)
+        ISettingsService settingsService,
+        INarrationService narrationService)
     {
         _apiService = apiService;
         _poiRepository = poiRepository;
         _tourRepository = tourRepository;
         _analyticsRepository = analyticsRepository;
         _settingsService = settingsService;
+        _narrationService = narrationService;
     }
 
     public async Task<bool> SyncFromServerAsync()
@@ -178,39 +181,102 @@ public class SyncService : ISyncService
     {
         try
         {
-            var tour = await _apiService.GetTourAsync(tourId);
-            if (tour?.POIs == null)
+            var tour = await _apiService.GetTourDetailsAsync(tourId);
+
+            var poisToDownload = tour?.POIs?.ToList() ?? new List<POIDto>();
+            if (poisToDownload.Count == 0)
+            {
+                var localPois = await _poiRepository.GetByTourIdAsync(tourId);
+                poisToDownload = localPois
+                    .Select(p => new POIDto
+                    {
+                        Id = p.Id.ToString(),
+                        AudioUrl = p.AudioUrl,
+                        ImageUrl = p.ImageUrl
+                    })
+                    .ToList();
+            }
+
+            if (poisToDownload.Count == 0)
                 return false;
 
             var offlineDir = Path.Combine(FileSystem.AppDataDirectory, "offline", tourId.ToString());
             Directory.CreateDirectory(offlineDir);
 
-            foreach (var poi in tour.POIs)
+            var downloadableAssetCount = 0;
+            var downloadedAssetCount = 0;
+
+            foreach (var poi in poisToDownload)
             {
+                string? savedAudioPath = null;
+                string? savedImagePath = null;
+
                 // Tải audio
                 if (!string.IsNullOrEmpty(poi.AudioUrl))
                 {
+                    downloadableAssetCount++;
                     var audioData = await _apiService.DownloadAudioAsync(poi.AudioUrl);
                     if (audioData != null)
                     {
                         var audioPath = Path.Combine(offlineDir, $"audio_{poi.Id}.mp3");
                         await File.WriteAllBytesAsync(audioPath, audioData);
+                        savedAudioPath = audioPath;
+                        downloadedAssetCount++;
                     }
                 }
 
                 // Tải ảnh
                 if (!string.IsNullOrEmpty(poi.ImageUrl))
                 {
+                    downloadableAssetCount++;
                     var imageData = await _apiService.DownloadImageAsync(poi.ImageUrl);
                     if (imageData != null)
                     {
                         var imagePath = Path.Combine(offlineDir, $"image_{poi.Id}.jpg");
                         await File.WriteAllBytesAsync(imagePath, imageData);
+                        savedImagePath = imagePath;
+                        downloadedAssetCount++;
+                    }
+                }
+
+                if (int.TryParse(poi.Id, out var poiId))
+                {
+                    var localPoi = await _poiRepository.GetByIdAsync(poiId);
+                    if (localPoi != null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(savedAudioPath))
+                        {
+                            localPoi.AudioFilePath = savedAudioPath;
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(savedImagePath))
+                        {
+                            localPoi.ImagePath = savedImagePath;
+                        }
+
+                        await _poiRepository.UpdateAsync(localPoi);
                     }
                 }
             }
 
-            return true;
+            var manifestPath = Path.Combine(offlineDir, "manifest.json");
+            var manifestJson = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                TourId = tourId,
+                POICount = poisToDownload.Count,
+                DownloadableAssetCount = downloadableAssetCount,
+                DownloadedAssetCount = downloadedAssetCount,
+                CreatedAt = DateTime.UtcNow
+            });
+            await File.WriteAllTextAsync(manifestPath, manifestJson);
+
+            if (downloadableAssetCount == 0)
+            {
+                // Tour có thể chỉ dùng TTS nên không có file media để tải.
+                return true;
+            }
+
+            return downloadedAssetCount > 0;
         }
         catch
         {
@@ -218,27 +284,55 @@ public class SyncService : ISyncService
         }
     }
 
-    public Task<bool> DeleteTourOfflineAsync(int tourId)
+    public async Task<bool> DeleteTourOfflineAsync(int tourId)
     {
         try
         {
             var offlineDir = Path.Combine(FileSystem.AppDataDirectory, "offline", tourId.ToString());
+
+            if (_narrationService.CurrentItem?.POI.TourId == tourId)
+            {
+                await _narrationService.StopAsync();
+            }
+
+            var tourPois = await _poiRepository.GetByTourIdAsync(tourId);
+            foreach (var poi in tourPois)
+            {
+                poi.AudioFilePath = null;
+
+                if (!string.IsNullOrWhiteSpace(poi.ImagePath) &&
+                    poi.ImagePath.StartsWith(offlineDir, StringComparison.OrdinalIgnoreCase))
+                {
+                    poi.ImagePath = null;
+                }
+
+                await _poiRepository.UpdateAsync(poi);
+            }
+
             if (Directory.Exists(offlineDir))
             {
                 Directory.Delete(offlineDir, true);
             }
-            return Task.FromResult(true);
+
+            return !Directory.Exists(offlineDir);
         }
         catch
         {
-            return Task.FromResult(false);
+            return false;
         }
     }
 
     public Task<bool> IsTourOfflineAvailableAsync(int tourId)
     {
         var offlineDir = Path.Combine(FileSystem.AppDataDirectory, "offline", tourId.ToString());
-        return Task.FromResult(Directory.Exists(offlineDir));
+        if (!Directory.Exists(offlineDir))
+            return Task.FromResult(false);
+
+        var hasFiles = Directory
+            .EnumerateFiles(offlineDir, "*.*", SearchOption.TopDirectoryOnly)
+            .Any();
+
+        return Task.FromResult(hasFiles);
     }
 
     private static POI MapToPOI(POIDto dto)

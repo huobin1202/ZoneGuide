@@ -17,6 +17,7 @@ public class NarrationService : INarrationService, IDisposable
 
     private readonly ITTSService _ttsService;
     private readonly IAudioService _audioService;
+    private readonly IGeofenceService _geofenceService;
     private readonly IAnalyticsRepository _analyticsRepository;
     private readonly ISettingsService _settingsService;
     private readonly ApiService _apiService;
@@ -40,12 +41,14 @@ public class NarrationService : INarrationService, IDisposable
     public NarrationService(
         ITTSService ttsService,
         IAudioService audioService,
+        IGeofenceService geofenceService,
         IAnalyticsRepository analyticsRepository,
         ISettingsService settingsService,
         ApiService apiService)
     {
         _ttsService = ttsService;
         _audioService = audioService;
+        _geofenceService = geofenceService;
         _analyticsRepository = analyticsRepository;
         _settingsService = settingsService;
         _apiService = apiService;
@@ -144,6 +147,7 @@ public class NarrationService : INarrationService, IDisposable
             await _ttsService.StopAsync();
             await _audioService.StopAsync();
             await CloseHistoryRecordAsync(false);
+            _geofenceService.ResetCooldown(currentItem.POI.Id);
             
             NarrationStopped?.Invoke(this, currentItem);
 
@@ -220,24 +224,16 @@ public class NarrationService : INarrationService, IDisposable
                     // Ưu tiên phát file audio nếu có
                     if (!string.IsNullOrEmpty(item.AudioPath) && File.Exists(item.AudioPath))
                     {
-                        await _audioService.PlayAsync(item.AudioPath);
-                        
-                        // Chờ phát xong
-                        while (_audioService.IsPlaying && !_cancellationTokenSource.Token.IsCancellationRequested)
-                        {
-                            await Task.Delay(100);
-                        }
+                        await PlayAudioAndWaitAsync(
+                            () => _audioService.PlayAsync(item.AudioPath),
+                            _cancellationTokenSource.Token);
                     }
                     else if (!string.IsNullOrEmpty(item.AudioUrl))
                     {
                         // Phát audio từ URL online
-                        await _audioService.PlayFromUrlAsync(item.AudioUrl);
-                        
-                        // Chờ phát xong
-                        while (_audioService.IsPlaying && !_cancellationTokenSource.Token.IsCancellationRequested)
-                        {
-                            await Task.Delay(100);
-                        }
+                        await PlayAudioAndWaitAsync(
+                            () => _audioService.PlayFromUrlAsync(item.AudioUrl),
+                            _cancellationTokenSource.Token);
                     }
                     else if (!string.IsNullOrEmpty(item.TTSText))
                     {
@@ -255,6 +251,7 @@ public class NarrationService : INarrationService, IDisposable
                     {
                         item.Status = NarrationStatus.Completed;
                         await CloseHistoryRecordAsync(true);
+                        _geofenceService.ResetCooldown(item.POI.Id);
                         NarrationCompleted?.Invoke(this, item);
                     }
                 }
@@ -280,6 +277,65 @@ public class NarrationService : INarrationService, IDisposable
             _isProcessing = false;
             IsPlaying = false;
             _semaphore.Release();
+        }
+    }
+
+    private async Task PlayAudioAndWaitAsync(Func<Task> playAction, CancellationToken cancellationToken)
+    {
+        var completionTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        void OnPlaybackCompleted(object? sender, EventArgs e)
+        {
+            completionTcs.TrySetResult(true);
+        }
+
+        void OnPlaybackError(object? sender, string error)
+        {
+            completionTcs.TrySetException(new InvalidOperationException(error));
+        }
+
+        _audioService.PlaybackCompleted += OnPlaybackCompleted;
+        _audioService.PlaybackError += OnPlaybackError;
+
+        try
+        {
+            await playAction();
+
+            var startupTimeout = TimeSpan.FromSeconds(2);
+            var startupAt = DateTime.UtcNow;
+
+            while (!_audioService.IsPlaying &&
+                   !_audioService.IsPaused &&
+                   !completionTcs.Task.IsCompleted &&
+                   DateTime.UtcNow - startupAt < startupTimeout &&
+                   !cancellationToken.IsCancellationRequested)
+            {
+                await Task.Delay(50, cancellationToken);
+            }
+
+            while (!completionTcs.Task.IsCompleted &&
+                   (_audioService.IsPlaying || _audioService.IsPaused) &&
+                   !cancellationToken.IsCancellationRequested)
+            {
+                await Task.Delay(100, cancellationToken);
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
+
+            if (!completionTcs.Task.IsCompleted)
+            {
+                completionTcs.TrySetResult(true);
+            }
+
+            await completionTcs.Task;
+        }
+        finally
+        {
+            _audioService.PlaybackCompleted -= OnPlaybackCompleted;
+            _audioService.PlaybackError -= OnPlaybackError;
         }
     }
 

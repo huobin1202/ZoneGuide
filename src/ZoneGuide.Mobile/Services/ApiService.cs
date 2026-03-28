@@ -51,6 +51,123 @@ public class ApiService
             .ToList();
     }
 
+    private static string BuildServerRoot(string apiBaseUrl)
+    {
+        var uri = new Uri(apiBaseUrl, UriKind.Absolute);
+        var leftPart = uri.GetLeftPart(UriPartial.Authority);
+        return leftPart.TrimEnd('/');
+    }
+
+    private static Uri BuildAbsoluteUri(string apiBaseUrl, string relativePath)
+    {
+        var normalizedPath = relativePath.TrimStart('/');
+        return new Uri(new Uri(apiBaseUrl), normalizedPath);
+    }
+
+    private static string ResolveMediaUrl(string url, string apiBaseUrl)
+    {
+        var raw = (url ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(raw))
+            return string.Empty;
+
+        var trimmed = raw.Replace('\\', '/');
+
+        if (trimmed.StartsWith("~/", StringComparison.Ordinal))
+        {
+            trimmed = trimmed[1..];
+        }
+
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var absoluteUri) &&
+            (absoluteUri.Scheme == Uri.UriSchemeHttp || absoluteUri.Scheme == Uri.UriSchemeHttps))
+        {
+            return absoluteUri.ToString();
+        }
+
+        if (Path.IsPathRooted(trimmed))
+        {
+            var candidates = new[] { "/uploads/", "/images/", "/media/" };
+            foreach (var candidate in candidates)
+            {
+                var idx = trimmed.IndexOf(candidate, StringComparison.OrdinalIgnoreCase);
+                if (idx >= 0)
+                {
+                    trimmed = trimmed[idx..];
+                    break;
+                }
+            }
+        }
+
+        if (trimmed.StartsWith("wwwroot/", StringComparison.OrdinalIgnoreCase))
+        {
+            trimmed = trimmed["wwwroot/".Length..];
+        }
+
+        if (trimmed.StartsWith("uploads/", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("images/", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("media/", StringComparison.OrdinalIgnoreCase))
+        {
+            trimmed = "/" + trimmed;
+        }
+
+        if (!trimmed.StartsWith("/", StringComparison.Ordinal))
+        {
+            return string.Empty;
+        }
+
+        var serverRoot = BuildServerRoot(apiBaseUrl);
+
+        return $"{serverRoot}{trimmed}";
+    }
+
+    private async Task<T?> GetFromAnyBaseUrlAsync<T>(string relativePath)
+        where T : class
+    {
+        foreach (var baseUrl in GetOrderedBaseUrls())
+        {
+            try
+            {
+                var requestUri = BuildAbsoluteUri(baseUrl, relativePath);
+                var response = await _httpClient.GetAsync(requestUri);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    continue;
+                }
+
+                var payload = await response.Content.ReadAsStringAsync();
+                if (string.IsNullOrWhiteSpace(payload))
+                {
+                    continue;
+                }
+
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                var wrapped = JsonSerializer.Deserialize<ApiResponse<T>>(payload, jsonOptions);
+                if (wrapped?.Data != null)
+                {
+                    SavePreferredBaseUrl(baseUrl);
+                    return wrapped.Data;
+                }
+
+                var raw = JsonSerializer.Deserialize<T>(payload, jsonOptions);
+                if (raw != null)
+                {
+                    SavePreferredBaseUrl(baseUrl);
+                    return raw;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ApiService] GET {relativePath} via {baseUrl} failed: {ex.Message}");
+            }
+        }
+
+        return default;
+    }
+
     public static string NormalizeMediaUrl(string url)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -119,28 +236,12 @@ public class ApiService
     
     public async Task<List<POIDto>?> GetPOIsAsync()
     {
-        try
-        {
-            var response = await _httpClient.GetFromJsonAsync<ApiResponse<List<POIDto>>>("pois");
-            return response?.Data;
-        }
-        catch
-        {
-            return null;
-        }
+        return await GetFromAnyBaseUrlAsync<List<POIDto>>("pois");
     }
 
     public async Task<POIDto?> GetPOIAsync(int id)
     {
-        try
-        {
-            var response = await _httpClient.GetFromJsonAsync<ApiResponse<POIDto>>($"pois/{id}");
-            return response?.Data;
-        }
-        catch
-        {
-            return null;
-        }
+        return await GetFromAnyBaseUrlAsync<POIDto>($"pois/{id}");
     }
 
     #endregion
@@ -149,28 +250,22 @@ public class ApiService
 
     public async Task<List<TourDto>?> GetToursAsync()
     {
-        try
-        {
-            var response = await _httpClient.GetFromJsonAsync<ApiResponse<List<TourDto>>>("tours");
-            return response?.Data;
-        }
-        catch
-        {
-            return null;
-        }
+        return await GetFromAnyBaseUrlAsync<List<TourDto>>("tours");
     }
 
     public async Task<TourDto?> GetTourAsync(int id)
     {
-        try
-        {
-            var response = await _httpClient.GetFromJsonAsync<ApiResponse<TourDto>>($"tours/{id}");
-            return response?.Data;
-        }
-        catch
-        {
-            return null;
-        }
+        return await GetFromAnyBaseUrlAsync<TourDto>($"tours/{id}");
+    }
+
+    public async Task<TourDto?> GetTourDetailsAsync(int id)
+    {
+        var detail = await GetFromAnyBaseUrlAsync<TourWithPOIsDto>($"tours/{id}/details");
+        if (detail != null)
+            return detail;
+
+        // Fallback cho backend cũ không có endpoint details.
+        return await GetTourAsync(id);
     }
 
     #endregion
@@ -340,26 +435,54 @@ public class ApiService
 
     public async Task<byte[]?> DownloadAudioAsync(string url)
     {
-        try
+        foreach (var baseUrl in GetOrderedBaseUrls())
         {
-            return await _httpClient.GetByteArrayAsync(url);
+            try
+            {
+                var absoluteUrl = ResolveMediaUrl(url, baseUrl);
+                if (string.IsNullOrWhiteSpace(absoluteUrl))
+                    continue;
+
+                var bytes = await _httpClient.GetByteArrayAsync(absoluteUrl);
+                if (bytes.Length > 0)
+                {
+                    SavePreferredBaseUrl(baseUrl);
+                    return bytes;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ApiService] DownloadAudioAsync failed via {baseUrl}: {ex.Message}");
+            }
         }
-        catch
-        {
-            return null;
-        }
+
+        return null;
     }
 
     public async Task<byte[]?> DownloadImageAsync(string url)
     {
-        try
+        foreach (var baseUrl in GetOrderedBaseUrls())
         {
-            return await _httpClient.GetByteArrayAsync(url);
+            try
+            {
+                var absoluteUrl = ResolveMediaUrl(url, baseUrl);
+                if (string.IsNullOrWhiteSpace(absoluteUrl))
+                    continue;
+
+                var bytes = await _httpClient.GetByteArrayAsync(absoluteUrl);
+                if (bytes.Length > 0)
+                {
+                    SavePreferredBaseUrl(baseUrl);
+                    return bytes;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ApiService] DownloadImageAsync failed via {baseUrl}: {ex.Message}");
+            }
         }
-        catch
-        {
-            return null;
-        }
+
+        return null;
     }
 
     #endregion

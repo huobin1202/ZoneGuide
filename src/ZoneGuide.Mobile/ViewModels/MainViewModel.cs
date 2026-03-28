@@ -144,6 +144,8 @@ public partial class MainViewModel : ObservableObject
     {
         try
         {
+            _geofenceService.ResetCooldown(poi.Id);
+
             var item = CreateNarrationItem(poi, GeofenceEventType.Enter, 0);
             await _narrationService.PlayImmediatelyAsync(item);
         }
@@ -221,6 +223,8 @@ public partial class MainViewModel : ObservableObject
 
     private void OnNarrationCompleted(object? sender, NarrationQueueItem item)
     {
+        _geofenceService.ResetCooldown(item.POI.Id);
+
         MainThread.BeginInvokeOnMainThread(() =>
         {
             IsPlaying = false;
@@ -232,6 +236,8 @@ public partial class MainViewModel : ObservableObject
 
     private void OnNarrationStopped(object? sender, NarrationQueueItem item)
     {
+        _geofenceService.ResetCooldown(item.POI.Id);
+
         MainThread.BeginInvokeOnMainThread(() =>
         {
             IsPlaying = false;
