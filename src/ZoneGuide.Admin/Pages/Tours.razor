@@ -176,7 +176,7 @@ else
         };
 
         var dialog = await DialogService.ShowAsync<TourDialog>("Create New Tour", parameters,
-            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+            new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true });
         var result = await dialog.Result;
 
         if (!result.Canceled)
@@ -197,7 +197,7 @@ else
         };
 
         var dialog = await DialogService.ShowAsync<TourDialog>("Edit Tour", parameters,
-            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+            new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true });
         var result = await dialog.Result;
 
         if (!result.Canceled)

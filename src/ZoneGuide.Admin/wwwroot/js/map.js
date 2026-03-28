@@ -402,3 +402,215 @@ window.searchAndMoveToAddress = function (address, dotNetReference) {
             alert('Lỗi tìm kiếm địa chỉ');
         });
 };
+
+// ==========================================
+// Tour planner routing map
+// ==========================================
+var tourPlannerMap = null;
+var tourPlannerMarkers = [];
+var tourPlannerRouteLayer = null;
+var tourPlannerFallbackLayer = null;
+var tourPlannerTileLayer = null;
+var tourPlannerElementId = null;
+
+function ensureTourPlannerMap(elementId, points) {
+    var fallbackCenter = [16.047079, 108.20623];
+
+    if (points && points.length > 0) {
+        fallbackCenter = [points[0].lat, points[0].lng];
+    }
+
+    if (tourPlannerMap && tourPlannerElementId !== elementId) {
+        tourPlannerMap.remove();
+        tourPlannerMap = null;
+        tourPlannerMarkers = [];
+        tourPlannerRouteLayer = null;
+        tourPlannerFallbackLayer = null;
+        tourPlannerTileLayer = null;
+    }
+
+    if (!tourPlannerMap) {
+        tourPlannerMap = L.map(elementId, {
+            zoomControl: true,
+            maxBounds: [[-90, -180], [90, 180]],
+            maxBoundsViscosity: 1.0
+        }).setView(fallbackCenter, points && points.length > 1 ? 6 : 12);
+
+        tourPlannerTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19,
+            noWrap: true
+        }).addTo(tourPlannerMap);
+
+        tourPlannerElementId = elementId;
+    }
+
+    setTimeout(function () {
+        if (tourPlannerMap) {
+            tourPlannerMap.invalidateSize();
+        }
+    }, 120);
+}
+
+function clearTourPlannerLayers() {
+    tourPlannerMarkers.forEach(function (marker) {
+        if (tourPlannerMap) {
+            tourPlannerMap.removeLayer(marker);
+        }
+    });
+    tourPlannerMarkers = [];
+
+    if (tourPlannerRouteLayer && tourPlannerMap) {
+        tourPlannerMap.removeLayer(tourPlannerRouteLayer);
+    }
+    tourPlannerRouteLayer = null;
+
+    if (tourPlannerFallbackLayer && tourPlannerMap) {
+        tourPlannerMap.removeLayer(tourPlannerFallbackLayer);
+    }
+    tourPlannerFallbackLayer = null;
+}
+
+function getTourMarkerColor(index) {
+    var palette = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#0891b2', '#4f46e5'];
+    return palette[index % palette.length];
+}
+
+function createTourMarkerIcon(order, color) {
+    return L.divIcon({
+        className: 'tour-planner-pin-wrapper',
+        html:
+            '<div style="' +
+            'width:44px;height:44px;border-radius:999px;background:' + color + ';' +
+            'border:4px solid #ffffff;color:#ffffff;font-weight:800;font-size:22px;' +
+            'display:flex;align-items:center;justify-content:center;' +
+            'box-shadow:0 8px 18px rgba(15,23,42,.28);">' + order + '</div>',
+        iconSize: [44, 44],
+        iconAnchor: [22, 22],
+        popupAnchor: [0, -18]
+    });
+}
+
+function haversineDistanceKm(lat1, lng1, lat2, lng2) {
+    var toRadians = Math.PI / 180;
+    var dLat = (lat2 - lat1) * toRadians;
+    var dLng = (lng2 - lng1) * toRadians;
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * toRadians) * Math.cos(lat2 * toRadians) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return 6371 * c;
+}
+
+function calculateStraightDistanceKm(points) {
+    var total = 0;
+    for (var i = 1; i < points.length; i++) {
+        total += haversineDistanceKm(points[i - 1].lat, points[i - 1].lng, points[i].lat, points[i].lng);
+    }
+    return total;
+}
+
+function renderFallbackRoute(points) {
+    var latLngs = points.map(function (point) { return [point.lat, point.lng]; });
+    if (latLngs.length >= 2) {
+        tourPlannerFallbackLayer = L.polyline(latLngs, {
+            color: '#2563eb',
+            weight: 4,
+            opacity: 0.75,
+            dashArray: '10 8',
+            lineJoin: 'round'
+        }).addTo(tourPlannerMap);
+        tourPlannerMap.fitBounds(tourPlannerFallbackLayer.getBounds(), { padding: [40, 40] });
+    } else if (latLngs.length === 1) {
+        tourPlannerMap.setView(latLngs[0], 12);
+    }
+}
+
+async function fetchDrivingRoute(points) {
+    if (!points || points.length < 2) {
+        return null;
+    }
+
+    var coordinates = points
+        .map(function (point) { return point.lng + ',' + point.lat; })
+        .join(';');
+    var url = 'https://router.project-osrm.org/route/v1/driving/' + coordinates + '?overview=full&geometries=geojson&steps=false';
+
+    try {
+        var response = await fetch(url);
+        if (!response.ok) {
+            return null;
+        }
+
+        var data = await response.json();
+        if (!data || !data.routes || data.routes.length === 0) {
+            return null;
+        }
+
+        return data.routes[0];
+    } catch (error) {
+        console.warn('Tour routing fetch failed', error);
+        return null;
+    }
+}
+
+window.renderTourPlannerMap = async function (elementId, points) {
+    ensureTourPlannerMap(elementId, points || []);
+    clearTourPlannerLayers();
+
+    points = points || [];
+
+    var straightDistanceKm = calculateStraightDistanceKm(points);
+    var defaultResult = {
+        distanceKm: straightDistanceKm,
+        durationMinutes: points.length >= 2 ? Math.round((straightDistanceKm / 35) * 60) : 0,
+        straightDistanceKm: straightDistanceKm,
+        usedRouting: false
+    };
+
+    points.forEach(function (point, index) {
+        var marker = L.marker([point.lat, point.lng], {
+            icon: createTourMarkerIcon(index + 1, getTourMarkerColor(index))
+        })
+            .addTo(tourPlannerMap)
+            .bindPopup('<strong>' + point.name + '</strong><br/>Điểm dừng #' + (index + 1));
+
+        tourPlannerMarkers.push(marker);
+    });
+
+    if (points.length === 0) {
+        tourPlannerMap.setView([16.047079, 108.20623], 6);
+        return defaultResult;
+    }
+
+    if (points.length === 1) {
+        tourPlannerMap.setView([points[0].lat, points[0].lng], 12);
+        return defaultResult;
+    }
+
+    var route = await fetchDrivingRoute(points);
+    if (route && route.geometry && route.geometry.coordinates) {
+        var latLngs = route.geometry.coordinates.map(function (coordinate) {
+            return [coordinate[1], coordinate[0]];
+        });
+
+        tourPlannerRouteLayer = L.polyline(latLngs, {
+            color: '#2563eb',
+            weight: 5,
+            opacity: 0.9,
+            lineJoin: 'round'
+        }).addTo(tourPlannerMap);
+
+        tourPlannerMap.fitBounds(tourPlannerRouteLayer.getBounds(), { padding: [40, 40] });
+
+        return {
+            distanceKm: route.distance / 1000,
+            durationMinutes: Math.round(route.duration / 60),
+            straightDistanceKm: straightDistanceKm,
+            usedRouting: true
+        };
+    }
+
+    renderFallbackRoute(points);
+    return defaultResult;
+};

@@ -1,160 +1,481 @@
+@using System.Globalization
 @inject IApiService ApiService
+@inject IJSRuntime JS
 
-<MudDialog>
+<MudDialog Class="tour-planner-dialog">
     <DialogContent>
         <MudForm @ref="_form" @bind-IsValid="_isValid">
-            <MudText Typo="Typo.h5" Class="mb-4">@(IsEdit ? "Chinh sua Tour" : "Tao Tour moi")</MudText>
+            <div class="tour-planner-layout">
+                <aside class="tour-pane tour-pane-left">
+                    <div class="tour-pane-header">
+                        <div>
+                            <MudText Typo="Typo.h5" Class="tour-title">Quản lý Tour</MudText>
+                            <MudText Typo="Typo.caption" Class="tour-muted">@($"{_selectedPOIs.Count} điểm")</MudText>
+                        </div>
+                    </div>
 
-            <MudGrid Spacing="3">
-                <MudItem xs="12" md="5">
-                    <MudPaper Outlined="true" Class="pa-4">
-                        <MudStack Spacing="2">
-                            <MudText Typo="Typo.subtitle1" Class="d-flex align-center">
-                                <MudIcon Icon="@Icons.Material.Filled.Info" Class="mr-2" Color="Color.Primary" />
-                                THONG TIN CO BAN
-                            </MudText>
+                    <div class="tour-segmented">
+                        <button type="button" class="tour-segmented-btn @GetTabClass(TourPlannerTab.Places)" @onclick="@(() => SetTab(TourPlannerTab.Places))">
+                            <MudIcon Icon="@Icons.Material.Filled.FormatListBulleted" Size="Size.Small" />
+                            <span>Địa điểm</span>
+                        </button>
+                        <button type="button" class="tour-segmented-btn @GetTabClass(TourPlannerTab.Route)" @onclick="@(() => SetTab(TourPlannerTab.Route))">
+                            <MudIcon Icon="@Icons.Material.Filled.Route" Size="Size.Small" />
+                            <span>Lộ trình</span>
+                        </button>
+                    </div>
 
-                            <MudTextField @bind-Value="_model.Name" Label="Ten tour" Required="true"
-                                          RequiredError="Ten tour la bat buoc" />
+                    <MudTextField @bind-Value="_searchKeyword"
+                                  Placeholder="Tìm kiếm địa điểm..."
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Immediate="true"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Class="tour-search" />
 
-                            <MudTextField @bind-Value="_model.Description" Label="Mo ta" Lines="4" />
-
-                            <MudGrid>
-                                <MudItem xs="6">
-                                    <MudNumericField @bind-Value="_model.EstimatedDurationMinutes"
-                                                     Label="Thoi luong (phut)" Min="1" Max="1440" />
-                                </MudItem>
-                                <MudItem xs="6">
-                                    <MudNumericField @bind-Value="_model.DistanceKm"
-                                                     Label="Khoang cach (km)" Min="0.1" Max="100" Step="0.1" Format="F1" />
-                                </MudItem>
-                            </MudGrid>
-
-                            <MudSelect @bind-Value="_model.Difficulty" Label="Do kho">
-                                <MudSelectItem Value="@("Easy")">De</MudSelectItem>
-                                <MudSelectItem Value="@("Moderate")">Trung binh</MudSelectItem>
-                                <MudSelectItem Value="@("Hard")">Kho</MudSelectItem>
-                            </MudSelect>
-
-                            <MudFileUpload T="IBrowserFile" Accept=".png, .jpg, .jpeg" FilesChanged="UploadImage">
-                                <ActivatorContent>
-                                    <MudButton Variant="Variant.Outlined"
-                                               Color="Color.Primary"
-                                               StartIcon="@Icons.Material.Filled.CloudUpload">
-                                        Tai len anh tour
-                                    </MudButton>
-                                </ActivatorContent>
-                            </MudFileUpload>
-
-                            @if (!string.IsNullOrEmpty(_model.ImageUrl))
+                    <div class="tour-location-list">
+                        @if (_activeTab == TourPlannerTab.Places)
+                        {
+                            @if (FilteredAvailablePOIs.Any())
                             {
-                                <img src="@_model.ImageUrl" style="max-height: 140px; border-radius: 8px;" />
-                            }
-
-                            <MudSwitch @bind-Value="_model.IsActive" Label="Kich hoat" Color="Color.Primary" />
-
-                            <MudDivider Class="my-2" />
-
-                            <MudText Typo="Typo.subtitle2" Class="d-flex align-center">
-                                <MudIcon Icon="@Icons.Material.Filled.GridView" Class="mr-2" Color="Color.Primary" />
-                                CHON DIEM THAM QUAN
-                            </MudText>
-
-                            @if (AvailablePOIs.Any())
-                            {
-                                @foreach (var poi in AvailablePOIs.OrderBy(p => p.Name))
+                                @foreach (var poi in FilteredAvailablePOIs)
                                 {
-                                    var selected = IsPOISelected(poi.Id);
-                                    <MudPaper Outlined="true"
-                                              Class="pa-3 d-flex align-center tour-poi-option"
-                                              Style="@GetPOICardStyle(selected)"
-                                              @onclick="@(() => TogglePOI(poi))">
-                                        <MudCheckBox T="bool" Value="selected" DisableRipple="true" ReadOnly="true" Class="mr-2" />
-                                        <MudStack Spacing="0" Class="tour-poi-text">
-                                            <MudText Typo="Typo.subtitle2" Class="tour-text-ellipsis" title="@poi.Name">@poi.Name</MudText>
-                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@(string.IsNullOrWhiteSpace(poi.Category) ? "POI" : poi.Category)</MudText>
-                                        </MudStack>
-                                    </MudPaper>
+                                    var selectedIndex = GetSelectedIndex(poi.Id);
+                                    var selected = selectedIndex >= 0;
+                                    <button type="button" class="tour-location-card @(selected ? "is-selected" : string.Empty)" @onclick="@(() => TogglePOIAsync(poi))">
+                                        <span class="tour-order-badge @(selected ? "is-active" : "is-idle")">@(selected ? (selectedIndex + 1).ToString(CultureInfo.InvariantCulture) : "+")</span>
+                                        <span class="tour-location-copy">
+                                            <span class="tour-location-name" title="@poi.Name">@poi.Name</span>
+                                            <span class="tour-location-subtitle">@GetPOISubtitle(poi)</span>
+                                        </span>
+                                        <MudIcon Icon="@(selected ? Icons.Material.Filled.Check : Icons.Material.Filled.Add)" Size="Size.Small" />
+                                    </button>
                                 }
                             }
                             else
                             {
-                                <MudAlert Severity="Severity.Warning" Dense="true">Chua co POI de them vao tour.</MudAlert>
+                                <MudAlert Severity="Severity.Info" Dense="true">Không có địa điểm phù hợp với từ khóa.</MudAlert>
                             }
-                        </MudStack>
-                    </MudPaper>
-                </MudItem>
-
-                <MudItem xs="12" md="7">
-                    <MudPaper Outlined="true" Class="pa-4">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
-                            <MudText Typo="Typo.h6">Lo trinh tham quan (@_selectedPOIs.Count diem)</MudText>
-                            <MudText Typo="Typo.caption" Class="mud-text-secondary">Sap xep thu tu cac diem de hinh thanh tuyen</MudText>
-                        </MudStack>
-
-                        @if (_selectedPOIs.Any())
-                        {
-                            <MudStack Spacing="2">
-                                @foreach (var poi in _selectedPOIs)
-                                {
-                                    var index = _selectedPOIs.IndexOf(poi);
-                                    <MudPaper Outlined="true" Class="pa-3 d-flex align-center tour-poi-option">
-                                        <MudAvatar Color="Color.Primary" Size="Size.Medium" Class="mr-3">@(index + 1)</MudAvatar>
-                                        <MudStack Spacing="0" Class="tour-poi-text">
-                                            <MudText Typo="Typo.subtitle1" Class="tour-text-ellipsis" title="@poi.Name">@poi.Name</MudText>
-                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@($"{poi.Latitude:F6}, {poi.Longitude:F6}")</MudText>
-                                        </MudStack>
-                                        <MudSpacer />
-                                        <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small"
-                                                       Disabled="@(index == 0)"
-                                                       OnClick="@(() => MovePOI(poi, -1))" />
-                                        <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small"
-                                                       Disabled="@(index == _selectedPOIs.Count - 1)"
-                                                       OnClick="@(() => MovePOI(poi, 1))" />
-                                        <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
-                                                       Color="Color.Error"
-                                                       OnClick="@(() => RemovePOI(poi))" />
-                                    </MudPaper>
-                                }
-                            </MudStack>
                         }
                         else
                         {
-                            <MudAlert Severity="Severity.Info">Chon it nhat 1 POI o cot ben trai de tao lo trinh.</MudAlert>
+                            @if (_selectedPOIs.Any())
+                            {
+                                @foreach (var poi in _selectedPOIs)
+                                {
+                                    var index = _selectedPOIs.IndexOf(poi);
+                                    <div class="tour-location-card is-selected is-route">
+                                        <span class="tour-order-badge is-active">@(index + 1)</span>
+                                        <span class="tour-location-copy">
+                                            <span class="tour-location-name" title="@poi.Name">@poi.Name</span>
+                                            <span class="tour-location-subtitle">@GetPOISubtitle(poi)</span>
+                                        </span>
+                                        <span class="tour-route-actions">
+                                            <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowUp" Size="Size.Small" Disabled="@(index == 0)" OnClick="@(() => MovePOIAsync(poi, -1))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowDown" Size="Size.Small" Disabled="@(index == _selectedPOIs.Count - 1)" OnClick="@(() => MovePOIAsync(poi, 1))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Color="Color.Error" OnClick="@(() => RemovePOIAsync(poi))" />
+                                        </span>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Info" Dense="true">Chọn ít nhất 2 điểm để hệ thống vẽ lộ trình và tính thời gian.</MudAlert>
+                            }
                         }
-                    </MudPaper>
-                </MudItem>
-            </MudGrid>
+                    </div>
+                </aside>
+
+                <section class="tour-pane tour-pane-map">
+                    <div id="@_mapElementId" class="tour-route-map"></div>
+                    <div class="tour-map-summary">
+                        <div class="tour-summary-chip">
+                            <MudIcon Icon="@Icons.Material.Filled.Route" Size="Size.Small" />
+                            <span>@DistanceLabel</span>
+                        </div>
+                        <div class="tour-summary-chip">
+                            <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" />
+                            <span>@DurationLabel</span>
+                        </div>
+                    </div>
+                </section>
+
+                <aside class="tour-pane tour-pane-right">
+                    <MudText Typo="Typo.h5" Class="tour-title">Thông Tin Tour</MudText>
+                    <MudText Typo="Typo.body2" Class="tour-muted tour-panel-description">Điền thông tin để tạo tour du lịch</MudText>
+
+                    <MudStack Spacing="3" Class="mt-5">
+                        <MudTextField @bind-Value="_model.Name" Label="Tên Tour" Required="true" RequiredError="Tên tour là bắt buộc" Variant="Variant.Outlined" />
+
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Class="tour-field-label">Ảnh bìa</MudText>
+                            <MudFileUpload T="IBrowserFile" Accept=".png, .jpg, .jpeg, .webp" FilesChanged="UploadImage">
+                                <ActivatorContent>
+                                    <button type="button" class="tour-upload-box">
+                                        @if (string.IsNullOrWhiteSpace(_model.ImageUrl))
+                                        {
+                                            <span class="tour-upload-placeholder">
+                                                <MudIcon Icon="@Icons.Material.Filled.FileUpload" Size="Size.Medium" />
+                                                <span>Nhấp hoặc kéo thả ảnh bìa</span>
+                                                <span>PNG, JPG, WEBP...</span>
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <img src="@_model.ImageUrl" alt="Ảnh bìa tour" class="tour-cover-preview" />
+                                        }
+                                    </button>
+                                </ActivatorContent>
+                            </MudFileUpload>
+                        </div>
+
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Class="tour-field-label">Mô tả</MudText>
+                            <MudTextField @bind-Value="_model.Description" Placeholder="Mô tả chi tiết hành trình tour..." Variant="Variant.Outlined" Lines="6" />
+                        </div>
+
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Class="tour-field-label">Thời gian</MudText>
+                            <div class="tour-time-grid">
+                                <MudTextField Value="@EstimatedHoursText" Label="Giờ" Variant="Variant.Outlined" ReadOnly="true" />
+                                <MudTextField Value="@EstimatedMinutesText" Label="Phút" Variant="Variant.Outlined" ReadOnly="true" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Class="tour-field-label">Quãng đường</MudText>
+                            <MudTextField Value="@DistanceValueText" Label="Km" Variant="Variant.Outlined" ReadOnly="true" />
+                            <MudText Typo="Typo.caption" Class="tour-route-note">
+                                @if (_selectedPOIs.Count >= 2)
+                                {
+                                    <span>Ước tính đường chim bay: ~@FormatDistance(_straightLineDistanceKm) km</span>
+                                }
+                                else
+                                {
+                                    <span>Chọn thêm điểm để hệ thống tính quãng đường.</span>
+                                }
+                            </MudText>
+                            <MudText Typo="Typo.caption" Class="tour-route-note">@(_routingAvailable ? "Đang dùng tuyến đường thực tế từ routing." : "Routing chưa sẵn sàng, tạm dùng ước tính theo đường nối thẳng.")</MudText>
+                        </div>
+
+                        <MudSwitch @bind-Value="_model.IsActive" Label="Kích hoạt tour" Color="Color.Primary" />
+                    </MudStack>
+                </aside>
+            </div>
         </MudForm>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="Cancel">Huy</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" 
-                   OnClick="Submit" Disabled="@(!_isValid || _saving || !_selectedPOIs.Any())">
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@(!_isValid || _saving || !_selectedPOIs.Any())">
             @if (_saving)
             {
                 <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
             }
-            @(IsEdit ? "Luu Tour" : "Tao Tour")
+            @(IsEdit ? "Lưu Tour" : "Tạo Tour")
         </MudButton>
     </DialogActions>
 </MudDialog>
 
 <style>
-    .tour-poi-option {
-        min-width: 0;
+    .tour-planner-dialog .mud-dialog {
+        max-width: 1400px;
     }
 
-    .tour-poi-text {
+    .tour-planner-dialog .mud-dialog-content {
+        padding: 0;
+    }
+
+    .tour-planner-dialog .mud-dialog-actions {
+        border-top: 1px solid #e9edf5;
+        padding: 16px 20px;
+    }
+
+    .tour-planner-layout {
+        display: grid;
+        grid-template-columns: minmax(300px, 360px) minmax(420px, 1fr) minmax(320px, 380px);
+        min-height: 78vh;
+    }
+
+    .tour-pane {
+        min-width: 0;
+        background: #fff;
+    }
+
+    .tour-pane-left,
+    .tour-pane-right {
+        padding: 24px 20px;
+    }
+
+    .tour-pane-left {
+        border-right: 1px solid #e9edf5;
+        background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+    }
+
+    .tour-pane-right {
+        border-left: 1px solid #e9edf5;
+    }
+
+    .tour-pane-map {
+        position: relative;
+        background: #f4f7fb;
+    }
+
+    .tour-pane-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 18px;
+    }
+
+    .tour-title {
+        font-weight: 700;
+        color: #172554;
+    }
+
+    .tour-muted {
+        color: #8a94a6;
+    }
+
+    .tour-panel-description {
+        max-width: 280px;
+    }
+
+    .tour-segmented {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        padding: 6px;
+        border-radius: 18px;
+        background: #f2f5fb;
+        margin-bottom: 16px;
+    }
+
+    .tour-segmented-btn {
+        height: 44px;
+        border: 0;
+        border-radius: 14px;
+        background: transparent;
+        color: #62708a;
+        font-size: 0.95rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .tour-segmented-btn.is-active {
+        background: #fff;
+        color: #2563eb;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    .tour-search {
+        margin-bottom: 18px;
+    }
+
+    .tour-location-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-height: calc(78vh - 180px);
+        overflow: auto;
+        padding-right: 4px;
+    }
+
+    .tour-location-card {
+        width: 100%;
+        border: 1px solid #e4eaf4;
+        border-radius: 18px;
+        padding: 14px 14px 14px 12px;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-align: left;
+        transition: all 0.2s ease;
+    }
+
+    button.tour-location-card {
+        cursor: pointer;
+    }
+
+    .tour-location-card.is-selected {
+        border-color: #c7d2fe;
+        box-shadow: 0 12px 24px rgba(37, 99, 235, 0.08);
+    }
+
+    .tour-location-card.is-route {
+        cursor: default;
+    }
+
+    .tour-order-badge {
+        width: 38px;
+        height: 38px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        flex-shrink: 0;
+        color: #fff;
+    }
+
+    .tour-order-badge.is-active {
+        background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+    }
+
+    .tour-order-badge.is-idle {
+        border: 2px dashed #cfd8e6;
+        color: #94a3b8;
+        background: #fff;
+    }
+
+    .tour-location-copy {
+        min-width: 0;
         flex: 1;
-        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
     }
 
-    .tour-text-ellipsis {
-        display: block;
+    .tour-location-name {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #12213f;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+
+    .tour-location-subtitle {
+        font-size: 0.88rem;
+        color: #8290a8;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .tour-route-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        flex-shrink: 0;
+    }
+
+    .tour-route-map {
+        width: 100%;
+        height: 100%;
+        min-height: 78vh;
+    }
+
+    .tour-map-summary {
+        position: absolute;
+        left: 16px;
+        right: 16px;
+        bottom: 16px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        pointer-events: none;
+    }
+
+    .tour-summary-chip {
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.94);
+        color: #1e3a8a;
+        padding: 10px 14px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.15);
+        font-weight: 600;
+    }
+
+    .tour-field-label {
+        margin-bottom: 8px;
+        color: #334155;
+    }
+
+    .tour-upload-box {
+        width: 100%;
+        min-height: 124px;
+        border-radius: 22px;
+        border: 1.5px dashed #d6deec;
+        background: #fbfcfe;
+        padding: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        overflow: hidden;
+    }
+
+    .tour-upload-placeholder {
+        color: #97a3b6;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        font-weight: 500;
+    }
+
+    .tour-cover-preview {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 16px;
+        display: block;
+    }
+
+    .tour-time-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .tour-route-note {
+        display: block;
+        margin-top: 8px;
+        color: #7c8799;
+    }
+
+    @@media (max-width: 1200px) {
+        .tour-planner-layout {
+            grid-template-columns: 320px minmax(0, 1fr);
+        }
+
+        .tour-pane-right {
+            grid-column: 1 / -1;
+            border-left: 0;
+            border-top: 1px solid #e9edf5;
+        }
+
+        .tour-route-map {
+            min-height: 56vh;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .tour-planner-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .tour-pane-left,
+        .tour-pane-right {
+            border: 0;
+        }
+
+        .tour-pane-left {
+            border-bottom: 1px solid #e9edf5;
+        }
+
+        .tour-route-map {
+            min-height: 50vh;
+        }
     }
 </style>
 
@@ -164,11 +485,34 @@
     [Parameter] public bool IsEdit { get; set; }
     [Parameter] public List<POIDto> AvailablePOIs { get; set; } = new();
 
+    private const double FallbackAverageSpeedKmPerHour = 35d;
+    private readonly string _mapElementId = $"tour-route-map-{Guid.NewGuid():N}";
     private MudForm _form = null!;
     private bool _isValid;
     private bool _saving;
+    private bool _mapRendered;
+    private bool _routingAvailable;
+    private string _searchKeyword = string.Empty;
+    private TourPlannerTab _activeTab = TourPlannerTab.Places;
+    private double _straightLineDistanceKm;
     private TourFormModel _model = new();
-    private List<POIDto> _selectedPOIs = new();
+    private readonly List<POIDto> _selectedPOIs = new();
+
+    private IEnumerable<POIDto> FilteredAvailablePOIs =>
+        AvailablePOIs
+            .Where(p => string.IsNullOrWhiteSpace(_searchKeyword)
+                        || p.Name.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase)
+                        || (p.Category?.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase) ?? false)
+                        || (p.ShortDescription?.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
+            .OrderByDescending(p => IsPOISelected(p.Id))
+            .ThenBy(p => GetSelectedIndex(p.Id) < 0 ? int.MaxValue : GetSelectedIndex(p.Id))
+            .ThenBy(p => p.Name);
+
+    private string DistanceLabel => _selectedPOIs.Count >= 2 ? $"{DistanceValueText} km" : "Chưa đủ dữ liệu quãng đường";
+    private string DurationLabel => _selectedPOIs.Count >= 2 ? $"{EstimatedHoursText} giờ {EstimatedMinutesText} phút" : "Chưa đủ dữ liệu thời gian";
+    private string DistanceValueText => _model.DistanceKm.ToString("0.0", CultureInfo.InvariantCulture);
+    private string EstimatedHoursText => (_model.EstimatedDurationMinutes / 60).ToString(CultureInfo.InvariantCulture);
+    private string EstimatedMinutesText => (_model.EstimatedDurationMinutes % 60).ToString(CultureInfo.InvariantCulture);
 
     protected override void OnInitialized()
     {
@@ -185,7 +529,6 @@
                 IsActive = Tour.IsActive
             };
 
-            // Load selected POIs in order
             foreach (var poiId in Tour.POIIds)
             {
                 var poi = AvailablePOIs.FirstOrDefault(p => p.Id == poiId);
@@ -195,49 +538,145 @@
                 }
             }
         }
+
+        _straightLineDistanceKm = CalculateStraightLineDistanceKm(_selectedPOIs);
     }
 
-    private bool IsPOISelected(string poiId)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        return _selectedPOIs.Any(p => p.Id == poiId);
-    }
-
-    private static string GetPOICardStyle(bool selected)
-    {
-        var borderColor = selected ? "#6c63ff" : "#d5d9e6";
-        var backgroundColor = selected ? "#f4f3ff" : "white";
-        return $"cursor:pointer; border-color:{borderColor}; background-color:{backgroundColor};";
-    }
-
-    private void TogglePOI(POIDto poi)
-    {
-        var exists = _selectedPOIs.FirstOrDefault(p => p.Id == poi.Id);
-        if (exists != null)
+        if (!firstRender)
         {
-            _selectedPOIs.Remove(exists);
             return;
         }
 
-        _selectedPOIs.Add(poi);
+        _mapRendered = true;
+        await RefreshRouteAsync();
+    }
+
+    private string GetTabClass(TourPlannerTab tab) => _activeTab == tab ? "is-active" : string.Empty;
+
+    private void SetTab(TourPlannerTab tab) => _activeTab = tab;
+
+    private bool IsPOISelected(string poiId) => _selectedPOIs.Any(p => p.Id == poiId);
+
+    private int GetSelectedIndex(string poiId) => _selectedPOIs.FindIndex(p => p.Id == poiId);
+
+    private string GetPOISubtitle(POIDto poi)
+    {
+        if (!string.IsNullOrWhiteSpace(poi.ShortDescription))
+        {
+            return poi.ShortDescription;
+        }
+
+        if (!string.IsNullOrWhiteSpace(poi.Category))
+        {
+            return $"{poi.Category} • {poi.Latitude:F4}, {poi.Longitude:F4}";
+        }
+
+        return $"{poi.Latitude:F4}, {poi.Longitude:F4}";
+    }
+
+    private async Task TogglePOIAsync(POIDto poi)
+    {
+        var existing = _selectedPOIs.FirstOrDefault(p => p.Id == poi.Id);
+        if (existing != null)
+        {
+            _selectedPOIs.Remove(existing);
+        }
+        else
+        {
+            _selectedPOIs.Add(poi);
+        }
+
+        await RefreshRouteAsync();
+    }
+
+    private async Task RemovePOIAsync(POIDto poi)
+    {
+        _selectedPOIs.Remove(poi);
+        await RefreshRouteAsync();
+    }
+
+    private async Task MovePOIAsync(POIDto poi, int direction)
+    {
+        var index = _selectedPOIs.IndexOf(poi);
+        var newIndex = index + direction;
+
+        if (newIndex < 0 || newIndex >= _selectedPOIs.Count)
+        {
+            return;
+        }
+
+        _selectedPOIs.RemoveAt(index);
+        _selectedPOIs.Insert(newIndex, poi);
+        await RefreshRouteAsync();
+    }
+
+    private async Task RefreshRouteAsync()
+    {
+        _straightLineDistanceKm = CalculateStraightLineDistanceKm(_selectedPOIs);
+
+        if (!_mapRendered)
+        {
+            return;
+        }
+
+        var routeInput = _selectedPOIs.Select((poi, index) => new
+        {
+            id = poi.Id,
+            name = poi.Name,
+            lat = poi.Latitude,
+            lng = poi.Longitude,
+            order = index + 1
+        }).ToList();
+
+        RouteRenderResult? result = null;
+
+        try
+        {
+            result = await JS.InvokeAsync<RouteRenderResult>("renderTourPlannerMap", _mapElementId, routeInput);
+        }
+        catch (JSException ex)
+        {
+            Console.WriteLine($"Tour routing map error: {ex.Message}");
+        }
+
+        if (result != null)
+        {
+            _routingAvailable = result.UsedRouting;
+            _straightLineDistanceKm = result.StraightDistanceKm;
+            _model.DistanceKm = Math.Round(result.DistanceKm, 1);
+            _model.EstimatedDurationMinutes = result.DurationMinutes;
+        }
+        else
+        {
+            _routingAvailable = false;
+            _model.DistanceKm = Math.Round(_straightLineDistanceKm, 1);
+            _model.EstimatedDurationMinutes = EstimateDurationFromDistance(_straightLineDistanceKm);
+        }
+
+        if (_selectedPOIs.Count < 2)
+        {
+            _model.DistanceKm = Math.Round(_straightLineDistanceKm, 1);
+            _model.EstimatedDurationMinutes = 0;
+        }
+
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task UploadImage(IBrowserFile file)
     {
         if (file == null)
+        {
             return;
+        }
 
         try
         {
-            var format = file.ContentType;
-            if (string.IsNullOrEmpty(format))
-            {
-                format = "image/png";
-            }
-
+            var format = string.IsNullOrWhiteSpace(file.ContentType) ? "image/png" : file.ContentType;
             using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
             using var memoryStream = new MemoryStream();
             await stream.CopyToAsync(memoryStream);
-
             var base64 = Convert.ToBase64String(memoryStream.ToArray());
             _model.ImageUrl = $"data:{format};base64,{base64}";
         }
@@ -247,29 +686,15 @@
         }
     }
 
-    private void RemovePOI(POIDto poi)
-    {
-        _selectedPOIs.Remove(poi);
-    }
-
-    private void MovePOI(POIDto poi, int direction)
-    {
-        var index = _selectedPOIs.IndexOf(poi);
-        var newIndex = index + direction;
-        
-        if (newIndex >= 0 && newIndex < _selectedPOIs.Count)
-        {
-            _selectedPOIs.RemoveAt(index);
-            _selectedPOIs.Insert(newIndex, poi);
-        }
-    }
-
     private void Cancel() => MudDialog.Cancel();
 
     private async Task Submit()
     {
         await _form.Validate();
-        if (!_isValid) return;
+        if (!_isValid)
+        {
+            return;
+        }
 
         _saving = true;
 
@@ -321,12 +746,67 @@
         }
     }
 
-    private class TourFormModel
+    private static string FormatDistance(double distanceKm) => distanceKm.ToString("0.0", CultureInfo.InvariantCulture);
+
+    private static int EstimateDurationFromDistance(double distanceKm)
     {
-        public string Name { get; set; } = "";
+        if (distanceKm <= 0)
+        {
+            return 0;
+        }
+
+        return (int)Math.Round((distanceKm / FallbackAverageSpeedKmPerHour) * 60d, MidpointRounding.AwayFromZero);
+    }
+
+    private static double CalculateStraightLineDistanceKm(IReadOnlyList<POIDto> pois)
+    {
+        if (pois.Count < 2)
+        {
+            return 0;
+        }
+
+        var total = 0d;
+        for (var i = 1; i < pois.Count; i++)
+        {
+            total += HaversineDistanceKm(pois[i - 1].Latitude, pois[i - 1].Longitude, pois[i].Latitude, pois[i].Longitude);
+        }
+
+        return total;
+    }
+
+    private static double HaversineDistanceKm(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double earthRadiusKm = 6371d;
+        var dLat = DegreesToRadians(lat2 - lat1);
+        var dLon = DegreesToRadians(lon2 - lon1);
+        var a = Math.Pow(Math.Sin(dLat / 2), 2)
+                + Math.Cos(DegreesToRadians(lat1)) * Math.Cos(DegreesToRadians(lat2)) * Math.Pow(Math.Sin(dLon / 2), 2);
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        return earthRadiusKm * c;
+    }
+
+    private static double DegreesToRadians(double value) => value * Math.PI / 180d;
+
+    private enum TourPlannerTab
+    {
+        Places,
+        Route
+    }
+
+    private sealed class RouteRenderResult
+    {
+        public double DistanceKm { get; set; }
+        public int DurationMinutes { get; set; }
+        public double StraightDistanceKm { get; set; }
+        public bool UsedRouting { get; set; }
+    }
+
+    private sealed class TourFormModel
+    {
+        public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
-        public int EstimatedDurationMinutes { get; set; } = 60;
-        public double DistanceKm { get; set; } = 1.0;
+        public int EstimatedDurationMinutes { get; set; }
+        public double DistanceKm { get; set; }
         public string? ImageUrl { get; set; }
         public string Difficulty { get; set; } = "Easy";
         public bool IsActive { get; set; } = true;
