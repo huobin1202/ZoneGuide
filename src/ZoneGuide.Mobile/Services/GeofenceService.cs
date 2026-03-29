@@ -9,6 +9,9 @@ namespace ZoneGuide.Mobile.Services;
 /// </summary>
 public class GeofenceService : IGeofenceService
 {
+    private const int MinEffectiveCooldownSeconds = 1;
+    private const int MaxEffectiveCooldownSeconds = 3;
+
     public event EventHandler<GeofenceEvent>? GeofenceTriggered;
 
     private readonly List<POI> _monitoredPOIs = new();
@@ -17,7 +20,7 @@ public class GeofenceService : IGeofenceService
     private readonly object _lock = new();
 
     // Debounce settings
-    private readonly TimeSpan _debounceTime = TimeSpan.FromSeconds(3);
+    private readonly TimeSpan _debounceTime = TimeSpan.FromMilliseconds(700);
     private readonly ConcurrentDictionary<int, DateTime> _lastTriggerTime = new();
 
     public IReadOnlyList<POI> MonitoredPOIs => _monitoredPOIs.AsReadOnly();
@@ -167,7 +170,12 @@ public class GeofenceService : IGeofenceService
                         // Tự động set cooldown sau khi Enter
                         if (newState.Value == GeofenceEventType.Enter)
                         {
-                            SetCooldown(poi.Id, TimeSpan.FromSeconds(poi.CooldownSeconds));
+                            var effectiveCooldownSeconds = Math.Clamp(
+                                poi.CooldownSeconds,
+                                MinEffectiveCooldownSeconds,
+                                MaxEffectiveCooldownSeconds);
+
+                            SetCooldown(poi.Id, TimeSpan.FromSeconds(effectiveCooldownSeconds));
                         }
                     }
                 }

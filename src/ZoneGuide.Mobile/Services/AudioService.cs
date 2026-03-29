@@ -15,7 +15,9 @@ public class AudioService : IAudioService, IDisposable
     public event EventHandler<string>? PlaybackError;
 
     private readonly IAudioManager _audioManager;
+    private readonly HttpClient _httpClient = new();
     private IAudioPlayer? _player;
+    private Stream? _activeStream;
     private CancellationTokenSource? _progressCts;
     private float _volume = 1.0f;
 
@@ -41,8 +43,8 @@ public class AudioService : IAudioService, IDisposable
                 return;
             }
 
-            var stream = File.OpenRead(filePath);
-            _player = _audioManager.CreatePlayer(stream);
+            _activeStream = File.OpenRead(filePath);
+            _player = _audioManager.CreatePlayer(_activeStream);
             
             SetupPlayer();
             _player.Play();
@@ -64,13 +66,24 @@ public class AudioService : IAudioService, IDisposable
         {
             await StopAsync();
 
-            using var httpClient = new HttpClient();
-            var stream = await httpClient.GetStreamAsync(url);
-            var memoryStream = new MemoryStream();
-            await stream.CopyToAsync(memoryStream);
-            memoryStream.Position = 0;
+            _activeStream = await _httpClient.GetStreamAsync(url);
 
-            _player = _audioManager.CreatePlayer(memoryStream);
+            try
+            {
+                _player = _audioManager.CreatePlayer(_activeStream);
+            }
+            catch (Exception)
+            {
+                DisposeActiveStream();
+
+                using var sourceStream = await _httpClient.GetStreamAsync(url);
+                var memoryStream = new MemoryStream();
+                await sourceStream.CopyToAsync(memoryStream);
+                memoryStream.Position = 0;
+
+                _activeStream = memoryStream;
+                _player = _audioManager.CreatePlayer(_activeStream);
+            }
             
             SetupPlayer();
             _player.Play();
@@ -120,6 +133,8 @@ public class AudioService : IAudioService, IDisposable
             _player.Dispose();
             _player = null;
         }
+
+        DisposeActiveStream();
         
         IsPaused = false;
         return Task.CompletedTask;
@@ -155,6 +170,7 @@ public class AudioService : IAudioService, IDisposable
     {
         StopProgressTracking();
         IsPaused = false;
+        DisposeActiveStream();
         PlaybackCompleted?.Invoke(this, EventArgs.Empty);
     }
 
@@ -185,9 +201,17 @@ public class AudioService : IAudioService, IDisposable
         _progressCts = null;
     }
 
+    private void DisposeActiveStream()
+    {
+        _activeStream?.Dispose();
+        _activeStream = null;
+    }
+
     public void Dispose()
     {
         StopProgressTracking();
         _player?.Dispose();
+        DisposeActiveStream();
+        _httpClient.Dispose();
     }
 }

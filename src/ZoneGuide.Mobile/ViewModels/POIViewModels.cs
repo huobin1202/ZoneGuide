@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
 using ZoneGuide.Mobile.Localization;
 using ZoneGuide.Mobile.Services;
@@ -35,16 +36,10 @@ public partial class POIListViewModel : ObservableObject
     [ObservableProperty]
     private int filteredCount;
 
-    public List<string> Categories { get; } = new()
-    {
-        "Tất cả",
-        "Du lịch",
-        "Dịch vụ",
-        "Ăn uống",
-        "Giải trí",
-        "Mua sắm",
-        "Khác"
-    };
+    [ObservableProperty]
+    private string filteredCountText = string.Empty;
+
+    public ObservableCollection<string> Categories { get; } = new();
 
     [ObservableProperty]
     private POI? selectedPOI;
@@ -64,11 +59,16 @@ public partial class POIListViewModel : ObservableObject
         _geofenceService = geofenceService;
         _narrationService = narrationService;
         _syncService = syncService;
-        SelectedCategory = "Tất cả";
+
+        RefreshLocalizedCategories();
+        AppLocalizer.Instance.PropertyChanged += OnLocalizerPropertyChanged;
     }
 
     public async Task InitializeAsync()
     {
+        RefreshLocalizedCategories();
+        FilteredCountText = $"{FilteredCount} {AppLocalizer.Instance.Translate("pois_count_suffix", "places")}";
+
         try
         {
             System.Diagnostics.Debug.WriteLine("[POIListVM] Syncing from server...");
@@ -145,9 +145,9 @@ public partial class POIListViewModel : ObservableObject
             results = await _poiRepository.SearchAsync(SearchText);
         }
 
-        if (!string.IsNullOrEmpty(SelectedCategory) && SelectedCategory != "Tất cả")
+        if (!string.IsNullOrEmpty(SelectedCategory) && !IsCategoryFilterAll(SelectedCategory))
         {
-            results = results.Where(p => string.Equals(p.Category, SelectedCategory, StringComparison.OrdinalIgnoreCase));
+            results = results.Where(p => IsCategoryMatch(p.Category, SelectedCategory));
         }
 
         foreach (var poi in results)
@@ -156,6 +156,7 @@ public partial class POIListViewModel : ObservableObject
         }
 
         FilteredCount = FilteredPOIs.Count;
+        FilteredCountText = $"{FilteredCount} {AppLocalizer.Instance.Translate("pois_count_suffix", "places")}";
     }
 
     [RelayCommand]
@@ -183,9 +184,10 @@ public partial class POIListViewModel : ObservableObject
 
         try
         {
+            _geofenceService.ResetCooldown(poi.Id);
+
             var item = CreateQueueItem(poi);
             await _narrationService.PlayImmediatelyAsync(item);
-            await Shell.Current.GoToAsync($"POIDetailPage?id={poi.Id}&autoplay=true");
         }
         catch (Exception ex)
         {
@@ -259,6 +261,71 @@ public partial class POIListViewModel : ObservableObject
     partial void OnSelectedCategoryChanged(string? value)
     {
         _ = SearchAsync();
+    }
+
+    private void OnLocalizerPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(e.PropertyName))
+            return;
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            var previousCategoryKey = NormalizeCategoryKey(SelectedCategory);
+
+            RefreshLocalizedCategories();
+
+            SelectedCategory = Categories
+                .FirstOrDefault(c => NormalizeCategoryKey(c) == previousCategoryKey)
+                ?? Categories.FirstOrDefault();
+
+            _ = SearchAsync();
+        });
+    }
+
+    private void RefreshLocalizedCategories()
+    {
+        var currentCategoryKey = NormalizeCategoryKey(SelectedCategory);
+
+        Categories.Clear();
+        Categories.Add(AppLocalizer.Instance.Translate("pois_filter_all", "All"));
+        Categories.Add(AppLocalizer.Instance.Translate("category_tourism"));
+        Categories.Add(AppLocalizer.Instance.Translate("category_service"));
+        Categories.Add(AppLocalizer.Instance.Translate("category_food"));
+        Categories.Add(AppLocalizer.Instance.Translate("category_entertainment"));
+        Categories.Add(AppLocalizer.Instance.Translate("category_shopping"));
+        Categories.Add(AppLocalizer.Instance.Translate("category_other"));
+
+        SelectedCategory = Categories
+            .FirstOrDefault(c => NormalizeCategoryKey(c) == currentCategoryKey)
+            ?? Categories.FirstOrDefault();
+    }
+
+    private static bool IsCategoryFilterAll(string? category)
+    {
+        return NormalizeCategoryKey(category) == "all";
+    }
+
+    private static bool IsCategoryMatch(string? poiCategory, string? selectedCategory)
+    {
+        return NormalizeCategoryKey(poiCategory) == NormalizeCategoryKey(selectedCategory);
+    }
+
+    private static string NormalizeCategoryKey(string? category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+            return "other";
+
+        return category.Trim().ToLowerInvariant() switch
+        {
+            "all" or "tất cả" => "all",
+            "tourism" or "du lịch" => "tourism",
+            "service" or "services" or "dịch vụ" => "service",
+            "food" or "food & drink" or "ăn uống" => "food",
+            "entertainment" or "giải trí" => "entertainment",
+            "shopping" or "mua sắm" => "shopping",
+            "other" or "khác" => "other",
+            _ => category.Trim().ToLowerInvariant()
+        };
     }
 }
 
@@ -383,6 +450,8 @@ public partial class POIDetailViewModel : ObservableObject
 
         try
         {
+            _geofenceService.ResetCooldown(CurrentPoi.Id);
+
             var isCurrentPoi = _narrationService.CurrentItem?.POI.Id == CurrentPoi.Id;
             if (isCurrentPoi && _narrationService.IsPaused)
             {
@@ -491,7 +560,7 @@ public partial class POIDetailViewModel : ObservableObject
 
             IsPlaying = true;
             IsPaused = false;
-            Progress = 0;
+            Progress = Math.Clamp(_narrationService.CurrentProgress, 0, 1);
             UpdateComputedPlaybackFields();
         });
     }

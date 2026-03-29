@@ -250,7 +250,7 @@ public partial class TourDetailViewModel : ObservableObject
         _geofenceService.ClearPOIs();
         _geofenceService.AddPOIs(POIs);
 
-        await Shell.Current.GoToAsync("//map");
+        await Shell.Current.GoToAsync($"//map?tourId={Tour.Id}&startTour=true");
     }
 
     [RelayCommand]
