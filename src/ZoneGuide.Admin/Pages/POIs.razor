@@ -201,7 +201,7 @@
                         {
                             @foreach (var poi in FilteredPOIs)
                             {
-                                <MudCard Class="mb-3 poi-card" @onclick="@(() => CenterOnPOI(poi))">
+                                <MudCard id="@($"poi-card-{poi.Id}")" Class="@($"mb-3 poi-card {GetPoiCardClass(poi)}")" @onclick="@(() => CenterOnPOI(poi))">
                                     <div class="poi-card-body">
                                         <img class="poi-thumb-img" src="@(string.IsNullOrEmpty(poi.ImageUrl) ? "/images/placeholder.png" : poi.ImageUrl)" alt="Ảnh địa điểm" />
                                         <div class="poi-main">
@@ -434,6 +434,11 @@
         border-radius: 12px;
         box-shadow: 0 6px 18px rgba(0,0,0,0.04);
     }
+    .poi-card.poi-card-selected {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37,99,235,0.16), 0 14px 30px rgba(37,99,235,0.12);
+        background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    }
     .poi-card-body { display: flex; gap: 12px; padding: 12px; align-items: flex-start; }
     .poi-thumb-img {
         width: 88px;
@@ -483,6 +488,7 @@
     private string _poiAddressStatus = "";
     private string? _lastAutoFilledPoiName;
     private string _selectedCategory = "Tất cả";
+    private string? _highlightedPoiId;
     private bool _loading = true;
     private bool _mapInitialized = false;
     
@@ -766,9 +772,10 @@
 
     private async Task CenterOnPOI(POIDto poi)
     {
+        _highlightedPoiId = poi.Id;
         try
         {
-            await JS.InvokeVoidAsync("centerMapOnPOI", poi.Latitude, poi.Longitude, poi.Name);
+            await JS.InvokeVoidAsync("centerMapOnPOI", poi.Id, poi.Latitude, poi.Longitude);
         }
         catch
         {
@@ -791,6 +798,7 @@
 
     private async Task OpenEditMode(POIDto poi)
     {
+        _highlightedPoiId = poi.Id;
         _isEditMode = true;
         _activeTabIndex = 0; // Stay in Danh sach tab
         _editingPoiId = poi.Id;
@@ -817,6 +825,7 @@
         _poiAddressStatus = "";
         _selectedPoiAddressSuggestion = null;
         _lastAutoFilledPoiName = null;
+        await InvokeAsync(StateHasChanged);
         await JS.InvokeVoidAsync("addTempMarkerToPOIMap", poi.Latitude, poi.Longitude, false, _newPoi.TriggerRadius);
     }
     
@@ -1132,6 +1141,39 @@
         return string.Equals(trimmed, "Không có địa chỉ", StringComparison.OrdinalIgnoreCase) ? trimmed : trimmed;
     }
 
+    private string GetPoiCardClass(POIDto poi)
+        => string.Equals(_highlightedPoiId, poi.Id, StringComparison.Ordinal) ? "poi-card-selected" : string.Empty;
+
+    [JSInvokable]
+    public async Task OnPoiMarkerSelected(string poiId)
+    {
+        _highlightedPoiId = poiId;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            await JS.InvokeVoidAsync("scrollPoiCardIntoView", poiId);
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    [JSInvokable]
+    public Task OnPoiMarkerEditRequested(string poiId)
+    {
+        var poi = _pois.FirstOrDefault(p => p.Id == poiId);
+        return poi != null ? OpenEditMode(poi) : Task.CompletedTask;
+    }
+
+    [JSInvokable]
+    public Task OnPoiMarkerDeleteRequested(string poiId)
+    {
+        var poi = _pois.FirstOrDefault(p => p.Id == poiId);
+        return poi != null ? ConfirmDelete(poi) : Task.CompletedTask;
+    }
+
     private async Task ConfirmDelete(POIDto poi)
     {
         var confirm = await DialogService.ShowMessageBox(
@@ -1144,6 +1186,10 @@
             var success = await ApiService.DeletePOIAsync(poi.Id);
             if (success)
             {
+                if (string.Equals(_highlightedPoiId, poi.Id, StringComparison.Ordinal))
+                {
+                    _highlightedPoiId = null;
+                }
                 await LoadPOIs();
                 Snackbar.Add("Xóa thành công", Severity.Success);
             }

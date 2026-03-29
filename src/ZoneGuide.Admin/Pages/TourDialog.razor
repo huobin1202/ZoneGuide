@@ -14,17 +14,6 @@
                         </div>
                     </div>
 
-                    <div class="tour-segmented">
-                        <button type="button" class="tour-segmented-btn @GetTabClass(TourPlannerTab.Places)" @onclick="@(() => SetTab(TourPlannerTab.Places))">
-                            <MudIcon Icon="@Icons.Material.Filled.FormatListBulleted" Size="Size.Small" />
-                            <span>Địa điểm</span>
-                        </button>
-                        <button type="button" class="tour-segmented-btn @GetTabClass(TourPlannerTab.Route)" @onclick="@(() => SetTab(TourPlannerTab.Route))">
-                            <MudIcon Icon="@Icons.Material.Filled.Route" Size="Size.Small" />
-                            <span>Lộ trình</span>
-                        </button>
-                    </div>
-
                     <MudTextField @bind-Value="_searchKeyword"
                                   Placeholder="Tìm kiếm địa điểm..."
                                   Variant="Variant.Outlined"
@@ -35,54 +24,38 @@
                                   Class="tour-search" />
 
                     <div class="tour-location-list">
-                        @if (_activeTab == TourPlannerTab.Places)
+                        @if (FilteredAvailablePOIs.Any())
                         {
-                            @if (FilteredAvailablePOIs.Any())
+                            @foreach (var poi in FilteredAvailablePOIs)
                             {
-                                @foreach (var poi in FilteredAvailablePOIs)
-                                {
-                                    var selectedIndex = GetSelectedIndex(poi.Id);
-                                    var selected = selectedIndex >= 0;
-                                    <button type="button" class="tour-location-card @(selected ? "is-selected" : string.Empty)" @onclick="@(() => TogglePOIAsync(poi))">
+                                var selectedIndex = GetSelectedIndex(poi.Id);
+                                var selected = selectedIndex >= 0;
+                                <div class="tour-location-card @(selected ? "is-selected" : string.Empty)">
+                                    <button type="button" class="tour-location-main" @onclick="@(() => TogglePOIAsync(poi))">
                                         <span class="tour-order-badge @(selected ? "is-active" : "is-idle")">@(selected ? (selectedIndex + 1).ToString(CultureInfo.InvariantCulture) : "+")</span>
                                         <span class="tour-location-copy">
                                             <span class="tour-location-name" title="@poi.Name">@poi.Name</span>
                                             <span class="tour-location-subtitle">@GetPOISubtitle(poi)</span>
                                         </span>
-                                        <MudIcon Icon="@(selected ? Icons.Material.Filled.Check : Icons.Material.Filled.Add)" Size="Size.Small" />
                                     </button>
-                                }
-                            }
-                            else
-                            {
-                                <MudAlert Severity="Severity.Info" Dense="true">Không có địa điểm phù hợp với từ khóa.</MudAlert>
+                                    <span class="tour-route-actions">
+                                        @if (selected)
+                                        {
+                                            <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowUp" Size="Size.Small" Disabled="@(selectedIndex == 0)" OnClick="@(() => MovePOIAsync(poi, -1))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowDown" Size="Size.Small" Disabled="@(selectedIndex == _selectedPOIs.Count - 1)" OnClick="@(() => MovePOIAsync(poi, 1))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Color="Color.Error" OnClick="@(() => RemovePOIAsync(poi))" />
+                                        }
+                                        else
+                                        {
+                                            <MudIconButton Icon="@Icons.Material.Filled.Add" Size="Size.Small" Color="Color.Primary" OnClick="@(() => TogglePOIAsync(poi))" />
+                                        }
+                                    </span>
+                                </div>
                             }
                         }
                         else
                         {
-                            @if (_selectedPOIs.Any())
-                            {
-                                @foreach (var poi in _selectedPOIs)
-                                {
-                                    var index = _selectedPOIs.IndexOf(poi);
-                                    <div class="tour-location-card is-selected is-route">
-                                        <span class="tour-order-badge is-active">@(index + 1)</span>
-                                        <span class="tour-location-copy">
-                                            <span class="tour-location-name" title="@poi.Name">@poi.Name</span>
-                                            <span class="tour-location-subtitle">@GetPOISubtitle(poi)</span>
-                                        </span>
-                                        <span class="tour-route-actions">
-                                            <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowUp" Size="Size.Small" Disabled="@(index == 0)" OnClick="@(() => MovePOIAsync(poi, -1))" />
-                                            <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowDown" Size="Size.Small" Disabled="@(index == _selectedPOIs.Count - 1)" OnClick="@(() => MovePOIAsync(poi, 1))" />
-                                            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Color="Color.Error" OnClick="@(() => RemovePOIAsync(poi))" />
-                                        </span>
-                                    </div>
-                                }
-                            }
-                            else
-                            {
-                                <MudAlert Severity="Severity.Info" Dense="true">Chọn ít nhất 2 điểm để hệ thống vẽ lộ trình và tính thời gian.</MudAlert>
-                            }
+                            <MudAlert Severity="Severity.Info" Dense="true">Không có địa điểm phù hợp với từ khóa.</MudAlert>
                         }
                     </div>
                 </aside>
@@ -241,38 +214,6 @@
         max-width: 280px;
     }
 
-    .tour-segmented {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-        padding: 6px;
-        border-radius: 18px;
-        background: #f2f5fb;
-        margin-bottom: 16px;
-    }
-
-    .tour-segmented-btn {
-        height: 44px;
-        border: 0;
-        border-radius: 14px;
-        background: transparent;
-        color: #62708a;
-        font-size: 0.95rem;
-        font-weight: 600;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-
-    .tour-segmented-btn.is-active {
-        background: #fff;
-        color: #2563eb;
-        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-    }
-
     .tour-search {
         margin-bottom: 18px;
     }
@@ -290,7 +231,7 @@
         width: 100%;
         border: 1px solid #e4eaf4;
         border-radius: 18px;
-        padding: 14px 14px 14px 12px;
+        padding: 8px 10px 8px 8px;
         background: #fff;
         display: flex;
         align-items: center;
@@ -299,17 +240,22 @@
         transition: all 0.2s ease;
     }
 
-    button.tour-location-card {
-        cursor: pointer;
-    }
-
     .tour-location-card.is-selected {
         border-color: #c7d2fe;
         box-shadow: 0 12px 24px rgba(37, 99, 235, 0.08);
     }
 
-    .tour-location-card.is-route {
-        cursor: default;
+    .tour-location-main {
+        flex: 1;
+        min-width: 0;
+        border: 0;
+        background: transparent;
+        padding: 6px 6px 6px 4px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-align: left;
+        cursor: pointer;
     }
 
     .tour-order-badge {
@@ -493,7 +439,6 @@
     private bool _mapRendered;
     private bool _routingAvailable;
     private string _searchKeyword = string.Empty;
-    private TourPlannerTab _activeTab = TourPlannerTab.Places;
     private double _straightLineDistanceKm;
     private TourFormModel _model = new();
     private readonly List<POIDto> _selectedPOIs = new();
@@ -552,10 +497,6 @@
         _mapRendered = true;
         await RefreshRouteAsync();
     }
-
-    private string GetTabClass(TourPlannerTab tab) => _activeTab == tab ? "is-active" : string.Empty;
-
-    private void SetTab(TourPlannerTab tab) => _activeTab = tab;
 
     private bool IsPOISelected(string poiId) => _selectedPOIs.Any(p => p.Id == poiId);
 
@@ -786,12 +727,6 @@
     }
 
     private static double DegreesToRadians(double value) => value * Math.PI / 180d;
-
-    private enum TourPlannerTab
-    {
-        Places,
-        Route
-    }
 
     private sealed class RouteRenderResult
     {

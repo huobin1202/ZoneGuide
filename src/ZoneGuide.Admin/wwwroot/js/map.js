@@ -1,6 +1,7 @@
 // POI Map Functions using Leaflet
 var poiMap = null;
 var markers = [];
+var markerByPoiId = {};
 var tempMarker = null;
 var tempRadiusCircle = null;
 var searchResultMarker = null;
@@ -17,6 +18,7 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
         poiMap = null;
     }
     markers = [];
+    markerByPoiId = {};
     searchResultMarker = null;
     dotNetRef = dotNetReference;
 
@@ -95,14 +97,25 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
         poiData.forEach(function (poi) {
             var fallbackImageUrl = '/images/placeholder.png';
             var imageUrl = (poi.imageUrl && poi.imageUrl.trim()) ? poi.imageUrl : fallbackImageUrl;
+            var escapedId = String(poi.id).replace(/'/g, "\\'");
+            var editSvg = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path fill="currentColor" d="M3 17.25V21h3.75l11-11.03-3.75-3.75L3 17.25zm17.71-10.04a1.003 1.003 0 0 0 0-1.42L18.21 3.29a1.003 1.003 0 0 0-1.42 0l-1.96 1.96 3.75 3.75 2.13-1.79z"/></svg>';
+            var deleteSvg = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V7H6v12zm3.46-7.12 1.41-1.41L12 11.59l1.12-1.12 1.41 1.41L13.41 13l1.12 1.12-1.41 1.41L12 14.41l-1.12 1.12-1.41-1.41L10.59 13l-1.13-1.12zM15.5 4l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+            var actionButtons =
+                '<button type="button" title="Chỉnh sửa" onclick="window.handlePoiPopupEdit(event,\'' + escapedId + '\')" style="width:32px;height:32px;border:1px solid rgba(255,255,255,0.75);border-radius:999px;background:rgba(255,255,255,0.92);backdrop-filter:blur(6px);color:#37474f;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 16px rgba(15,23,42,0.24);">' + editSvg + '</button>' +
+                '<button type="button" title="Xóa" onclick="window.handlePoiPopupDelete(event,\'' + escapedId + '\')" style="width:32px;height:32px;border:1px solid rgba(255,255,255,0.75);border-radius:999px;background:rgba(255,255,255,0.92);backdrop-filter:blur(6px);color:#d32f2f;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 16px rgba(15,23,42,0.24);">' + deleteSvg + '</button>';
 
             var marker = L.marker([poi.lat, poi.lng], { icon: getCustomIcon(poi.category) })
                 .addTo(poiMap)
                 .bindPopup(
                     '<div style="width: 250px; max-width: 250px; padding: 0; overflow: hidden;">' +
-                    '<img src="' + imageUrl + '" onerror="this.onerror=null;this.src=\'' + fallbackImageUrl + '\';" style="width: 100%; height: 120px; object-fit: cover; border-top-left-radius: 8px; border-top-right-radius: 8px; margin-bottom: 8px; display: block;" />' +
+                    '<div style="position:relative;padding-top:14px;margin-bottom:8px;">' +
+                    '<div style="position:absolute;top:0;right:10px;display:flex;gap:8px;align-items:center;z-index:4;padding:6px 8px;border-radius:999px;background:rgba(255,255,255,0.98);box-shadow:0 8px 20px rgba(15,23,42,0.18);">' +
+                    actionButtons +
+                    '</div>' +
+                    '<img src="' + imageUrl + '" onerror="this.onerror=null;this.src=\'' + fallbackImageUrl + '\';" style="width: 100%; height: 120px; object-fit: cover; border-top-left-radius: 8px; border-top-right-radius: 8px; display: block;" />' +
+                    '</div>' +
                     '<div style="padding: 4px 8px 8px 8px;">' +
-                    '<h4 style="margin: 0 0 6px 0; color: #333; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' + poi.name + '</h4>' +
+                    '<h4 style="margin:0 0 6px 0;color:#333;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + poi.name + '</h4>' +
                     '<div style="display: flex; align-items: center; margin-bottom: 8px;">' +
                         '<span style="background-color: #E3F2FD; color: #1976D2; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">' +
                             '🏛 ' + poi.category + 
@@ -114,7 +127,8 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
                     '📍 ' + (poi.address ? poi.address : (poi.lat.toFixed(6) + ', ' + poi.lng.toFixed(6))) + '</p>' +
                     '</div></div>', {
                         className: 'custom-poi-popup',
-                        minWidth: 250
+                        minWidth: 250,
+                        closeButton: false
                     }
                 );
 
@@ -131,7 +145,13 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
 
             marker.poiId = poi.id;
             marker.poiName = poi.name;
+            marker.on('click', function () {
+                if (dotNetRef) {
+                    dotNetRef.invokeMethodAsync('OnPoiMarkerSelected', String(poi.id));
+                }
+            });
             markers.push(marker);
+            markerByPoiId[String(poi.id)] = marker;
             bounds.push([poi.lat, poi.lng]);
         });
 
@@ -153,16 +173,46 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
     }, 100);
 };
 
-window.centerMapOnPOI = function (lat, lng, name) {
+window.centerMapOnPOI = function (poiId, lat, lng) {
     if (poiMap) {
         poiMap.setView([lat, lng], 17);
+        var marker = markerByPoiId[String(poiId)];
+        if (marker) {
+            marker.openPopup();
+        }
+    }
+};
 
-        // Find and open the popup for this marker
-        markers.forEach(function (marker) {
-            if (marker.poiName === name) {
-                marker.openPopup();
-            }
-        });
+window.handlePoiPopupEdit = function (evt, poiId) {
+    if (evt) {
+        evt.preventDefault();
+        evt.stopPropagation();
+    }
+    if (poiMap) {
+        poiMap.closePopup();
+    }
+    if (dotNetRef) {
+        dotNetRef.invokeMethodAsync('OnPoiMarkerEditRequested', String(poiId));
+    }
+};
+
+window.handlePoiPopupDelete = function (evt, poiId) {
+    if (evt) {
+        evt.preventDefault();
+        evt.stopPropagation();
+    }
+    if (poiMap) {
+        poiMap.closePopup();
+    }
+    if (dotNetRef) {
+        dotNetRef.invokeMethodAsync('OnPoiMarkerDeleteRequested', String(poiId));
+    }
+};
+
+window.scrollPoiCardIntoView = function (poiId) {
+    var card = document.getElementById('poi-card-' + poiId);
+    if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 };
 
