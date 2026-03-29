@@ -61,7 +61,7 @@
 
                     <MudGrid Class="mt-3">
                         <MudItem xs="12" sm="4">
-                            <MudNumericField @bind-Value="_model.TriggerRadiusMeters"
+                            <MudNumericField @bind-Value="_model.TriggerRadius"
                                              Label="Bán kính kích hoạt (m)" Min="20" Max="150" />
                         </MudItem>
                         <MudItem xs="12" sm="4">
@@ -289,7 +289,7 @@
                 FullDescription = POI.FullDescription,
                 Latitude = POI.Latitude,
                 Longitude = POI.Longitude,
-                TriggerRadiusMeters = POI.TriggerRadiusMeters,
+                TriggerRadius = POI.TriggerRadius,
                 ApproachRadius = POI.ApproachRadius,
                 Priority = POI.Priority,
                 Category = POI.Category,
@@ -481,7 +481,7 @@
                     FullDescription = _model.FullDescription,
                     Latitude = _model.Latitude ?? 0,
                     Longitude = _model.Longitude ?? 0,
-                    TriggerRadiusMeters = _model.TriggerRadiusMeters,
+                    TriggerRadiusMeters = _model.TriggerRadius,
                     ApproachRadius = _model.ApproachRadius,
                     Priority = _model.Priority,
                     Category = _model.Category,
@@ -510,7 +510,7 @@
                     FullDescription = _model.FullDescription,
                     Latitude = _model.Latitude ?? 0,
                     Longitude = _model.Longitude ?? 0,
-                    TriggerRadiusMeters = _model.TriggerRadiusMeters,
+                    TriggerRadiusMeters = _model.TriggerRadius,
                     ApproachRadius = _model.ApproachRadius,
                     Priority = _model.Priority,
                     Category = _model.Category,
@@ -587,7 +587,7 @@
         public string? FullDescription { get; set; }
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
-        public double TriggerRadiusMeters { get; set; } = 50;
+        public double TriggerRadius { get; set; } = 50;
         public double ApproachRadius { get; set; } = 100;
         public int Priority { get; set; } = 1;
         public string? Category { get; set; }

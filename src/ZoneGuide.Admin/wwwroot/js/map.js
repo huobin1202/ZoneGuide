@@ -2,6 +2,7 @@
 var poiMap = null;
 var markers = [];
 var tempMarker = null;
+var tempRadiusCircle = null;
 var searchResultMarker = null;
 
 // Picker map for dialog
@@ -109,13 +110,24 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
                     '</div>' +
                     '<p style="margin: 0 0 8px 0; font-size: 13px; color: #555; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">' + 
                     (poi.description ? poi.description : 'Không có mô tả') + '</p>' +
-                    '<p style="margin: 0; font-size: 12px; color: #888;">' +
-                    '📍 ' + poi.lat.toFixed(6) + ', ' + poi.lng.toFixed(6) + '</p>' +
+                    '<p style="margin: 0; font-size: 12px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' +
+                    '📍 ' + (poi.address ? poi.address : (poi.lat.toFixed(6) + ', ' + poi.lng.toFixed(6))) + '</p>' +
                     '</div></div>', {
                         className: 'custom-poi-popup',
                         minWidth: 250
                     }
                 );
+
+            if (poi.triggerRadius && poi.triggerRadius > 0) {
+                L.circle([poi.lat, poi.lng], {
+                    radius: poi.triggerRadius,
+                    color: '#4caf50',
+                    weight: 1.5,
+                    opacity: 0.65,
+                    fillColor: '#81c784',
+                    fillOpacity: 0.08
+                }).addTo(poiMap);
+            }
 
             marker.poiId = poi.id;
             marker.poiName = poi.name;
@@ -165,7 +177,35 @@ window.addMarkerToMap = function (lat, lng, name, description) {
     }
 };
 
-window.addTempMarkerToPOIMap = function (lat, lng, dontChangeView) {
+function updateTempRadiusCircle(lat, lng, radiusMeters) {
+    if (!poiMap) {
+        return;
+    }
+
+    if (!radiusMeters || radiusMeters <= 0) {
+        if (tempRadiusCircle) {
+            poiMap.removeLayer(tempRadiusCircle);
+            tempRadiusCircle = null;
+        }
+        return;
+    }
+
+    if (!tempRadiusCircle) {
+        tempRadiusCircle = L.circle([lat, lng], {
+            radius: radiusMeters,
+            color: '#1976d2',
+            weight: 2,
+            opacity: 0.9,
+            fillColor: '#42a5f5',
+            fillOpacity: 0.18
+        }).addTo(poiMap);
+    } else {
+        tempRadiusCircle.setLatLng([lat, lng]);
+        tempRadiusCircle.setRadius(radiusMeters);
+    }
+}
+
+window.addTempMarkerToPOIMap = function (lat, lng, dontChangeView, radiusMeters) {
     if (poiMap) {
         if (tempMarker) {
             tempMarker.setLatLng([lat, lng]);
@@ -185,11 +225,16 @@ window.addTempMarkerToPOIMap = function (lat, lng, dontChangeView) {
 
             tempMarker.on('dragend', function (e) {
                 var position = tempMarker.getLatLng();
+                if (tempRadiusCircle) {
+                    tempRadiusCircle.setLatLng(position);
+                }
                 if (dotNetRef) {
                     dotNetRef.invokeMethodAsync('OnMapClicked', position.lat, position.lng);
                 }
             });
         }
+
+        updateTempRadiusCircle(lat, lng, radiusMeters);
         
         if (!dontChangeView) {
             poiMap.setView([lat, lng], 16);
@@ -197,10 +242,21 @@ window.addTempMarkerToPOIMap = function (lat, lng, dontChangeView) {
     }
 };
 
+window.updateTempRadiusPreviewOnPOIMap = function (radiusMeters) {
+    if (tempMarker) {
+        var position = tempMarker.getLatLng();
+        updateTempRadiusCircle(position.lat, position.lng, radiusMeters);
+    }
+};
+
 window.removeTempMarkerFromPOIMap = function () {
     if (tempMarker && poiMap) {
         poiMap.removeLayer(tempMarker);
         tempMarker = null;
+    }
+    if (tempRadiusCircle && poiMap) {
+        poiMap.removeLayer(tempRadiusCircle);
+        tempRadiusCircle = null;
     }
 };
 

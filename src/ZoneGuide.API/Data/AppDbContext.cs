@@ -35,6 +35,7 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => e.UniqueCode).IsUnique();
             entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
             entity.Property(e => e.UniqueCode).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Address).HasMaxLength(500);
             entity.HasOne(e => e.Tour)
                   .WithMany(t => t.POIs)
                   .HasForeignKey(e => e.TourId);
@@ -147,13 +148,13 @@ public class POIEntity
 {
     public int Id { get; set; }
     public string UniqueCode { get; set; } = string.Empty;
+    public string? Address { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? ShortDescription { get; set; }
     public string? FullDescription { get; set; }
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public double TriggerRadius { get; set; } = 50;
-    public double TriggerRadiusMeters { get; set; } = 50;
     public double ApproachRadius { get; set; } = 100;
     public int Priority { get; set; } = 5;
     public string? Category { get; set; }

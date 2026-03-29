@@ -33,6 +33,7 @@ public class POIDto
 {
     public string Id { get; set; } = string.Empty;
     public string UniqueCode { get; set; } = string.Empty;
+    public string? Address { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? ShortDescription { get; set; }
     public string? FullDescription { get; set; }
@@ -63,6 +64,7 @@ public class POIDto
 /// </summary>
 public class CreatePOIDto
 {
+    public string? Address { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? ShortDescription { get; set; }
     public string? FullDescription { get; set; }
@@ -85,6 +87,7 @@ public class CreatePOIDto
 /// </summary>
 public class UpdatePOIDto
 {
+    public string? Address { get; set; }
     public string? Name { get; set; }
     public string? ShortDescription { get; set; }
     public string? FullDescription { get; set; }

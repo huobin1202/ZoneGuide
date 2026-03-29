@@ -86,7 +86,9 @@ public interface IPOIService
         var entities = await _context.POIs
             .Include(p => p.Translations)
             .Where(p => p.IsActive && 
-                (p.Name.Contains(keyword) || (p.ShortDescription != null && p.ShortDescription.Contains(keyword))))
+                (p.Name.Contains(keyword) ||
+                 (p.Address != null && p.Address.Contains(keyword)) ||
+                 (p.ShortDescription != null && p.ShortDescription.Contains(keyword))))
             .ToListAsync();
 
         return entities.Select(MapToDto).ToList();
@@ -133,12 +135,12 @@ public interface IPOIService
         var entity = new POIEntity
         {
             UniqueCode = Guid.NewGuid().ToString("N")[..8].ToUpper(),
+            Address = dto.Address,
             Name = dto.Name,
             ShortDescription = dto.ShortDescription,
             FullDescription = dto.FullDescription,
             Latitude = dto.Latitude,
             Longitude = dto.Longitude,
-            TriggerRadiusMeters = dto.TriggerRadiusMeters,
             TriggerRadius = dto.TriggerRadiusMeters,
             ApproachRadius = dto.ApproachRadius,
             Priority = dto.Priority,
@@ -169,16 +171,13 @@ public interface IPOIService
         if (entity == null)
             return null;
 
+        if (dto.Address != null) entity.Address = dto.Address;
         if (dto.Name != null) entity.Name = dto.Name;
         if (dto.ShortDescription != null) entity.ShortDescription = dto.ShortDescription;
         if (dto.FullDescription != null) entity.FullDescription = dto.FullDescription;
         if (dto.Latitude.HasValue) entity.Latitude = dto.Latitude.Value;
         if (dto.Longitude.HasValue) entity.Longitude = dto.Longitude.Value;
-        if (dto.TriggerRadiusMeters.HasValue) 
-        {
-            entity.TriggerRadiusMeters = dto.TriggerRadiusMeters.Value;
-            entity.TriggerRadius = dto.TriggerRadiusMeters.Value;
-        }
+        if (dto.TriggerRadiusMeters.HasValue) entity.TriggerRadius = dto.TriggerRadiusMeters.Value;
         if (dto.ApproachRadius.HasValue) entity.ApproachRadius = dto.ApproachRadius.Value;
         if (dto.Priority.HasValue) entity.Priority = dto.Priority.Value;
         if (dto.AudioUrl != null) entity.AudioUrl = dto.AudioUrl;
@@ -272,13 +271,14 @@ public interface IPOIService
         {
             Id = entity.Id.ToString(),
             UniqueCode = entity.UniqueCode,
+            Address = entity.Address,
             Name = entity.Name,
             ShortDescription = entity.ShortDescription,
             FullDescription = entity.FullDescription,
             Latitude = entity.Latitude,
             Longitude = entity.Longitude,
+            TriggerRadiusMeters = entity.TriggerRadius,
             TriggerRadius = entity.TriggerRadius,
-            TriggerRadiusMeters = entity.TriggerRadiusMeters,
             ApproachRadius = entity.ApproachRadius,
             Priority = entity.Priority,
             AudioUrl = entity.AudioUrl,
