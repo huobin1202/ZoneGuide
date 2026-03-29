@@ -21,6 +21,7 @@
                     IsLoading="@isLoading"
                     OnReview="OnReviewContribution"
                     OnViewHistory="OnViewHistory"
+                    OnShowLocation="OnShowLocation"
                     ShowReviewActions="true" />
             </MudTabPanel>
             
@@ -30,6 +31,7 @@
                 IsLoading="@isLoading"
                 OnReview="OnReviewContribution"
                 OnViewHistory="OnViewHistory"
+                OnShowLocation="OnShowLocation"
                 ShowReviewActions="true" />
         </MudTabPanel>
         
@@ -38,6 +40,7 @@
                 Contributions="@approvedContributions" 
                 IsLoading="@isLoading"
                 OnViewHistory="OnViewHistory"
+                OnShowLocation="OnShowLocation"
                 ShowReviewActions="false" />
         </MudTabPanel>
         
@@ -46,6 +49,7 @@
                 Contributions="@rejectedContributions" 
                 IsLoading="@isLoading"
                 OnViewHistory="OnViewHistory"
+                OnShowLocation="OnShowLocation"
                 ShowReviewActions="false" />
         </MudTabPanel>
         
@@ -54,6 +58,7 @@
                 Contributions="@needsRevisionContributions" 
                 IsLoading="@isLoading"
                 OnViewHistory="OnViewHistory"
+                OnShowLocation="OnShowLocation"
                 ShowReviewActions="false" />
         </MudTabPanel>
         
@@ -132,5 +137,16 @@
         
         var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium };
         await DialogService.ShowAsync<ApprovalHistoryDialog>("Lịch sử duyệt", parameters, options);
+    }
+
+    private async Task OnShowLocation(POIContributionDto contribution)
+    {
+        var parameters = new DialogParameters
+        {
+            { "Contribution", contribution }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+        await DialogService.ShowAsync<ContributionLocationDialog>("Xem vị trí đóng góp", parameters, options);
     }
 }

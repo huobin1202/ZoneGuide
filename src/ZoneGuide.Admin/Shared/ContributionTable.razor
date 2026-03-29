@@ -1,4 +1,5 @@
 @using ZoneGuide.Shared.Models
+@inject IJSRuntime JS
 
 <MudTable Items="@Contributions" Hover="true" Striped="true" Loading="@IsLoading" LoadingProgressColor="Color.Primary" Dense="true">
     <HeaderContent>
@@ -22,8 +23,8 @@
         </MudTd>
         <MudTd DataLabel="Người đóng góp">@context.ContributorName</MudTd>
         <MudTd DataLabel="Vị trí">
-            <MudLink Href="@($"https://maps.google.com/?q={context.Latitude},{context.Longitude}")" Target="_blank">
-                @(context.Latitude?.ToString("F5") ?? "0"), @(context.Longitude?.ToString("F5") ?? "0")
+            <MudLink Href="javascript:void(0)" OnClick="@(() => OnShowLocation.InvokeAsync(context))">
+                @GetLocationDisplay(context)
             </MudLink>
         </MudTd>
         <MudTd DataLabel="Trạng thái">
@@ -58,6 +59,28 @@
     [Parameter] public bool ShowReviewActions { get; set; } = true;
     [Parameter] public EventCallback<POIContributionDto> OnReview { get; set; }
     [Parameter] public EventCallback<int> OnViewHistory { get; set; }
+    [Parameter] public EventCallback<POIContributionDto> OnShowLocation { get; set; }
+
+    private readonly Dictionary<int, string> _addressCache = new();
+    private readonly HashSet<int> _resolvingAddresses = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var pending = Contributions
+            .Where(c => c.Latitude.HasValue && c.Longitude.HasValue)
+            .Where(c => !_addressCache.ContainsKey(c.Id) && !_resolvingAddresses.Contains(c.Id))
+            .ToList();
+
+        foreach (var contribution in pending)
+        {
+            _resolvingAddresses.Add(contribution.Id);
+        }
+
+        foreach (var contribution in pending)
+        {
+            await ResolveAddressAsync(contribution);
+        }
+    }
     
     private Color GetStatusColor(string status) => status switch
     {
@@ -83,5 +106,45 @@
     {
         if (string.IsNullOrEmpty(value)) return value ?? "";
         return value.Length <= maxLength ? value : value.Substring(0, maxLength) + "...";
+    }
+
+    private string GetLocationDisplay(POIContributionDto contribution)
+    {
+        if (_addressCache.TryGetValue(contribution.Id, out var address))
+        {
+            return address;
+        }
+
+        return contribution.Latitude.HasValue && contribution.Longitude.HasValue
+            ? "Đang tải địa chỉ..."
+            : "Không có địa chỉ";
+    }
+
+    private async Task ResolveAddressAsync(POIContributionDto contribution)
+    {
+        try
+        {
+            if (!contribution.Latitude.HasValue || !contribution.Longitude.HasValue)
+            {
+                _addressCache[contribution.Id] = "Không có địa chỉ";
+                return;
+            }
+
+            var address = await JS.InvokeAsync<string>(
+                "reverseGeocodeAddress",
+                contribution.Latitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                contribution.Longitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+            _addressCache[contribution.Id] = string.IsNullOrWhiteSpace(address) ? "Không có địa chỉ" : address;
+        }
+        catch
+        {
+            _addressCache[contribution.Id] = "Không có địa chỉ";
+        }
+        finally
+        {
+            _resolvingAddresses.Remove(contribution.Id);
+            await InvokeAsync(StateHasChanged);
+        }
     }
 }

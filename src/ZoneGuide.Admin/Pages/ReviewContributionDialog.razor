@@ -1,6 +1,9 @@
 @using ZoneGuide.Shared.Models
+@using System.Globalization
 @inject HttpClient Http
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IJSRuntime JS
 
 <MudDialog>
     <TitleContent>
@@ -16,7 +19,19 @@
                 <MudDivider Class="my-2" />
                 <MudText><strong>Tên:</strong> @Contribution.Name</MudText>
                 <MudText><strong>Mô tả ngắn:</strong> @(Contribution.ShortDescription ?? "-")</MudText>
-                <MudText><strong>Vị trí:</strong> @(Contribution.Latitude?.ToString("F6") ?? "0"), @(Contribution.Longitude?.ToString("F6") ?? "0")</MudText>
+                <MudText>
+                    <strong>Vị trí:</strong>
+                    @if (HasLocation)
+                    {
+                        <MudLink Href="javascript:void(0)" OnClick="ShowLocationAsync">
+                            @_addressDisplay
+                        </MudLink>
+                    }
+                    else
+                    {
+                        <span>Không có địa chỉ</span>
+                    }
+                </MudText>
                 <MudText><strong>Bán kính kích hoạt:</strong> @Contribution.TriggerRadius m</MudText>
                 <MudText><strong>Danh mục:</strong> @(Contribution.Category ?? "-")</MudText>
             </MudItem>
@@ -77,6 +92,19 @@
     private POIApprovalStatus decision = POIApprovalStatus.Approved;
     private string? feedback;
     private bool isSaving = false;
+    private string _addressDisplay = "Đang tải địa chỉ...";
+    private bool HasLocation => Contribution.Latitude.HasValue && Contribution.Longitude.HasValue;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!HasLocation)
+        {
+            _addressDisplay = "Không có địa chỉ";
+            return;
+        }
+
+        await ResolveAddressAsync();
+    }
     
     private async Task Submit()
     {
@@ -120,4 +148,31 @@
     }
     
     private void Cancel() => MudDialog?.Cancel();
+
+    private async Task ShowLocationAsync()
+    {
+        var parameters = new DialogParameters
+        {
+            { "Contribution", Contribution }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+        await DialogService.ShowAsync<ContributionLocationDialog>("Xem vị trí đóng góp", parameters, options);
+    }
+
+    private async Task ResolveAddressAsync()
+    {
+        try
+        {
+            var address = await JS.InvokeAsync<string>(
+                "reverseGeocodeAddress",
+                Contribution.Latitude!.Value.ToString(CultureInfo.InvariantCulture),
+                Contribution.Longitude!.Value.ToString(CultureInfo.InvariantCulture));
+            _addressDisplay = string.IsNullOrWhiteSpace(address) ? "Không có địa chỉ" : address;
+        }
+        catch
+        {
+            _addressDisplay = "Không có địa chỉ";
+        }
+    }
 }

@@ -24,8 +24,30 @@
                         </div>
                         
                         <MudForm @ref="_editForm" @bind-IsValid="_isValid">
+                            <MudAutocomplete T="AddressSuggestion"
+                                             Text="@_contributionAddressQuery"
+                                             TextChanged="OnContributionAddressTextChanged"
+                                             Value="@_selectedContributionAddressSuggestion"
+                                             ValueChanged="OnContributionAddressSuggestionSelected"
+                                             SearchFunc="SearchContributionAddressSuggestionsAsync"
+                                             ToStringFunc="@(item => item?.DisplayName)"
+                                             Label="Địa chỉ"
+                                             Placeholder="Nhập địa chỉ để gợi ý..."
+                                             Variant="Variant.Outlined"
+                                             Margin="Margin.Dense"
+                                             Adornment="Adornment.Start"
+                                             AdornmentIcon="@Icons.Material.Filled.LocationOn"
+                                             ResetValueOnEmptyText="true"
+                                             DebounceInterval="250"
+                                             MaxItems="5"
+                                             Class="mt-3" />
+                            @if (!string.IsNullOrWhiteSpace(_contributionAddressStatus))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1 d-block">@_contributionAddressStatus</MudText>
+                            }
+
                             <MudTextField @bind-Value="_editModel.Name" Label="Tên địa điểm" Required="true" 
-                                          RequiredError="Tên là bắt buộc" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
+                                          RequiredError="Tên là bắt buộc" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-2" />
                             
                             <MudText Typo="Typo.caption" Class="mb-1 mt-3 d-block">Danh mục</MudText>
                             <div class="d-flex gap-2" style="overflow-x: auto; padding-bottom: 4px;">
@@ -45,6 +67,30 @@
 
                             <MudTextField @bind-Value="_editModel.FullDescription" Label="Mô tả chi tiết" 
                                           Lines="3" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
+
+                            <MudPaper Elevation="0" Class="pa-3 mt-3" Style="background:#f8fbff;border:1px solid #dbe7f3;border-radius:12px;">
+                                <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">Audio thuyết minh</MudText>
+                                <MudTextField @bind-Value="_editModel.TTSScript" Label="Nội dung thuyết minh (TTS)"
+                                              Lines="3" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                <div class="d-flex gap-2 mt-2 mb-2 flex-wrap">
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
+                                               StartIcon="@Icons.Material.Filled.Autorenew"
+                                               Disabled="@_isGeneratingContributorTts"
+                                               OnClick="GenerateContributorTtsAsync">
+                                        @(_isGeneratingContributorTts ? "Đang tạo giọng đọc..." : "Tạo giọng đọc")
+                                    </MudButton>
+                                </div>
+                                <MudTextField @bind-Value="_editModel.AudioUrl" Label="URL Audio thuyết minh"
+                                              Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                @if (!string.IsNullOrEmpty(_editModel.AudioUrl))
+                                {
+                                    <div class="mt-2">
+                                        <audio controls style="width:100%">
+                                            <source src="@_editModel.AudioUrl" />
+                                        </audio>
+                                    </div>
+                                }
+                            </MudPaper>
 
                             <MudGrid Class="mt-1">
                                 <MudItem xs="6">
@@ -91,7 +137,7 @@
                                     <MudText Typo="Typo.h6">Đóng góp của tôi</MudText>
                                     <MudText Typo="Typo.body2" Color="Color.Secondary">@_myContributions.Count tổng • @FilteredContributions.Count() đang hiển thị</MudText>
                                 </div>
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => { _activeTabIndex = 1; _isEditMode = false; })">Thêm đóng góp</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => { _activeTabIndex = 1; _isEditMode = false; ResetContributionAddressState(); })">Thêm đóng góp</MudButton>
                             </div>
                             <MudTextField @bind-Value="_searchString" Immediate="true" Placeholder="Tìm kiếm đóng góp..." 
                                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
@@ -122,7 +168,7 @@
                                             </div>
                                             <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-1 d-flex align-center gap-1">
                                                 <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" />
-                                                @($"{contrib.Latitude:F6}, {contrib.Longitude:F6}")
+                                                @GetContributionAddressDisplay(contrib)
                                             </MudText>
                                             <MudText Typo="Typo.body2" Color="Color.Default" Class="clamp-2">
                                                 @(contrib.ShortDescription ?? "Không có mô tả")
@@ -149,8 +195,30 @@
                     </MudText>
                     
                     <MudForm @ref="_createForm" @bind-IsValid="_isValid">
+                        <MudAutocomplete T="AddressSuggestion"
+                                         Text="@_contributionAddressQuery"
+                                         TextChanged="OnContributionAddressTextChanged"
+                                         Value="@_selectedContributionAddressSuggestion"
+                                         ValueChanged="OnContributionAddressSuggestionSelected"
+                                         SearchFunc="SearchContributionAddressSuggestionsAsync"
+                                         ToStringFunc="@(item => item?.DisplayName)"
+                                         Label="Địa chỉ"
+                                         Placeholder="Nhập địa chỉ để gợi ý..."
+                                         Variant="Variant.Outlined"
+                                         Margin="Margin.Dense"
+                                         Adornment="Adornment.Start"
+                                         AdornmentIcon="@Icons.Material.Filled.LocationOn"
+                                         ResetValueOnEmptyText="true"
+                                         DebounceInterval="250"
+                                         MaxItems="5"
+                                         Class="mt-3" />
+                        @if (!string.IsNullOrWhiteSpace(_contributionAddressStatus))
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1 d-block">@_contributionAddressStatus</MudText>
+                        }
+
                         <MudTextField @bind-Value="_newContrib.Name" Label="Tên địa điểm" Required="true" 
-                                      RequiredError="Tên là bắt buộc" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
+                                      RequiredError="Tên là bắt buộc" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-2" />
                         
                         <MudText Typo="Typo.caption" Class="mb-1 mt-3 d-block">Danh mục</MudText>
                         <div class="d-flex gap-2" style="overflow-x: auto; padding-bottom: 4px;">
@@ -170,6 +238,30 @@
 
                         <MudTextField @bind-Value="_newContrib.FullDescription" Label="Mô tả chi tiết" 
                                       Lines="3" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
+
+                        <MudPaper Elevation="0" Class="pa-3 mt-3" Style="background:#f8fbff;border:1px solid #dbe7f3;border-radius:12px;">
+                            <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">Audio thuyết minh</MudText>
+                            <MudTextField @bind-Value="_newContrib.TTSScript" Label="Nội dung thuyết minh (TTS)"
+                                          Lines="3" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            <div class="d-flex gap-2 mt-2 mb-2 flex-wrap">
+                                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
+                                           StartIcon="@Icons.Material.Filled.Autorenew"
+                                           Disabled="@_isGeneratingContributorTts"
+                                           OnClick="GenerateContributorTtsAsync">
+                                    @(_isGeneratingContributorTts ? "Đang tạo giọng đọc..." : "Tạo giọng đọc")
+                                </MudButton>
+                            </div>
+                            <MudTextField @bind-Value="_newContrib.AudioUrl" Label="URL Audio thuyết minh"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            @if (!string.IsNullOrEmpty(_newContrib.AudioUrl))
+                            {
+                                <div class="mt-2">
+                                    <audio controls style="width:100%">
+                                        <source src="@_newContrib.AudioUrl" />
+                                    </audio>
+                                </div>
+                            }
+                        </MudPaper>
 
                         <MudGrid Class="mt-1">
                             <MudItem xs="6">
@@ -285,12 +377,52 @@
     private bool _isEditMode = false;
     private string _searchString = "";
     private DotNetObjectReference<ContributorPOIs>? _dotNetRef;
+    private readonly Dictionary<int, string> _contributionAddressCache = new();
+    private string _contributionAddressQuery = "";
+    private string _contributionAddressStatus = "";
+    private AddressSuggestion? _selectedContributionAddressSuggestion;
+    private string? _lastAutoFilledContributionName;
+    private bool _isGeneratingContributorTts;
 
     private MudForm _createForm = null!;
     private MudForm _editForm = null!;
     private bool _isValid;
     private CreatePOIContributionDto _newContrib = new() { Category = "Khác" };
     private POIContributionDto? _editModel;
+
+    private sealed class AddressSuggestion
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("display_name")]
+        public string DisplayName { get; set; } = string.Empty;
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string? Name { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("lat")]
+        public string Lat { get; set; } = string.Empty;
+
+        [System.Text.Json.Serialization.JsonPropertyName("lon")]
+        public string Lon { get; set; } = string.Empty;
+
+        public bool TryGetCoordinates(out double lat, out double lng)
+        {
+            var culture = System.Globalization.CultureInfo.InvariantCulture;
+            lat = 0;
+            lng = 0;
+
+            return double.TryParse(Lat, System.Globalization.NumberStyles.Any, culture, out lat)
+                && double.TryParse(Lon, System.Globalization.NumberStyles.Any, culture, out lng);
+        }
+    }
+
+    private sealed class ReverseGeocodeResult
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("display_name")]
+        public string? DisplayName { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string? Name { get; set; }
+    }
 
     private IEnumerable<POIContributionDto> FilteredContributions =>
         string.IsNullOrWhiteSpace(_searchString)
@@ -341,6 +473,7 @@
                  if (result != null)
                  {
                      _myContributions = result;
+                     await ResolveContributionAddressesAsync(_myContributions);
                  }
             }
         }
@@ -422,8 +555,18 @@
             FullDescription = contrib.FullDescription,
             Latitude = contrib.Latitude,
             Longitude = contrib.Longitude,
-            ImageUrl = contrib.ImageUrl
+            ImageUrl = contrib.ImageUrl,
+            AudioUrl = contrib.AudioUrl,
+            TTSScript = contrib.TTSScript,
+            ContributorNotes = contrib.ContributorNotes,
+            TriggerRadius = contrib.TriggerRadius,
+            ApproachRadius = contrib.ApproachRadius,
+            Priority = contrib.Priority
         };
+        _contributionAddressQuery = _contributionAddressCache.TryGetValue(contrib.Id, out var address) ? address : "";
+        _contributionAddressStatus = string.IsNullOrWhiteSpace(_contributionAddressQuery) ? "" : "Đã nạp địa chỉ hiện tại.";
+        _selectedContributionAddressSuggestion = null;
+        _lastAutoFilledContributionName = null;
         _isEditMode = true;
         _activeTabIndex = 0; // Đảm bảo đang ở tab danh sách
         
@@ -445,6 +588,7 @@
             _newContrib.Longitude = Math.Round(lng, 6);
             
             await JS.InvokeVoidAsync("addTempMarkerToPOIMap", lat, lng, false);
+            await ResolveContributionAddressAsync(lat, lng);
             StateHasChanged();
         }
         else if (_activeTabIndex == 0 && _isEditMode && _editModel != null) // Sửa
@@ -453,6 +597,7 @@
             _editModel.Longitude = Math.Round(lng, 6);
             
             await JS.InvokeVoidAsync("addTempMarkerToPOIMap", lat, lng, false);
+            await ResolveContributionAddressAsync(lat, lng);
             StateHasChanged();
         }
     }
@@ -462,6 +607,7 @@
         _editModel = null;
         _isEditMode = false;
         _isValid = false;
+        ResetContributionAddressState();
         JS.InvokeVoidAsync("removeTempMarkerFromPOIMap");
     }
 
@@ -471,10 +617,26 @@
         
         try
         {
-            var response = await Http.PutAsJsonAsync($"api/contributions/{_editModel.Id}", _editModel);
+            var updateDto = new UpdatePOIContributionDto
+            {
+                Name = _editModel.Name,
+                ShortDescription = _editModel.ShortDescription,
+                FullDescription = _editModel.FullDescription,
+                Latitude = _editModel.Latitude,
+                Longitude = _editModel.Longitude,
+                TriggerRadius = _editModel.TriggerRadius,
+                ApproachRadius = _editModel.ApproachRadius,
+                Priority = _editModel.Priority,
+                AudioUrl = _editModel.AudioUrl,
+                TTSScript = _editModel.TTSScript,
+                ImageUrl = _editModel.ImageUrl,
+                Category = _editModel.Category,
+                ContributorNotes = _editModel.ContributorNotes
+            };
+            var response = await Http.PutAsJsonAsync($"api/contributions/{_editModel.Id}", updateDto);
             if (response.IsSuccessStatusCode)
             {
-                Snackbar.Add("Sửa đóng góp thành công", Severity.Success);
+                Snackbar.Add("Đã cập nhật bản đóng góp, vẫn theo luồng chờ admin duyệt.", Severity.Success);
                 CancelEdit();
                 await LoadData();
             }
@@ -494,6 +656,7 @@
     {
         _newContrib = new CreatePOIContributionDto { Category = "Khác" };
         _isValid = false;
+        ResetContributionAddressState();
         JS.InvokeVoidAsync("removeTempMarkerFromPOIMap");
         _activeTabIndex = 0;
     }
@@ -508,6 +671,7 @@
                 Snackbar.Add("Thêm đóng góp thành công", Severity.Success);
                 _activeTabIndex = 0;
                 _newContrib = new CreatePOIContributionDto { Category = "Khác" };
+                ResetContributionAddressState();
                 await JS.InvokeVoidAsync("removeTempMarkerFromPOIMap");
                 await LoadData();
             }
@@ -546,6 +710,262 @@
         catch (Exception ex)
         {
             Snackbar.Add($"Lỗi tải ảnh lên: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private Task OnContributionAddressTextChanged(string text)
+    {
+        _contributionAddressQuery = text ?? string.Empty;
+        _contributionAddressStatus = string.IsNullOrWhiteSpace(_contributionAddressQuery)
+            ? string.Empty
+            : "Chọn một gợi ý để định vị và tự điền tên địa điểm.";
+
+        if (_selectedContributionAddressSuggestion != null &&
+            !string.Equals(_selectedContributionAddressSuggestion.DisplayName, _contributionAddressQuery, StringComparison.OrdinalIgnoreCase))
+        {
+            _selectedContributionAddressSuggestion = null;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task<IEnumerable<AddressSuggestion>> SearchContributionAddressSuggestionsAsync(string value, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Trim().Length < 3)
+        {
+            _contributionAddressStatus = string.Empty;
+            return Array.Empty<AddressSuggestion>();
+        }
+
+        try
+        {
+            using var client = new HttpClient();
+            using var request = new HttpRequestMessage(
+                HttpMethod.Get,
+                $"https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&q={Uri.EscapeDataString(value.Trim())}");
+            request.Headers.TryAddWithoutValidation("User-Agent", "ZoneGuide-Admin/1.0");
+            request.Headers.TryAddWithoutValidation("Accept-Language", "vi");
+
+            using var response = await client.SendAsync(request, token);
+            if (!response.IsSuccessStatusCode)
+            {
+                _contributionAddressStatus = "Không thể lấy gợi ý địa chỉ.";
+                return Array.Empty<AddressSuggestion>();
+            }
+
+            var results = await response.Content.ReadFromJsonAsync<List<AddressSuggestion>>(cancellationToken: token)
+                          ?? new List<AddressSuggestion>();
+            _contributionAddressStatus = results.Count == 0 ? "Không có địa chỉ" : $"Tìm thấy {results.Count} gợi ý địa chỉ.";
+            return results;
+        }
+        catch
+        {
+            _contributionAddressStatus = "Không thể lấy gợi ý địa chỉ.";
+            return Array.Empty<AddressSuggestion>();
+        }
+    }
+
+    private async Task OnContributionAddressSuggestionSelected(AddressSuggestion? suggestion)
+    {
+        _selectedContributionAddressSuggestion = suggestion;
+
+        if (suggestion == null)
+        {
+            if (string.IsNullOrWhiteSpace(_contributionAddressQuery))
+            {
+                _contributionAddressStatus = string.Empty;
+            }
+            return;
+        }
+
+        _contributionAddressQuery = suggestion.DisplayName;
+        _contributionAddressStatus = "Đã điền địa chỉ và cập nhật vị trí trên bản đồ.";
+        ApplyAutoContributionName(suggestion.Name, suggestion.DisplayName);
+
+        if (!suggestion.TryGetCoordinates(out var lat, out var lng))
+        {
+            _contributionAddressStatus = "Không đọc được tọa độ từ gợi ý địa chỉ.";
+            return;
+        }
+
+        ApplyContributionCoordinates(lat, lng);
+        await JS.InvokeVoidAsync("addTempMarkerToPOIMap", lat, lng, false);
+        StateHasChanged();
+    }
+
+    private async Task ResolveContributionAddressAsync(double lat, double lng)
+    {
+        try
+        {
+            using var client = new HttpClient();
+            using var request = new HttpRequestMessage(
+                HttpMethod.Get,
+                $"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat.ToString(System.Globalization.CultureInfo.InvariantCulture)}&lon={lng.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
+            request.Headers.TryAddWithoutValidation("User-Agent", "ZoneGuide-Admin/1.0");
+            request.Headers.TryAddWithoutValidation("Accept-Language", "vi");
+
+            using var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                SetContributionAddressNotFound();
+                return;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<ReverseGeocodeResult>();
+            if (string.IsNullOrWhiteSpace(result?.DisplayName))
+            {
+                SetContributionAddressNotFound();
+                return;
+            }
+
+            _contributionAddressQuery = result.DisplayName;
+            _contributionAddressStatus = "Đã cập nhật địa chỉ từ vị trí trên bản đồ.";
+            ApplyAutoContributionName(result.Name, result.DisplayName);
+        }
+        catch
+        {
+            SetContributionAddressNotFound();
+        }
+    }
+
+    private void SetContributionAddressNotFound()
+    {
+        _contributionAddressQuery = "Không có địa chỉ";
+        _contributionAddressStatus = "Không có địa chỉ";
+    }
+
+    private void ApplyContributionCoordinates(double lat, double lng)
+    {
+        if (_isEditMode && _editModel != null)
+        {
+            _editModel.Latitude = Math.Round(lat, 6);
+            _editModel.Longitude = Math.Round(lng, 6);
+            return;
+        }
+
+        _newContrib.Latitude = Math.Round(lat, 6);
+        _newContrib.Longitude = Math.Round(lng, 6);
+    }
+
+    private void ApplyAutoContributionName(string? candidateName, string? displayName)
+    {
+        var suggestedName = string.IsNullOrWhiteSpace(candidateName)
+            ? ExtractContributionNameFromAddress(displayName)
+            : candidateName!.Trim();
+
+        if (string.IsNullOrWhiteSpace(suggestedName))
+        {
+            return;
+        }
+
+        var currentName = _isEditMode && _editModel != null ? _editModel.Name : _newContrib.Name;
+        if (string.IsNullOrWhiteSpace(currentName) || string.Equals(currentName, _lastAutoFilledContributionName, StringComparison.Ordinal))
+        {
+            if (_isEditMode && _editModel != null)
+            {
+                _editModel.Name = suggestedName;
+            }
+            else
+            {
+                _newContrib.Name = suggestedName;
+            }
+
+            _lastAutoFilledContributionName = suggestedName;
+        }
+    }
+
+    private static string ExtractContributionNameFromAddress(string? displayName)
+    {
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            return string.Empty;
+        }
+
+        var firstPart = displayName.Split(',', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault();
+
+        return firstPart ?? displayName.Trim();
+    }
+
+    private void ResetContributionAddressState()
+    {
+        _contributionAddressQuery = "";
+        _contributionAddressStatus = "";
+        _selectedContributionAddressSuggestion = null;
+        _lastAutoFilledContributionName = null;
+    }
+
+    private string GetContributionAddressDisplay(POIContributionDto contrib)
+        => _contributionAddressCache.TryGetValue(contrib.Id, out var address) ? address : "Đang tải địa chỉ...";
+
+    private async Task ResolveContributionAddressesAsync(IEnumerable<POIContributionDto> contributions)
+    {
+        foreach (var contribution in contributions.Where(c => c.Latitude.HasValue && c.Longitude.HasValue))
+        {
+            if (_contributionAddressCache.ContainsKey(contribution.Id))
+            {
+                continue;
+            }
+
+            try
+            {
+                var latitude = contribution.Latitude ?? 0;
+                var longitude = contribution.Longitude ?? 0;
+                var address = await JS.InvokeAsync<string>(
+                    "reverseGeocodeAddress",
+                    latitude.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    longitude.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                _contributionAddressCache[contribution.Id] = string.IsNullOrWhiteSpace(address) ? "Không có địa chỉ" : address;
+            }
+            catch
+            {
+                _contributionAddressCache[contribution.Id] = "Không có địa chỉ";
+            }
+        }
+    }
+
+    private async Task GenerateContributorTtsAsync()
+    {
+        var activeScript = _isEditMode && _editModel != null ? _editModel.TTSScript : _newContrib.TTSScript;
+        if (string.IsNullOrWhiteSpace(activeScript))
+        {
+            Snackbar.Add("Vui lòng nhập nội dung thuyết minh trước.", Severity.Warning);
+            return;
+        }
+
+        _isGeneratingContributorTts = true;
+        try
+        {
+            var response = await ApiService.GenerateTtsAsync(activeScript, "vi-VN");
+            if (string.IsNullOrWhiteSpace(response))
+            {
+                Snackbar.Add("Không tạo được giọng đọc.", Severity.Warning);
+                return;
+            }
+
+            var audioUrl = response.StartsWith("data:audio", StringComparison.OrdinalIgnoreCase)
+                ? response
+                : $"data:audio/mp3;base64,{response}";
+
+            if (_isEditMode && _editModel != null)
+            {
+                _editModel.AudioUrl = audioUrl;
+            }
+            else
+            {
+                _newContrib.AudioUrl = audioUrl;
+            }
+
+            Snackbar.Add("Đã tạo audio TTS thành công.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi tạo audio: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isGeneratingContributorTts = false;
+            StateHasChanged();
         }
     }
 
