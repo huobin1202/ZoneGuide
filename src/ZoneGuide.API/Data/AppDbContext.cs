@@ -160,13 +160,10 @@ public class POIEntity
     public string? Category { get; set; }
     public string? AudioFilePath { get; set; }
     public string? AudioUrl { get; set; }
-    public int? AudioDurationSeconds { get; set; }
     public string? TTSScript { get; set; }
     public string? ImagePath { get; set; }
     public string? ImageUrl { get; set; }
-    public string? ThumbnailUrl { get; set; }
     public string? MapLink { get; set; }
-    public string? MapDeepLink { get; set; }
     public string Language { get; set; } = "vi-VN";
     public int? TourId { get; set; }
     public int OrderInTour { get; set; }
@@ -188,7 +185,6 @@ public class POITranslationEntity
     public string ShortDescription { get; set; } = string.Empty;
     public string FullDescription { get; set; } = string.Empty;
     public string? TTSScript { get; set; }
-    public string? AudioFilePath { get; set; }
     public string? AudioUrl { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
@@ -207,7 +203,6 @@ public class TourEntity
     public double EstimatedDistanceMeters { get; set; }
     public int POICount { get; set; }
     public string? ImageUrl { get; set; }
-    public string? ThumbnailPath { get; set; }
     public string? ThumbnailUrl { get; set; }
     public string Language { get; set; } = "vi-VN";
     public string Difficulty { get; set; } = "Easy";

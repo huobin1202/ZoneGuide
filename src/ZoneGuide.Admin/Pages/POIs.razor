@@ -809,10 +809,8 @@
             Category = poi.Category,
             ImageUrl = poi.ImageUrl,
             AudioUrl = poi.AudioUrl,
-            AudioDurationSeconds = poi.AudioDurationSeconds,
             TTSScript = poi.TTSScript,
             Language = poi.Language ?? "vi-VN",
-            MapDeepLink = poi.MapDeepLink,
             IsActive = poi.IsActive
         };
         _poiAddressQuery = poi.Address ?? string.Empty;
@@ -885,10 +883,8 @@
                     Category = _newPoi.Category,
                     ImageUrl = _newPoi.ImageUrl,
                     AudioUrl = _newPoi.AudioUrl,
-                    AudioDurationSeconds = _newPoi.AudioDurationSeconds,
                     TTSScript = _newPoi.TTSScript,
                     Language = _newPoi.Language,
-                    MapDeepLink = _newPoi.MapDeepLink,
                     IsActive = _newPoi.IsActive
                 };
                 var updated = await ApiService.UpdatePOIAsync(_editingPoiId!, updateDto);
@@ -922,10 +918,8 @@
                     Category = _newPoi.Category,
                     ImageUrl = _newPoi.ImageUrl,
                     AudioUrl = _newPoi.AudioUrl,
-                    AudioDurationSeconds = _newPoi.AudioDurationSeconds,
                     TTSScript = _newPoi.TTSScript,
-                    Language = _newPoi.Language,
-                    MapDeepLink = _newPoi.MapDeepLink
+                    Language = _newPoi.Language
                 };
                 var created = await ApiService.CreatePOIAsync(createDto);
                 if (created != null)

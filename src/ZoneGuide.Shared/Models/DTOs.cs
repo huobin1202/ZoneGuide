@@ -44,11 +44,8 @@ public class POIDto
     public double ApproachRadius { get; set; }
     public int Priority { get; set; }
     public string? AudioUrl { get; set; }
-    public int? AudioDurationSeconds { get; set; }
     public string? TTSScript { get; set; }
     public string? ImageUrl { get; set; }
-    public string? ThumbnailUrl { get; set; }
-    public string? MapDeepLink { get; set; }
     public string? MapLink { get; set; }
     public string? Category { get; set; }
     public string Language { get; set; } = "vi-VN";
@@ -74,11 +71,9 @@ public class CreatePOIDto
     public double ApproachRadius { get; set; } = 100;
     public int Priority { get; set; } = 1;
     public string? AudioUrl { get; set; }
-    public int? AudioDurationSeconds { get; set; }
     public string? TTSScript { get; set; }
     public string? ImageUrl { get; set; }
     public string? Category { get; set; }
-    public string? MapDeepLink { get; set; }
     public string Language { get; set; } = "vi-VN";
 }
 
@@ -97,11 +92,9 @@ public class UpdatePOIDto
     public double? ApproachRadius { get; set; }
     public int? Priority { get; set; }
     public string? AudioUrl { get; set; }
-    public int? AudioDurationSeconds { get; set; }
     public string? TTSScript { get; set; }
     public string? ImageUrl { get; set; }
     public string? Category { get; set; }
-    public string? MapDeepLink { get; set; }
     public string? Language { get; set; }
     public bool? IsActive { get; set; }
     public List<POITranslationDto>? Translations { get; set; }

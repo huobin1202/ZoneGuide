@@ -119,8 +119,6 @@
                 
                 @if (!string.IsNullOrEmpty(_model.AudioUrl))
                 {
-                    <MudNumericField @bind-Value="_model.AudioDurationSeconds" 
-                                     Label="Thời lượng Audio (giây)" Class="mb-3" Min="0" />
                     <MudPaper Class="pa-2 mb-3" Outlined="true">
                         <audio controls style="width:100%">
                             <source src="@_model.AudioUrl" />
@@ -295,10 +293,8 @@
                 Category = POI.Category,
                 ImageUrl = POI.ImageUrl,
                 AudioUrl = POI.AudioUrl,
-                AudioDurationSeconds = POI.AudioDurationSeconds ?? 0,
                 TTSScript = POI.TTSScript,
                 Language = POI.Language ?? "vi-VN",
-                MapDeepLink = POI.MapDeepLink,
                 IsActive = POI.IsActive,
                 Translations = POI.Translations?.Select(t => new POITranslationDto
                 {
@@ -487,10 +483,8 @@
                     Category = _model.Category,
                     ImageUrl = _model.ImageUrl,
                     AudioUrl = _model.AudioUrl,
-                    AudioDurationSeconds = _model.AudioDurationSeconds,
                     TTSScript = _model.TTSScript,
                     Language = _model.Language,
-                    MapDeepLink = _model.MapDeepLink,
                     IsActive = _model.IsActive,
                     Translations = _model.Translations
                 };
@@ -516,10 +510,8 @@
                     Category = _model.Category,
                     ImageUrl = _model.ImageUrl,
                     AudioUrl = _model.AudioUrl,
-                    AudioDurationSeconds = _model.AudioDurationSeconds,
                     TTSScript = _model.TTSScript,
-                    Language = _model.Language,
-                    MapDeepLink = _model.MapDeepLink
+                    Language = _model.Language
                 };
 
                 var result = await ApiService.CreatePOIAsync(createDto);
@@ -593,10 +585,8 @@
         public string? Category { get; set; }
         public string? ImageUrl { get; set; }
         public string? AudioUrl { get; set; }
-        public int AudioDurationSeconds { get; set; }
         public string? TTSScript { get; set; }
         public string Language { get; set; } = "vi-VN";
-        public string? MapDeepLink { get; set; }
         public bool IsActive { get; set; } = true;
         public List<POITranslationDto> Translations { get; set; } = new();
     }

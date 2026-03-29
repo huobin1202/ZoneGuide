@@ -145,11 +145,9 @@ public interface IPOIService
             ApproachRadius = dto.ApproachRadius,
             Priority = dto.Priority,
             AudioUrl = dto.AudioUrl,
-            AudioDurationSeconds = dto.AudioDurationSeconds,
             TTSScript = dto.TTSScript,
             ImageUrl = dto.ImageUrl,
             Category = dto.Category,
-            MapDeepLink = dto.MapDeepLink,
             Language = dto.Language ?? "vi-VN",
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
@@ -181,11 +179,9 @@ public interface IPOIService
         if (dto.ApproachRadius.HasValue) entity.ApproachRadius = dto.ApproachRadius.Value;
         if (dto.Priority.HasValue) entity.Priority = dto.Priority.Value;
         if (dto.AudioUrl != null) entity.AudioUrl = dto.AudioUrl;
-        if (dto.AudioDurationSeconds.HasValue) entity.AudioDurationSeconds = dto.AudioDurationSeconds.Value;
         if (dto.TTSScript != null) entity.TTSScript = dto.TTSScript;
         if (dto.ImageUrl != null) entity.ImageUrl = dto.ImageUrl;
         if (dto.Category != null) entity.Category = dto.Category;
-        if (dto.MapDeepLink != null) entity.MapDeepLink = dto.MapDeepLink;
         if (dto.Language != null) entity.Language = dto.Language;
         if (dto.IsActive.HasValue) entity.IsActive = dto.IsActive.Value;
         entity.UpdatedAt = DateTime.UtcNow;
@@ -282,12 +278,9 @@ public interface IPOIService
             ApproachRadius = entity.ApproachRadius,
             Priority = entity.Priority,
             AudioUrl = entity.AudioUrl,
-            AudioDurationSeconds = entity.AudioDurationSeconds,
             TTSScript = entity.TTSScript,
             ImageUrl = entity.ImageUrl,
-            ThumbnailUrl = entity.ThumbnailUrl,
             MapLink = entity.MapLink,
-            MapDeepLink = entity.MapDeepLink,
             Category = entity.Category,
             Language = entity.Language,
             TourId = entity.TourId,
