@@ -52,6 +52,8 @@
                     </MudGrid>
 
                     <MudAutocomplete T="OsmAddressResult" Label="Tìm địa chỉ" Class="mt-3"
+                        Text="@_searchAddress"
+                        TextChanged="OnAddressTextChanged"
                         Placeholder="Nhập địa chỉ..." Adornment="Adornment.End"
                         AdornmentIcon="@Icons.Material.Filled.Search"
                         SearchFunc="SearchAddressSuggestions"
@@ -282,6 +284,7 @@
         {
             _model = new POIFormModel
             {
+                Address = POI.Address,
                 Name = POI.Name,
                 ShortDescription = POI.ShortDescription,
                 FullDescription = POI.FullDescription,
@@ -308,6 +311,7 @@
                     AudioUrl = t.AudioUrl
                 }).ToList() ?? new()
             };
+            _searchAddress = POI.Address ?? string.Empty;
         }
         
         _dotNetRef = DotNetObjectReference.Create(this);
@@ -417,10 +421,18 @@
         {
             _model.Latitude = Math.Round(lat, 6);
             _model.Longitude = Math.Round(lon, 6);
+            _model.Address = result.DisplayName;
             
             await JS.InvokeVoidAsync("updatePickerMarker", lat, lon);
             _searchAddress = result.DisplayName; 
         }
+    }
+
+    private Task OnAddressTextChanged(string text)
+    {
+        _searchAddress = text ?? string.Empty;
+        _model.Address = string.IsNullOrWhiteSpace(_searchAddress) ? null : _searchAddress.Trim();
+        return Task.CompletedTask;
     }
 
     private void Cancel() => MudDialog.Cancel();
@@ -472,6 +484,7 @@
             {
                 var updateDto = new UpdatePOIDto
                 {
+                    Address = _model.Address,
                     Name = _model.Name,
                     ShortDescription = _model.ShortDescription,
                     FullDescription = _model.FullDescription,
@@ -499,6 +512,7 @@
             {
                 var createDto = new CreatePOIDto
                 {
+                    Address = _model.Address,
                     Name = _model.Name,
                     ShortDescription = _model.ShortDescription,
                     FullDescription = _model.FullDescription,
@@ -574,6 +588,7 @@
 
     private class POIFormModel
     {
+        public string? Address { get; set; }
         public string Name { get; set; } = "";
         public string? ShortDescription { get; set; }
         public string? FullDescription { get; set; }
