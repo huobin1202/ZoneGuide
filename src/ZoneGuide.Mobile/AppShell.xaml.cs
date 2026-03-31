@@ -49,7 +49,7 @@ public partial class AppShell : Shell
         PoisTab.Title = AppLocalizer.Instance.Translate("tab_pois");
         MapTab.Title = AppLocalizer.Instance.Translate("tab_map");
         HistoryTab.Title = AppLocalizer.Instance.Translate("tab_history");
-        ToursTab.Title = AppLocalizer.Instance.Translate("tab_tours");
+        OfflineTab.Title = AppLocalizer.Instance.Translate("tab_offline");
         SettingsTab.Title = AppLocalizer.Instance.Translate("tab_settings");
     }
 
