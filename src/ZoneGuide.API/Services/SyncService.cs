@@ -106,9 +106,26 @@ public class SyncService : ISyncService
                 .Select(d => d.EntityId)
                 .ToListAsync();
 
-            response.DeletedTourIds = await _context.DeletedRecords
+            var deletedTourRecords = await _context.DeletedRecords
                 .Where(d => d.EntityType == "Tour" && d.DeletedAt > request.LastSyncTime.Value)
                 .Select(d => d.EntityId)
+                .ToListAsync();
+
+            var inactiveTourIds = await _context.Tours
+                .Where(t => !t.IsActive)
+                .Select(t => t.Id.ToString())
+                .ToListAsync();
+
+            response.DeletedTourIds = deletedTourRecords
+                .Concat(inactiveTourIds)
+                .Distinct()
+                .ToList();
+        }
+        else
+        {
+            response.DeletedTourIds = await _context.Tours
+                .Where(t => !t.IsActive)
+                .Select(t => t.Id.ToString())
                 .ToListAsync();
         }
 

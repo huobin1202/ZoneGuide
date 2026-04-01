@@ -305,3 +305,88 @@ public class LocalizedCategoryConverter : IValueConverter
         throw new NotImplementedException();
     }
 }
+
+/// <summary>
+/// Kiem tra POI dang hien thi co trung voi POI dang phat khong.
+/// values[0] = current narration poi id, values[1] = item poi id
+/// </summary>
+public class PoiMatchConverter : IMultiValueConverter
+{
+    public object Convert(object[] values, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (values.Length < 2)
+            return false;
+
+        var currentPoiId = TryConvertToInt(values[0]);
+        var itemPoiId = TryConvertToInt(values[1]);
+        var isMatch = currentPoiId.HasValue && itemPoiId.HasValue && currentPoiId.Value == itemPoiId.Value;
+        if (!isMatch)
+            return false;
+
+        if (values.Length >= 3)
+        {
+            return values[2] is bool isPlaying && isPlaying;
+        }
+
+        return true;
+    }
+
+    public object[] ConvertBack(object value, Type[] targetTypes, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+
+    private static int? TryConvertToInt(object? value)
+    {
+        return value switch
+        {
+            int intValue => intValue,
+            long longValue => (int)longValue,
+            short shortValue => shortValue,
+            byte byteValue => byteValue,
+            string text when int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) => parsed,
+            _ => null
+        };
+    }
+}
+
+/// <summary>
+/// Hien icon dung/tiep tuc theo trang thai cua POI dang phat.
+/// values[0] = current narration poi id, values[1] = item poi id, values[2] = is current narration paused
+/// </summary>
+public class StopResumeGlyphConverter : IMultiValueConverter
+{
+    public object Convert(object[] values, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (values.Length < 3)
+            return "⏹";
+
+        var currentPoiId = TryConvertToInt(values[0]);
+        var itemPoiId = TryConvertToInt(values[1]);
+        var isPaused = values[2] is bool paused && paused;
+
+        var isCurrentItem = currentPoiId.HasValue && itemPoiId.HasValue && currentPoiId.Value == itemPoiId.Value;
+        if (!isCurrentItem)
+            return "⏹";
+
+        return isPaused ? "▶" : "⏹";
+    }
+
+    public object[] ConvertBack(object value, Type[] targetTypes, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+
+    private static int? TryConvertToInt(object? value)
+    {
+        return value switch
+        {
+            int intValue => intValue,
+            long longValue => (int)longValue,
+            short shortValue => shortValue,
+            byte byteValue => byteValue,
+            string text when int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) => parsed,
+            _ => null
+        };
+    }
+}

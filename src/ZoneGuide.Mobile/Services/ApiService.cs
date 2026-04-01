@@ -418,15 +418,29 @@ public class ApiService
 
     public async Task<bool> UploadAnalyticsAsync(AnalyticsUploadDto data)
     {
-        try
+        foreach (var baseUrl in GetOrderedBaseUrls())
         {
-            var response = await _httpClient.PostAsJsonAsync("analytics/upload", data);
-            return response.IsSuccessStatusCode;
+            try
+            {
+                var uploadUri = new Uri(new Uri(baseUrl), "analytics/upload");
+                var response = await _httpClient.PostAsJsonAsync(uploadUri, data);
+                if (response.IsSuccessStatusCode)
+                {
+                    SavePreferredBaseUrl(baseUrl);
+                    return true;
+                }
+
+                var body = await response.Content.ReadAsStringAsync();
+                System.Diagnostics.Debug.WriteLine(
+                    $"[ApiService] UploadAnalytics failed via {baseUrl}: {(int)response.StatusCode} {response.ReasonPhrase}. Body: {body[..Math.Min(body.Length, 300)]}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ApiService] UploadAnalytics error via {baseUrl}: {ex.Message}");
+            }
         }
-        catch
-        {
-            return false;
-        }
+
+        return false;
     }
 
     #endregion

@@ -99,6 +99,120 @@ public class POIRepository : IPOIRepository
 }
 
 /// <summary>
+/// Repository cho POI Translation - lưu trữ SQLite
+/// </summary>
+public class POITranslationRepository : IPOITranslationRepository
+{
+    private readonly DatabaseService _database;
+
+    public POITranslationRepository(DatabaseService database)
+    {
+        _database = database;
+    }
+
+    public async Task<List<POITranslation>> GetByPOIIdAsync(int poiId)
+    {
+        var db = await _database.GetConnectionAsync();
+        return await db.Table<POITranslation>()
+            .Where(t => t.POIId == poiId)
+            .ToListAsync();
+    }
+
+    public async Task<POITranslation?> GetByPOIIdAndLanguageAsync(int poiId, string languageCode)
+    {
+        var db = await _database.GetConnectionAsync();
+        var normalized = NormalizeLanguage(languageCode);
+        var primary = GetPrimaryLanguage(normalized);
+
+        var all = await db.Table<POITranslation>()
+            .Where(t => t.POIId == poiId)
+            .ToListAsync();
+
+        var exact = all.FirstOrDefault(t =>
+            string.Equals(NormalizeLanguage(t.LanguageCode), normalized, StringComparison.OrdinalIgnoreCase));
+
+        if (exact != null)
+            return exact;
+
+        return all.FirstOrDefault(t =>
+            string.Equals(GetPrimaryLanguage(NormalizeLanguage(t.LanguageCode)), primary, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public async Task<int> InsertAsync(POITranslation translation)
+    {
+        var db = await _database.GetConnectionAsync();
+        translation.LanguageCode = NormalizeLanguage(translation.LanguageCode);
+        translation.CreatedAt = DateTime.UtcNow;
+        translation.UpdatedAt = DateTime.UtcNow;
+        return await db.InsertAsync(translation);
+    }
+
+    public async Task<int> UpdateAsync(POITranslation translation)
+    {
+        var db = await _database.GetConnectionAsync();
+        translation.LanguageCode = NormalizeLanguage(translation.LanguageCode);
+        translation.UpdatedAt = DateTime.UtcNow;
+        return await db.UpdateAsync(translation);
+    }
+
+    public async Task<int> DeleteAsync(int id)
+    {
+        var db = await _database.GetConnectionAsync();
+        return await db.DeleteAsync<POITranslation>(id);
+    }
+
+    public async Task<int> InsertOrUpdateAsync(POITranslation translation)
+    {
+        var db = await _database.GetConnectionAsync();
+        translation.LanguageCode = NormalizeLanguage(translation.LanguageCode);
+
+        var candidates = await db.Table<POITranslation>()
+            .Where(t => t.POIId == translation.POIId)
+            .ToListAsync();
+
+        var existing = candidates.FirstOrDefault(t =>
+            string.Equals(NormalizeLanguage(t.LanguageCode), translation.LanguageCode, StringComparison.OrdinalIgnoreCase));
+
+        if (existing != null)
+        {
+            translation.Id = existing.Id;
+            translation.CreatedAt = existing.CreatedAt;
+            translation.UpdatedAt = DateTime.UtcNow;
+            return await db.UpdateAsync(translation);
+        }
+
+        translation.CreatedAt = DateTime.UtcNow;
+        translation.UpdatedAt = DateTime.UtcNow;
+        return await db.InsertAsync(translation);
+    }
+
+    private static string NormalizeLanguage(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            return "vi-VN";
+
+        var value = code.Trim().Replace('_', '-');
+        return value.ToLowerInvariant() switch
+        {
+            var c when c.StartsWith("vi") => "vi-VN",
+            var c when c.StartsWith("en") => "en-US",
+            var c when c.StartsWith("zh") => "zh-CN",
+            var c when c.StartsWith("ja") => "ja-JP",
+            var c when c.StartsWith("ko") => "ko-KR",
+            var c when c.StartsWith("fr") => "fr-FR",
+            _ => value
+        };
+    }
+
+    private static string GetPrimaryLanguage(string code)
+    {
+        var normalized = NormalizeLanguage(code);
+        var idx = normalized.IndexOf('-');
+        return idx > 0 ? normalized[..idx] : normalized;
+    }
+}
+
+/// <summary>
 /// Repository cho Tour
 /// </summary>
 public class TourRepository : ITourRepository

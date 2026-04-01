@@ -44,6 +44,15 @@ public partial class POIListViewModel : ObservableObject
     [ObservableProperty]
     private POI? selectedPOI;
 
+    [ObservableProperty]
+    private int? currentNarrationPoiId;
+
+    [ObservableProperty]
+    private bool isCurrentNarrationPlaying;
+
+    [ObservableProperty]
+    private bool isCurrentNarrationPaused;
+
     public ObservableCollection<POI> POIs { get; } = new();
     public ObservableCollection<POI> FilteredPOIs { get; } = new();
 
@@ -60,8 +69,13 @@ public partial class POIListViewModel : ObservableObject
         _narrationService = narrationService;
         _syncService = syncService;
 
+        _narrationService.NarrationStarted += OnNarrationStateChanged;
+        _narrationService.NarrationCompleted += OnNarrationStateChanged;
+        _narrationService.NarrationStopped += OnNarrationStateChanged;
+
         RefreshLocalizedCategories();
         AppLocalizer.Instance.PropertyChanged += OnLocalizerPropertyChanged;
+        SyncNarrationState();
     }
 
     public async Task InitializeAsync()
@@ -184,15 +198,56 @@ public partial class POIListViewModel : ObservableObject
 
         try
         {
+            var isCurrentPoi = _narrationService.CurrentItem?.POI.Id == poi.Id;
+
+            if (isCurrentPoi && _narrationService.IsPaused)
+            {
+                await _narrationService.ResumeAsync();
+                SyncNarrationState();
+                return;
+            }
+
+            if (isCurrentPoi && _narrationService.IsPlaying)
+            {
+                SyncNarrationState();
+                return;
+            }
+
             _geofenceService.ResetCooldown(poi.Id);
 
             var item = CreateQueueItem(poi);
             await _narrationService.PlayImmediatelyAsync(item);
+            SyncNarrationState();
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[POIListVM] PlayPOI error: {ex}");
             await Shell.Current.DisplayAlert("Lỗi", "Không thể phát thuyết minh", "OK");
+        }
+    }
+
+    [RelayCommand]
+    private async Task ToggleStopResumePOI(POI poi)
+    {
+        if (poi == null)
+            return;
+
+        try
+        {
+            var isCurrentPoi = _narrationService.CurrentItem?.POI.Id == poi.Id;
+            if (!isCurrentPoi)
+                return;
+
+            if (_narrationService.IsPlaying)
+            {
+                await _narrationService.PauseAsync();
+            }
+
+            SyncNarrationState();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[POIListVM] ToggleStopResumePOI error: {ex}");
         }
     }
 
@@ -298,6 +353,18 @@ public partial class POIListViewModel : ObservableObject
         SelectedCategory = Categories
             .FirstOrDefault(c => NormalizeCategoryKey(c) == currentCategoryKey)
             ?? Categories.FirstOrDefault();
+    }
+
+    private void OnNarrationStateChanged(object? sender, NarrationQueueItem item)
+    {
+        MainThread.BeginInvokeOnMainThread(SyncNarrationState);
+    }
+
+    private void SyncNarrationState()
+    {
+        CurrentNarrationPoiId = _narrationService.CurrentItem?.POI.Id;
+        IsCurrentNarrationPlaying = CurrentNarrationPoiId.HasValue && _narrationService.IsPlaying;
+        IsCurrentNarrationPaused = CurrentNarrationPoiId.HasValue && _narrationService.IsPaused;
     }
 
     private static bool IsCategoryFilterAll(string? category)
@@ -506,7 +573,18 @@ public partial class POIDetailViewModel : ObservableObject
     {
         try
         {
-            await _narrationService.StopAsync();
+            var isCurrentPoi = CurrentPoi != null && _narrationService.CurrentItem?.POI.Id == CurrentPoi.Id;
+            if (!isCurrentPoi)
+            {
+                SyncFromNarrationService();
+                return;
+            }
+
+            if (_narrationService.IsPlaying)
+            {
+                await _narrationService.PauseAsync();
+            }
+
             SyncFromNarrationService();
         }
         catch (Exception ex)

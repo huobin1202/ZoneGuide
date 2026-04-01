@@ -14,6 +14,7 @@ public class SyncService : ISyncService
 
     private readonly ApiService _apiService;
     private readonly IPOIRepository _poiRepository;
+    private readonly IPOITranslationRepository _poiTranslationRepository;
     private readonly ITourRepository _tourRepository;
     private readonly IAnalyticsRepository _analyticsRepository;
     private readonly ISettingsService _settingsService;
@@ -27,6 +28,7 @@ public class SyncService : ISyncService
     public SyncService(
         ApiService apiService,
         IPOIRepository poiRepository,
+        IPOITranslationRepository poiTranslationRepository,
         ITourRepository tourRepository,
         IAnalyticsRepository analyticsRepository,
         ISettingsService settingsService,
@@ -34,6 +36,7 @@ public class SyncService : ISyncService
     {
         _apiService = apiService;
         _poiRepository = poiRepository;
+        _poiTranslationRepository = poiTranslationRepository;
         _tourRepository = tourRepository;
         _analyticsRepository = analyticsRepository;
         _settingsService = settingsService;
@@ -83,6 +86,7 @@ public class SyncService : ISyncService
             {
                 var poi = MapToPOI(poiDto);
                 await _poiRepository.InsertOrUpdateAsync(poi);
+                await SyncPoiTranslationsAsync(poiDto, poi.Id);
             }
 
             SyncProgress?.Invoke(this, 0.7);
@@ -379,6 +383,65 @@ public class SyncService : ISyncService
             WheelchairAccessible = dto.WheelchairAccessible,
             IsActive = dto.IsActive,
             UpdatedAt = DateTime.UtcNow
+        };
+    }
+
+    private async Task SyncPoiTranslationsAsync(POIDto poiDto, int poiId)
+    {
+        if (poiId <= 0)
+            return;
+
+        var incoming = poiDto.Translations ?? new List<POITranslationDto>();
+        var existing = await _poiTranslationRepository.GetByPOIIdAsync(poiId);
+
+        var incomingKeys = incoming
+            .Select(t => NormalizeLanguage(t.LanguageCode))
+            .Where(code => !string.IsNullOrWhiteSpace(code))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var old in existing)
+        {
+            if (!incomingKeys.Contains(NormalizeLanguage(old.LanguageCode)))
+            {
+                await _poiTranslationRepository.DeleteAsync(old.Id);
+            }
+        }
+
+        foreach (var translation in incoming)
+        {
+            if (string.IsNullOrWhiteSpace(translation.LanguageCode))
+                continue;
+
+            var entry = new POITranslation
+            {
+                POIId = poiId,
+                LanguageCode = NormalizeLanguage(translation.LanguageCode),
+                Name = translation.Name ?? string.Empty,
+                ShortDescription = translation.ShortDescription ?? string.Empty,
+                FullDescription = translation.FullDescription ?? string.Empty,
+                TTSScript = translation.TTSScript,
+                AudioUrl = translation.AudioUrl
+            };
+
+            await _poiTranslationRepository.InsertOrUpdateAsync(entry);
+        }
+    }
+
+    private static string NormalizeLanguage(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            return "vi-VN";
+
+        var value = code.Trim().Replace('_', '-');
+        return value.ToLowerInvariant() switch
+        {
+            var c when c.StartsWith("vi") => "vi-VN",
+            var c when c.StartsWith("en") => "en-US",
+            var c when c.StartsWith("zh") => "zh-CN",
+            var c when c.StartsWith("ja") => "ja-JP",
+            var c when c.StartsWith("ko") => "ko-KR",
+            var c when c.StartsWith("fr") => "fr-FR",
+            _ => value
         };
     }
 

@@ -30,6 +30,15 @@ public partial class HistoryViewModel : ObservableObject
     [ObservableProperty]
     private string totalDurationText = "0 phút";
 
+    [ObservableProperty]
+    private int? currentNarrationPoiId;
+
+    [ObservableProperty]
+    private bool isCurrentNarrationPlaying;
+
+    [ObservableProperty]
+    private bool isCurrentNarrationPaused;
+
     public ObservableCollection<HistoryDayGroup> HistoryGroups { get; } = new();
 
     public HistoryViewModel(
@@ -46,6 +55,7 @@ public partial class HistoryViewModel : ObservableObject
         _narrationService.NarrationStarted += OnNarrationChanged;
         _narrationService.NarrationCompleted += OnNarrationChanged;
         _narrationService.NarrationStopped += OnNarrationChanged;
+        SyncNarrationState();
     }
 
     public async Task InitializeAsync()
@@ -105,6 +115,20 @@ public partial class HistoryViewModel : ObservableObject
         if (item == null)
             return;
 
+        var isCurrentPoi = _narrationService.CurrentItem?.POI.Id == item.POIId;
+        if (isCurrentPoi && _narrationService.IsPaused)
+        {
+            await _narrationService.ResumeAsync();
+            SyncNarrationState();
+            return;
+        }
+
+        if (isCurrentPoi && _narrationService.IsPlaying)
+        {
+            SyncNarrationState();
+            return;
+        }
+
         var poi = await _poiRepository.GetByIdAsync(item.POIId);
         if (poi == null)
         {
@@ -128,7 +152,26 @@ public partial class HistoryViewModel : ObservableObject
         };
 
         await _narrationService.PlayImmediatelyAsync(queueItem);
-        await Shell.Current.GoToAsync($"POIDetailPage?id={poi.Id}&autoplay=true");
+        SyncNarrationState();
+        await Shell.Current.GoToAsync($"POIDetailPage?id={poi.Id}");
+    }
+
+    [RelayCommand]
+    private async Task ToggleStopResumeAsync(HistoryEntryViewModel? item)
+    {
+        if (item == null)
+            return;
+
+        var isCurrentPoi = _narrationService.CurrentItem?.POI.Id == item.POIId;
+        if (!isCurrentPoi)
+            return;
+
+        if (_narrationService.IsPlaying)
+        {
+            await _narrationService.PauseAsync();
+        }
+
+        SyncNarrationState();
     }
 
     [RelayCommand]
@@ -152,7 +195,18 @@ public partial class HistoryViewModel : ObservableObject
 
     private void OnNarrationChanged(object? sender, NarrationQueueItem e)
     {
-        MainThread.BeginInvokeOnMainThread(async () => await LoadHistoryAsync());
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            SyncNarrationState();
+            await LoadHistoryAsync();
+        });
+    }
+
+    private void SyncNarrationState()
+    {
+        CurrentNarrationPoiId = _narrationService.CurrentItem?.POI.Id;
+        IsCurrentNarrationPlaying = CurrentNarrationPoiId.HasValue && _narrationService.IsPlaying;
+        IsCurrentNarrationPaused = CurrentNarrationPoiId.HasValue && _narrationService.IsPaused;
     }
 
     private static HistoryEntryViewModel BuildHistoryItem(NarrationHistory history, POI? poi)

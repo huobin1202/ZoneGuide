@@ -22,6 +22,8 @@
     <converters:OfflineButtonTextConverter x:Key="OfflineButtonTextConverter" />
     <converters:FlexibleImageSourceConverter x:Key="FlexibleImageSourceConverter" />
     <converters:LocalizedCategoryConverter x:Key="LocalizedCategoryConverter" />
+    <converters:PoiMatchConverter x:Key="PoiMatchConverter" />
+    <converters:StopResumeGlyphConverter x:Key="StopResumeGlyphConverter" />
 
     <!-- Default Styles -->
     <Style TargetType="ActivityIndicator">

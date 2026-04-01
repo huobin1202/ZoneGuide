@@ -100,6 +100,14 @@
                                 BackgroundColor="{StaticResource Primary}"
                                 TextColor="White"
                                 Command="{Binding TogglePlayPauseCommand}" />
+
+                        <Button Text="⏹"
+                            HeightRequest="48"
+                            CornerRadius="14"
+                            BackgroundColor="#6B7280"
+                            TextColor="White"
+                            IsVisible="{Binding IsPlaying}"
+                                Command="{Binding StopCommand}" />
                     </VerticalStackLayout>
                 </Border>
 
