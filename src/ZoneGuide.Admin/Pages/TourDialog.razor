@@ -85,20 +85,30 @@
                             <MudText Typo="Typo.subtitle2" Class="tour-field-label">Ảnh bìa</MudText>
                             <MudFileUpload T="IBrowserFile" Accept=".png, .jpg, .jpeg, .webp" FilesChanged="UploadImage">
                                 <ActivatorContent>
-                                    <button type="button" class="tour-upload-box">
-                                        @if (string.IsNullOrWhiteSpace(_model.ImageUrl))
+                                    <div class="tour-upload-frame">
+                                        <button type="button" class="tour-upload-box">
+                                            @if (string.IsNullOrWhiteSpace(_model.ImageUrl))
+                                            {
+                                                <span class="tour-upload-placeholder">
+                                                    <MudIcon Icon="@Icons.Material.Filled.FileUpload" Size="Size.Medium" />
+                                                    <span>Nhấp hoặc kéo thả ảnh bìa</span>
+                                                    <span>PNG, JPG, WEBP...</span>
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <img src="@_model.ImageUrl" alt="Ảnh bìa tour" class="tour-cover-preview" />
+                                            }
+                                        </button>
+                                        @if (!string.IsNullOrWhiteSpace(_model.ImageUrl))
                                         {
-                                            <span class="tour-upload-placeholder">
-                                                <MudIcon Icon="@Icons.Material.Filled.FileUpload" Size="Size.Medium" />
-                                                <span>Nhấp hoặc kéo thả ảnh bìa</span>
-                                                <span>PNG, JPG, WEBP...</span>
-                                            </span>
+                                            <button type="button" class="tour-upload-remove"
+                                                    @onclick="@(() => _model.ImageUrl = null)"
+                                                    @onclick:stopPropagation="true"
+                                                    @onclick:preventDefault="true"
+                                                    title="Xóa ảnh">×</button>
                                         }
-                                        else
-                                        {
-                                            <img src="@_model.ImageUrl" alt="Ảnh bìa tour" class="tour-cover-preview" />
-                                        }
-                                    </button>
+                                    </div>
                                 </ActivatorContent>
                             </MudFileUpload>
                         </div>
@@ -360,6 +370,10 @@
         overflow: hidden;
     }
 
+    .tour-upload-frame {
+        position: relative;
+    }
+
     .tour-upload-placeholder {
         color: #97a3b6;
         display: flex;
@@ -375,6 +389,29 @@
         object-fit: cover;
         border-radius: 16px;
         display: block;
+    }
+
+    .tour-upload-remove {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 30px;
+        height: 30px;
+        border: none;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.72);
+        color: #fff;
+        font-size: 22px;
+        line-height: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2;
+    }
+
+    .tour-upload-remove:hover {
+        background: rgba(220, 38, 38, 0.92);
     }
 
     .tour-time-grid {
