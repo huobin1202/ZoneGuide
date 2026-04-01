@@ -20,6 +20,10 @@ public partial class MapViewModel : ObservableObject
 {
     private const double MaxAcceptedAccuracyMeters = 1500;
     private const double MaxAcceptedJumpKm = 80;
+    private const double DefaultTriggerRadiusMeters = 60;
+    private const double MinTriggerRadiusMeters = 20;
+    private const double MaxActivationRadiusMeters = 5000;
+    private static readonly TimeSpan AutoOpenPoiDetailCooldown = TimeSpan.FromSeconds(20);
     private static readonly HttpClient RouteHttpClient = new() { Timeout = TimeSpan.FromSeconds(10) };
 
     private readonly ILocationService _locationService;
@@ -32,7 +36,13 @@ public partial class MapViewModel : ObservableObject
     private bool _startTourRequested;
     private int? _requestedTourId;
     private bool _isTourModeActive;
-    private bool _isHandlingGeofencePlayback;
+    private readonly SemaphoreSlim _geofencePlaybackGate = new(1, 1);
+    private bool _hasReliableUserLocation;
+    private readonly List<POI> _currentTourPois = new();
+    private int? _lastInRangePoiId;
+    private int? _replayBlockedPoiId;
+    private int? _lastAutoOpenedPoiId;
+    private DateTime _lastAutoOpenedAtUtc = DateTime.MinValue;
 
     [ObservableProperty]
     private Location? userLocation;
@@ -42,6 +52,12 @@ public partial class MapViewModel : ObservableObject
 
     [ObservableProperty]
     private POI? selectedPOI;
+
+    [ObservableProperty]
+    private bool isSelectedPoiNarrationActive;
+
+    [ObservableProperty]
+    private bool isSelectedPoiNarrationPaused;
 
     [ObservableProperty]
     private bool isLoading;
@@ -54,6 +70,19 @@ public partial class MapViewModel : ObservableObject
 
     [ObservableProperty]
     private string? selectedCategory;
+
+    public bool IsTourModeActive
+    {
+        get => _isTourModeActive;
+        private set
+        {
+            if (_isTourModeActive == value)
+                return;
+
+            _isTourModeActive = value;
+            OnPropertyChanged();
+        }
+    }
 
     public string? TourIdString
     {
@@ -124,6 +153,11 @@ public partial class MapViewModel : ObservableObject
 
         _locationService.LocationChanged += OnLocationChanged;
         _geofenceService.GeofenceTriggered += OnGeofenceTriggered;
+        _narrationService.NarrationStarted += OnNarrationStateChanged;
+        _narrationService.NarrationCompleted += OnNarrationStateChanged;
+        _narrationService.NarrationStopped += OnNarrationStateChanged;
+
+        UpdateSelectedPoiNarrationState();
     }
 
     public async Task InitializeAsync()
@@ -137,6 +171,7 @@ public partial class MapViewModel : ObservableObject
             // Đặt vị trí mặc định trước để map render ngay
             UserLocation = new Location(10.8231, 106.6297); // Hồ Chí Minh
             MapSpan = MapSpan.FromCenterAndRadius(UserLocation, Distance.FromKilometers(1));
+            _hasReliableUserLocation = false;
 
             // === Bước 1: Thử đồng bộ từ Server (Admin Web → API → Mobile) ===
             try
@@ -164,7 +199,7 @@ public partial class MapViewModel : ObservableObject
             {
                 if (!_locationService.IsTracking)
                 {
-                    await _locationService.StartTrackingAsync(GPSAccuracyLevel.Medium);
+                    await _locationService.StartTrackingAsync(GPSAccuracyLevel.High);
                 }
 
                 var location = await _locationService.GetCurrentLocationAsync();
@@ -175,6 +210,8 @@ public partial class MapViewModel : ObservableObject
                     if (!IsLocationOutlier(candidate))
                     {
                         UserLocation = candidate;
+                        _hasReliableUserLocation = true;
+                        await _geofenceService.ProcessLocationUpdateAsync(location);
                     }
                     else
                     {
@@ -186,6 +223,10 @@ public partial class MapViewModel : ObservableObject
                     if (TourRoutePoints.Count > 1)
                     {
                         ApplyMapSpanForTourAndUser(POIs.ToList());
+                    }
+                    else if (_hasReliableUserLocation && UserLocation != null)
+                    {
+                        MapSpan = MapSpan.FromCenterAndRadius(UserLocation, Distance.FromKilometers(0.8));
                     }
                     else if (_allPOIs.Count > 0)
                     {
@@ -229,7 +270,7 @@ public partial class MapViewModel : ObservableObject
 
             _allPOIs = pois;
             PopulatePins(_allPOIs);
-            if (!_isTourModeActive)
+            if (!IsTourModeActive)
             {
                 SetMonitoredPois(_allPOIs);
             }
@@ -280,17 +321,24 @@ public partial class MapViewModel : ObservableObject
         if (tourPois.Count == 0)
         {
             ClearTourRoute();
+            _currentTourPois.Clear();
+            IsTourModeActive = false;
             _startTourRequested = false;
             _requestedTourId = null;
             return;
         }
 
+        _currentTourPois.Clear();
+        _currentTourPois.AddRange(tourPois);
+        _replayBlockedPoiId = null;
+
         PopulatePins(tourPois);
         SetMonitoredPois(tourPois);
-        _isTourModeActive = true;
+        IsTourModeActive = true;
 
         await SetTourRouteAsync(tourPois);
-        SelectedPOI = tourPois.First();
+        await TriggerGeofenceAtCurrentLocationAsync();
+        SelectedPOI = null;
         ApplyMapSpanForTourAndUser(tourPois);
 
         _startTourRequested = false;
@@ -415,7 +463,13 @@ public partial class MapViewModel : ObservableObject
     private void PerformSearch()
     {
         ClearTourRoute();
-        _isTourModeActive = false;
+        IsTourModeActive = false;
+        _currentTourPois.Clear();
+        _lastInRangePoiId = null;
+        _replayBlockedPoiId = null;
+        _lastAutoOpenedPoiId = null;
+
+        _ = _narrationService.StopAsync();
         SetMonitoredPois(_allPOIs);
 
         if (string.IsNullOrWhiteSpace(SearchQuery) && string.IsNullOrWhiteSpace(SelectedCategory))
@@ -445,33 +499,44 @@ public partial class MapViewModel : ObservableObject
     [RelayCommand]
     private async Task CenterOnUser()
     {
-        if (UserLocation != null)
+        if (!_locationService.IsTracking)
+        {
+            await _locationService.StartTrackingAsync(GPSAccuracyLevel.High);
+        }
+
+        var location = await _locationService.GetCurrentLocationAsync();
+        if (location != null && IsValidLocation(location))
+        {
+            var candidate = new Location(location.Latitude, location.Longitude);
+
+            if (!IsLocationOutlier(candidate))
+            {
+                UserLocation = candidate;
+                _hasReliableUserLocation = true;
+                await _geofenceService.ProcessLocationUpdateAsync(location);
+                MapSpan = MapSpan.FromCenterAndRadius(UserLocation, Distance.FromKilometers(0.5));
+                return;
+            }
+
+            ErrorMessage = "Vị trí hiện tại chưa chính xác. Vui lòng thử lại.";
+            System.Diagnostics.Debug.WriteLine(
+                $"[MapVM] Ignored center-on-user outlier: {location.Latitude},{location.Longitude} (acc={location.Accuracy:F0}m)");
+
+            if (_allPOIs.Count > 0)
+            {
+                ApplyMapSpanForPoiCollection(_allPOIs);
+            }
+        }
+        else if (UserLocation != null)
         {
             MapSpan = MapSpan.FromCenterAndRadius(UserLocation, Distance.FromKilometers(0.5));
         }
         else
         {
-            var location = await _locationService.GetCurrentLocationAsync();
-            if (location != null && IsValidLocation(location))
+            ErrorMessage = "Không thể lấy vị trí hiện tại. Vui lòng kiểm tra quyền truy cập vị trí.";
+            if (_allPOIs.Count > 0)
             {
-                var candidate = new Location(location.Latitude, location.Longitude);
-
-                if (!IsLocationOutlier(candidate))
-                {
-                    UserLocation = candidate;
-                    MapSpan = MapSpan.FromCenterAndRadius(UserLocation, Distance.FromKilometers(0.5));
-                }
-                else
-                {
-                    ErrorMessage = "Vị trí hiện tại chưa chính xác. Vui lòng thử lại.";
-                    System.Diagnostics.Debug.WriteLine(
-                        $"[MapVM] Ignored center-on-user outlier: {location.Latitude},{location.Longitude} (acc={location.Accuracy:F0}m)");
-
-                    if (_allPOIs.Count > 0)
-                    {
-                        ApplyMapSpanForPoiCollection(_allPOIs);
-                    }
-                }
+                ApplyMapSpanForPoiCollection(_allPOIs);
             }
         }
     }
@@ -491,21 +556,46 @@ public partial class MapViewModel : ObservableObject
         if (SelectedPOI == null)
             return;
 
+        var isCurrentPoi = _narrationService.CurrentItem?.POI.Id == SelectedPOI.Id;
+        if (isCurrentPoi && _narrationService.IsPaused)
+        {
+            _replayBlockedPoiId = null;
+            await _narrationService.ResumeAsync();
+            UpdateSelectedPoiNarrationState();
+            return;
+        }
+
+        if (isCurrentPoi && _narrationService.IsPlaying)
+        {
+            UpdateSelectedPoiNarrationState();
+            return;
+        }
+
+        _replayBlockedPoiId = null;
         _geofenceService.ResetCooldown(SelectedPOI.Id);
 
-        var item = new NarrationQueueItem
-        {
-            POI = SelectedPOI,
-            AudioPath = SelectedPOI.AudioFilePath,
-            AudioUrl = SelectedPOI.AudioUrl,
-            TTSText = SelectedPOI.TTSScript ?? SelectedPOI.FullDescription,
-            Language = SelectedPOI.Language,
-            Priority = SelectedPOI.Priority,
-            TriggerType = GeofenceEventType.Enter,
-            TriggerDistance = 0
-        };
+        var item = BuildNarrationItem(SelectedPOI, GeofenceEventType.Enter, 0);
 
         await _narrationService.PlayImmediatelyAsync(item);
+        UpdateSelectedPoiNarrationState();
+    }
+
+    [RelayCommand]
+    private async Task StopNarrationAndBlockReplay()
+    {
+        if (SelectedPOI == null)
+            return;
+
+        var isCurrentPoi = _narrationService.CurrentItem?.POI.Id == SelectedPOI.Id;
+        if (!isCurrentPoi)
+            return;
+
+        if (_narrationService.IsPlaying)
+        {
+            await _narrationService.PauseAsync();
+        }
+
+        UpdateSelectedPoiNarrationState();
     }
 
     [RelayCommand]
@@ -545,7 +635,51 @@ public partial class MapViewModel : ObservableObject
     {
         SelectedPOI = null;
         ClearTourRoute();
-        _isTourModeActive = false;
+        IsTourModeActive = false;
+        _currentTourPois.Clear();
+        _lastInRangePoiId = null;
+        _replayBlockedPoiId = null;
+        _lastAutoOpenedPoiId = null;
+
+        _ = _narrationService.StopAsync();
+        SetMonitoredPois(_allPOIs);
+        PopulatePins(_allPOIs);
+
+        if (_allPOIs.Count > 0)
+        {
+            ApplyMapSpanForPoiCollection(_allPOIs, forceAll: true);
+        }
+    }
+
+    [RelayCommand]
+    private void ShowTourGroupMarkers()
+    {
+        if (!IsTourModeActive || _currentTourPois.Count == 0)
+        {
+            ShowAllMarkers();
+            return;
+        }
+
+        SelectedPOI = null;
+        PopulatePins(_currentTourPois);
+        SetMonitoredPois(_currentTourPois);
+        ApplyMapSpanForTourAndUser(_currentTourPois);
+    }
+
+    [RelayCommand]
+    private async Task StopTourAsync()
+    {
+        SelectedPOI = null;
+        ClearTourRoute();
+        _currentTourPois.Clear();
+        IsTourModeActive = false;
+        _startTourRequested = false;
+        _requestedTourId = null;
+        _lastInRangePoiId = null;
+        _replayBlockedPoiId = null;
+        _lastAutoOpenedPoiId = null;
+
+        await _narrationService.StopAsync();
         SetMonitoredPois(_allPOIs);
         PopulatePins(_allPOIs);
 
@@ -576,44 +710,97 @@ public partial class MapViewModel : ObservableObject
         MainThread.BeginInvokeOnMainThread(() =>
         {
             UserLocation = candidate;
+            _hasReliableUserLocation = true;
         });
 
         _ = _geofenceService.ProcessLocationUpdateAsync(location);
+        _ = EnsureNarrationByCurrentLocationAsync(location);
     }
 
     private async void OnGeofenceTriggered(object? sender, GeofenceEvent evt)
     {
-        if (evt.EventType != GeofenceEventType.Enter)
-            return;
-
-        if (_isHandlingGeofencePlayback)
-            return;
-
-        if (_narrationService.CurrentItem?.POI.Id == evt.POI.Id &&
-            (_narrationService.IsPlaying || _narrationService.IsPaused))
-        {
-            return;
-        }
-
-        // Không ngắt audio đang phát dở để tránh trải nghiệm bị giật.
-        if (_narrationService.IsPlaying)
-            return;
-
-        _isHandlingGeofencePlayback = true;
+        await _geofencePlaybackGate.WaitAsync();
 
         try
         {
-            await _narrationService.PlayImmediatelyAsync(new NarrationQueueItem
+            var autoPlayEnabled = IsTourModeActive;
+            var currentItemPoiId = _narrationService.CurrentItem?.POI.Id;
+            var hasActiveNarration = _narrationService.IsPlaying || _narrationService.IsPaused;
+
+            if (evt.EventType == GeofenceEventType.Exit)
             {
-                POI = evt.POI,
-                AudioPath = evt.POI.AudioFilePath,
-                AudioUrl = evt.POI.AudioUrl,
-                TTSText = evt.POI.TTSScript ?? evt.POI.FullDescription,
-                Language = evt.POI.Language,
-                Priority = evt.POI.Priority,
-                TriggerType = evt.EventType,
-                TriggerDistance = evt.Distance
-            });
+                if (autoPlayEnabled && hasActiveNarration && currentItemPoiId == evt.POI.Id)
+                {
+                    await _narrationService.StopAsync();
+                }
+
+                if (_replayBlockedPoiId == evt.POI.Id)
+                {
+                    _replayBlockedPoiId = null;
+                }
+
+                if (_lastInRangePoiId == evt.POI.Id)
+                {
+                    _lastInRangePoiId = null;
+                }
+
+                if (_lastAutoOpenedPoiId == evt.POI.Id)
+                {
+                    _lastAutoOpenedPoiId = null;
+                }
+
+                return;
+            }
+
+            if (evt.EventType == GeofenceEventType.Approach || evt.EventType == GeofenceEventType.Enter)
+            {
+                if (_replayBlockedPoiId != evt.POI.Id)
+                {
+                    await TryAutoOpenPoiDetailAsync(evt.POI);
+                }
+            }
+
+            if (!autoPlayEnabled)
+            {
+                if (evt.EventType == GeofenceEventType.Enter)
+                {
+                    _lastInRangePoiId = evt.POI.Id;
+                }
+
+                return;
+            }
+
+            if (evt.EventType != GeofenceEventType.Enter)
+                return;
+
+            if (_replayBlockedPoiId.HasValue)
+            {
+                if (_replayBlockedPoiId == evt.POI.Id)
+                {
+                    _lastInRangePoiId = evt.POI.Id;
+                    return;
+                }
+
+                _replayBlockedPoiId = null;
+            }
+
+            if (hasActiveNarration && currentItemPoiId == evt.POI.Id)
+            {
+                _lastInRangePoiId = evt.POI.Id;
+                return;
+            }
+
+            if (hasActiveNarration)
+            {
+                await _narrationService.StopAsync();
+            }
+
+            await _narrationService.PlayImmediatelyAsync(BuildNarrationItem(
+                evt.POI,
+                evt.EventType,
+                evt.Distance));
+
+            _lastInRangePoiId = evt.POI.Id;
         }
         catch (Exception ex)
         {
@@ -621,7 +808,7 @@ public partial class MapViewModel : ObservableObject
         }
         finally
         {
-            _isHandlingGeofencePlayback = false;
+            _geofencePlaybackGate.Release();
         }
     }
 
@@ -638,6 +825,11 @@ public partial class MapViewModel : ObservableObject
 
     private bool IsLocationOutlier(Location candidate)
     {
+        if (!_hasReliableUserLocation || UserLocation == null)
+        {
+            return false;
+        }
+
         if (UserLocation != null)
         {
             var jumpDistance = CalculateDistanceKm(
@@ -647,19 +839,6 @@ public partial class MapViewModel : ObservableObject
                 candidate.Longitude);
 
             if (jumpDistance > MaxAcceptedJumpKm)
-            {
-                return true;
-            }
-        }
-
-        if (_allPOIs.Count > 0)
-        {
-            var nearestPoiDistance = _allPOIs
-                .Select(p => CalculateDistanceKm(candidate.Latitude, candidate.Longitude, p.Latitude, p.Longitude))
-                .DefaultIfEmpty(double.MaxValue)
-                .Min();
-
-            if (nearestPoiDistance > MaxAcceptedJumpKm)
             {
                 return true;
             }
@@ -727,8 +906,218 @@ public partial class MapViewModel : ObservableObject
 
     private void SetMonitoredPois(IEnumerable<POI> pois)
     {
+        var normalized = pois
+            .Where(p => p.Latitude is >= -90 and <= 90 && p.Longitude is >= -180 and <= 180)
+            .ToList();
+
+        var activePois = normalized.Where(p => p.IsActive).ToList();
+        var monitored = activePois.Count > 0 ? activePois : normalized;
+
         _geofenceService.ClearPOIs();
-        _geofenceService.AddPOIs(pois);
+        _geofenceService.AddPOIs(monitored);
+    }
+
+    private async Task TriggerGeofenceAtCurrentLocationAsync()
+    {
+        var current = _locationService.CurrentLocation ?? await _locationService.GetCurrentLocationAsync();
+
+        if (current == null || !IsValidLocation(current))
+            return;
+
+        await _geofenceService.ProcessLocationUpdateAsync(current);
+        await EnsureNarrationByCurrentLocationAsync(current);
+    }
+
+    private async Task EnsureNarrationByCurrentLocationAsync(LocationData location)
+    {
+        await _geofencePlaybackGate.WaitAsync();
+
+        try
+        {
+            var autoPlayEnabled = IsTourModeActive;
+            var monitored = _geofenceService.MonitoredPOIs;
+            if (monitored.Count == 0)
+                return;
+
+            if (_replayBlockedPoiId.HasValue)
+            {
+                var blockedPoi = monitored.FirstOrDefault(p => p.Id == _replayBlockedPoiId.Value);
+                if (blockedPoi == null)
+                {
+                    _replayBlockedPoiId = null;
+                }
+                else
+                {
+                    var blockedDistance = location.DistanceTo(blockedPoi.Latitude, blockedPoi.Longitude);
+                    var blockedTriggerRadius = GetEffectiveTriggerRadiusMeters(blockedPoi);
+
+                    if (blockedDistance > blockedTriggerRadius)
+                    {
+                        _replayBlockedPoiId = null;
+                    }
+                }
+            }
+
+            var inRange = monitored
+                .Select(p => new
+                {
+                    Poi = p,
+                    Distance = location.DistanceTo(p.Latitude, p.Longitude),
+                    TriggerRadius = GetEffectiveTriggerRadiusMeters(p)
+                })
+                .Where(x => x.Distance <= x.TriggerRadius)
+                .OrderBy(x => x.Distance)
+                .ThenByDescending(x => x.Poi.Priority)
+                .FirstOrDefault();
+
+            var activeItem = _narrationService.CurrentItem;
+            var hasActiveNarration = _narrationService.IsPlaying || _narrationService.IsPaused;
+
+            if (inRange == null)
+            {
+                _lastInRangePoiId = null;
+                _lastAutoOpenedPoiId = null;
+
+                if (autoPlayEnabled && hasActiveNarration && activeItem != null)
+                {
+                    var currentDistance = location.DistanceTo(activeItem.POI.Latitude, activeItem.POI.Longitude);
+                    var currentTriggerRadius = GetEffectiveTriggerRadiusMeters(activeItem.POI);
+
+                    if (currentDistance > currentTriggerRadius)
+                    {
+                        await _narrationService.StopAsync();
+                    }
+                }
+
+                return;
+            }
+
+            var candidatePoi = inRange.Poi;
+
+            if (_replayBlockedPoiId.HasValue)
+            {
+                if (_replayBlockedPoiId == candidatePoi.Id)
+                {
+                    _lastInRangePoiId = candidatePoi.Id;
+                    return;
+                }
+
+                _replayBlockedPoiId = null;
+            }
+
+            if (_lastInRangePoiId != candidatePoi.Id)
+            {
+                await TryAutoOpenPoiDetailAsync(candidatePoi);
+            }
+
+            if (!autoPlayEnabled)
+            {
+                _lastInRangePoiId = candidatePoi.Id;
+                return;
+            }
+
+            if (hasActiveNarration && activeItem != null)
+            {
+                if (activeItem.POI.Id == candidatePoi.Id)
+                {
+                    _lastInRangePoiId = candidatePoi.Id;
+                    return;
+                }
+
+                await _narrationService.StopAsync();
+                hasActiveNarration = false;
+            }
+
+            if (!hasActiveNarration)
+            {
+                if (_lastInRangePoiId == candidatePoi.Id)
+                {
+                    return;
+                }
+
+                await _narrationService.PlayImmediatelyAsync(BuildNarrationItem(
+                    candidatePoi,
+                    GeofenceEventType.Enter,
+                    inRange.Distance));
+            }
+
+            _lastInRangePoiId = candidatePoi.Id;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MapVM] EnsureNarrationByCurrentLocationAsync error: {ex.Message}");
+        }
+        finally
+        {
+            _geofencePlaybackGate.Release();
+        }
+    }
+
+    private async Task TryAutoOpenPoiDetailAsync(POI poi)
+    {
+        try
+        {
+            var currentRoute = Shell.Current.CurrentState?.Location?.ToString() ?? string.Empty;
+            if (!currentRoute.Contains("map", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            var now = DateTime.UtcNow;
+            if (_lastAutoOpenedPoiId == poi.Id && now - _lastAutoOpenedAtUtc < AutoOpenPoiDetailCooldown)
+            {
+                return;
+            }
+
+            _lastAutoOpenedPoiId = poi.Id;
+            _lastAutoOpenedAtUtc = now;
+
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                SelectedPOI = poi;
+            });
+
+            await Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MapVM] TryAutoOpenPoiDetailAsync error: {ex.Message}");
+        }
+    }
+
+    private static double GetEffectiveTriggerRadiusMeters(POI poi)
+    {
+        var triggerRadius = poi.TriggerRadius > 0 ? poi.TriggerRadius : DefaultTriggerRadiusMeters;
+        return Math.Clamp(triggerRadius, MinTriggerRadiusMeters, MaxActivationRadiusMeters);
+    }
+
+    private static NarrationQueueItem BuildNarrationItem(POI poi, GeofenceEventType triggerType, double triggerDistance)
+    {
+        return new NarrationQueueItem
+        {
+            POI = poi,
+            AudioPath = poi.AudioFilePath,
+            AudioUrl = poi.AudioUrl,
+            TTSText = GetNarrationText(poi),
+            Language = poi.Language,
+            Priority = poi.Priority,
+            TriggerType = triggerType,
+            TriggerDistance = triggerDistance
+        };
+    }
+
+    private static string GetNarrationText(POI poi)
+    {
+        if (!string.IsNullOrWhiteSpace(poi.TTSScript))
+            return poi.TTSScript;
+
+        if (!string.IsNullOrWhiteSpace(poi.FullDescription))
+            return poi.FullDescription;
+
+        if (!string.IsNullOrWhiteSpace(poi.ShortDescription))
+            return poi.ShortDescription;
+
+        return poi.Name;
     }
 
     private static double CalculateDistanceKm(double lat1, double lon1, double lat2, double lon2)
@@ -746,6 +1135,26 @@ public partial class MapViewModel : ObservableObject
     partial void OnSelectedCategoryChanged(string? value)
     {
         PerformSearch();
+    }
+
+    partial void OnSelectedPOIChanged(POI? value)
+    {
+        UpdateSelectedPoiNarrationState();
+    }
+
+    private void OnNarrationStateChanged(object? sender, NarrationQueueItem item)
+    {
+        MainThread.BeginInvokeOnMainThread(UpdateSelectedPoiNarrationState);
+    }
+
+    private void UpdateSelectedPoiNarrationState()
+    {
+        var selectedPoiId = SelectedPOI?.Id;
+        var currentPoiId = _narrationService.CurrentItem?.POI.Id;
+        var isCurrentSelected = selectedPoiId.HasValue && currentPoiId.HasValue && selectedPoiId.Value == currentPoiId.Value;
+
+        IsSelectedPoiNarrationActive = isCurrentSelected && _narrationService.IsPlaying;
+        IsSelectedPoiNarrationPaused = isCurrentSelected && _narrationService.IsPaused;
     }
 
     public POI? FindNearestPOI()

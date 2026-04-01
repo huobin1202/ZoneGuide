@@ -51,8 +51,20 @@
                     FontSize="18"
                     BackgroundColor="White"
                     TextColor="{StaticResource Primary}"
-                    Command="{Binding ShowAllMarkersCommand}"
-                    SemanticProperties.Hint="Hiển thị tất cả marker" />
+                    Command="{Binding ShowTourGroupMarkersCommand}"
+                    SemanticProperties.Hint="Hiển thị POI trong tour hiện tại" />
+
+                <Button Text="⏹"
+                    WidthRequest="48"
+                    HeightRequest="48"
+                    CornerRadius="24"
+                    Padding="0"
+                    FontSize="16"
+                    BackgroundColor="#FFE6E6"
+                    TextColor="#B3261E"
+                    Command="{Binding StopTourCommand}"
+                    IsVisible="{Binding IsTourModeActive}"
+                    SemanticProperties.Hint="Dừng tour hiện tại" />
 
                 <Button Text="◎"
                     WidthRequest="48"
@@ -124,6 +136,17 @@
                                 Padding="0"
                                 FontSize="16"
                                 Command="{Binding PlaySelectedPOICommand}" />
+                        <Button Text="⏹"
+                            WidthRequest="40"
+                            HeightRequest="40"
+                            CornerRadius="20"
+                            Padding="0"
+                            FontSize="15"
+                            BackgroundColor="#FFE6E6"
+                            TextColor="#B3261E"
+                            IsVisible="{Binding IsSelectedPoiNarrationActive}"
+                            Command="{Binding StopNarrationAndBlockReplayCommand}"
+                            SemanticProperties.Hint="Dừng phát tại điểm hiện tại" />
                         <Button Text="↗"
                                 WidthRequest="40"
                                 HeightRequest="40"

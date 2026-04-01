@@ -192,8 +192,27 @@ public class TourService : ITourService
         if (entity == null)
             return false;
 
+        var deletedAt = DateTime.UtcNow;
         entity.IsActive = false;
-        entity.UpdatedAt = DateTime.UtcNow;
+        entity.UpdatedAt = deletedAt;
+
+        var deletedRecord = await _context.DeletedRecords
+            .FirstOrDefaultAsync(d => d.EntityType == "Tour" && d.EntityId == entity.Id.ToString());
+
+        if (deletedRecord == null)
+        {
+            _context.DeletedRecords.Add(new DeletedRecordEntity
+            {
+                EntityType = "Tour",
+                EntityId = entity.Id.ToString(),
+                DeletedAt = deletedAt
+            });
+        }
+        else
+        {
+            deletedRecord.DeletedAt = deletedAt;
+        }
+
         await _context.SaveChangesAsync();
         return true;
     }

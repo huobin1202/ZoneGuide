@@ -69,7 +69,7 @@ public class LocationService : ILocationService, IDisposable
                         {
                             GPSAccuracyLevel.Low => 30000,    // 30 giây
                             GPSAccuracyLevel.Medium => 10000, // 10 giây
-                            GPSAccuracyLevel.High => 3000,    // 3 giây
+                            GPSAccuracyLevel.High => 1000,    // 1 giây
                             _ => 10000
                         };
 
