@@ -165,6 +165,11 @@
                                        HasShadow="False"
                                        BorderColor="#E5E7EB"
                                        BackgroundColor="White">
+                                                               <Frame.Triggers>
+                                                                      <DataTrigger TargetType="Frame" Binding="{Binding IsActive}" Value="False">
+                                                                             <Setter Property="Opacity" Value="0.45" />
+                                                                      </DataTrigger>
+                                                               </Frame.Triggers>
                                     <Frame.GestureRecognizers>
                                         <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:TourDetailViewModel}}, Path=ViewPOIDetailCommand}"
                                                               CommandParameter="{Binding .}" />

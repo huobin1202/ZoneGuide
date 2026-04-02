@@ -314,6 +314,7 @@ public partial class MapViewModel : ObservableObject
     private async Task ApplyStartTourRouteIfRequestedAsync(int tourId)
     {
         var tourPois = (await _poiRepository.GetByTourIdAsync(tourId))
+            .Where(p => p.IsActive)
             .Where(p => p.Latitude is >= -90 and <= 90 && p.Longitude is >= -180 and <= 180)
             .OrderBy(p => p.OrderInTour)
             .ToList();

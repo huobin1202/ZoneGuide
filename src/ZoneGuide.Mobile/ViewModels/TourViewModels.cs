@@ -247,8 +247,12 @@ public partial class TourDetailViewModel : ObservableObject
         if (Tour == null || POIs.Count == 0)
             return;
 
+        var activePois = POIs.Where(p => p.IsActive).ToList();
+        if (activePois.Count == 0)
+            return;
+
         _geofenceService.ClearPOIs();
-        _geofenceService.AddPOIs(POIs);
+        _geofenceService.AddPOIs(activePois);
 
         await Shell.Current.GoToAsync($"//map?tourId={Tour.Id}&startTour=true");
     }

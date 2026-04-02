@@ -10,7 +10,7 @@
                     <div class="tour-pane-header">
                         <div>
                             <MudText Typo="Typo.h5" Class="tour-title">Quản lý Tour</MudText>
-                            <MudText Typo="Typo.caption" Class="tour-muted">@($"{_selectedPOIs.Count} điểm")</MudText>
+                            <MudText Typo="Typo.caption" Class="tour-muted">@($"{ActiveSelectedPOIs.Count}/{_selectedPOIs.Count} điểm đang hoạt động")</MudText>
                         </div>
                     </div>
 
@@ -30,12 +30,18 @@
                             {
                                 var selectedIndex = GetSelectedIndex(poi.Id);
                                 var selected = selectedIndex >= 0;
-                                <div class="tour-location-card @(selected ? "is-selected" : string.Empty)">
+                                <div class="tour-location-card @(selected ? "is-selected" : string.Empty) @(!poi.IsActive ? "is-inactive" : string.Empty)">
                                     <button type="button" class="tour-location-main" @onclick="@(() => TogglePOIAsync(poi))">
                                         <span class="tour-order-badge @(selected ? "is-active" : "is-idle")">@(selected ? (selectedIndex + 1).ToString(CultureInfo.InvariantCulture) : "+")</span>
                                         <span class="tour-location-copy">
                                             <span class="tour-location-name" title="@poi.Name">@poi.Name</span>
-                                            <span class="tour-location-subtitle">@GetPOISubtitle(poi)</span>
+                                            <span class="tour-location-subtitle">
+                                                @if (!poi.IsActive)
+                                                {
+                                                    <span class="tour-inactive-pill">Đã tắt</span>
+                                                }
+                                                @GetPOISubtitle(poi)
+                                            </span>
                                         </span>
                                     </button>
                                     <span class="tour-route-actions">
@@ -255,6 +261,11 @@
         box-shadow: 0 12px 24px rgba(37, 99, 235, 0.08);
     }
 
+    .tour-location-card.is-inactive {
+        opacity: 0.55;
+        border-style: dashed;
+    }
+
     .tour-location-main {
         flex: 1;
         min-width: 0;
@@ -313,6 +324,18 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+
+    .tour-inactive-pill {
+        display: inline-block;
+        margin-right: 6px;
+        padding: 1px 6px;
+        border-radius: 999px;
+        background: #fee2e2;
+        color: #b91c1c;
+        font-size: 0.75rem;
+        font-weight: 700;
+        vertical-align: middle;
     }
 
     .tour-route-actions {
@@ -479,6 +502,7 @@
     private double _straightLineDistanceKm;
     private TourFormModel _model = new();
     private readonly List<POIDto> _selectedPOIs = new();
+    private List<POIDto> ActiveSelectedPOIs => _selectedPOIs.Where(p => p.IsActive).ToList();
 
     private IEnumerable<POIDto> FilteredAvailablePOIs =>
         AvailablePOIs
@@ -592,14 +616,15 @@
 
     private async Task RefreshRouteAsync()
     {
-        _straightLineDistanceKm = CalculateStraightLineDistanceKm(_selectedPOIs);
+        var routingPois = ActiveSelectedPOIs;
+        _straightLineDistanceKm = CalculateStraightLineDistanceKm(routingPois);
 
         if (!_mapRendered)
         {
             return;
         }
 
-        var routeInput = _selectedPOIs.Select((poi, index) => new
+        var routeInput = routingPois.Select((poi, index) => new
         {
             id = poi.Id,
             name = poi.Name,
@@ -633,7 +658,7 @@
             _model.EstimatedDurationMinutes = EstimateDurationFromDistance(_straightLineDistanceKm);
         }
 
-        if (_selectedPOIs.Count < 2)
+        if (routingPois.Count < 2)
         {
             _model.DistanceKm = Math.Round(_straightLineDistanceKm, 1);
             _model.EstimatedDurationMinutes = 0;
@@ -688,7 +713,7 @@
                     DistanceKm = _model.DistanceKm,
                     ImageUrl = _model.ImageUrl,
                     Difficulty = _model.Difficulty,
-                    POIIds = _selectedPOIs.Select(p => p.Id).ToList(),
+                    POIIds = ActiveSelectedPOIs.Select(p => p.Id).ToList(),
                     IsActive = _model.IsActive
                 };
 
@@ -708,7 +733,7 @@
                     DistanceKm = _model.DistanceKm,
                     ImageUrl = _model.ImageUrl,
                     Difficulty = _model.Difficulty,
-                    POIIds = _selectedPOIs.Select(p => p.Id).ToList()
+                    POIIds = ActiveSelectedPOIs.Select(p => p.Id).ToList()
                 };
 
                 var result = await ApiService.CreateTourAsync(createDto);
