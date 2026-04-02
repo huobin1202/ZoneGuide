@@ -62,7 +62,7 @@
                                 }
                             </div>
 
-                            <MudTextField @bind-Value="_newPoi.ShortDescription" Label="Mô tả" 
+                            <MudTextField @bind-Value="_newPoi.TTSScript" Label="Nội dung thuyết minh (TTS)" 
                                           Lines="3" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
 
                             <MudGrid Class="mt-1">
@@ -259,7 +259,7 @@
                                                 <span class="poi-address-ellipsis" title="@DisplayAddressOrFallback(poi.Address)">@DisplayAddressOrFallback(poi.Address)</span>
                                             </MudText>
                                             <MudText Typo="Typo.body2" Color="Color.Default" Class="clamp-2">
-                                                @(poi.ShortDescription ?? "Không có mô tả")
+                                                @(poi.TTSScript ?? poi.FullDescription ?? poi.ShortDescription ?? "Chưa có nội dung thuyết minh (TTS)")
                                             </MudText>
                                         </div>
                                     </div>
@@ -321,7 +321,7 @@
                             }
                         </div>
 
-                        <MudTextField @bind-Value="_newPoi.ShortDescription" Label="Mô tả" 
+                        <MudTextField @bind-Value="_newPoi.TTSScript" Label="Nội dung thuyết minh (TTS)" 
                                       Lines="3" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
 
                         <MudGrid Class="mt-1">
@@ -687,6 +687,8 @@
     private IEnumerable<POIDto> FilteredPOIs => _pois
         .Where(p => string.IsNullOrWhiteSpace(_searchString) ||
                     p.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+                    (p.TTSScript?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (p.FullDescription?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
                     (p.ShortDescription?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
                     (p.Address?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false))
         .Where(p => string.IsNullOrWhiteSpace(_selectedCategory) || _selectedCategory == "Tất cả" ||
@@ -808,7 +810,7 @@
                 lat = p.Latitude,
                 lng = p.Longitude,
                 triggerRadius = p.TriggerRadius,
-                description = p.ShortDescription ?? "",
+                description = p.TTSScript ?? p.FullDescription ?? p.ShortDescription ?? "",
                 category = p.Category ?? "POI",
                 imageUrl = p.ImageUrl
             }).ToArray();

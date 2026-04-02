@@ -625,7 +625,7 @@ public partial class POIDetailViewModel : ObservableObject
         await Share.RequestAsync(new ShareTextRequest
         {
             Title = CurrentPoi.Name,
-            Text = $"{CurrentPoi.Name}\n{CurrentPoi.ShortDescription}\n{CurrentPoi.MapLink}"
+            Text = $"{CurrentPoi.Name}\n{CurrentPoi.TTSScript ?? CurrentPoi.FullDescription ?? CurrentPoi.ShortDescription}\n{CurrentPoi.MapLink}"
         });
     }
 

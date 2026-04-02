@@ -8,6 +8,10 @@ public interface IApiService
     // POI Operations
     Task<List<POIDto>> GetPOIsAsync();
     Task<POIDto?> GetPOIAsync(string id);
+    Task<List<POITranslationDto>> GetPOITranslationsAsync(string poiId);
+    Task<POITranslationDto?> UpsertPOITranslationAsync(string poiId, string languageCode, POITranslationDto dto);
+    Task<bool> DeletePOITranslationAsync(string poiId, string languageCode);
+    Task<TranslatedPOIContentDto?> TranslatePOIContentAsync(TranslatePOIContentRequestDto request);
     Task<POIDto?> CreatePOIAsync(CreatePOIDto dto);
     Task<POIDto?> UpdatePOIAsync(string id, UpdatePOIDto dto);
     Task<bool> DeletePOIAsync(string id);
@@ -57,6 +61,67 @@ public class ApiService : IApiService
         try
         {
             return await _httpClient.GetFromJsonAsync<POIDto>($"api/pois/{id}");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<List<POITranslationDto>> GetPOITranslationsAsync(string poiId)
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<List<POITranslationDto>>($"api/pois/{poiId}/translations") ?? new();
+        }
+        catch
+        {
+            return new();
+        }
+    }
+
+    public async Task<POITranslationDto?> UpsertPOITranslationAsync(string poiId, string languageCode, POITranslationDto dto)
+    {
+        try
+        {
+            var response = await _httpClient.PutAsJsonAsync($"api/pois/{poiId}/translations/{Uri.EscapeDataString(languageCode)}", dto);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<POITranslationDto>();
+            }
+
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<bool> DeletePOITranslationAsync(string poiId, string languageCode)
+    {
+        try
+        {
+            var response = await _httpClient.DeleteAsync($"api/pois/{poiId}/translations/{Uri.EscapeDataString(languageCode)}");
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<TranslatedPOIContentDto?> TranslatePOIContentAsync(TranslatePOIContentRequestDto request)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("api/pois/translate-content", request);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<TranslatedPOIContentDto>();
+            }
+
+            return null;
         }
         catch
         {

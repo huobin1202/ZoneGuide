@@ -1,6 +1,8 @@
 using ZoneGuide.API.Services;
 using ZoneGuide.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
+using System.Text;
+using System.Text.Json;
 
 namespace ZoneGuide.API.Controllers;
 
@@ -10,12 +12,18 @@ public class POIsController : ControllerBase
 {
     private readonly IPOIService _poiService;
     private readonly IActivityLogService _activityLogService;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<POIsController> _logger;
 
-    public POIsController(IPOIService poiService, IActivityLogService activityLogService, ILogger<POIsController> logger)
+    public POIsController(
+        IPOIService poiService,
+        IActivityLogService activityLogService,
+        IHttpClientFactory httpClientFactory,
+        ILogger<POIsController> logger)
     {
         _poiService = poiService;
         _activityLogService = activityLogService;
+        _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
 
@@ -86,6 +94,152 @@ public class POIsController : ControllerBase
         {
             _logger.LogError(ex, "Error getting POI {Id}", id);
             return StatusCode(500, "An error occurred while retrieving the POI");
+        }
+    }
+
+    /// <summary>
+    /// Get all translations for a POI
+    /// </summary>
+    [HttpGet("{id}/translations")]
+    public async Task<ActionResult<List<POITranslationDto>>> GetTranslations(string id)
+    {
+        try
+        {
+            var poi = await _poiService.GetByIdAsync(id);
+            if (poi == null)
+            {
+                return NotFound($"POI with ID '{id}' not found");
+            }
+
+            var translations = await _poiService.GetTranslationsAsync(id);
+            return Ok(translations);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting translations for POI {Id}", id);
+            return StatusCode(500, "An error occurred while retrieving POI translations");
+        }
+    }
+
+    /// <summary>
+    /// Create or update a translation for a POI
+    /// </summary>
+    [HttpPut("{id}/translations/{languageCode}")]
+    public async Task<ActionResult<POITranslationDto>> UpsertTranslation(string id, string languageCode, [FromBody] POITranslationDto dto)
+    {
+        try
+        {
+            var translation = await _poiService.UpsertTranslationAsync(id, languageCode, dto);
+            if (translation == null)
+            {
+                return NotFound($"POI with ID '{id}' not found or translation input is invalid");
+            }
+
+            await _activityLogService.LogAsync(
+                "Update",
+                "POITranslation",
+                $"{id}:{translation.LanguageCode}",
+                translation.Name,
+                $"Cập nhật bản dịch {translation.LanguageCode} cho POI ID: {id}",
+                null,
+                "admin",
+                "Admin");
+
+            return Ok(translation);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error upserting translation for POI {Id} language {LanguageCode}", id, languageCode);
+            return StatusCode(500, "An error occurred while saving POI translation");
+        }
+    }
+
+    /// <summary>
+    /// Delete a translation for a POI
+    /// </summary>
+    [HttpDelete("{id}/translations/{languageCode}")]
+    public async Task<ActionResult> DeleteTranslation(string id, string languageCode)
+    {
+        try
+        {
+            var success = await _poiService.DeleteTranslationAsync(id, languageCode);
+            if (!success)
+            {
+                return NotFound($"Translation '{languageCode}' for POI '{id}' not found");
+            }
+
+            await _activityLogService.LogAsync(
+                "Delete",
+                "POITranslation",
+                $"{id}:{languageCode}",
+                null,
+                $"Xóa bản dịch {languageCode} của POI ID: {id}",
+                null,
+                "admin",
+                "Admin");
+
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting translation for POI {Id} language {LanguageCode}", id, languageCode);
+            return StatusCode(500, "An error occurred while deleting POI translation");
+        }
+    }
+
+    /// <summary>
+    /// Auto translate POI content to target language.
+    /// </summary>
+    [HttpPost("translate-content")]
+    public async Task<ActionResult<TranslatedPOIContentDto>> TranslateContent([FromBody] TranslatePOIContentRequestDto request)
+    {
+        try
+        {
+            if (request is null)
+            {
+                return BadRequest("Nội dung dịch không hợp lệ");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.TargetLanguage))
+            {
+                return BadRequest("Thiếu ngôn ngữ đích");
+            }
+
+            var sourceLanguage = NormalizeLanguageCode(request.SourceLanguage);
+            var targetLanguage = NormalizeLanguageCode(request.TargetLanguage);
+
+            if (string.Equals(sourceLanguage, targetLanguage, StringComparison.OrdinalIgnoreCase))
+            {
+                return Ok(new TranslatedPOIContentDto
+                {
+                    Name = request.Name,
+                    ShortDescription = request.ShortDescription,
+                    FullDescription = request.FullDescription,
+                    TTSScript = string.IsNullOrWhiteSpace(request.TTSScript) ? request.FullDescription : request.TTSScript
+                });
+            }
+
+            var translatedNameTask = TranslateTextSafelyAsync(request.Name, sourceLanguage, targetLanguage);
+            var translatedShortTask = TranslateTextSafelyAsync(request.ShortDescription, sourceLanguage, targetLanguage);
+            var translatedFullTask = TranslateTextSafelyAsync(request.FullDescription, sourceLanguage, targetLanguage);
+
+            var sourceTts = string.IsNullOrWhiteSpace(request.TTSScript) ? request.FullDescription : request.TTSScript;
+            var translatedTtsTask = TranslateTextSafelyAsync(sourceTts, sourceLanguage, targetLanguage);
+
+            await Task.WhenAll(translatedNameTask, translatedShortTask, translatedFullTask, translatedTtsTask);
+
+            return Ok(new TranslatedPOIContentDto
+            {
+                Name = translatedNameTask.Result,
+                ShortDescription = translatedShortTask.Result,
+                FullDescription = translatedFullTask.Result,
+                TTSScript = translatedTtsTask.Result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error auto-translating POI content from {SourceLanguage} to {TargetLanguage}", request?.SourceLanguage, request?.TargetLanguage);
+            return StatusCode(500, "Có lỗi khi dịch nội dung");
         }
     }
 
@@ -220,5 +374,75 @@ public class POIsController : ControllerBase
             _logger.LogError(ex, "Error getting categories");
             return StatusCode(500, "An error occurred while retrieving categories");
         }
+    }
+
+    private async Task<string> TranslateTextSafelyAsync(string? text, string sourceLanguage, string targetLanguage)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return string.Empty;
+
+        try
+        {
+            var translated = await TranslateTextWithGoogleAsync(text, sourceLanguage, targetLanguage);
+            return string.IsNullOrWhiteSpace(translated) ? text : translated;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Translate failed, fallback to source text");
+            return text;
+        }
+    }
+
+    private async Task<string?> TranslateTextWithGoogleAsync(string text, string sourceLanguage, string targetLanguage)
+    {
+        var httpClient = _httpClientFactory.CreateClient();
+        httpClient.Timeout = TimeSpan.FromSeconds(20);
+
+        var url = $"https://translate.googleapis.com/translate_a/single?client=gtx&sl={Uri.EscapeDataString(sourceLanguage)}&tl={Uri.EscapeDataString(targetLanguage)}&dt=t&q={Uri.EscapeDataString(text)}";
+        using var response = await httpClient.GetAsync(url);
+        if (!response.IsSuccessStatusCode)
+            return null;
+
+        var payload = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(payload);
+        if (document.RootElement.ValueKind != JsonValueKind.Array || document.RootElement.GetArrayLength() == 0)
+            return null;
+
+        var segments = document.RootElement[0];
+        if (segments.ValueKind != JsonValueKind.Array)
+            return null;
+
+        var builder = new StringBuilder();
+        foreach (var segment in segments.EnumerateArray())
+        {
+            if (segment.ValueKind == JsonValueKind.Array && segment.GetArrayLength() > 0)
+            {
+                var translatedPart = segment[0].GetString();
+                if (!string.IsNullOrEmpty(translatedPart))
+                {
+                    builder.Append(translatedPart);
+                }
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private static string NormalizeLanguageCode(string? languageCode)
+    {
+        if (string.IsNullOrWhiteSpace(languageCode))
+            return "auto";
+
+        var trimmed = languageCode.Trim();
+        if (string.Equals(trimmed, "auto", StringComparison.OrdinalIgnoreCase))
+            return "auto";
+
+        var dashIndex = trimmed.IndexOf('-');
+        if (dashIndex > 0)
+        {
+            return trimmed[..dashIndex].ToLowerInvariant();
+        }
+
+        return trimmed.ToLowerInvariant();
     }
 }

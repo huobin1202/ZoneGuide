@@ -80,6 +80,7 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddAuthorization();
+builder.Services.AddHttpClient();
 
 // Services
 builder.Services.AddScoped<IPOIService, POIService>();

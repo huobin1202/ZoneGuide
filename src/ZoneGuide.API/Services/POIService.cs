@@ -8,6 +8,9 @@ public interface IPOIService
 {
     Task<List<POIDto>> GetAllAsync(bool includeInactive = false);
     Task<POIDto?> GetByIdAsync(string id);
+    Task<List<POITranslationDto>> GetTranslationsAsync(string poiId);
+    Task<POITranslationDto?> UpsertTranslationAsync(string poiId, string languageCode, POITranslationDto dto);
+    Task<bool> DeleteTranslationAsync(string poiId, string languageCode);
     Task<List<POIDto>> GetByTourIdAsync(string tourId);
     Task<List<POIDto>> SearchAsync(string keyword);
     Task<List<POIDto>> GetNearbyAsync(double latitude, double longitude, double radiusMeters);
@@ -51,6 +54,100 @@ public interface IPOIService
             .FirstOrDefaultAsync(p => p.Id == intId);
 
         return entity != null ? MapToDto(entity) : null;
+    }
+
+    public async Task<List<POITranslationDto>> GetTranslationsAsync(string poiId)
+    {
+        if (!int.TryParse(poiId, out var intPoiId))
+            return new List<POITranslationDto>();
+
+        return await _context.POITranslations
+            .Where(t => t.POIId == intPoiId)
+            .OrderBy(t => t.LanguageCode)
+            .Select(t => new POITranslationDto
+            {
+                Id = t.Id,
+                POIId = t.POIId,
+                LanguageCode = t.LanguageCode,
+                Name = t.Name,
+                ShortDescription = t.ShortDescription,
+                FullDescription = t.FullDescription,
+                TTSScript = t.TTSScript,
+                AudioUrl = t.AudioUrl
+            })
+            .ToListAsync();
+    }
+
+    public async Task<POITranslationDto?> UpsertTranslationAsync(string poiId, string languageCode, POITranslationDto dto)
+    {
+        if (!int.TryParse(poiId, out var intPoiId))
+            return null;
+
+        var normalizedLanguageCode = string.IsNullOrWhiteSpace(languageCode)
+            ? dto.LanguageCode?.Trim()
+            : languageCode.Trim();
+
+        if (string.IsNullOrWhiteSpace(normalizedLanguageCode))
+            return null;
+
+        var poi = await _context.POIs.FirstOrDefaultAsync(p => p.Id == intPoiId);
+        if (poi == null)
+            return null;
+
+        var existing = await _context.POITranslations
+            .FirstOrDefaultAsync(t => t.POIId == intPoiId && t.LanguageCode == normalizedLanguageCode);
+
+        if (existing == null)
+        {
+            existing = new POITranslationEntity
+            {
+                POIId = intPoiId,
+                LanguageCode = normalizedLanguageCode,
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.POITranslations.Add(existing);
+        }
+
+        existing.Name = string.IsNullOrWhiteSpace(dto.Name) ? poi.Name : dto.Name;
+        existing.ShortDescription = dto.ShortDescription ?? string.Empty;
+        existing.FullDescription = dto.FullDescription ?? string.Empty;
+        existing.TTSScript = dto.TTSScript;
+        existing.AudioUrl = dto.AudioUrl;
+        existing.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return new POITranslationDto
+        {
+            Id = existing.Id,
+            POIId = existing.POIId,
+            LanguageCode = existing.LanguageCode,
+            Name = existing.Name,
+            ShortDescription = existing.ShortDescription,
+            FullDescription = existing.FullDescription,
+            TTSScript = existing.TTSScript,
+            AudioUrl = existing.AudioUrl
+        };
+    }
+
+    public async Task<bool> DeleteTranslationAsync(string poiId, string languageCode)
+    {
+        if (!int.TryParse(poiId, out var intPoiId))
+            return false;
+
+        var normalizedLanguageCode = languageCode?.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedLanguageCode))
+            return false;
+
+        var translation = await _context.POITranslations
+            .FirstOrDefaultAsync(t => t.POIId == intPoiId && t.LanguageCode == normalizedLanguageCode);
+
+        if (translation == null)
+            return false;
+
+        _context.POITranslations.Remove(translation);
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     public async Task<List<POIDto>> GetByTourIdAsync(string tourId)

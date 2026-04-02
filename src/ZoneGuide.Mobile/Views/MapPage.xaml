@@ -93,7 +93,7 @@
                         <Label Text="{Binding SelectedPOI.Name}"
                                FontSize="18"
                                FontAttributes="Bold" />
-                        <Label Text="{Binding SelectedPOI.ShortDescription}"
+               <Label Text="{Binding SelectedPOI.TTSScript}"
                                FontSize="13"
                                TextColor="{StaticResource Gray500}"
                                MaxLines="2" />

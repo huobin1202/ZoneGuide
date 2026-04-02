@@ -302,7 +302,7 @@ public partial class MapViewModel : ObservableObject
             var pin = new Pin
             {
                 Label = poi.Name,
-                Address = poi.ShortDescription,
+                Address = poi.TTSScript ?? poi.FullDescription ?? poi.ShortDescription,
                 Location = new Location(poi.Latitude, poi.Longitude),
                 Type = PinType.Place
             };
@@ -482,6 +482,8 @@ public partial class MapViewModel : ObservableObject
         var query = SearchQuery?.ToLowerInvariant();
         var results = _allPOIs.Where(p => 
             (string.IsNullOrWhiteSpace(query) || p.Name.ToLowerInvariant().Contains(query) || 
+            (p.TTSScript != null && p.TTSScript.ToLowerInvariant().Contains(query)) ||
+            (p.FullDescription != null && p.FullDescription.ToLowerInvariant().Contains(query)) ||
             (p.ShortDescription != null && p.ShortDescription.ToLowerInvariant().Contains(query))) &&
             (string.IsNullOrWhiteSpace(SelectedCategory) || SelectedCategory == "Tất cả" || p.Category == SelectedCategory))
             .ToList();

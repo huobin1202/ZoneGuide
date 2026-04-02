@@ -12,10 +12,10 @@
                     <MudTextField @bind-Value="_model.Name" Label="Tên POI" Required="true" 
                                   RequiredError="Tên là bắt buộc" Class="mb-3" />
                     
-                    <MudTextField @bind-Value="_model.ShortDescription" Label="Mô tả ngắn" 
+                    <MudTextField @bind-Value="_model.ShortDescription" Label="Nội dung thuyết minh (TTS) - ngắn" 
                                   Lines="2" Class="mb-3" />
                     
-                    <MudTextField @bind-Value="_model.FullDescription" Label="Mô tả chi tiết" 
+                    <MudTextField @bind-Value="_model.FullDescription" Label="Nội dung thuyết minh (TTS) - chi tiết" 
                                   Lines="3" Class="mb-3" />
                     
                 
@@ -200,9 +200,9 @@
                             </MudItem>
                         </MudGrid>
                         <MudTextField @bind-Value="trans.Name" Label="Tên (dịch)" Class="mt-2" Dense="true" />
-                        <MudTextField @bind-Value="trans.ShortDescription" Label="Mô tả ngắn (dịch)" 
+                        <MudTextField @bind-Value="trans.ShortDescription" Label="Nội dung thuyết minh (TTS) - ngắn (dịch)" 
                                       Class="mt-2" Dense="true" Lines="2" />
-                        <MudTextField @bind-Value="trans.FullDescription" Label="Mô tả chi tiết (dịch)" 
+                        <MudTextField @bind-Value="trans.FullDescription" Label="Nội dung thuyết minh (TTS) - chi tiết (dịch)" 
                                       Class="mt-2" Dense="true" Lines="2" />
                         <MudTextField @bind-Value="trans.TTSScript" Label="TTS Script (dịch)" 
                                       Class="mt-2" Dense="true" Lines="3"

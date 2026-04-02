@@ -50,7 +50,7 @@
                            TextColor="White"
                            LineBreakMode="WordWrap" />
 
-                    <Label Text="{Binding CurrentPoi.ShortDescription}"
+              <Label Text="{Binding CurrentPoi.TTSScript}"
                            FontSize="14"
                            TextColor="#F3F0FF"
                            MaxLines="3" />
@@ -116,11 +116,11 @@
                         StrokeShape="RoundRectangle 22"
                         Padding="18">
                     <VerticalStackLayout Spacing="12">
-                        <Label Text="{local:Translate poi_detail_description}"
+               <Label Text="Nội dung thuyết minh (TTS)"
                                FontSize="18"
                                FontAttributes="Bold" />
 
-                        <Label Text="{Binding CurrentPoi.FullDescription}"
+               <Label Text="{Binding CurrentPoi.TTSScript}"
                                FontSize="14"
                                TextColor="{StaticResource Gray600}"
                                LineHeight="1.5" />

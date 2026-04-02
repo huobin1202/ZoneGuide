@@ -62,10 +62,10 @@
                                 }
                             </div>
 
-                            <MudTextField @bind-Value="_editModel.ShortDescription" Label="Mô tả ngắn" 
+                            <MudTextField @bind-Value="_editModel.ShortDescription" Label="Nội dung thuyết minh (TTS) - ngắn" 
                                           Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
 
-                            <MudTextField @bind-Value="_editModel.FullDescription" Label="Mô tả chi tiết" 
+                            <MudTextField @bind-Value="_editModel.FullDescription" Label="Nội dung thuyết minh (TTS) - chi tiết" 
                                           Lines="3" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
 
                             <MudPaper Elevation="0" Class="pa-3 mt-3" Style="background:#f8fbff;border:1px solid #dbe7f3;border-radius:12px;">
@@ -171,7 +171,7 @@
                                                 @GetContributionAddressDisplay(contrib)
                                             </MudText>
                                             <MudText Typo="Typo.body2" Color="Color.Default" Class="clamp-2">
-                                                @(contrib.ShortDescription ?? "Không có mô tả")
+                                                @(contrib.TTSScript ?? contrib.FullDescription ?? contrib.ShortDescription ?? "Chưa có nội dung thuyết minh (TTS)")
                                             </MudText>
                                         </div>
                                     </div>
@@ -233,10 +233,10 @@
                             }
                         </div>
 
-                        <MudTextField @bind-Value="_newContrib.ShortDescription" Label="Mô tả ngắn" 
+                        <MudTextField @bind-Value="_newContrib.ShortDescription" Label="Nội dung thuyết minh (TTS) - ngắn" 
                                       Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
 
-                        <MudTextField @bind-Value="_newContrib.FullDescription" Label="Mô tả chi tiết" 
+                        <MudTextField @bind-Value="_newContrib.FullDescription" Label="Nội dung thuyết minh (TTS) - chi tiết" 
                                       Lines="3" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
 
                         <MudPaper Elevation="0" Class="pa-3 mt-3" Style="background:#f8fbff;border:1px solid #dbe7f3;border-radius:12px;">
@@ -504,7 +504,7 @@
                 name = p.Name,
                 lat = p.Latitude,
                 lng = p.Longitude,
-                description = p.ShortDescription ?? "",
+                description = p.TTSScript ?? p.FullDescription ?? p.ShortDescription ?? "",
                 thumbnailUrl = p.ImageUrl,
                 category = p.Category,
                 isActive = p.IsActive,
@@ -522,7 +522,7 @@
                     name = $"{draft.Name} (Nháp)",
                     lat = draft.Latitude ?? 0.0,
                     lng = draft.Longitude ?? 0.0,
-                    description = draft.ShortDescription ?? "",
+                    description = draft.TTSScript ?? draft.FullDescription ?? draft.ShortDescription ?? "",
                     thumbnailUrl = draft.ImageUrl,
                     category = draft.Category,
                     isActive = false,

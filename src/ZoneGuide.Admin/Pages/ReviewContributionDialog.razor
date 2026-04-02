@@ -18,7 +18,7 @@
                 <MudText Typo="Typo.subtitle2">Thông tin POI</MudText>
                 <MudDivider Class="my-2" />
                 <MudText><strong>Tên:</strong> @Contribution.Name</MudText>
-                <MudText><strong>Mô tả ngắn:</strong> @(Contribution.ShortDescription ?? "-")</MudText>
+                <MudText><strong>Nội dung thuyết minh (TTS) - ngắn:</strong> @(Contribution.ShortDescription ?? "-")</MudText>
                 <MudText>
                     <strong>Vị trí:</strong>
                     @if (HasLocation)
@@ -47,7 +47,7 @@
                 }
             </MudItem>
             <MudItem xs="12">
-                <MudText Typo="Typo.subtitle2">Mô tả đầy đủ</MudText>
+                <MudText Typo="Typo.subtitle2">Nội dung thuyết minh (TTS) - chi tiết</MudText>
                 <MudDivider Class="my-2" />
                 <MudText Style="white-space: pre-wrap;">@(Contribution.FullDescription ?? "-")</MudText>
             </MudItem>

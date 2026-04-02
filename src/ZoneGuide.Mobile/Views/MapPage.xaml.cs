@@ -161,7 +161,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
                     var pin = new Pin
                     {
                         Label = poi.Name ?? "Không tên",
-                        Address = poi.ShortDescription ?? "",
+                        Address = poi.TTSScript ?? poi.FullDescription ?? poi.ShortDescription ?? "",
                         Location = new Location(poi.Latitude, poi.Longitude),
                         Type = PinType.Place
                     };

@@ -133,7 +133,7 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
                         '</span>' +
                     '</div>' +
                     '<p style="margin: 0 0 8px 0; font-size: 13px; color: #555; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">' + 
-                    (poi.description ? poi.description : 'Không có mô tả') + '</p>' +
+                    (poi.description ? poi.description : 'Chưa có nội dung thuyết minh (TTS)') + '</p>' +
                     '<p style="margin: 0; font-size: 12px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' +
                     '📍 ' + (poi.address ? poi.address : (poi.lat.toFixed(6) + ', ' + poi.lng.toFixed(6))) + '</p>' +
                     '</div></div>', {

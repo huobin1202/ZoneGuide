@@ -116,6 +116,30 @@ public class POITranslationDto
 }
 
 /// <summary>
+/// Request dịch nội dung POI sang ngôn ngữ đích.
+/// </summary>
+public class TranslatePOIContentRequestDto
+{
+    public string SourceLanguage { get; set; } = "vi-VN";
+    public string TargetLanguage { get; set; } = "en-US";
+    public string Name { get; set; } = string.Empty;
+    public string ShortDescription { get; set; } = string.Empty;
+    public string FullDescription { get; set; } = string.Empty;
+    public string? TTSScript { get; set; }
+}
+
+/// <summary>
+/// Kết quả nội dung POI đã dịch theo ngôn ngữ đích.
+/// </summary>
+public class TranslatedPOIContentDto
+{
+    public string Name { get; set; } = string.Empty;
+    public string ShortDescription { get; set; } = string.Empty;
+    public string FullDescription { get; set; } = string.Empty;
+    public string? TTSScript { get; set; }
+}
+
+/// <summary>
 /// DTO cho Tour
 /// </summary>
 public class TourDto

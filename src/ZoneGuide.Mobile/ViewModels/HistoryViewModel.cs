@@ -223,7 +223,7 @@ public partial class HistoryViewModel : ObservableObject
             Id = history.Id,
             POIId = history.POIId,
             Title = poi?.Name ?? history.POIName,
-            Description = poi?.ShortDescription ?? AppLocalizer.Instance.Translate("history_subtitle"),
+            Description = poi?.TTSScript ?? poi?.FullDescription ?? poi?.ShortDescription ?? AppLocalizer.Instance.Translate("history_subtitle"),
             Category = poi?.Category ?? AppLocalizer.Instance.Translate("category_other"),
             ImageUrl = POIListViewModel.ResolveImageSource(poi?.ImageUrl),
             PlayedAt = localTime,
