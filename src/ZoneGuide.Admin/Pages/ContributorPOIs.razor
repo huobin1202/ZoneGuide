@@ -944,6 +944,8 @@
             }
 
             var audioUrl = response.StartsWith("data:audio", StringComparison.OrdinalIgnoreCase)
+                || response.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                || response.StartsWith("/", StringComparison.OrdinalIgnoreCase)
                 ? response
                 : $"data:audio/mp3;base64,{response}";
 

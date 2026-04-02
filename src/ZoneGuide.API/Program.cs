@@ -118,6 +118,7 @@ else
     app.UseHttpsRedirection(); // Chỉ redirect HTTPS ở Production
 }
 
+app.UseStaticFiles();
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();

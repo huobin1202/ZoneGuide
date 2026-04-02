@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Net.Http.Headers;
 using ZoneGuide.Shared.Models;
 
 namespace ZoneGuide.Admin.Services;
@@ -31,6 +32,7 @@ public interface IApiService
 
     // TTS
     Task<string?> GenerateTtsAsync(string text, string language);
+    Task<string?> UploadAudioAsync(byte[] bytes, string fileName, string? contentType = null);
 
     // Generic
     Task<T?> GetAsync<T>(string url) where T : class;
@@ -336,6 +338,31 @@ public class ApiService : IApiService
                 return result.GetProperty("audioUrl").GetString();
             }
             return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<string?> UploadAudioAsync(byte[] bytes, string fileName, string? contentType = null)
+    {
+        try
+        {
+            using var form = new MultipartFormDataContent();
+            using var fileContent = new ByteArrayContent(bytes);
+
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue(string.IsNullOrWhiteSpace(contentType) ? "audio/mpeg" : contentType);
+            form.Add(fileContent, "file", string.IsNullOrWhiteSpace(fileName) ? "audio.mp3" : fileName);
+
+            var response = await _httpClient.PostAsync("api/tts/upload", form);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+            return result.GetProperty("audioUrl").GetString();
         }
         catch
         {

@@ -213,26 +213,18 @@ public class POIsController : ControllerBase
                 return Ok(new TranslatedPOIContentDto
                 {
                     Name = request.Name,
-                    ShortDescription = request.ShortDescription,
-                    FullDescription = request.FullDescription,
-                    TTSScript = string.IsNullOrWhiteSpace(request.TTSScript) ? request.FullDescription : request.TTSScript
+                    TTSScript = request.TTSScript
                 });
             }
 
             var translatedNameTask = TranslateTextSafelyAsync(request.Name, sourceLanguage, targetLanguage);
-            var translatedShortTask = TranslateTextSafelyAsync(request.ShortDescription, sourceLanguage, targetLanguage);
-            var translatedFullTask = TranslateTextSafelyAsync(request.FullDescription, sourceLanguage, targetLanguage);
+            var translatedTtsTask = TranslateTextSafelyAsync(request.TTSScript, sourceLanguage, targetLanguage);
 
-            var sourceTts = string.IsNullOrWhiteSpace(request.TTSScript) ? request.FullDescription : request.TTSScript;
-            var translatedTtsTask = TranslateTextSafelyAsync(sourceTts, sourceLanguage, targetLanguage);
-
-            await Task.WhenAll(translatedNameTask, translatedShortTask, translatedFullTask, translatedTtsTask);
+            await Task.WhenAll(translatedNameTask, translatedTtsTask);
 
             return Ok(new TranslatedPOIContentDto
             {
                 Name = translatedNameTask.Result,
-                ShortDescription = translatedShortTask.Result,
-                FullDescription = translatedFullTask.Result,
                 TTSScript = translatedTtsTask.Result
             });
         }

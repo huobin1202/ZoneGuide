@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using ZoneGuide.API.Data;
 
@@ -11,9 +12,11 @@ using ZoneGuide.API.Data;
 namespace ZoneGuide.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260402180802_AddPoiTranslationOutdatedFlags")]
+    partial class AddPoiTranslationOutdatedFlags
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -74,7 +77,7 @@ namespace ZoneGuide.API.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ActivityLogs", (string)null);
+                    b.ToTable("ActivityLogs");
                 });
 
             modelBuilder.Entity("ZoneGuide.API.Data.DeletedRecordEntity", b =>
@@ -98,7 +101,7 @@ namespace ZoneGuide.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("DeletedRecords", (string)null);
+                    b.ToTable("DeletedRecords");
                 });
 
             modelBuilder.Entity("ZoneGuide.API.Data.LocationHistoryEntity", b =>
@@ -117,7 +120,7 @@ namespace ZoneGuide.API.Migrations
 
                     b.Property<string>("AnonymousDeviceId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<double?>("Heading")
                         .HasColumnType("float");
@@ -130,7 +133,7 @@ namespace ZoneGuide.API.Migrations
 
                     b.Property<string>("SessionId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<double?>("Speed")
                         .HasColumnType("float");
@@ -146,7 +149,7 @@ namespace ZoneGuide.API.Migrations
 
                     b.HasIndex("Timestamp");
 
-                    b.ToTable("LocationHistories", (string)null);
+                    b.ToTable("LocationHistories");
                 });
 
             modelBuilder.Entity("ZoneGuide.API.Data.NarrationHistoryEntity", b =>
@@ -159,7 +162,7 @@ namespace ZoneGuide.API.Migrations
 
                     b.Property<string>("AnonymousDeviceId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<bool>("Completed")
                         .HasColumnType("bit");
@@ -176,7 +179,7 @@ namespace ZoneGuide.API.Migrations
 
                     b.Property<string>("POIId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("POIName")
                         .IsRequired()
@@ -213,7 +216,7 @@ namespace ZoneGuide.API.Migrations
 
                     b.HasIndex("StartTime");
 
-                    b.ToTable("NarrationHistories", (string)null);
+                    b.ToTable("NarrationHistories");
                 });
 
             modelBuilder.Entity("ZoneGuide.API.Data.POIApprovalHistoryEntity", b =>
@@ -248,7 +251,7 @@ namespace ZoneGuide.API.Migrations
 
                     b.HasIndex("ContributionId");
 
-                    b.ToTable("POIApprovalHistories", (string)null);
+                    b.ToTable("POIApprovalHistories");
                 });
 
             modelBuilder.Entity("ZoneGuide.API.Data.POIContributionEntity", b =>
@@ -344,7 +347,7 @@ namespace ZoneGuide.API.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("POIContributions", (string)null);
+                    b.ToTable("POIContributions");
                 });
 
             modelBuilder.Entity("ZoneGuide.API.Data.POIEntity", b =>
@@ -440,7 +443,7 @@ namespace ZoneGuide.API.Migrations
                     b.HasIndex("UniqueCode")
                         .IsUnique();
 
-                    b.ToTable("POIs", (string)null);
+                    b.ToTable("POIs");
                 });
 
             modelBuilder.Entity("ZoneGuide.API.Data.POIStatisticsEntity", b =>
@@ -462,7 +465,7 @@ namespace ZoneGuide.API.Migrations
 
                     b.Property<string>("POIId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<long>("TotalListenDurationSeconds")
                         .HasColumnType("bigint");
@@ -475,7 +478,7 @@ namespace ZoneGuide.API.Migrations
                     b.HasIndex("POIId", "Date")
                         .IsUnique();
 
-                    b.ToTable("POIStatistics", (string)null);
+                    b.ToTable("POIStatistics");
                 });
 
             modelBuilder.Entity("ZoneGuide.API.Data.POITranslationEntity", b =>
@@ -504,7 +507,7 @@ namespace ZoneGuide.API.Migrations
 
                     b.Property<string>("LanguageCode")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -528,7 +531,7 @@ namespace ZoneGuide.API.Migrations
                     b.HasIndex("POIId", "LanguageCode")
                         .IsUnique();
 
-                    b.ToTable("POITranslations", (string)null);
+                    b.ToTable("POITranslations");
                 });
 
             modelBuilder.Entity("ZoneGuide.API.Data.TourEntity", b =>
@@ -584,8 +587,7 @@ namespace ZoneGuide.API.Migrations
 
                     b.Property<string>("UniqueCode")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -598,7 +600,7 @@ namespace ZoneGuide.API.Migrations
                     b.HasIndex("UniqueCode")
                         .IsUnique();
 
-                    b.ToTable("Tours", (string)null);
+                    b.ToTable("Tours");
                 });
 
             modelBuilder.Entity("ZoneGuide.API.Data.TourPOIEntity", b =>
@@ -620,7 +622,11 @@ namespace ZoneGuide.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("TourPOIs", (string)null);
+                    b.HasIndex("POIId");
+
+                    b.HasIndex("TourId");
+
+                    b.ToTable("TourPOIs");
                 });
 
             modelBuilder.Entity("ZoneGuide.API.Data.UserEntity", b =>
@@ -681,7 +687,7 @@ namespace ZoneGuide.API.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Users", (string)null);
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("ZoneGuide.API.Data.ActivityLogEntity", b =>

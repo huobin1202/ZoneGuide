@@ -73,7 +73,9 @@ public interface IPOIService
                 ShortDescription = t.ShortDescription,
                 FullDescription = t.FullDescription,
                 TTSScript = t.TTSScript,
-                AudioUrl = t.AudioUrl
+                AudioUrl = t.AudioUrl,
+                IsOutdated = t.IsOutdated,
+                IsAudioOutdated = t.IsAudioOutdated
             })
             .ToListAsync();
     }
@@ -103,16 +105,38 @@ public interface IPOIService
             {
                 POIId = intPoiId,
                 LanguageCode = normalizedLanguageCode,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                IsOutdated = false,
+                IsAudioOutdated = false
             };
             _context.POITranslations.Add(existing);
         }
 
-        existing.Name = string.IsNullOrWhiteSpace(dto.Name) ? poi.Name : dto.Name;
+        var newName = string.IsNullOrWhiteSpace(dto.Name) ? poi.Name : dto.Name;
+        var newTts = dto.TTSScript;
+        var previousName = existing.Name;
+        var previousTts = existing.TTSScript;
+        var previousAudio = existing.AudioUrl;
+        var contentChanged = !string.Equals(previousName, newName, StringComparison.Ordinal)
+            || !string.Equals(previousTts, newTts, StringComparison.Ordinal);
+
+        existing.Name = newName;
         existing.ShortDescription = dto.ShortDescription ?? string.Empty;
         existing.FullDescription = dto.FullDescription ?? string.Empty;
-        existing.TTSScript = dto.TTSScript;
+        existing.TTSScript = newTts;
         existing.AudioUrl = dto.AudioUrl;
+        existing.IsOutdated = false;
+
+        if (contentChanged)
+        {
+            existing.IsAudioOutdated = true;
+        }
+
+        if (!string.Equals(previousAudio, dto.AudioUrl, StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(dto.AudioUrl))
+        {
+            existing.IsAudioOutdated = false;
+        }
+
         existing.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
@@ -126,7 +150,9 @@ public interface IPOIService
             ShortDescription = existing.ShortDescription,
             FullDescription = existing.FullDescription,
             TTSScript = existing.TTSScript,
-            AudioUrl = existing.AudioUrl
+            AudioUrl = existing.AudioUrl,
+            IsOutdated = existing.IsOutdated,
+            IsAudioOutdated = existing.IsAudioOutdated
         };
     }
 
@@ -262,9 +288,14 @@ public interface IPOIService
         if (!int.TryParse(id, out var intId))
             return null;
             
-        var entity = await _context.POIs.FindAsync(intId);
+        var entity = await _context.POIs
+            .Include(p => p.Translations)
+            .FirstOrDefaultAsync(p => p.Id == intId);
         if (entity == null)
             return null;
+
+        var originalName = entity.Name;
+        var originalTts = entity.TTSScript;
 
         if (dto.Address != null) entity.Address = dto.Address;
         if (dto.Name != null) entity.Name = dto.Name;
@@ -283,22 +314,48 @@ public interface IPOIService
         if (dto.IsActive.HasValue) entity.IsActive = dto.IsActive.Value;
         entity.UpdatedAt = DateTime.UtcNow;
 
+        var sourceContentChanged = (dto.Name != null && !string.Equals(originalName, entity.Name, StringComparison.Ordinal))
+            || (dto.TTSScript != null && !string.Equals(originalTts, entity.TTSScript, StringComparison.Ordinal));
+
+        if (sourceContentChanged)
+        {
+            foreach (var translation in entity.Translations)
+            {
+                translation.IsOutdated = true;
+                translation.IsAudioOutdated = true;
+                translation.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
         // Cập nhật Translations nếu có
         if (dto.Translations != null)
         {
-            // Load existing translations
-            await _context.Entry(entity).Collection(e => e.Translations).LoadAsync();
-            
             foreach (var transDto in dto.Translations)
             {
                 var existing = entity.Translations.FirstOrDefault(t => t.LanguageCode == transDto.LanguageCode);
                 if (existing != null)
                 {
+                    var translationContentChanged = !string.Equals(existing.Name, transDto.Name, StringComparison.Ordinal)
+                        || !string.Equals(existing.TTSScript, transDto.TTSScript, StringComparison.Ordinal);
+                    var previousAudio = existing.AudioUrl;
+
                     existing.Name = transDto.Name;
                     existing.ShortDescription = transDto.ShortDescription;
                     existing.FullDescription = transDto.FullDescription;
                     existing.TTSScript = transDto.TTSScript;
                     existing.AudioUrl = transDto.AudioUrl;
+                    existing.IsOutdated = false;
+
+                    if (translationContentChanged)
+                    {
+                        existing.IsAudioOutdated = true;
+                    }
+
+                    if (!string.Equals(previousAudio, transDto.AudioUrl, StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(transDto.AudioUrl))
+                    {
+                        existing.IsAudioOutdated = false;
+                    }
+
                     existing.UpdatedAt = DateTime.UtcNow;
                 }
                 else
@@ -312,6 +369,8 @@ public interface IPOIService
                         FullDescription = transDto.FullDescription,
                         TTSScript = transDto.TTSScript,
                         AudioUrl = transDto.AudioUrl,
+                        IsOutdated = false,
+                        IsAudioOutdated = false,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     });
@@ -393,7 +452,9 @@ public interface IPOIService
                 ShortDescription = t.ShortDescription,
                 FullDescription = t.FullDescription,
                 TTSScript = t.TTSScript,
-                AudioUrl = t.AudioUrl
+                AudioUrl = t.AudioUrl,
+                IsOutdated = t.IsOutdated,
+                IsAudioOutdated = t.IsAudioOutdated
             }).ToList()
         };
     }

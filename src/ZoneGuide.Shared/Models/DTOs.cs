@@ -113,6 +113,8 @@ public class POITranslationDto
     public string FullDescription { get; set; } = string.Empty;
     public string? TTSScript { get; set; }
     public string? AudioUrl { get; set; }
+    public bool IsOutdated { get; set; }
+    public bool IsAudioOutdated { get; set; }
 }
 
 /// <summary>
@@ -123,8 +125,6 @@ public class TranslatePOIContentRequestDto
     public string SourceLanguage { get; set; } = "vi-VN";
     public string TargetLanguage { get; set; } = "en-US";
     public string Name { get; set; } = string.Empty;
-    public string ShortDescription { get; set; } = string.Empty;
-    public string FullDescription { get; set; } = string.Empty;
     public string? TTSScript { get; set; }
 }
 
@@ -134,8 +134,6 @@ public class TranslatePOIContentRequestDto
 public class TranslatedPOIContentDto
 {
     public string Name { get; set; } = string.Empty;
-    public string ShortDescription { get; set; } = string.Empty;
-    public string FullDescription { get; set; } = string.Empty;
     public string? TTSScript { get; set; }
 }
 

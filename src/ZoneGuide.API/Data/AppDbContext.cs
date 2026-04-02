@@ -186,6 +186,8 @@ public class POITranslationEntity
     public string FullDescription { get; set; } = string.Empty;
     public string? TTSScript { get; set; }
     public string? AudioUrl { get; set; }
+    public bool IsOutdated { get; set; }
+    public bool IsAudioOutdated { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

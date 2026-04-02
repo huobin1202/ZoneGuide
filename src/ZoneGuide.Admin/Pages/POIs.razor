@@ -124,55 +124,6 @@
                                 </ActivatorContent>
                             </MudFileUpload>
                             
-                            <MudPaper Class="pa-3 mt-4" Outlined="true" Style="background-color: #fbfdff; border: 1px solid #e0e0e0;">
-                                <div class="d-flex align-center mb-2">
-                                    <MudIcon Icon="@Icons.Material.Filled.Mic" Size="Size.Small" Color="Color.Primary" Class="mr-2" />
-                                    <MudText Typo="Typo.subtitle2" Style="color: var(--mud-palette-primary); font-weight: 600;">Thuyết minh Audio</MudText>
-                                    <MudSpacer />
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Tùy chọn</MudText>
-                                </div>
-                                <MudSelect @bind-Value="_newPoi.Language" Label="Ngôn ngữ thuyết minh " Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Style="background-color: white;">
-                                    <MudSelectItem Value="@("vi-VN")">🇻🇳 Tiếng Việt</MudSelectItem>
-                                    <MudSelectItem Value="@("en-US")">🇺🇸 English (US)</MudSelectItem>
-                                    <MudSelectItem Value="@("en-GB")">🇬🇧 English (UK)</MudSelectItem>
-                                    <MudSelectItem Value="@("zh-CN")">🇨🇳 中文</MudSelectItem>
-                                    <MudSelectItem Value="@("ja-JP")">🇯🇵 日本語</MudSelectItem>
-                                    <MudSelectItem Value="@("ko-KR")">🇰🇷 한국어</MudSelectItem>
-                                    <MudSelectItem Value="@("fr-FR")">🇫🇷 Français</MudSelectItem>
-                                    <MudSelectItem Value="@("de-DE")">🇩🇪 Deutsch</MudSelectItem>
-                                </MudSelect>
-
-                                <MudTextField @bind-Value="_newPoi.TTSScript" Label="Nội dung thuyết minh (TTS)"
-                                              Lines="4" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                              Placeholder="Nhập nội dung thuyết minh tại đây..." Style="background-color: white;" />
-
-                                <div class="d-flex gap-2 mt-2 mb-3 flex-wrap">
-                                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
-                                               StartIcon="@Icons.Material.Filled.Autorenew" Disabled="@_isGeneratingTts"
-                                               OnClick="PreviewTTS">
-                                        @(_isGeneratingTts ? "Đang tạo giọng đọc..." : "Tạo giọng đọc (Google Cloud)")
-                                    </MudButton>
-                                    @* <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
-                                               StartIcon="@Icons.Material.Filled.Stop"
-                                               OnClick="StopTTS">
-                                        Dừng
-                                    </MudButton> *@
-                                </div>
-
-
-                                <MudTextField @bind-Value="_newPoi.AudioUrl" Label="URL Audio thuyết minh" 
-                                              Variant="Variant.Outlined" Margin="Margin.Dense" Style="background-color: white;" />
-                                
-                                @if (!string.IsNullOrEmpty(_newPoi.AudioUrl))
-                                {
-                                    <div class="mt-2">
-                                        <audio controls style="width:100%">
-                                            <source src="@_newPoi.AudioUrl" />
-                                        </audio>
-                                    </div>
-                                }
-                            </MudPaper>
-                            
                             <MudSwitch @bind-Value="_newPoi.IsActive" Label="Kích hoạt" Color="Color.Primary" Class="mt-3" />
 
                             <div class="d-flex justify-space-between mt-4 pb-4">
@@ -382,51 +333,6 @@
                                 </div>
                             </ActivatorContent>
                         </MudFileUpload>
-                        
-                        <MudPaper Class="pa-3 mt-4" Outlined="true" Style="background-color: #fbfdff; border: 1px solid #e0e0e0;">
-                            <div class="d-flex align-center mb-2">
-                                <MudIcon Icon="@Icons.Material.Filled.Mic" Size="Size.Small" Color="Color.Primary" Class="mr-2" />
-                                <MudText Typo="Typo.subtitle2" Style="color: var(--mud-palette-primary); font-weight: 600;">Thuyết minh Audio</MudText>
-                                <MudSpacer />
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">Tùy chọn</MudText>
-                            </div>
-                            <MudSelect @bind-Value="_newPoi.Language" Label="Ngôn ngữ thuyết minh " Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Style="background-color: white;">
-                                <MudSelectItem Value="@("vi-VN")">🇻🇳 Tiếng Việt</MudSelectItem>
-                                <MudSelectItem Value="@("en-US")">🇺🇸 English (US)</MudSelectItem>
-                                <MudSelectItem Value="@("en-GB")">🇬🇧 English (UK)</MudSelectItem>
-                                <MudSelectItem Value="@("zh-CN")">🇨🇳 中文</MudSelectItem>
-                                <MudSelectItem Value="@("ja-JP")">🇯🇵 日本語</MudSelectItem>
-                                <MudSelectItem Value="@("ko-KR")">🇰🇷 한국어</MudSelectItem>
-                                <MudSelectItem Value="@("fr-FR")">🇫🇷 Français</MudSelectItem>
-                                <MudSelectItem Value="@("de-DE")">🇩🇪 Deutsch</MudSelectItem>
-                            </MudSelect>
-
-                            <MudTextField @bind-Value="_newPoi.TTSScript" Label="Nội dung thuyết minh (TTS)"
-                                          Lines="4" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                          Placeholder="Nhập nội dung thuyết minh tại đây..." Style="background-color: white;" />
-
-                            <div class="d-flex gap-2 mt-2 mb-3 flex-wrap">
-                                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
-                                           StartIcon="@Icons.Material.Filled.Autorenew" Disabled="@_isGeneratingTts"
-                                           OnClick="PreviewTTS">
-                                    @(_isGeneratingTts ? "Đang tạo giọng đọc..." : "Tạo giọng đọc (Google Cloud)")
-                                </MudButton>
-                            </div>
-
-                            <MudText Typo="Typo.body2" Align="Align.Center" Class="my-2">OR URL Audio</MudText>
-
-                            <MudTextField @bind-Value="_newPoi.AudioUrl" Label="URL Audio thuyết minh" 
-                                          Variant="Variant.Outlined" Margin="Margin.Dense" Style="background-color: white;" />
-                            
-                            @if (!string.IsNullOrEmpty(_newPoi.AudioUrl))
-                            {
-                                <div class="mt-2">
-                                    <audio controls style="width:100%">
-                                        <source src="@_newPoi.AudioUrl" />
-                                    </audio>
-                                </div>
-                            }
-                        </MudPaper>
                         
                         <MudSwitch @bind-Value="_newPoi.IsActive" Label="Kích hoạt" Color="Color.Primary" Class="mt-3" />
 
@@ -1442,52 +1348,4 @@
         }
     }
 
-    private bool _isGeneratingTts = false;
-
-    private async Task PreviewTTS()
-    {
-        if (string.IsNullOrWhiteSpace(_newPoi.TTSScript))
-        {
-            Snackbar.Add("Vui lòng nhập nội dung thuyết minh!", Severity.Warning);
-            return;
-        }
-
-        _saving = true;
-        
-        // Xóa âm thanh cũ khỏi giao diện để ép nó thay thế bằng cái mới sau khi gọi API xong
-        _newPoi.AudioUrl = null; 
-        StateHasChanged();
-
-        try
-        {
-             var response = await ApiService.GenerateTtsAsync(_newPoi.TTSScript, _newPoi.Language);
-            if (!string.IsNullOrEmpty(response))
-            {
-                // Thêm tiền tố định dạng cho Base64 nếu backend chưa tự thêm
-                if (!response.StartsWith("data:audio"))
-                {
-                    _newPoi.AudioUrl = $"data:audio/mp3;base64,{response}";
-                }
-                else
-                {
-                    _newPoi.AudioUrl = response;
-                }
-                Snackbar.Add("Đã tạo giọng đọc mới thành công!", Severity.Success);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _saving = false;
-            StateHasChanged();
-        }
-    }
-
-    private void StopTTS()
-    {
-        // Removed browser TTS stop logic
-    }
 }
