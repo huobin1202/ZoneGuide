@@ -20,7 +20,7 @@
 else
 {
     <MudGrid Spacing="3">
-        <MudItem xs="12" md="4">
+        <MudItem xs="12" md="3">
             <MudPaper Class="pa-3" Outlined="true">
                 <MudTextField @bind-Value="_searchPoi" Label="Tìm POI" Placeholder="Nhập tên hoặc địa chỉ..."
                               Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
@@ -28,22 +28,36 @@ else
                 <div class="mt-3 poi-list-scroll">
                     @foreach (var poi in FilteredPois)
                     {
-                        <div class="@(poi.Id == _selectedPoiId ? "poi-list-item selected" : "poi-list-item")"
-                             @onclick="() => SelectPoiAsync(poi)">
-                            <MudStack Spacing="0">
-                                <MudText Typo="Typo.subtitle2">@poi.Name</MudText>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@(string.IsNullOrWhiteSpace(poi.Address) ? $"Mã: {poi.UniqueCode}" : poi.Address)</MudText>
-                            </MudStack>
-                        </div>
+                        <MudCard Class="@($"poi-item-card {(poi.Id == _selectedPoiId ? "active" : string.Empty)}")"
+                                 @onclick="() => SelectPoiAsync(poi)">
+                            <MudCardContent Class="pa-2">
+                                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start" Class="mb-1">
+                                    <MudText Typo="Typo.subtitle2">@poi.Name</MudText>
+                                    @if (HasPoiOutdatedTranslations(poi.Id))
+                                    {
+                                        <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Color="Color.Warning" Size="Size.Small" Title="Có bản dịch/audio outdated" />
+                                    }
+                                </MudStack>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-1">@(string.IsNullOrWhiteSpace(poi.Address) ? $"Mã: {poi.UniqueCode}" : poi.Address)</MudText>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info">
+                                    @($"{GetPoiTranslationCount(poi.Id)} bản dịch")
+                                </MudChip>
+                            </MudCardContent>
+                        </MudCard>
+
+                        @if (_loadingSummaries)
+                        {
+                            <MudProgressLinear Indeterminate="true" Color="Color.Info" Class="mb-1" />
+                        }
                     }
                 </div>
             </MudPaper>
         </MudItem>
 
-        <MudItem xs="12" md="8">
+        <MudItem xs="12" md="5">
             @if (_selectedPoi is null)
             {
-                <MudAlert Severity="Severity.Info">Chọn một POI ở bên trái để quản lý bản dịch và audio.</MudAlert>
+                <MudAlert Severity="Severity.Info">Chọn một POI ở bên trái để tạo bản dịch và audio.</MudAlert>
             }
             else
             {
@@ -54,20 +68,9 @@ else
                     </MudStack>
                 </MudPaper>
 
-                <MudPaper Class="pa-3 mb-3" Outlined="true">
-                    <div class="workflow-steps">
-                        @for (var i = 1; i <= 4; i++)
-                        {
-                            <div class="workflow-step @(CurrentWorkflowStep == i ? "active" : CurrentWorkflowStep > i ? "done" : "")">
-                                <div class="step-index">@i</div>
-                                <div class="step-label">@GetStepLabel(i)</div>
-                            </div>
-                        }
-                    </div>
-                </MudPaper>
+                <MudPaper Class="pa-3" Outlined="true">
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">Bản tạo audio / bản dịch</MudText>
 
-                <MudPaper Class="pa-3 mb-3" Outlined="true">
-                    <MudText Typo="Typo.subtitle1" Class="mb-2">1) Language</MudText>
                     <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End" Class="mb-2 flex-wrap">
                         <MudSelect T="string" Value="@_selectedLanguage" ValueChanged="OnSelectedLanguageChangedAsync" Label="Target language" Style="min-width: 260px;">
                             @foreach (var option in LanguageOptions)
@@ -84,23 +87,19 @@ else
                             Ngôn ngữ gốc đang được khóa để tránh sửa nhầm nội dung gốc.
                         </MudAlert>
                     }
-                </MudPaper>
 
-                <MudPaper Class="pa-3 mb-3" Outlined="true">
-                    <MudText Typo="Typo.subtitle1" Class="mb-2">2) Content</MudText>
                     @if (_translatingContent)
                     {
-                        <MudAlert Severity="Severity.Info" Class="mb-2">Đang tự động dịch nội dung theo ngôn ngữ đã chọn...</MudAlert>
+                        <MudAlert Severity="Severity.Info" Class="mt-2">Đang tự động dịch nội dung theo ngôn ngữ đã chọn...</MudAlert>
                     }
+
+                    <MudText Typo="Typo.subtitle2" Class="mt-3 mb-2">Nội dung</MudText>
                     <MudTextField @bind-Value="_editingTranslation.Name" Label="Translation title" Class="mb-2" Disabled="@(!CanEditTranslation)" />
                     <MudTextField @bind-Value="_editingTranslation.TTSScript" Label="Description / narration content" Lines="6" Class="mb-2"
                                   HelperText="This content will be used for audio generation"
                                   Disabled="@(!CanEditTranslation)" />
-                </MudPaper>
 
-                <MudPaper Class="pa-3 mb-3" Outlined="true">
-                    <MudText Typo="Typo.subtitle1" Class="mb-2">3) Audio</MudText>
-
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Audio</MudText>
                     <MudStack Spacing="2" Class="mb-2">
                         <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.GraphicEq"
                                    OnClick="GenerateTtsForEditingAsync" Disabled="@(_generatingTts || !CanEditTranslation)">
@@ -137,10 +136,8 @@ else
                                OnClick="ClearEditingAudio" Disabled="@(!HasEditingAudio || !CanEditTranslation)">
                         Xóa audio hiện tại
                     </MudButton>
-                </MudPaper>
 
-                <MudPaper Class="pa-3 mb-3" Outlined="true">
-                    <MudText Typo="Typo.subtitle1" Class="mb-2">4) Save</MudText>
+                    <MudDivider Class="my-2" />
                     <MudStack Row="true" Spacing="2" Justify="Justify.FlexEnd" Class="flex-wrap">
                         <MudButton Variant="Variant.Outlined" OnClick="ResetEditingTranslation">Cancel</MudButton>
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
@@ -149,9 +146,58 @@ else
                         </MudButton>
                     </MudStack>
                 </MudPaper>
+            }
+        </MudItem>
 
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-3 mb-3" Outlined="true">
+                <MudText Typo="Typo.subtitle1" Class="mb-2">Những audio đã tạo</MudText>
+
+                @if (_selectedPoi is null)
+                {
+                    <MudAlert Severity="Severity.Info">Chọn một POI để xem audio đã tạo.</MudAlert>
+                }
+                else if (CreatedAudios.Count == 0)
+                {
+                    <MudAlert Severity="Severity.Warning">POI này chưa có audio nào.</MudAlert>
+                }
+                else
+                {
+                    <div class="audio-created-scroll">
+                        @foreach (var audio in CreatedAudios)
+                        {
+                            <MudPaper Class="pa-2 mb-2" Outlined="true">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-1">
+                                    <MudText Typo="Typo.body2">@GetLanguageLabel(audio.LanguageCode)</MudText>
+                                    <MudText Typo="Typo.caption" Class="@GetAudioStatusClass(audio)">@GetAudioStatusText(audio)</MudText>
+                                </MudStack>
+
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary mb-1">@audio.Name</MudText>
+
+                                <audio controls preload="metadata" style="width:100%" class="mb-2">
+                                    <source src="@ResolveAudioSource(audio.AudioUrl)" />
+                                </audio>
+
+                                <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd">
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                               OnClick="() => LoadTranslationToEditor(audio)">
+                                        Dùng bản này
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Error"
+                                               OnClick="() => DeleteTranslationAsync(audio)">
+                                        Xóa
+                                    </MudButton>
+                                </MudStack>
+                            </MudPaper>
+                        }
+                    </div>
+                }
+            </MudPaper>
+
+            @if (_selectedPoi is not null)
+            {
                 <MudPaper Class="pa-3" Outlined="true">
-                    <MudText Typo="Typo.subtitle1" Class="mb-2">Các bản dịch hiện có</MudText>
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">Tất cả bản dịch</MudText>
 
                     @if (_translations.Count == 0)
                     {
@@ -163,28 +209,22 @@ else
                             <HeaderContent>
                                 <MudTh>Ngôn ngữ</MudTh>
                                 <MudTh>Title</MudTh>
-                                <MudTh>Content status</MudTh>
-                                <MudTh>Audio status</MudTh>
-                                <MudTh>Status</MudTh>
+                                <MudTh>Content</MudTh>
+                                <MudTh>Audio</MudTh>
                                 <MudTh></MudTh>
                             </HeaderContent>
                             <RowTemplate>
                                 <MudTd DataLabel="Ngôn ngữ">@context.LanguageCode</MudTd>
                                 <MudTd DataLabel="Title">@context.Name</MudTd>
-                                <MudTd DataLabel="Content status">
+                                <MudTd DataLabel="Content">
                                     <MudText Typo="Typo.caption" Class="@GetContentStatusClass(context)">@GetContentStatusText(context)</MudText>
                                 </MudTd>
-                                <MudTd DataLabel="Audio status">
+                                <MudTd DataLabel="Audio">
                                     <MudText Typo="Typo.caption" Class="@GetAudioStatusClass(context)">@GetAudioStatusText(context)</MudText>
-                                </MudTd>
-                                <MudTd DataLabel="Status">
-                                    <MudText Typo="Typo.caption" Class="@GetOverallStatusClass(context)">@GetOverallStatusText(context)</MudText>
                                 </MudTd>
                                 <MudTd Class="text-right">
                                     <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
                                                    OnClick="@(() => LoadTranslationToEditor(context))" />
-                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
-                                                   OnClick="@(() => DeleteTranslationAsync(context))" />
                                 </MudTd>
                             </RowTemplate>
                         </MudTable>
@@ -205,13 +245,18 @@ else
         overflow-y: auto;
     }
 
-    .poi-list-item {
-        border-radius: 8px;
-        margin-bottom: 4px;
+    .poi-item-card {
+        border-radius: 10px;
+        margin-bottom: 8px;
+        border: 1px solid #e7ebf0;
+        cursor: pointer;
+        box-shadow: none;
     }
 
-    .poi-list-item.selected {
-        background: rgba(25, 118, 210, 0.14);
+    .poi-item-card.active {
+        border-color: #1976d2;
+        box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.12);
+        background: rgba(25, 118, 210, 0.08);
     }
 
     .workflow-steps {
@@ -281,6 +326,11 @@ else
         display: none;
     }
 
+    .audio-created-scroll {
+        max-height: calc(100vh - 360px);
+        overflow-y: auto;
+    }
+
     .status-green {
         color: #2e7d32;
         font-weight: 700;
@@ -314,6 +364,7 @@ else
     private bool _translatingContent;
     private bool _uploadingAudio;
     private bool _showAudioPreview;
+    private bool _loadingSummaries;
     private string _searchPoi = string.Empty;
     private string _selectedPoiId = string.Empty;
     private string _selectedLanguage = "en-US";
@@ -321,6 +372,7 @@ else
     private List<POIDto> _pois = new();
     private POIDto? _selectedPoi;
     private List<POITranslationDto> _translations = new();
+    private readonly Dictionary<string, (int Count, bool HasOutdated)> _poiTranslationSummaries = new();
     private POITranslationDto _editingTranslation = CreateEmptyTranslation("en-US");
 
     private string OriginalLanguageCode => _selectedPoi?.Language ?? "vi-VN";
@@ -337,6 +389,10 @@ else
     private string AudioStatusCssClass => _generatingTts || _uploadingAudio
         ? "status-yellow"
         : HasEditingAudio ? "status-green" : "status-gray";
+    private List<POITranslationDto> CreatedAudios => _translations
+        .Where(HasAudio)
+        .OrderBy(t => t.LanguageCode)
+        .ToList();
 
     private IEnumerable<POIDto> FilteredPois => _pois
         .Where(p => p.IsActive)
@@ -351,6 +407,8 @@ else
         _pois = await ApiService.GetPOIsAsync();
         _loading = false;
 
+        _ = LoadPoiTranslationSummariesAsync();
+
         var firstPoi = _pois.FirstOrDefault(p => p.IsActive);
         if (firstPoi is not null)
         {
@@ -364,6 +422,7 @@ else
         _selectedPoiId = poi.Id;
 
         _translations = await ApiService.GetPOITranslationsAsync(poi.Id);
+    UpdatePoiTranslationSummary(poi.Id, _translations);
 
         _selectedLanguage = DetermineDefaultLanguage();
         await SyncEditorFromSelectedLanguageAsync(autoTranslateIfMissing: true);
@@ -455,6 +514,7 @@ else
 
         Snackbar.Add($"Đã lưu bản dịch {_editingTranslation.LanguageCode}", Severity.Success);
         _translations = await ApiService.GetPOITranslationsAsync(_selectedPoi.Id);
+    UpdatePoiTranslationSummary(_selectedPoi.Id, _translations);
         _selectedLanguage = saved.LanguageCode;
         LoadTranslationToEditor(saved);
     }
@@ -481,7 +541,53 @@ else
 
         Snackbar.Add($"Đã xóa bản dịch {translation.LanguageCode}", Severity.Success);
         _translations = await ApiService.GetPOITranslationsAsync(_selectedPoi.Id);
+        UpdatePoiTranslationSummary(_selectedPoi.Id, _translations);
         await SyncEditorFromSelectedLanguageAsync(autoTranslateIfMissing: false);
+    }
+
+    private async Task LoadPoiTranslationSummariesAsync()
+    {
+        _loadingSummaries = true;
+        try
+        {
+            foreach (var poi in _pois.Where(p => p.IsActive))
+            {
+                try
+                {
+                    var translations = await ApiService.GetPOITranslationsAsync(poi.Id);
+                    UpdatePoiTranslationSummary(poi.Id, translations);
+                }
+                catch
+                {
+                    _poiTranslationSummaries[poi.Id] = (0, false);
+                }
+            }
+        }
+        finally
+        {
+            _loadingSummaries = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void UpdatePoiTranslationSummary(string poiId, List<POITranslationDto> translations)
+    {
+        _poiTranslationSummaries[poiId] = (
+            translations.Count,
+            translations.Any(t => t.IsOutdated || t.IsAudioOutdated));
+    }
+
+    private int GetPoiTranslationCount(string poiId)
+    {
+        return _poiTranslationSummaries.TryGetValue(poiId, out var summary)
+            ? summary.Count
+            : 0;
+    }
+
+    private bool HasPoiOutdatedTranslations(string poiId)
+    {
+        return _poiTranslationSummaries.TryGetValue(poiId, out var summary)
+            && summary.HasOutdated;
     }
 
     private void LoadTranslationToEditor(POITranslationDto translation)
