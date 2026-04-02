@@ -116,7 +116,7 @@ public class ApiService : IApiService
     {
         try
         {
-            return await _httpClient.GetFromJsonAsync<List<TourDto>>("api/tours") ?? new();
+            return await _httpClient.GetFromJsonAsync<List<TourDto>>("api/tours/all") ?? new();
         }
         catch
         {

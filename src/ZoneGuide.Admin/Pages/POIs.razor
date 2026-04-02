@@ -199,10 +199,12 @@
                             </div>
                             
                         </div>
-                        <div class="d-flex gap-2 mb-2">
+                        <div class="mb-2">
                             <MudTextField @bind-Value="_searchString" Placeholder="Tìm kiếm địa điểm..." 
                                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                                          Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="flex-grow-1" />
+                                          Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="w-100" />
+                        </div>
+                        <div class="d-flex gap-2 mb-2">
                             <MudSelect T="string" Label="Danh mục" @bind-Value="_selectedCategory" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Class="filter-select">
                                 <MudSelectItem Value="@( "Tất cả")" />
                                 <MudSelectItem Value="@( "Du lịch")" />
@@ -211,6 +213,11 @@
                                 <MudSelectItem Value="@( "Giải trí")" />
                                 <MudSelectItem Value="@( "Mua sắm")" />
                                 <MudSelectItem Value="@( "Khác")" />
+                            </MudSelect>
+                            <MudSelect T="string" Label="Trạng thái" @bind-Value="_selectedStatus" Variant="Variant.Outlined" Margin="Margin.Dense" Class="filter-select">
+                                <MudSelectItem Value="@( "Tất cả")" />
+                                <MudSelectItem Value="@( "Đang bật")" />
+                                <MudSelectItem Value="@( "Đã tắt")" />
                             </MudSelect>
                         </div>
                     </MudPaper>
@@ -236,7 +243,11 @@
                                                 </div>
                                                 <div class="d-flex gap-1 poi-card-actions">
                                                     <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" title="Chỉnh sửa" OnClick="@(() => OpenEditMode(poi))" />
-                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" title="Xóa" OnClick="@(() => ConfirmDelete(poi))" />
+                                                    <MudIconButton Icon="@(poi.IsActive ? Icons.Material.Filled.ToggleOff : Icons.Material.Filled.ToggleOn)"
+                                                                   Size="Size.Small"
+                                                                   Color="@(poi.IsActive ? Color.Success : Color.Warning)"
+                                                                   title="@(poi.IsActive ? "Chuyển sang đã tắt" : "Chuyển sang đang bật")"
+                                                                   OnClick="@(() => TogglePoiStatus(poi))" />
                                                 </div>
                                             </div>
                                             <div class="d-flex gap-2 mb-1 flex-wrap">
@@ -591,6 +602,7 @@
     private string _poiAddressStatus = "";
     private string? _lastAutoFilledPoiName;
     private string _selectedCategory = "Tất cả";
+    private string _selectedStatus = "Tất cả";
     private string? _highlightedPoiId;
     private bool _loading = true;
     private bool _mapInitialized = false;
@@ -673,13 +685,15 @@
     }
 
     private IEnumerable<POIDto> FilteredPOIs => _pois
-        .Where(p => p.IsActive)
         .Where(p => string.IsNullOrWhiteSpace(_searchString) ||
                     p.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
                     (p.ShortDescription?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
                     (p.Address?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false))
         .Where(p => string.IsNullOrWhiteSpace(_selectedCategory) || _selectedCategory == "Tất cả" ||
-                    (p.Category != null && p.Category.Equals(_selectedCategory, StringComparison.OrdinalIgnoreCase)));
+                    (p.Category != null && p.Category.Equals(_selectedCategory, StringComparison.OrdinalIgnoreCase)))
+        .Where(p => _selectedStatus == "Tất cả" ||
+                    (_selectedStatus == "Đang bật" && p.IsActive) ||
+                    (_selectedStatus == "Đã tắt" && !p.IsActive));
 
     private sealed class MapSearchSuggestion
     {
@@ -782,11 +796,11 @@
     {
         try
         {
-            var activePois = _pois.Where(p => p.IsActive).ToList();
-            double centerLat = activePois.Any() ? activePois.Average(p => p.Latitude) : 10.762622;
-            double centerLng = activePois.Any() ? activePois.Average(p => p.Longitude) : 106.660172;
+            var poisForMap = _pois.ToList();
+            double centerLat = poisForMap.Any() ? poisForMap.Average(p => p.Latitude) : 10.762622;
+            double centerLng = poisForMap.Any() ? poisForMap.Average(p => p.Longitude) : 106.660172;
 
-            var poiData = activePois.Select(p => new
+            var poiData = poisForMap.Select(p => new
             {
                 id = p.Id,
                 name = p.Name,
@@ -1358,31 +1372,39 @@
     public Task OnPoiMarkerDeleteRequested(string poiId)
     {
         var poi = _pois.FirstOrDefault(p => p.Id == poiId);
-        return poi != null ? ConfirmDelete(poi) : Task.CompletedTask;
+        return poi != null ? TogglePoiStatus(poi) : Task.CompletedTask;
     }
 
-    private async Task ConfirmDelete(POIDto poi)
+    private async Task TogglePoiStatus(POIDto poi)
     {
+        var willActivate = !poi.IsActive;
         var confirm = await DialogService.ShowMessageBox(
-            "Xóa địa điểm",
-            $"Bạn có chắc muốn xóa '{poi.Name}' không?",
-            yesText: "Xóa", cancelText: "Hủy");
+            "Cập nhật trạng thái địa điểm",
+            willActivate
+                ? $"Bạn có chắc muốn bật lại '{poi.Name}' không?"
+                : $"Bạn có chắc muốn tắt '{poi.Name}' không?",
+            yesText: "Xác nhận", cancelText: "Hủy");
 
         if (confirm == true)
         {
-            var success = await ApiService.DeletePOIAsync(poi.Id);
-            if (success)
+            var success = await ApiService.UpdatePOIAsync(poi.Id, new UpdatePOIDto
             {
-                if (string.Equals(_highlightedPoiId, poi.Id, StringComparison.Ordinal))
+                IsActive = willActivate
+            });
+
+            if (success != null)
+            {
+                if (!willActivate && string.Equals(_highlightedPoiId, poi.Id, StringComparison.Ordinal))
                 {
                     _highlightedPoiId = null;
                 }
+
                 await LoadPOIs();
-                Snackbar.Add("Xóa thành công", Severity.Success);
+                Snackbar.Add(willActivate ? "Đã bật địa điểm" : "Đã tắt địa điểm", Severity.Success);
             }
             else
             {
-                Snackbar.Add("Failed to delete", Severity.Error);
+                Snackbar.Add("Không thể cập nhật trạng thái", Severity.Error);
             }
         }
     }

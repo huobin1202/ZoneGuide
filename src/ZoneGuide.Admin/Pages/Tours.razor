@@ -17,9 +17,16 @@
         </MudButton>
     </MudStack>
 
-    <MudTextField @bind-Value="_searchString" Placeholder="Tim tour..."
-                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                  Immediate="true" Class="mt-4" />
+    <MudStack Row="true" Spacing="2" Class="mt-4">
+        <MudTextField @bind-Value="_searchString" Placeholder="Tim tour..."
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      Immediate="true" Class="flex-grow-1" />
+        <MudSelect T="string" Label="Trang thai" @bind-Value="_selectedStatus" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width: 170px;">
+            <MudSelectItem Value="@( "Tat ca")" />
+            <MudSelectItem Value="@( "Dang bat")" />
+            <MudSelectItem Value="@( "Da tat")" />
+        </MudSelect>
+    </MudStack>
 </MudPaper>
 
 @if (_loading)
@@ -46,6 +53,10 @@ else
                         <MudText Typo="Typo.h6" Class="tour-name-ellipsis" title="@tour.Name">@tour.Name</MudText>
                         <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">@TruncateText(tour.Description, 110)</MudText>
 
+                        <MudChip T="string" Size="Size.Small" Color="@(tour.IsActive ? Color.Success : Color.Default)" Class="mb-2">
+                            @(tour.IsActive ? "Dang bat" : "Da tat")
+                        </MudChip>
+
                         <MudStack Row="true" Spacing="2" Class="mb-2">
                             <MudText Typo="Typo.caption" Class="d-flex align-center mud-text-secondary">
                                 <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
@@ -63,10 +74,10 @@ else
                                 Chinh sua
                             </MudButton>
 
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                           Color="Color.Error"
+                            <MudIconButton Icon="@(tour.IsActive ? Icons.Material.Filled.ToggleOff : Icons.Material.Filled.ToggleOn)"
+                                           Color="@(tour.IsActive ? Color.Success : Color.Warning)"
                                            Variant="Variant.Outlined"
-                                           OnClick="@(() => ConfirmDelete(tour))" />
+                                           OnClick="@(() => ToggleTourStatus(tour))" />
                         </MudStack>
                     </div>
                 </MudPaper>
@@ -151,13 +162,16 @@ else
 @code {
     private List<TourDto> _tours = new();
     private string _searchString = "";
+    private string _selectedStatus = "Tat ca";
     private bool _loading = true;
 
-    private IEnumerable<TourDto> FilteredTours => string.IsNullOrWhiteSpace(_searchString)
-        ? _tours
-        : _tours.Where(t => 
+    private IEnumerable<TourDto> FilteredTours => _tours
+        .Where(t => string.IsNullOrWhiteSpace(_searchString) ||
             t.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
-            (t.Description?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false));
+            (t.Description?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false))
+        .Where(t => _selectedStatus == "Tat ca" ||
+                    (_selectedStatus == "Dang bat" && t.IsActive) ||
+                    (_selectedStatus == "Da tat" && !t.IsActive));
 
     private static bool HasImage(TourDto tour)
     {
@@ -233,24 +247,31 @@ else
         }
     }
 
-    private async Task ConfirmDelete(TourDto tour)
+    private async Task ToggleTourStatus(TourDto tour)
     {
+        var willActivate = !tour.IsActive;
         var confirm = await DialogService.ShowMessageBox(
-            "Delete Tour",
-            $"Are you sure you want to delete '{tour.Name}'?",
-            yesText: "Delete", cancelText: "Cancel");
+            "Cap nhat trang thai Tour",
+            willActivate
+                ? $"Ban co chac muon bat lai '{tour.Name}' khong?"
+                : $"Ban co chac muon tat '{tour.Name}' khong?",
+            yesText: "Xac nhan", cancelText: "Huy");
 
         if (confirm == true)
         {
-            var success = await ApiService.DeleteTourAsync(tour.Id);
-            if (success)
+            var updated = await ApiService.UpdateTourAsync(tour.Id, new UpdateTourDto
+            {
+                IsActive = willActivate
+            });
+
+            if (updated != null)
             {
                 await LoadTours();
-                Snackbar.Add("Tour deleted successfully", Severity.Success);
+                Snackbar.Add(willActivate ? "Da bat Tour" : "Da tat Tour", Severity.Success);
             }
             else
             {
-                Snackbar.Add("Failed to delete tour", Severity.Error);
+                Snackbar.Add("Khong the cap nhat trang thai Tour", Severity.Error);
             }
         }
     }
