@@ -169,6 +169,8 @@ public interface IPOIService
         if (entity == null)
             return null;
 
+        var wasActive = entity.IsActive;
+
         if (dto.Name != null) entity.Name = dto.Name;
         if (dto.ShortDescription != null) entity.ShortDescription = dto.ShortDescription;
         if (dto.FullDescription != null) entity.FullDescription = dto.FullDescription;
@@ -190,6 +192,11 @@ public interface IPOIService
         if (dto.Language != null) entity.Language = dto.Language;
         if (dto.IsActive.HasValue) entity.IsActive = dto.IsActive.Value;
         entity.UpdatedAt = DateTime.UtcNow;
+
+        if (wasActive && !entity.IsActive)
+        {
+            await DetachPOIFromToursAsync(entity, entity.UpdatedAt);
+        }
 
         // Cập nhật Translations nếu có
         if (dto.Translations != null)
@@ -245,6 +252,8 @@ public interface IPOIService
         entity.IsActive = false;
         entity.UpdatedAt = deletedAt;
 
+        await DetachPOIFromToursAsync(entity, deletedAt);
+
         var deletedRecord = await _context.DeletedRecords
             .FirstOrDefaultAsync(d => d.EntityType == "POI" && d.EntityId == entity.Id.ToString());
 
@@ -264,6 +273,73 @@ public interface IPOIService
 
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    private async Task DetachPOIFromToursAsync(POIEntity poi, DateTime changedAt)
+    {
+        var linksToRemove = await _context.TourPOIs
+            .Where(tp => tp.POIId == poi.Id)
+            .ToListAsync();
+
+        var affectedTourIds = linksToRemove
+            .Select(tp => tp.TourId)
+            .Distinct()
+            .ToHashSet();
+
+        if (poi.TourId.HasValue)
+        {
+            affectedTourIds.Add(poi.TourId.Value);
+        }
+
+        if (linksToRemove.Count > 0)
+        {
+            _context.TourPOIs.RemoveRange(linksToRemove);
+        }
+
+        poi.TourId = null;
+        poi.OrderInTour = 0;
+
+        if (affectedTourIds.Count == 0)
+            return;
+
+        var affectedTours = await _context.Tours
+            .Include(t => t.POIIds)
+            .ThenInclude(tp => tp.POI)
+            .Where(t => affectedTourIds.Contains(t.Id))
+            .ToListAsync();
+
+        foreach (var tour in affectedTours)
+        {
+            var staleLinks = tour.POIIds
+                .Where(tp => tp.POIId == poi.Id || tp.POI == null || !tp.POI.IsActive)
+                .ToList();
+
+            if (staleLinks.Count > 0)
+            {
+                _context.TourPOIs.RemoveRange(staleLinks);
+            }
+
+            var activeLinks = tour.POIIds
+                .Except(staleLinks)
+                .OrderBy(tp => tp.Order)
+                .ToList();
+
+            for (var index = 0; index < activeLinks.Count; index++)
+            {
+                var link = activeLinks[index];
+                link.Order = index;
+
+                if (link.POI != null)
+                {
+                    link.POI.TourId = tour.Id;
+                    link.POI.OrderInTour = index;
+                    link.POI.UpdatedAt = changedAt;
+                }
+            }
+
+            tour.POICount = activeLinks.Count;
+            tour.UpdatedAt = changedAt;
+        }
     }
 
     private static POIDto MapToDto(POIEntity entity)

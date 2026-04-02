@@ -20,11 +20,12 @@ public partial class MapViewModel : ObservableObject
 {
     private const double MaxAcceptedAccuracyMeters = 1500;
     private const double MaxAcceptedJumpKm = 80;
+    private const int MaxRenderedRoutePoints = 320;
     private const double DefaultTriggerRadiusMeters = 60;
     private const double MinTriggerRadiusMeters = 20;
     private const double MaxActivationRadiusMeters = 5000;
     private static readonly TimeSpan AutoOpenPoiDetailCooldown = TimeSpan.FromSeconds(20);
-    private static readonly HttpClient RouteHttpClient = new() { Timeout = TimeSpan.FromSeconds(10) };
+    private static readonly HttpClient RouteHttpClient = new() { Timeout = TimeSpan.FromSeconds(6) };
 
     private readonly ILocationService _locationService;
     private readonly IGeofenceService _geofenceService;
@@ -43,6 +44,7 @@ public partial class MapViewModel : ObservableObject
     private int? _replayBlockedPoiId;
     private int? _lastAutoOpenedPoiId;
     private DateTime _lastAutoOpenedAtUtc = DateTime.MinValue;
+    private CancellationTokenSource? _routeBuildCts;
 
     [ObservableProperty]
     private Location? userLocation;
@@ -54,10 +56,19 @@ public partial class MapViewModel : ObservableObject
     private POI? selectedPOI;
 
     [ObservableProperty]
+    private string selectedPoiDistanceDisplay = string.Empty;
+
+    [ObservableProperty]
     private bool isSelectedPoiNarrationActive;
 
     [ObservableProperty]
     private bool isSelectedPoiNarrationPaused;
+
+    [ObservableProperty]
+    private int? currentNarrationPoiId;
+
+    [ObservableProperty]
+    private bool isNarrationPlaying;
 
     [ObservableProperty]
     private bool isLoading;
@@ -70,6 +81,15 @@ public partial class MapViewModel : ObservableObject
 
     [ObservableProperty]
     private string? selectedCategory;
+
+    [ObservableProperty]
+    private string activeTourName = string.Empty;
+
+    [ObservableProperty]
+    private int activeTourPoiCount;
+
+    [ObservableProperty]
+    private bool isTourPoiListVisible;
 
     public bool IsTourModeActive
     {
@@ -301,7 +321,7 @@ public partial class MapViewModel : ObservableObject
             
             var pin = new Pin
             {
-                Label = poi.Name,
+                Label = poi.OrderInTour > 0 ? $"{poi.OrderInTour}.{poi.Name}" : poi.Name,
                 Address = poi.ShortDescription,
                 Location = new Location(poi.Latitude, poi.Longitude),
                 Type = PinType.Place
@@ -323,23 +343,38 @@ public partial class MapViewModel : ObservableObject
             ClearTourRoute();
             _currentTourPois.Clear();
             IsTourModeActive = false;
+            ActiveTourName = string.Empty;
+            ActiveTourPoiCount = 0;
+            IsTourPoiListVisible = false;
             _startTourRequested = false;
             _requestedTourId = null;
             return;
         }
 
+        var tour = await _tourRepository.GetByIdAsync(tourId);
+
         _currentTourPois.Clear();
         _currentTourPois.AddRange(tourPois);
         _replayBlockedPoiId = null;
 
+        ActiveTourName = !string.IsNullOrWhiteSpace(tour?.Name)
+            ? tour!.Name
+            : "Tour";
+        ActiveTourPoiCount = tourPois.Count;
+
         PopulatePins(tourPois);
         SetMonitoredPois(tourPois);
         IsTourModeActive = true;
+        IsTourPoiListVisible = true;
 
         await SetTourRouteAsync(tourPois);
         await TriggerGeofenceAtCurrentLocationAsync();
-        SelectedPOI = null;
-        ApplyMapSpanForTourAndUser(tourPois);
+
+        var firstPoi = tourPois[0];
+        SelectedPOI = firstPoi;
+        MapSpan = MapSpan.FromCenterAndRadius(
+            new Location(firstPoi.Latitude, firstPoi.Longitude),
+            Distance.FromKilometers(0.8));
 
         _startTourRequested = false;
         _requestedTourId = null;
@@ -347,24 +382,43 @@ public partial class MapViewModel : ObservableObject
 
     private async Task SetTourRouteAsync(List<POI> tourPois)
     {
-        var routePoints = await BuildRoadRouteAsync(tourPois);
+        var fallbackRoute = tourPois
+            .Select(p => new Location(p.Latitude, p.Longitude))
+            .ToList();
 
-        if (routePoints.Count < 2)
+        ReplaceTourRoutePoints(fallbackRoute);
+
+        _routeBuildCts?.Cancel();
+        _routeBuildCts?.Dispose();
+        _routeBuildCts = new CancellationTokenSource();
+
+        _ = BuildAndApplyRoadRouteAsync(tourPois, _routeBuildCts.Token);
+
+        await Task.CompletedTask;
+    }
+
+    private async Task BuildAndApplyRoadRouteAsync(List<POI> tourPois, CancellationToken cancellationToken)
+    {
+        try
         {
-            routePoints = tourPois
-                .Select(p => new Location(p.Latitude, p.Longitude))
-                .ToList();
+            var roadRoute = await BuildRoadRouteAsync(tourPois, cancellationToken);
+            if (cancellationToken.IsCancellationRequested || roadRoute.Count < 2)
+                return;
+
+            var simplified = DownsampleRoutePoints(roadRoute, MaxRenderedRoutePoints);
+            ReplaceTourRoutePoints(simplified);
         }
-
-        TourRoutePoints.Clear();
-
-        foreach (var point in routePoints)
+        catch (OperationCanceledException)
         {
-            TourRoutePoints.Add(point);
+            // Ignore route build cancellation when user switches tours quickly.
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MapVM] BuildAndApplyRoadRouteAsync failed: {ex.Message}");
         }
     }
 
-    private static async Task<List<Location>> BuildRoadRouteAsync(List<POI> tourPois)
+    private static async Task<List<Location>> BuildRoadRouteAsync(List<POI> tourPois, CancellationToken cancellationToken)
     {
         var result = new List<Location>();
 
@@ -379,10 +433,12 @@ public partial class MapViewModel : ObservableObject
 
         for (var i = 0; i < tourPois.Count - 1; i++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var from = new Location(tourPois[i].Latitude, tourPois[i].Longitude);
             var to = new Location(tourPois[i + 1].Latitude, tourPois[i + 1].Longitude);
 
-            var segment = await GetRoadSegmentAsync(from, to);
+            var segment = await GetRoadSegmentAsync(from, to, cancellationToken);
             if (segment.Count == 0)
             {
                 if (result.Count == 0 || !IsSamePoint(result[^1], from))
@@ -405,7 +461,7 @@ public partial class MapViewModel : ObservableObject
         return result;
     }
 
-    private static async Task<List<Location>> GetRoadSegmentAsync(Location from, Location to)
+    private static async Task<List<Location>> GetRoadSegmentAsync(Location from, Location to, CancellationToken cancellationToken)
     {
         try
         {
@@ -413,12 +469,12 @@ public partial class MapViewModel : ObservableObject
                 CultureInfo.InvariantCulture,
                 $"https://router.project-osrm.org/route/v1/driving/{from.Longitude},{from.Latitude};{to.Longitude},{to.Latitude}?overview=full&geometries=geojson");
 
-            using var response = await RouteHttpClient.GetAsync(requestUri);
+            using var response = await RouteHttpClient.GetAsync(requestUri, cancellationToken);
             if (!response.IsSuccessStatusCode)
                 return new List<Location>();
 
-            await using var stream = await response.Content.ReadAsStreamAsync();
-            using var json = await JsonDocument.ParseAsync(stream);
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            using var json = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
 
             if (!json.RootElement.TryGetProperty("routes", out var routes) || routes.GetArrayLength() == 0)
             {
@@ -440,6 +496,10 @@ public partial class MapViewModel : ObservableObject
 
             return points;
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[MapVM] GetRoadSegmentAsync failed: {ex.Message}");
@@ -454,8 +514,50 @@ public partial class MapViewModel : ObservableObject
                Math.Abs(a.Longitude - b.Longitude) < epsilon;
     }
 
+    private void ReplaceTourRoutePoints(IReadOnlyList<Location> routePoints)
+    {
+        void Apply()
+        {
+            TourRoutePoints.Clear();
+            foreach (var point in routePoints)
+            {
+                TourRoutePoints.Add(point);
+            }
+        }
+
+        if (MainThread.IsMainThread)
+        {
+            Apply();
+            return;
+        }
+
+        MainThread.BeginInvokeOnMainThread(Apply);
+    }
+
+    private static List<Location> DownsampleRoutePoints(List<Location> points, int maxPoints)
+    {
+        if (points.Count <= maxPoints || maxPoints < 3)
+            return points;
+
+        var sampled = new List<Location>(maxPoints) { points[0] };
+        var step = (points.Count - 1d) / (maxPoints - 1d);
+
+        for (var i = 1; i < maxPoints - 1; i++)
+        {
+            var index = (int)Math.Round(i * step, MidpointRounding.AwayFromZero);
+            index = Math.Clamp(index, 1, points.Count - 2);
+            sampled.Add(points[index]);
+        }
+
+        sampled.Add(points[^1]);
+        return sampled;
+    }
+
     private void ClearTourRoute()
     {
+        _routeBuildCts?.Cancel();
+        _routeBuildCts?.Dispose();
+        _routeBuildCts = null;
         TourRoutePoints.Clear();
     }
 
@@ -464,6 +566,9 @@ public partial class MapViewModel : ObservableObject
     {
         ClearTourRoute();
         IsTourModeActive = false;
+        ActiveTourName = string.Empty;
+        ActiveTourPoiCount = 0;
+        IsTourPoiListVisible = false;
         _currentTourPois.Clear();
         _lastInRangePoiId = null;
         _replayBlockedPoiId = null;
@@ -545,9 +650,14 @@ public partial class MapViewModel : ObservableObject
     private void SelectPOI(POI poi)
     {
         SelectedPOI = poi;
+
+        var radius = IsTourModeActive
+            ? Distance.FromKilometers(0.6)
+            : Distance.FromMeters(200);
+
         MapSpan = MapSpan.FromCenterAndRadius(
             new Location(poi.Latitude, poi.Longitude), 
-            Distance.FromMeters(200));
+            radius);
     }
 
     [RelayCommand]
@@ -636,6 +746,9 @@ public partial class MapViewModel : ObservableObject
         SelectedPOI = null;
         ClearTourRoute();
         IsTourModeActive = false;
+        ActiveTourName = string.Empty;
+        ActiveTourPoiCount = 0;
+        IsTourPoiListVisible = false;
         _currentTourPois.Clear();
         _lastInRangePoiId = null;
         _replayBlockedPoiId = null;
@@ -673,6 +786,9 @@ public partial class MapViewModel : ObservableObject
         ClearTourRoute();
         _currentTourPois.Clear();
         IsTourModeActive = false;
+        ActiveTourName = string.Empty;
+        ActiveTourPoiCount = 0;
+        IsTourPoiListVisible = false;
         _startTourRequested = false;
         _requestedTourId = null;
         _lastInRangePoiId = null;
@@ -1139,7 +1255,13 @@ public partial class MapViewModel : ObservableObject
 
     partial void OnSelectedPOIChanged(POI? value)
     {
+        UpdateSelectedPoiDistanceDisplay();
         UpdateSelectedPoiNarrationState();
+    }
+
+    partial void OnUserLocationChanged(Location? value)
+    {
+        UpdateSelectedPoiDistanceDisplay();
     }
 
     private void OnNarrationStateChanged(object? sender, NarrationQueueItem item)
@@ -1149,12 +1271,40 @@ public partial class MapViewModel : ObservableObject
 
     private void UpdateSelectedPoiNarrationState()
     {
+        CurrentNarrationPoiId = _narrationService.CurrentItem?.POI.Id;
+        IsNarrationPlaying = CurrentNarrationPoiId.HasValue && _narrationService.IsPlaying;
+
         var selectedPoiId = SelectedPOI?.Id;
-        var currentPoiId = _narrationService.CurrentItem?.POI.Id;
+        var currentPoiId = CurrentNarrationPoiId;
         var isCurrentSelected = selectedPoiId.HasValue && currentPoiId.HasValue && selectedPoiId.Value == currentPoiId.Value;
 
         IsSelectedPoiNarrationActive = isCurrentSelected && _narrationService.IsPlaying;
         IsSelectedPoiNarrationPaused = isCurrentSelected && _narrationService.IsPaused;
+    }
+
+    private void UpdateSelectedPoiDistanceDisplay()
+    {
+        if (SelectedPOI == null)
+        {
+            SelectedPoiDistanceDisplay = string.Empty;
+            return;
+        }
+
+        if (UserLocation == null)
+        {
+            SelectedPoiDistanceDisplay = "Đang định vị";
+            return;
+        }
+
+        var km = CalculateDistanceKm(
+            UserLocation.Latitude,
+            UserLocation.Longitude,
+            SelectedPOI.Latitude,
+            SelectedPOI.Longitude);
+
+        SelectedPoiDistanceDisplay = km >= 1
+            ? $"{Math.Round(km):0} km"
+            : $"{Math.Round(km * 1000):0} m";
     }
 
     public POI? FindNearestPOI()

@@ -30,6 +30,7 @@ public class TourService : ITourService
     {
         var entities = await _context.Tours
             .Include(t => t.POIIds)
+            .ThenInclude(tp => tp.POI)
             .Where(t => t.IsActive)
             .OrderBy(t => t.Name)
             .ToListAsync();
@@ -44,6 +45,7 @@ public class TourService : ITourService
             
         var entity = await _context.Tours
             .Include(t => t.POIIds)
+            .ThenInclude(tp => tp.POI)
             .FirstOrDefaultAsync(t => t.Id == intId);
         return entity != null ? MapToDto(entity) : null;
     }
@@ -55,6 +57,7 @@ public class TourService : ITourService
             
         var entity = await _context.Tours
             .Include(t => t.POIIds)
+            .ThenInclude(tp => tp.POI)
             .FirstOrDefaultAsync(t => t.Id == intId);
         if (entity == null)
             return null;
@@ -123,6 +126,7 @@ public class TourService : ITourService
             
         var entity = await _context.Tours
             .Include(t => t.POIIds)
+            .ThenInclude(tp => tp.POI)
             .FirstOrDefaultAsync(t => t.Id == intId);
         if (entity == null)
             return null;
@@ -224,6 +228,7 @@ public class TourService : ITourService
             
         var entity = await _context.Tours
             .Include(t => t.POIIds)
+            .ThenInclude(tp => tp.POI)
             .FirstOrDefaultAsync(t => t.Id == intId);
             
         if (entity == null)
@@ -275,6 +280,12 @@ public class TourService : ITourService
 
     private static TourDto MapToDto(TourEntity entity)
     {
+        var activePoiIds = entity.POIIds
+            .Where(tp => tp.POI == null || tp.POI.IsActive)
+            .OrderBy(tp => tp.Order)
+            .Select(tp => tp.POIId.ToString())
+            .ToList();
+
         return new TourDto
         {
             Id = entity.Id.ToString(),
@@ -283,7 +294,6 @@ public class TourService : ITourService
             Description = entity.Description,
             EstimatedDurationMinutes = entity.EstimatedDurationMinutes,
             DistanceKm = entity.DistanceKm,
-            POICount = entity.POICount,
             ImageUrl = entity.ImageUrl,
             ThumbnailUrl = entity.ThumbnailUrl,
             Language = entity.Language,
@@ -291,7 +301,8 @@ public class TourService : ITourService
             DifficultyLevel = entity.DifficultyLevel,
             WheelchairAccessible = entity.WheelchairAccessible,
             IsActive = entity.IsActive,
-            POIIds = entity.POIIds?.OrderBy(p => p.Order).Select(p => p.POIId.ToString()).ToList() ?? new List<string>()
+            POICount = activePoiIds.Count,
+            POIIds = activePoiIds
         };
     }
 }

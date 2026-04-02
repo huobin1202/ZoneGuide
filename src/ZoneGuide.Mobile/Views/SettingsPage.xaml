@@ -242,10 +242,6 @@
                      <Label Text="{local:Translate settings_other}"
                                FontSize="18"
                                FontAttributes="Bold" />
-                   <Button Text="{local:Translate settings_logout_user}"
-                                BackgroundColor="#DC2626"
-                                TextColor="White"
-                                Command="{Binding LogoutCommand}" />
                      <Button Text="{local:Translate settings_clear_cache}"
                                 BackgroundColor="{StaticResource Gray500}"
                                 Command="{Binding ClearCacheCommand}" />

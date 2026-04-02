@@ -1,6 +1,7 @@
 using ZoneGuide.Mobile.ViewModels;
 using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Maps;
+using System.Collections.Specialized;
 
 namespace ZoneGuide.Mobile.Views;
 
@@ -9,33 +10,78 @@ public partial class MapPage : ContentPage, IQueryAttributable
     private readonly MapViewModel _viewModel;
     private int _lastRenderedPinCount = -1;
     private Polyline? _tourRoutePolyline;
+    private bool _hasInitialized;
+    private CancellationTokenSource? _pinsUpdateDebounceCts;
+    private CancellationTokenSource? _routeUpdateDebounceCts;
+    private const int CollectionUpdateDebounceMs = 80;
+    private bool _tourOverlayRequestedOnNavigation;
 
     public MapPage(MapViewModel viewModel)
     {
+        _viewModel = viewModel;
+
         try
         {
             InitializeComponent();
-            _viewModel = viewModel;
             BindingContext = viewModel;
-            
-            _viewModel.POIs.CollectionChanged += (s, e) => UpdateMapPins();
-            _viewModel.TourRoutePoints.CollectionChanged += (s, e) => UpdateTourRoute();
-            _viewModel.PropertyChanged += (s, e) => {
-                if (e.PropertyName == nameof(MapViewModel.MapSpan))
-                {
-                    UpdateMapRegion();
-                }
-                else if (e.PropertyName == nameof(MapViewModel.SelectedPOI) && _viewModel.SelectedPOI == null)
-                {
-                    FitMapToAllPins();
-                }
-            };
+            AttachViewModelEvents();
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[MapPage] Init Error: {ex}");
-            _viewModel = viewModel;
+            BindingContext = viewModel;
+            Content = BuildInitializationFallback(ex.Message);
         }
+    }
+
+    private void AttachViewModelEvents()
+    {
+        _viewModel.POIs.CollectionChanged += OnPoisCollectionChanged;
+        _viewModel.TourRoutePoints.CollectionChanged += OnTourRoutePointsCollectionChanged;
+        _viewModel.PropertyChanged += (s, e) => {
+            if (e.PropertyName == nameof(MapViewModel.MapSpan))
+            {
+                UpdateMapRegion();
+            }
+            else if (e.PropertyName == nameof(MapViewModel.SelectedPOI) && _viewModel.SelectedPOI == null)
+            {
+                FitMapToAllPins();
+            }
+        };
+    }
+
+    private static View BuildInitializationFallback(string message)
+    {
+        return new Grid
+        {
+            Padding = new Thickness(24),
+            BackgroundColor = Colors.White,
+            Children =
+            {
+                new VerticalStackLayout
+                {
+                    VerticalOptions = LayoutOptions.Center,
+                    Spacing = 10,
+                    Children =
+                    {
+                        new Label
+                        {
+                            Text = "Khong the tai giao dien ban do",
+                            FontAttributes = FontAttributes.Bold,
+                            FontSize = 18,
+                            HorizontalTextAlignment = TextAlignment.Center
+                        },
+                        new Label
+                        {
+                            Text = message,
+                            FontSize = 13,
+                            TextColor = Colors.Gray,
+                            HorizontalTextAlignment = TextAlignment.Center
+                        }
+                    }
+                }
+            }
+        };
     }
 
     protected override async void OnAppearing()
@@ -43,10 +89,26 @@ public partial class MapPage : ContentPage, IQueryAttributable
         base.OnAppearing();
         try
         {
-            await _viewModel.InitializeAsync();
+            if (!_hasInitialized)
+            {
+                await _viewModel.InitializeAsync();
+                _hasInitialized = true;
+            }
+            else
+            {
+                await _viewModel.ApplyTourRequestAsync();
+            }
+
             UpdateMapPins();
             UpdateTourRoute();
             UpdateMapRegion();
+
+            if (!_tourOverlayRequestedOnNavigation)
+            {
+                _viewModel.IsTourPoiListVisible = false;
+            }
+
+            _tourOverlayRequestedOnNavigation = false;
 
             // Map control trong Shell có thể khởi tạo chậm hơn vòng đời trang.
             await Task.Delay(250);
@@ -66,10 +128,17 @@ public partial class MapPage : ContentPage, IQueryAttributable
         {
             var tourId = TryGetIntQueryValue(query, "tourId");
             var startTour = TryGetBoolQueryValue(query, "startTour");
+            var hasTourOverlayContext = startTour && tourId.HasValue;
+
+            _tourOverlayRequestedOnNavigation = hasTourOverlayContext;
+            if (!hasTourOverlayContext)
+            {
+                _viewModel.IsTourPoiListVisible = false;
+            }
 
             _viewModel.SetTourRequest(tourId, startTour);
 
-            if (!startTour || !tourId.HasValue)
+            if (!startTour || !tourId.HasValue || !_hasInitialized)
                 return;
 
             _ = MainThread.InvokeOnMainThreadAsync(async () =>
@@ -84,6 +153,13 @@ public partial class MapPage : ContentPage, IQueryAttributable
         {
             System.Diagnostics.Debug.WriteLine($"[MapPage] ApplyQueryAttributes error: {ex.Message}");
         }
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        CancelDebounce(ref _pinsUpdateDebounceCts);
+        CancelDebounce(ref _routeUpdateDebounceCts);
     }
 
     private static int? TryGetIntQueryValue(IDictionary<string, object> query, string key)
@@ -143,6 +219,47 @@ public partial class MapPage : ContentPage, IQueryAttributable
         {
             System.Diagnostics.Debug.WriteLine($"[MapPage] UpdateTourRoute Error: {ex}");
         }
+    }
+
+    private void OnPoisCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        DebounceCollectionUpdate(ref _pinsUpdateDebounceCts, UpdateMapPins);
+    }
+
+    private void OnTourRoutePointsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        DebounceCollectionUpdate(ref _routeUpdateDebounceCts, UpdateTourRoute);
+    }
+
+    private void DebounceCollectionUpdate(ref CancellationTokenSource? debounceCts, Action updateAction)
+    {
+        CancelDebounce(ref debounceCts);
+
+        debounceCts = new CancellationTokenSource();
+        var token = debounceCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(CollectionUpdateDebounceMs, token);
+                if (token.IsCancellationRequested)
+                    return;
+
+                MainThread.BeginInvokeOnMainThread(updateAction);
+            }
+            catch (OperationCanceledException)
+            {
+                // Ignore debounced cancellations.
+            }
+        }, token);
+    }
+
+    private static void CancelDebounce(ref CancellationTokenSource? cts)
+    {
+        cts?.Cancel();
+        cts?.Dispose();
+        cts = null;
     }
 
     private void UpdateMapPins()

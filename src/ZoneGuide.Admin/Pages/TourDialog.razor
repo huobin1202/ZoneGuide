@@ -60,9 +60,9 @@
                                 CHON DIEM THAM QUAN
                             </MudText>
 
-                            @if (AvailablePOIs.Any())
+                            @if (ActiveAvailablePOIs.Any())
                             {
-                                @foreach (var poi in AvailablePOIs.OrderBy(p => p.Name))
+                                @foreach (var poi in ActiveAvailablePOIs.OrderBy(p => p.Name))
                                 {
                                     var selected = IsPOISelected(poi.Id);
                                     <MudPaper Outlined="true"
@@ -169,6 +169,7 @@
     private bool _saving;
     private TourFormModel _model = new();
     private List<POIDto> _selectedPOIs = new();
+    private IEnumerable<POIDto> ActiveAvailablePOIs => AvailablePOIs.Where(p => p.IsActive);
 
     protected override void OnInitialized()
     {
@@ -185,11 +186,15 @@
                 IsActive = Tour.IsActive
             };
 
+            var activeLookup = ActiveAvailablePOIs
+                .GroupBy(p => p.Id)
+                .Select(g => g.First())
+                .ToDictionary(p => p.Id, StringComparer.Ordinal);
+
             // Load selected POIs in order
             foreach (var poiId in Tour.POIIds)
             {
-                var poi = AvailablePOIs.FirstOrDefault(p => p.Id == poiId);
-                if (poi != null)
+                if (activeLookup.TryGetValue(poiId, out var poi))
                 {
                     _selectedPOIs.Add(poi);
                 }

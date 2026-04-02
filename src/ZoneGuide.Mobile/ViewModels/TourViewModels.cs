@@ -135,6 +135,9 @@ public partial class TourDetailViewModel : ObservableObject
     [ObservableProperty]
     private string highlightsText = string.Empty;
 
+    [ObservableProperty]
+    private int poiCountDisplay;
+
     public ObservableCollection<POI> POIs { get; } = new();
 
     public TourDetailViewModel(
@@ -184,10 +187,13 @@ public partial class TourDetailViewModel : ObservableObject
             {
                 POIs.Add(poi);
             }
+
+            PoiCountDisplay = POIs.Count > 0 ? POIs.Count : Tour.POICount;
         }
         else
         {
             POIs.Clear();
+            PoiCountDisplay = 0;
         }
 
         RefreshDisplayState();
@@ -195,6 +201,10 @@ public partial class TourDetailViewModel : ObservableObject
 
     private void RefreshDisplayState()
     {
+        PoiCountDisplay = POIs.Count > 0
+            ? POIs.Count
+            : Tour?.POICount ?? 0;
+
         DistanceDisplay = Tour == null
             ? "0m"
             : $"{Tour.EstimatedDistanceMeters:F0}m";

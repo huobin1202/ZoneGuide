@@ -37,7 +37,7 @@ public class POIRepository : IPOIRepository
     {
         var db = await _database.GetConnectionAsync();
         return await db.Table<POI>()
-            .Where(p => p.TourId == tourId)
+            .Where(p => p.TourId == tourId && p.IsActive)
             .OrderBy(p => p.OrderInTour)
             .ToListAsync();
     }

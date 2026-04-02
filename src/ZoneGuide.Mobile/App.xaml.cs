@@ -11,14 +11,12 @@ public partial class App : Application
 {
     private readonly IServiceProvider _services;
     private readonly ISettingsService _settingsService;
-    private readonly IUserSessionService _userSessionService;
 
-    public App(IServiceProvider services, ISettingsService settingsService, IUserSessionService userSessionService)
+    public App(IServiceProvider services, ISettingsService settingsService)
     {
         InitializeComponent();
         _services = services;
         _settingsService = settingsService;
-        _userSessionService = userSessionService;
 
         // Bắt unhandled exceptions để debug
         AppDomain.CurrentDomain.UnhandledException += (s, e) =>
@@ -61,12 +59,9 @@ public partial class App : Application
 
             var appShell = _services.GetRequiredService<AppShell>();
             var languageSelectionPage = _services.GetRequiredService<LanguageSelectionPage>();
-            var loginPage = _services.GetRequiredService<LoginPage>();
-
-            var isLoggedIn = await _userSessionService.IsAuthenticatedAsync();
 
             var rootPage = _settingsService.Settings.HasCompletedLanguageSelection
-                ? (isLoggedIn ? (Page)appShell : loginPage)
+                ? (Page)appShell
                 : languageSelectionPage;
 
             await MainThread.InvokeOnMainThreadAsync(() => window.Page = rootPage);
