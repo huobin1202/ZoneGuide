@@ -113,7 +113,15 @@ public interface IPOIService
         }
 
         var newName = string.IsNullOrWhiteSpace(dto.Name) ? poi.Name : dto.Name;
-        var newTts = dto.TTSScript;
+        var normalizedNarration = ResolveNarration(dto.TTSScript, dto.FullDescription, dto.ShortDescription);
+        var normalizedShortDescription = string.IsNullOrWhiteSpace(dto.ShortDescription)
+            ? normalizedNarration
+            : dto.ShortDescription;
+        var normalizedFullDescription = string.IsNullOrWhiteSpace(dto.FullDescription)
+            ? normalizedNarration
+            : dto.FullDescription;
+
+        var newTts = normalizedNarration;
         var previousName = existing.Name;
         var previousTts = existing.TTSScript;
         var previousAudio = existing.AudioUrl;
@@ -121,8 +129,8 @@ public interface IPOIService
             || !string.Equals(previousTts, newTts, StringComparison.Ordinal);
 
         existing.Name = newName;
-        existing.ShortDescription = dto.ShortDescription ?? string.Empty;
-        existing.FullDescription = dto.FullDescription ?? string.Empty;
+        existing.ShortDescription = normalizedShortDescription;
+        existing.FullDescription = normalizedFullDescription;
         existing.TTSScript = newTts;
         existing.AudioUrl = dto.AudioUrl;
         existing.IsOutdated = false;
@@ -138,6 +146,7 @@ public interface IPOIService
         }
 
         existing.UpdatedAt = DateTime.UtcNow;
+        poi.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
 
@@ -172,6 +181,13 @@ public interface IPOIService
             return false;
 
         _context.POITranslations.Remove(translation);
+
+        var poi = await _context.POIs.FirstOrDefaultAsync(p => p.Id == intPoiId);
+        if (poi != null)
+        {
+            poi.UpdatedAt = DateTime.UtcNow;
+        }
+
         await _context.SaveChangesAsync();
         return true;
     }
@@ -335,14 +351,22 @@ public interface IPOIService
                 var existing = entity.Translations.FirstOrDefault(t => t.LanguageCode == transDto.LanguageCode);
                 if (existing != null)
                 {
+                    var normalizedNarration = ResolveNarration(transDto.TTSScript, transDto.FullDescription, transDto.ShortDescription);
+                    var normalizedShortDescription = string.IsNullOrWhiteSpace(transDto.ShortDescription)
+                        ? normalizedNarration
+                        : transDto.ShortDescription;
+                    var normalizedFullDescription = string.IsNullOrWhiteSpace(transDto.FullDescription)
+                        ? normalizedNarration
+                        : transDto.FullDescription;
+
                     var translationContentChanged = !string.Equals(existing.Name, transDto.Name, StringComparison.Ordinal)
-                        || !string.Equals(existing.TTSScript, transDto.TTSScript, StringComparison.Ordinal);
+                        || !string.Equals(existing.TTSScript, normalizedNarration, StringComparison.Ordinal);
                     var previousAudio = existing.AudioUrl;
 
                     existing.Name = transDto.Name;
-                    existing.ShortDescription = transDto.ShortDescription;
-                    existing.FullDescription = transDto.FullDescription;
-                    existing.TTSScript = transDto.TTSScript;
+                    existing.ShortDescription = normalizedShortDescription;
+                    existing.FullDescription = normalizedFullDescription;
+                    existing.TTSScript = normalizedNarration;
                     existing.AudioUrl = transDto.AudioUrl;
                     existing.IsOutdated = false;
 
@@ -360,14 +384,22 @@ public interface IPOIService
                 }
                 else
                 {
+                    var normalizedNarration = ResolveNarration(transDto.TTSScript, transDto.FullDescription, transDto.ShortDescription);
+                    var normalizedShortDescription = string.IsNullOrWhiteSpace(transDto.ShortDescription)
+                        ? normalizedNarration
+                        : transDto.ShortDescription;
+                    var normalizedFullDescription = string.IsNullOrWhiteSpace(transDto.FullDescription)
+                        ? normalizedNarration
+                        : transDto.FullDescription;
+
                     entity.Translations.Add(new POITranslationEntity
                     {
                         POIId = entity.Id,
                         LanguageCode = transDto.LanguageCode,
                         Name = transDto.Name,
-                        ShortDescription = transDto.ShortDescription,
-                        FullDescription = transDto.FullDescription,
-                        TTSScript = transDto.TTSScript,
+                        ShortDescription = normalizedShortDescription,
+                        FullDescription = normalizedFullDescription,
+                        TTSScript = normalizedNarration,
                         AudioUrl = transDto.AudioUrl,
                         IsOutdated = false,
                         IsAudioOutdated = false,
@@ -380,6 +412,20 @@ public interface IPOIService
 
         await _context.SaveChangesAsync();
         return MapToDto(entity);
+    }
+
+    private static string ResolveNarration(string? ttsScript, string? fullDescription, string? shortDescription)
+    {
+        if (!string.IsNullOrWhiteSpace(ttsScript))
+            return ttsScript;
+
+        if (!string.IsNullOrWhiteSpace(fullDescription))
+            return fullDescription;
+
+        if (!string.IsNullOrWhiteSpace(shortDescription))
+            return shortDescription;
+
+        return string.Empty;
     }
 
     public async Task<bool> DeleteAsync(string id)

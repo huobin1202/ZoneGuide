@@ -7,7 +7,7 @@ namespace ZoneGuide.Mobile;
 
 public partial class AppShell : Shell
 {
-    private static bool _narrationPrefsApplied;
+    private bool _narrationPrefsApplied;
 
     public AppShell()
     {

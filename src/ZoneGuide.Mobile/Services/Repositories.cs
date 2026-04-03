@@ -160,17 +160,27 @@ public class POIRepository : IPOIRepository
         var translatedNarration = FirstNonEmpty(
             translation.TTSScript,
             translation.FullDescription,
-            translation.ShortDescription,
-            poi.TTSScript,
-            poi.FullDescription,
-            poi.ShortDescription);
+            translation.ShortDescription);
+
+        var missingTranslationMessage = GetMissingTranslationMessage(preferredLanguage);
+        var resolvedNarration = string.IsNullOrWhiteSpace(translatedNarration)
+            ? missingTranslationMessage
+            : translatedNarration;
+
+        var resolvedShortDescription = string.IsNullOrWhiteSpace(translation.ShortDescription)
+            ? resolvedNarration
+            : translation.ShortDescription;
+
+        var resolvedFullDescription = string.IsNullOrWhiteSpace(translation.FullDescription)
+            ? resolvedNarration
+            : translation.FullDescription;
 
         return ClonePoiWithResolvedContent(
             poi,
             name: string.IsNullOrWhiteSpace(translation.Name) ? poi.Name : translation.Name,
-            shortDescription: string.IsNullOrWhiteSpace(translation.ShortDescription) ? poi.ShortDescription : translation.ShortDescription,
-            fullDescription: string.IsNullOrWhiteSpace(translation.FullDescription) ? poi.FullDescription : translation.FullDescription,
-            ttsScript: translatedNarration,
+            shortDescription: resolvedShortDescription,
+            fullDescription: resolvedFullDescription,
+            ttsScript: resolvedNarration,
             audioFilePath: null,
             audioUrl: translation.AudioUrl,
             language: preferredLanguage);
