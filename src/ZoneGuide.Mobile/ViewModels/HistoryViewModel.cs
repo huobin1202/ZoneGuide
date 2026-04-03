@@ -79,17 +79,27 @@ public partial class HistoryViewModel : ObservableObject
             var allPois = await _poiRepository.GetAllAsync();
             var poiLookup = allPois.ToDictionary(p => p.Id);
 
-            var items = histories
-                .OrderByDescending(h => h.StartTime)
-                .Select(history => BuildHistoryItem(history, poiLookup.TryGetValue(history.POIId, out var poi) ? poi : null))
+            var groupedByPoi = histories
+                .GroupBy(h => h.POIId)
+                .Select(g =>
+                {
+                    var ordered = g.OrderByDescending(x => x.StartTime).ToList();
+                    var latest = ordered.First();
+                    var totalDuration = ordered.Sum(x => ResolveDurationSeconds(x));
+                    var playCount = ordered.Count;
+                    var poi = poiLookup.TryGetValue(latest.POIId, out var p) ? p : null;
+
+                    return BuildHistoryItem(latest, poi, playCount, totalDuration);
+                })
+                .OrderByDescending(x => x.PlayedAt)
                 .ToList();
 
-            TotalHistoryCount = items.Count;
+            TotalHistoryCount = histories.Count;
             TotalHistoryCountText = $"{TotalHistoryCount} {AppLocalizer.Instance.Translate("history_places_count")}";
-            TotalDurationText = FormatTotalDuration(items.Sum(x => Math.Max(x.DurationSeconds, 0)));
+            TotalDurationText = FormatTotalDuration(histories.Sum(ResolveDurationSeconds));
 
             HistoryGroups.Clear();
-            foreach (var group in items.GroupBy(x => x.GroupDate))
+            foreach (var group in groupedByPoi.GroupBy(x => x.GroupDate))
             {
                 var title = FormatGroupTitle(group.Key);
                 HistoryGroups.Add(new HistoryDayGroup(title, group.ToList()));
@@ -145,7 +155,9 @@ public partial class HistoryViewModel : ObservableObject
             AudioPath = poi.AudioFilePath,
             AudioUrl = poi.AudioUrl,
             TTSText = poi.TTSScript ?? poi.FullDescription,
-            Language = _settingsService.Settings.PreferredLanguage,
+            Language = string.IsNullOrWhiteSpace(item.LastLanguageCode)
+                ? _settingsService.Settings.PreferredLanguage
+                : item.LastLanguageCode,
             Priority = poi.Priority,
             TriggerType = GeofenceEventType.Enter,
             TriggerDistance = 0
@@ -153,7 +165,6 @@ public partial class HistoryViewModel : ObservableObject
 
         await _narrationService.PlayImmediatelyAsync(queueItem);
         SyncNarrationState();
-        await Shell.Current.GoToAsync($"POIDetailPage?id={poi.Id}");
     }
 
     [RelayCommand]
@@ -189,7 +200,12 @@ public partial class HistoryViewModel : ObservableObject
         if (!confirm)
             return;
 
-        await _analyticsRepository.DeleteNarrationAsync(item.Id);
+        var byPoi = await _analyticsRepository.GetNarrationsByPOIAsync(item.POIId);
+        foreach (var history in byPoi)
+        {
+            await _analyticsRepository.DeleteNarrationAsync(history.Id);
+        }
+
         await LoadHistoryAsync();
     }
 
@@ -198,6 +214,11 @@ public partial class HistoryViewModel : ObservableObject
         MainThread.BeginInvokeOnMainThread(async () =>
         {
             SyncNarrationState();
+
+            // Chỉ reload khi kết thúc/dừng để tránh reload liên tục trong khi đang phát.
+            if (_narrationService.IsPlaying)
+                return;
+
             await LoadHistoryAsync();
         });
     }
@@ -209,28 +230,41 @@ public partial class HistoryViewModel : ObservableObject
         IsCurrentNarrationPaused = CurrentNarrationPoiId.HasValue && _narrationService.IsPaused;
     }
 
-    private static HistoryEntryViewModel BuildHistoryItem(NarrationHistory history, POI? poi)
+    private static HistoryEntryViewModel BuildHistoryItem(NarrationHistory history, POI? poi, int playCount, int totalDuration)
     {
         var localTime = history.StartTime.ToLocalTime();
-        var durationSeconds = history.DurationSeconds > 0
-            ? history.DurationSeconds
-            : history.EndTime.HasValue
-                ? Math.Max(1, (int)Math.Round((history.EndTime.Value - history.StartTime).TotalSeconds))
-                : 0;
+        var durationSeconds = totalDuration;
 
         return new HistoryEntryViewModel
         {
             Id = history.Id,
             POIId = history.POIId,
-            Title = poi?.Name ?? history.POIName,
+            Title = !string.IsNullOrWhiteSpace(history.POIName) ? history.POIName : (poi?.Name ?? string.Empty),
             Description = poi?.TTSScript ?? poi?.FullDescription ?? poi?.ShortDescription ?? AppLocalizer.Instance.Translate("history_subtitle"),
             Category = poi?.Category ?? AppLocalizer.Instance.Translate("category_other"),
             ImageUrl = POIListViewModel.ResolveImageSource(poi?.ImageUrl),
             PlayedAt = localTime,
             PlayedAtText = FormatRelativeTime(localTime),
             DurationSeconds = durationSeconds,
-            DurationText = FormatDuration(durationSeconds)
+            DurationText = FormatDuration(durationSeconds),
+            PlayCount = playCount,
+            PlayCountText = playCount <= 1 ? "1 lần nghe" : $"{playCount} lần nghe",
+            LastLanguageCode = history.Language,
+            LastLanguageText = AppLocalizer.Instance.TranslateLanguageName(history.Language)
         };
+    }
+
+    private static int ResolveDurationSeconds(NarrationHistory history)
+    {
+        if (history.DurationSeconds > 0)
+            return history.DurationSeconds;
+
+        if (history.EndTime.HasValue)
+        {
+            return Math.Max(1, (int)Math.Round((history.EndTime.Value - history.StartTime).TotalSeconds));
+        }
+
+        return 0;
     }
 
     private static string FormatGroupTitle(DateTime date)
@@ -311,6 +345,10 @@ public partial class HistoryEntryViewModel : ObservableObject
     public string PlayedAtText { get; set; } = string.Empty;
     public int DurationSeconds { get; set; }
     public string DurationText { get; set; } = string.Empty;
+    public int PlayCount { get; set; }
+    public string PlayCountText { get; set; } = string.Empty;
+    public string LastLanguageCode { get; set; } = string.Empty;
+    public string LastLanguageText { get; set; } = string.Empty;
 
     public DateTime GroupDate => PlayedAt.Date;
 }
