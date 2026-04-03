@@ -49,7 +49,7 @@
                   Padding="20,0,20,10"
                   ColumnDefinitions="*,Auto"
                   ColumnSpacing="12">
-                <Label Text="{Binding FilteredCount, StringFormat='{}{0} địa điểm tham quan'}"
+                                <Label Text="{Binding FilteredCountText}"
                        FontSize="14"
                        TextColor="{StaticResource Gray500}"
                        VerticalTextAlignment="Center" />
@@ -98,56 +98,83 @@
                                    CornerRadius="18"
                                    BackgroundColor="White"
                                    HasShadow="False">
-                                <Frame.GestureRecognizers>
-                                    <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:POIListViewModel}}, Path=ViewDetailCommand}"
-                                                          CommandParameter="{Binding .}" />
-                                </Frame.GestureRecognizers>
-
                                 <Grid ColumnDefinitions="82,*,Auto"
                                       ColumnSpacing="12">
-                                    <Frame Grid.Column="0"
-                                           WidthRequest="82"
-                                           HeightRequest="82"
-                                           CornerRadius="16"
-                                           Padding="0"
-                                           BackgroundColor="#ECEAF8"
-                                           IsClippedToBounds="True">
-                                                                                <Image Source="{Binding ImageUrl, Converter={StaticResource FlexibleImageSourceConverter}}"
-                                               Aspect="AspectFill" />
-                                    </Frame>
+                                 <Grid Grid.Column="0"
+                                    Grid.ColumnSpan="2"
+                                    ColumnDefinitions="82,*"
+                                    ColumnSpacing="12">
+                                     <Grid.GestureRecognizers>
+                                      <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:POIListViewModel}}, Path=ViewDetailCommand}"
+                                                   CommandParameter="{Binding .}" />
+                                     </Grid.GestureRecognizers>
 
-                                    <VerticalStackLayout Grid.Column="1"
-                                                         Spacing="6"
+                                     <Frame Grid.Column="0"
+                                         WidthRequest="82"
+                                         HeightRequest="82"
+                                         CornerRadius="16"
+                                         Padding="0"
+                                         BackgroundColor="#ECEAF8"
+                                         IsClippedToBounds="True">
+                                      <Image Source="{Binding ImageUrl, Converter={StaticResource FlexibleImageSourceConverter}}"
+                                          Aspect="AspectFill" />
+                                     </Frame>
+
+                                     <VerticalStackLayout Grid.Column="1"
+                                                 Spacing="6"
+                                                 VerticalOptions="Center">
+                                      <Label Text="{Binding Name}"
+                                          FontSize="18"
+                                          FontAttributes="Bold"
+                                          MaxLines="1" />
+                                      <Border BackgroundColor="#F2EFFF"
+                                           StrokeThickness="0"
+                                           StrokeShape="RoundRectangle 10"
+                                           Padding="8,2"
+                                           HorizontalOptions="Start">
+                                          <Label Text="{Binding Category, Converter={StaticResource LocalizedCategoryConverter}}"
+                                              FontSize="11"
+                                              TextColor="{StaticResource Primary}" />
+                                      </Border>
+                                      <Label Text="{Binding TTSScript}"
+                                          FontSize="13"
+                                          TextColor="{StaticResource Gray500}"
+                                          MaxLines="3" />
+                                     </VerticalStackLayout>
+                                 </Grid>
+
+                                    <VerticalStackLayout Grid.Column="2"
+                                                         Spacing="8"
                                                          VerticalOptions="Center">
-                                        <Label Text="{Binding Name}"
-                                               FontSize="18"
-                                               FontAttributes="Bold"
-                                               MaxLines="1" />
-                                        <Border BackgroundColor="#F2EFFF"
-                                                StrokeThickness="0"
-                                                StrokeShape="RoundRectangle 10"
-                                                Padding="8,2"
-                                                HorizontalOptions="Start">
-                                              <Label Text="{Binding Category, Converter={StaticResource LocalizedCategoryConverter}}"
-                                                   FontSize="11"
-                                                   TextColor="{StaticResource Primary}" />
-                                        </Border>
-                                        <Label Text="{Binding ShortDescription}"
-                                               FontSize="13"
-                                               TextColor="{StaticResource Gray500}"
-                                               MaxLines="3" />
-                                    </VerticalStackLayout>
+                                        <Button Text="▶"
+                                                WidthRequest="46"
+                                                HeightRequest="46"
+                                                CornerRadius="23"
+                                                FontSize="16"
+                                                Padding="0"
+                                                VerticalOptions="Center"
+                                                Command="{Binding Source={RelativeSource AncestorType={x:Type vm:POIListViewModel}}, Path=PlayPOICommand}"
+                                                CommandParameter="{Binding .}" />
 
-                                    <Button Grid.Column="2"
-                                            Text="▶"
-                                            WidthRequest="46"
-                                            HeightRequest="46"
-                                            CornerRadius="23"
-                                            FontSize="16"
-                                            Padding="0"
-                                            VerticalOptions="Center"
-                                            Command="{Binding Source={RelativeSource AncestorType={x:Type vm:POIListViewModel}}, Path=PlayPOICommand}"
-                                            CommandParameter="{Binding .}" />
+                                        <Button Text="⏹"
+                                            WidthRequest="40"
+                                                HeightRequest="40"
+                                                CornerRadius="20"
+                                                FontSize="14"
+                                                Padding="0"
+                                                BackgroundColor="#FFE6E6"
+                                                TextColor="#B3261E"
+                                                Command="{Binding Source={RelativeSource AncestorType={x:Type vm:POIListViewModel}}, Path=ToggleStopResumePOICommand}"
+                                                CommandParameter="{Binding .}">
+                                            <Button.IsVisible>
+                                                <MultiBinding Converter="{StaticResource PoiMatchConverter}">
+                                                    <Binding Source="{RelativeSource AncestorType={x:Type vm:POIListViewModel}}" Path="CurrentNarrationPoiId" />
+                                                    <Binding Path="Id" />
+                                                    <Binding Source="{RelativeSource AncestorType={x:Type vm:POIListViewModel}}" Path="IsCurrentNarrationPlaying" />
+                                                </MultiBinding>
+                                            </Button.IsVisible>
+                                        </Button>
+                                    </VerticalStackLayout>
                                 </Grid>
                             </Frame>
                         </DataTemplate>

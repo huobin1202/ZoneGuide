@@ -9,6 +9,13 @@ namespace ZoneGuide.Mobile.Services;
 /// </summary>
 public class GeofenceService : IGeofenceService
 {
+    private const int MinEffectiveCooldownSeconds = 1;
+    private const int MaxEffectiveCooldownSeconds = 3;
+    private const double MaxActivationRadiusMeters = 5000;
+    private const double DefaultTriggerRadiusMeters = 60;
+    private const double DefaultApproachRadiusMeters = 120;
+    private const double MinTriggerRadiusMeters = 20;
+
     public event EventHandler<GeofenceEvent>? GeofenceTriggered;
 
     private readonly List<POI> _monitoredPOIs = new();
@@ -17,7 +24,7 @@ public class GeofenceService : IGeofenceService
     private readonly object _lock = new();
 
     // Debounce settings
-    private readonly TimeSpan _debounceTime = TimeSpan.FromSeconds(3);
+    private readonly TimeSpan _debounceTime = TimeSpan.FromMilliseconds(700);
     private readonly ConcurrentDictionary<int, DateTime> _lastTriggerTime = new();
 
     public IReadOnlyList<POI> MonitoredPOIs => _monitoredPOIs.AsReadOnly();
@@ -83,6 +90,11 @@ public class GeofenceService : IGeofenceService
                 foreach (var poi in _monitoredPOIs.Where(p => p.IsActive))
                 {
                     var distance = location.DistanceTo(poi.Latitude, poi.Longitude);
+                    var triggerRadius = poi.TriggerRadius > 0 ? poi.TriggerRadius : DefaultTriggerRadiusMeters;
+                    triggerRadius = Math.Clamp(triggerRadius, MinTriggerRadiusMeters, MaxActivationRadiusMeters);
+
+                    var approachRadius = poi.ApproachRadius > 0 ? poi.ApproachRadius : DefaultApproachRadiusMeters;
+                    approachRadius = Math.Clamp(approachRadius, triggerRadius, MaxActivationRadiusMeters);
 
                     // Tìm POI gần nhất
                     if (distance < nearestDistance)
@@ -91,21 +103,14 @@ public class GeofenceService : IGeofenceService
                         nearest = poi;
                     }
 
-                    // Kiểm tra cooldown
-                    if (IsCooldownActive(poi.Id))
-                        continue;
-
-                    // Kiểm tra debounce
-                    if (!CanTrigger(poi.Id))
-                        continue;
-
                     var state = _poiStates.GetOrAdd(poi.Id, _ => new GeofenceState());
+                    state.Distance = distance;
                     var previousState = state.CurrentState;
 
                     // Xác định trạng thái mới
                     GeofenceEventType? newState = null;
 
-                    if (distance <= poi.TriggerRadius)
+                    if (distance <= triggerRadius)
                     {
                         // Trong vùng trigger
                         if (previousState != GeofenceEventType.Enter && previousState != GeofenceEventType.Dwell)
@@ -121,7 +126,7 @@ public class GeofenceService : IGeofenceService
                             }
                         }
                     }
-                    else if (distance <= poi.ApproachRadius)
+                    else if (distance <= approachRadius)
                     {
                         // Trong vùng approach
                         if (previousState != GeofenceEventType.Approach && 
@@ -145,8 +150,20 @@ public class GeofenceService : IGeofenceService
                     // Tạo event nếu có thay đổi
                     if (newState.HasValue)
                     {
+                        // Enter chịu cooldown + debounce, còn Exit phải được phát ngay để dừng audio đúng lúc.
+                        if (newState.Value == GeofenceEventType.Enter)
+                        {
+                            if (IsCooldownActive(poi.Id) || !CanTrigger(poi.Id))
+                            {
+                                continue;
+                            }
+                        }
+                        else if (newState.Value != GeofenceEventType.Exit && !CanTrigger(poi.Id))
+                        {
+                            continue;
+                        }
+
                         state.CurrentState = newState.Value;
-                        state.Distance = distance;
                         
                         if (newState.Value == GeofenceEventType.Enter)
                         {
@@ -167,7 +184,12 @@ public class GeofenceService : IGeofenceService
                         // Tự động set cooldown sau khi Enter
                         if (newState.Value == GeofenceEventType.Enter)
                         {
-                            SetCooldown(poi.Id, TimeSpan.FromSeconds(poi.CooldownSeconds));
+                            var effectiveCooldownSeconds = Math.Clamp(
+                                poi.CooldownSeconds,
+                                MinEffectiveCooldownSeconds,
+                                MaxEffectiveCooldownSeconds);
+
+                            SetCooldown(poi.Id, TimeSpan.FromSeconds(effectiveCooldownSeconds));
                         }
                     }
                 }

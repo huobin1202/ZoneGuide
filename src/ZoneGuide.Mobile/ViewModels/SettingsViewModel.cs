@@ -13,11 +13,13 @@ namespace ZoneGuide.Mobile.ViewModels;
 /// </summary>
 public partial class SettingsViewModel : ObservableObject
 {
+    private const double MinRadiusMeters = 10;
+    private const double MaxRadiusMeters = 5000;
+
     private readonly ISettingsService _settingsService;
     private readonly ISyncService _syncService;
     private readonly ITTSService _ttsService;
     private readonly INarrationService _narrationService;
-    private readonly IUserSessionService _userSessionService;
 
     [ObservableProperty]
     private string preferredLanguage = "vi-VN";
@@ -84,20 +86,16 @@ public partial class SettingsViewModel : ObservableObject
     public ObservableCollection<string> AvailableVoices { get; } = new();
     public ObservableCollection<string> GpsAccuracyOptions { get; } = new();
 
-    public event EventHandler? LogoutRequested;
-
     public SettingsViewModel(
         ISettingsService settingsService,
         ISyncService syncService,
         ITTSService ttsService,
-        INarrationService narrationService,
-        IUserSessionService userSessionService)
+        INarrationService narrationService)
     {
         _settingsService = settingsService;
         _syncService = syncService;
         _ttsService = ttsService;
         _narrationService = narrationService;
-        _userSessionService = userSessionService;
 
         foreach (var option in LanguageOptionItem.CreateDefaults())
         {
@@ -125,8 +123,8 @@ public partial class SettingsViewModel : ObservableObject
             GPSAccuracyLevel.High => 2,
             _ => 1
         };
-        TriggerRadius = settings.DefaultTriggerRadius;
-        ApproachRadius = settings.DefaultApproachRadius;
+        TriggerRadius = NormalizeRadius(settings.DefaultTriggerRadius);
+        ApproachRadius = NormalizeApproachRadius(settings.DefaultApproachRadius, TriggerRadius);
         CooldownSeconds = settings.DefaultCooldownSeconds;
         AutoPlayOnEnter = settings.AutoPlayOnEnter;
         NotifyOnApproach = settings.NotifyOnApproach;
@@ -164,6 +162,18 @@ public partial class SettingsViewModel : ObservableObject
         return $"{AppLocalizer.Instance.Translate("settings_last_sync")}: {value.Value:dd/MM/yyyy HH:mm}";
     }
 
+    private static double NormalizeRadius(double value)
+    {
+        return Math.Clamp(value, MinRadiusMeters, MaxRadiusMeters);
+    }
+
+    private static double NormalizeApproachRadius(double value, double triggerRadius)
+    {
+        var normalizedTrigger = NormalizeRadius(triggerRadius);
+        var normalizedApproach = NormalizeRadius(value);
+        return Math.Max(normalizedApproach, normalizedTrigger);
+    }
+
     private async Task LoadVoicesAsync()
     {
         var voices = await _ttsService.GetVoicesAsync(PreferredLanguage);
@@ -178,13 +188,19 @@ public partial class SettingsViewModel : ObservableObject
     private async Task SaveSettingsAsync()
     {
         var settings = _settingsService.Settings;
+        var previousLanguage = settings.PreferredLanguage;
+        var normalizedTriggerRadius = NormalizeRadius(TriggerRadius);
+        var normalizedApproachRadius = NormalizeApproachRadius(ApproachRadius, normalizedTriggerRadius);
+
+        TriggerRadius = normalizedTriggerRadius;
+        ApproachRadius = normalizedApproachRadius;
 
         settings.PreferredLanguage = PreferredLanguage;
         settings.TTSSpeed = TtsSpeed;
         settings.Volume = Volume;
         settings.GPSAccuracy = GpsAccuracy;
-        settings.DefaultTriggerRadius = TriggerRadius;
-        settings.DefaultApproachRadius = ApproachRadius;
+        settings.DefaultTriggerRadius = normalizedTriggerRadius;
+        settings.DefaultApproachRadius = normalizedApproachRadius;
         settings.DefaultCooldownSeconds = CooldownSeconds;
         settings.AutoPlayOnEnter = AutoPlayOnEnter;
         settings.NotifyOnApproach = NotifyOnApproach;
@@ -196,6 +212,19 @@ public partial class SettingsViewModel : ObservableObject
 
         await _settingsService.SaveAsync();
         AppLocalizer.Instance.SetLanguage(PreferredLanguage);
+
+        var languageChanged = !string.Equals(previousLanguage, PreferredLanguage, StringComparison.OrdinalIgnoreCase);
+        if (languageChanged)
+        {
+            try
+            {
+                await _syncService.SyncFromServerAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[SettingsVM] Sync after language change failed: {ex.Message}");
+            }
+        }
 
         // Áp dụng settings
         _narrationService.SetVolume(Volume);
@@ -293,22 +322,6 @@ public partial class SettingsViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
-    private async Task LogoutAsync()
-    {
-        var confirm = await Shell.Current.DisplayAlert(
-            AppLocalizer.Instance.Translate("settings_logout_confirm_title"),
-            AppLocalizer.Instance.Translate("settings_logout_confirm_message"),
-            AppLocalizer.Instance.Translate("settings_logout_user"),
-            AppLocalizer.Instance.Translate("alert_cancel"));
-
-        if (!confirm)
-            return;
-
-        await _userSessionService.LogoutAsync();
-        LogoutRequested?.Invoke(this, EventArgs.Empty);
-    }
-
     partial void OnPreferredLanguageChanged(string value)
     {
         _ = LoadVoicesAsync();
@@ -338,6 +351,30 @@ public partial class SettingsViewModel : ObservableObject
             2 => GPSAccuracyLevel.High,
             _ => GPSAccuracyLevel.Medium
         };
+    }
+
+    partial void OnTriggerRadiusChanged(double value)
+    {
+        var normalized = NormalizeRadius(value);
+        if (Math.Abs(normalized - value) > 0.001)
+        {
+            TriggerRadius = normalized;
+            return;
+        }
+
+        if (ApproachRadius < normalized)
+        {
+            ApproachRadius = normalized;
+        }
+    }
+
+    partial void OnApproachRadiusChanged(double value)
+    {
+        var normalized = NormalizeApproachRadius(value, TriggerRadius);
+        if (Math.Abs(normalized - value) > 0.001)
+        {
+            ApproachRadius = normalized;
+        }
     }
 
     partial void OnVolumeChanged(float value)

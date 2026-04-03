@@ -95,28 +95,6 @@
     private bool _showPassword = false;
     private bool _isLoading = false;
     private string? _errorMessage;
-    private bool _isInitialized = false;
-    
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            // Check if already logged in (LocalStorage only works after first render in Server-Side Blazor)
-            try
-            {
-                var token = await LocalStorage.GetItemAsync<string>("accessToken");
-                if (!string.IsNullOrEmpty(token))
-                {
-                    Navigation.NavigateTo("/");
-                    return;
-                }
-            }
-            catch { }
-            _isInitialized = true;
-            StateHasChanged();
-        }
-    }
-    
     private async Task HandleLogin()
     {
         _isLoading = true;

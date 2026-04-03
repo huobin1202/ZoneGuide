@@ -6,7 +6,7 @@ namespace ZoneGuide.API.Services;
 
 public interface ITourService
 {
-    Task<List<TourDto>> GetAllAsync();
+    Task<List<TourDto>> GetAllAsync(bool includeInactive = false);
     Task<TourDto?> GetByIdAsync(string id);
     Task<TourDto?> GetWithPOIsAsync(string id);
     Task<TourDto> CreateAsync(CreateTourDto dto);
@@ -26,11 +26,18 @@ public class TourService : ITourService
         _poiService = poiService;
     }
 
-    public async Task<List<TourDto>> GetAllAsync()
+    public async Task<List<TourDto>> GetAllAsync(bool includeInactive = false)
     {
-        var entities = await _context.Tours
+        var query = _context.Tours
             .Include(t => t.POIIds)
-            .Where(t => t.IsActive)
+            .AsQueryable();
+
+        if (!includeInactive)
+        {
+            query = query.Where(t => t.IsActive);
+        }
+
+        var entities = await query
             .OrderBy(t => t.Name)
             .ToListAsync();
 
@@ -44,6 +51,7 @@ public class TourService : ITourService
             
         var entity = await _context.Tours
             .Include(t => t.POIIds)
+            .ThenInclude(tp => tp.POI)
             .FirstOrDefaultAsync(t => t.Id == intId);
         return entity != null ? MapToDto(entity) : null;
     }
@@ -55,6 +63,7 @@ public class TourService : ITourService
             
         var entity = await _context.Tours
             .Include(t => t.POIIds)
+            .ThenInclude(tp => tp.POI)
             .FirstOrDefaultAsync(t => t.Id == intId);
         if (entity == null)
             return null;
@@ -123,6 +132,7 @@ public class TourService : ITourService
             
         var entity = await _context.Tours
             .Include(t => t.POIIds)
+            .ThenInclude(tp => tp.POI)
             .FirstOrDefaultAsync(t => t.Id == intId);
         if (entity == null)
             return null;
@@ -192,8 +202,27 @@ public class TourService : ITourService
         if (entity == null)
             return false;
 
+        var deletedAt = DateTime.UtcNow;
         entity.IsActive = false;
-        entity.UpdatedAt = DateTime.UtcNow;
+        entity.UpdatedAt = deletedAt;
+
+        var deletedRecord = await _context.DeletedRecords
+            .FirstOrDefaultAsync(d => d.EntityType == "Tour" && d.EntityId == entity.Id.ToString());
+
+        if (deletedRecord == null)
+        {
+            _context.DeletedRecords.Add(new DeletedRecordEntity
+            {
+                EntityType = "Tour",
+                EntityId = entity.Id.ToString(),
+                DeletedAt = deletedAt
+            });
+        }
+        else
+        {
+            deletedRecord.DeletedAt = deletedAt;
+        }
+
         await _context.SaveChangesAsync();
         return true;
     }
@@ -205,6 +234,7 @@ public class TourService : ITourService
             
         var entity = await _context.Tours
             .Include(t => t.POIIds)
+            .ThenInclude(tp => tp.POI)
             .FirstOrDefaultAsync(t => t.Id == intId);
             
         if (entity == null)
@@ -256,6 +286,12 @@ public class TourService : ITourService
 
     private static TourDto MapToDto(TourEntity entity)
     {
+        var activePoiIds = entity.POIIds
+            .Where(tp => tp.POI == null || tp.POI.IsActive)
+            .OrderBy(tp => tp.Order)
+            .Select(tp => tp.POIId.ToString())
+            .ToList();
+
         return new TourDto
         {
             Id = entity.Id.ToString(),
@@ -264,7 +300,6 @@ public class TourService : ITourService
             Description = entity.Description,
             EstimatedDurationMinutes = entity.EstimatedDurationMinutes,
             DistanceKm = entity.DistanceKm,
-            POICount = entity.POICount,
             ImageUrl = entity.ImageUrl,
             ThumbnailUrl = entity.ThumbnailUrl,
             Language = entity.Language,
@@ -272,7 +307,8 @@ public class TourService : ITourService
             DifficultyLevel = entity.DifficultyLevel,
             WheelchairAccessible = entity.WheelchairAccessible,
             IsActive = entity.IsActive,
-            POIIds = entity.POIIds?.OrderBy(p => p.Order).Select(p => p.POIId.ToString()).ToList() ?? new List<string>()
+            POICount = activePoiIds.Count,
+            POIIds = activePoiIds
         };
     }
 }

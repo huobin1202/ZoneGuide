@@ -94,13 +94,7 @@ else
                 </MudSimpleTable>
             </MudPaper>
             
-            <MudPaper Class="pa-4 mt-4" Elevation="1">
-                <MudText Typo="Typo.h6" Class="mb-4">Export Data</MudText>
-                <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true"
-                           StartIcon="@Icons.Material.Filled.Download" OnClick="ExportToJson">
-                    Export as JSON
-                </MudButton>
-            </MudPaper>
+          
         </MudItem>
     </MudGrid>
 }
@@ -129,13 +123,5 @@ else
         return max > 0 ? (double)weight / max * 100 : 0;
     }
 
-    private void ExportToJson()
-    {
-        // In a real implementation, this would download the JSON file
-        var json = System.Text.Json.JsonSerializer.Serialize(_heatmapData, new System.Text.Json.JsonSerializerOptions 
-        { 
-            WriteIndented = true 
-        });
-        Console.WriteLine(json);
-    }
+
 }

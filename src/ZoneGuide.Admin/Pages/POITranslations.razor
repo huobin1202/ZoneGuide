@@ -1,0 +1,1041 @@
+@page "/poi-translations"
+@inject IApiService ApiService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@using Microsoft.AspNetCore.Components.Forms
+
+<MudPaper Class="pa-4 mb-4" Elevation="0" Outlined="true">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="poi-header-compact">
+        <MudStack Spacing="0">
+            <MudText Typo="Typo.h4">Audio & bản dịch POI</MudText>
+            <MudText Typo="Typo.subtitle1" Class="mud-text-secondary">Quản lý nội dung đa ngôn ngữ và âm thanh thuyết minh</MudText>
+        </MudStack>
+    </MudStack>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudGrid Spacing="3">
+        <MudItem xs="12" md="3">
+            <MudPaper Class="pa-3" Outlined="true">
+                <MudTextField @bind-Value="_searchPoi" Label="Tìm POI" Placeholder="Nhập tên hoặc địa chỉ..."
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+
+                <div class="mt-3 poi-list-scroll">
+                    @foreach (var poi in FilteredPois)
+                    {
+                        <MudCard Class="@($"poi-item-card {(poi.Id == _selectedPoiId ? "active" : string.Empty)}")"
+                                 @onclick="() => SelectPoiAsync(poi)">
+                            <MudCardContent Class="pa-2">
+                                <div class="poi-list-item-layout">
+                                    <img class="poi-list-thumb" src="@(string.IsNullOrEmpty(poi.ImageUrl) ? "/images/placeholder.png" : poi.ImageUrl)" alt="Ảnh POI @poi.Name" />
+                                    <div class="poi-list-main">
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start" Class="mb-1">
+                                            <MudText Typo="Typo.subtitle2">@poi.Name</MudText>
+                                            @if (HasPoiOutdatedTranslations(poi.Id))
+                                            {
+                                                <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Color="Color.Warning" Size="Size.Small" Title="Có bản dịch/audio outdated" />
+                                            }
+                                        </MudStack>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-1">@(string.IsNullOrWhiteSpace(poi.Address) ? $"Mã: {poi.UniqueCode}" : poi.Address)</MudText>
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info">
+                                            @($"{GetPoiTranslationCount(poi.Id)} bản dịch")
+                                        </MudChip>
+                                    </div>
+                                </div>
+                            </MudCardContent>
+                        </MudCard>
+
+                        @if (_loadingSummaries)
+                        {
+                            <MudProgressLinear Indeterminate="true" Color="Color.Info" Class="mb-1" />
+                        }
+                    }
+                </div>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="5">
+            @if (_selectedPoi is null)
+            {
+                <MudAlert Severity="Severity.Info">Chọn một POI ở bên trái để tạo bản dịch và audio.</MudAlert>
+            }
+            else
+            {
+                <MudPaper Class="pa-3 mb-3" Outlined="true">
+                    <MudStack Spacing="1">
+                        <MudText Typo="Typo.h6">@_selectedPoi.Name</MudText>
+                    </MudStack>
+                </MudPaper>
+
+                <MudPaper Class="pa-3" Outlined="true">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+                        <MudText Typo="Typo.subtitle1">Bản tạo audio / bản dịch</MudText>
+                        <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh"
+                                   OnClick="RefreshCurrentPoiAsync" Disabled="@(_selectedPoi is null || _refreshingCurrentPoi)">
+                            @(_refreshingCurrentPoi ? "Đang làm mới..." : "Làm mới")
+                        </MudButton>
+                    </MudStack>
+
+                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End" Class="mb-2 flex-wrap">
+                        <MudSelect T="string" Value="@_selectedLanguage" ValueChanged="OnSelectedLanguageChangedAsync" Label="Target language" Style="min-width: 260px;">
+                            @foreach (var option in LanguageOptions)
+                            {
+                                <MudSelectItem Value="@option.Code">@option.Label</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudStack>
+
+                    @if (IsOriginalLanguageSelected)
+                    {
+                        <MudAlert Severity="Severity.Warning" Class="mt-2">
+                            Ngôn ngữ gốc đang được khóa để tránh sửa nhầm nội dung gốc.
+                        </MudAlert>
+                    }
+
+                    @if (_translatingContent)
+                    {
+                        <MudAlert Severity="Severity.Info" Class="mt-2">Đang tự động dịch nội dung theo ngôn ngữ đã chọn...</MudAlert>
+                    }
+
+                    <MudText Typo="Typo.subtitle2" Class="mt-3 mb-2">Nội dung</MudText>
+                    <MudTextField @bind-Value="_editingTranslation.Name" Label="Translation title" Class="mb-2" Disabled="@(!CanEditTranslation)" />
+                    <MudTextField @bind-Value="_editingTranslation.TTSScript" Label="Description / narration content" Lines="6" Class="mb-2"
+                                  HelperText="This content will be used for audio generation"
+                                  Disabled="@(!CanEditTranslation)" />
+
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Audio</MudText>
+                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mb-2 audio-actions-row">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.GraphicEq"
+                                   OnClick="GenerateTtsForEditingAsync" Disabled="@(_generatingTts || !CanEditTranslation)">
+                            @(_generatingTts ? "Generating audio..." : "Generate audio (TTS)")
+                        </MudButton>
+
+                        <div class="audio-upload-action">
+                            <InputFile id="audio-upload" class="audio-upload-input" OnChange="UploadAudioFromInput" accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm" disabled="@(!CanEditTranslation || _uploadingAudio)" />
+                            <MudButton HtmlTag="label" for="audio-upload" Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.UploadFile"
+                                       Disabled="@(!CanEditTranslation || _uploadingAudio)">
+                                @(_uploadingAudio ? "Đang tải audio..." : "Upload audio")
+                            </MudButton>
+                        </div>
+
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.PlayArrow"
+                                   OnClick="PreviewAudio" Disabled="@(!HasEditingAudio)">
+                            Preview audio
+                        </MudButton>
+                    </MudStack>
+
+                    <MudText Typo="Typo.caption" Class="@($"mb-2 {AudioStatusCssClass}")">Audio status: @AudioStatusText</MudText>
+
+                    @if (HasEditingAudio && _showAudioPreview)
+                    {
+                        <MudPaper Class="pa-2 mb-2" Outlined="true">
+                            <audio @key="EditingAudioSource" controls preload="metadata" style="width:100%">
+                                <source src="@EditingAudioSource" />
+                            </audio>
+                        </MudPaper>
+                    }
+
+                    <MudTextField @bind-Value="_editingTranslation.AudioUrl" Label="Audio URL / Base64" Lines="2" Disabled="@(!CanEditTranslation)" Class="mb-2" />
+                    <MudButton Variant="Variant.Text" Color="Color.Error" StartIcon="@Icons.Material.Filled.DeleteOutline"
+                               OnClick="ClearEditingAudio" Disabled="@(!HasEditingAudio || !CanEditTranslation)">
+                        Xóa audio hiện tại
+                    </MudButton>
+
+                    <MudDivider Class="my-2" />
+                    <MudStack Row="true" Spacing="2" Justify="Justify.FlexEnd" Class="flex-wrap">
+                        <MudButton Variant="Variant.Outlined" OnClick="ResetEditingTranslation">Cancel</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                                   Disabled="@(!CanEditTranslation)" OnClick="SaveTranslationAsync">
+                            Save translation
+                        </MudButton>
+                    </MudStack>
+                </MudPaper>
+            }
+        </MudItem>
+
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-3 mb-3" Outlined="true">
+                <MudText Typo="Typo.subtitle1" Class="mb-2">Những audio đã tạo</MudText>
+
+                @if (_selectedPoi is null)
+                {
+                    <MudAlert Severity="Severity.Info">Chọn một POI để xem audio đã tạo.</MudAlert>
+                }
+                else if (CreatedAudios.Count == 0)
+                {
+                    <MudAlert Severity="Severity.Warning">POI này chưa có audio nào.</MudAlert>
+                }
+                else
+                {
+                    <div class="audio-created-scroll">
+                        @foreach (var audio in CreatedAudios)
+                        {
+                            <MudPaper Class="pa-2 mb-2" Outlined="true">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-1">
+                                    <MudText Typo="Typo.body2">@GetLanguageLabel(audio.LanguageCode)</MudText>
+                                    <MudText Typo="Typo.caption" Class="@GetAudioStatusClass(audio)">@GetAudioStatusText(audio)</MudText>
+                                </MudStack>
+
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary mb-1">@audio.Name</MudText>
+
+                                <audio controls preload="metadata" style="width:100%" class="mb-2">
+                                    <source src="@ResolveAudioSource(audio.AudioUrl)" />
+                                </audio>
+
+                                <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
+                                                   OnClick="() => LoadTranslationToEditor(audio)" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                                   OnClick="() => DeleteTranslationAsync(audio)" />
+                                </MudStack>
+                            </MudPaper>
+                        }
+                    </div>
+                }
+            </MudPaper>
+
+            @if (_selectedPoi is not null)
+            {
+                <MudPaper Class="pa-3" Outlined="true">
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">Tất cả bản dịch</MudText>
+
+                    @if (_translations.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info">POI này chưa có bản dịch nào.</MudAlert>
+                    }
+                    else
+                    {
+                        <MudTable Items="_translations" Dense="true" Hover="true" Bordered="true" Striped="true">
+                            <HeaderContent>
+                                <MudTh>Ngôn ngữ</MudTh>
+                                <MudTh>Title</MudTh>
+                                <MudTh>Content</MudTh>
+                                <MudTh>Audio</MudTh>
+                                <MudTh></MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Ngôn ngữ">@context.LanguageCode</MudTd>
+                                <MudTd DataLabel="Title">@context.Name</MudTd>
+                                <MudTd DataLabel="Content">
+                                    <MudText Typo="Typo.caption" Class="@GetContentStatusClass(context)">@GetContentStatusText(context)</MudText>
+                                </MudTd>
+                                <MudTd DataLabel="Audio">
+                                    <MudText Typo="Typo.caption" Class="@GetAudioStatusClass(context)">@GetAudioStatusText(context)</MudText>
+                                </MudTd>
+                                <MudTd Class="text-right">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
+                                                   OnClick="@(() => LoadTranslationToEditor(context))" />
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                </MudPaper>
+            }
+        </MudItem>
+    </MudGrid>
+}
+
+<style>
+    .poi-header-compact {
+        min-height: 40px;
+    }
+
+    .poi-list-scroll {
+        max-height: calc(100vh - 260px);
+        overflow-y: auto;
+    }
+
+    .poi-item-card {
+        border-radius: 10px;
+        margin-bottom: 8px;
+        border: 1px solid #e7ebf0;
+        cursor: pointer;
+        box-shadow: none;
+    }
+
+    .poi-item-card.active {
+        border-color: #1976d2;
+        box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.12);
+        background: rgba(25, 118, 210, 0.08);
+    }
+
+    .poi-list-item-layout {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .poi-list-thumb {
+        width: 64px;
+        height: 64px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        flex: 0 0 auto;
+    }
+
+    .poi-list-main {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .workflow-steps {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .workflow-step {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border: 1px solid #e4e7ec;
+        border-radius: 12px;
+        background: #f8fafc;
+    }
+
+    .workflow-step.active {
+        border-color: #1976d2;
+        background: rgba(25, 118, 210, 0.08);
+    }
+
+    .workflow-step.done {
+        border-color: #2e7d32;
+        background: rgba(46, 125, 50, 0.08);
+    }
+
+    .step-index {
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        background: #cfd8dc;
+        color: #263238;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .workflow-step.active .step-index {
+        background: #1976d2;
+        color: white;
+    }
+
+    .workflow-step.done .step-index {
+        background: #2e7d32;
+        color: white;
+    }
+
+    .step-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .lang-tag {
+        display: inline-block;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #eceff1;
+        color: #455a64;
+        font-weight: 600;
+    }
+
+    .audio-upload-input {
+        display: none;
+    }
+
+    .audio-actions-row {
+        flex-wrap: nowrap;
+    }
+
+    .audio-actions-row > * {
+        flex: 0 0 auto;
+    }
+
+    @@media (max-width: 900px) {
+        .audio-actions-row {
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+    }
+
+    .audio-created-scroll {
+        max-height: calc(100vh - 360px);
+        overflow-y: auto;
+    }
+
+    .status-green {
+        color: #2e7d32;
+        font-weight: 700;
+    }
+
+    .status-yellow {
+        color: #ed6c02;
+        font-weight: 700;
+    }
+
+    .status-gray {
+        color: #607d8b;
+        font-weight: 700;
+    }
+</style>
+
+@code {
+    private readonly List<(string Code, string Label)> LanguageOptions =
+    [
+        ("en-US", "🇺🇸 English (US)"),
+        ("en-GB", "🇬🇧 English (UK)"),
+        ("ja-JP", "🇯🇵 日本語"),
+        ("ko-KR", "🇰🇷 한국어"),
+        ("zh-CN", "🇨🇳 中文"),
+        ("fr-FR", "🇫🇷 Français"),
+        ("de-DE", "🇩🇪 Deutsch")
+    ];
+
+    private bool _loading = true;
+    private bool _generatingTts;
+    private bool _translatingContent;
+    private bool _uploadingAudio;
+    private bool _showAudioPreview;
+    private bool _loadingSummaries;
+    private bool _refreshingCurrentPoi;
+    private string _searchPoi = string.Empty;
+    private string _selectedPoiId = string.Empty;
+    private string _selectedLanguage = "en-US";
+
+    private List<POIDto> _pois = new();
+    private POIDto? _selectedPoi;
+    private List<POITranslationDto> _translations = new();
+    private readonly Dictionary<string, (int Count, bool HasOutdated)> _poiTranslationSummaries = new();
+    private POITranslationDto _editingTranslation = CreateEmptyTranslation("en-US");
+
+    private string OriginalLanguageCode => _selectedPoi?.Language ?? "vi-VN";
+    private string OriginalLanguageTag => $"{OriginalLanguageCode} (Original)";
+    private string OriginalLanguageLabel => $"{GetLanguageLabel(OriginalLanguageCode)} ({OriginalLanguageCode})";
+    private bool IsOriginalLanguageSelected => string.Equals(_selectedLanguage, OriginalLanguageCode, StringComparison.OrdinalIgnoreCase);
+    private bool CanEditTranslation => _selectedPoi is not null && !IsOriginalLanguageSelected;
+    private string EditingAudioSource => ResolveAudioSource(_editingTranslation.AudioUrl);
+    private bool HasEditingAudio => !string.IsNullOrWhiteSpace(EditingAudioSource);
+    private int CurrentWorkflowStep => ComputeCurrentStep();
+    private string AudioStatusText => _generatingTts || _uploadingAudio
+        ? "Generating"
+        : HasEditingAudio ? "Ready" : "No audio";
+    private string AudioStatusCssClass => _generatingTts || _uploadingAudio
+        ? "status-yellow"
+        : HasEditingAudio ? "status-green" : "status-gray";
+    private List<POITranslationDto> CreatedAudios => _translations
+        .Where(HasAudio)
+        .OrderBy(t => t.LanguageCode)
+        .ToList();
+
+    private IEnumerable<POIDto> FilteredPois => _pois
+        .Where(p => p.IsActive)
+        .Where(p => string.IsNullOrWhiteSpace(_searchPoi)
+            || p.Name.Contains(_searchPoi, StringComparison.OrdinalIgnoreCase)
+            || (p.Address?.Contains(_searchPoi, StringComparison.OrdinalIgnoreCase) ?? false))
+        .OrderBy(p => p.Name);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+        _pois = await ApiService.GetPOIsAsync();
+        _loading = false;
+
+        _ = LoadPoiTranslationSummariesAsync();
+
+        var firstPoi = _pois.FirstOrDefault(p => p.IsActive);
+        if (firstPoi is not null)
+        {
+            await SelectPoiAsync(firstPoi);
+        }
+    }
+
+    private async Task SelectPoiAsync(POIDto poi)
+    {
+        _selectedPoi = poi;
+        _selectedPoiId = poi.Id;
+
+        _translations = await ApiService.GetPOITranslationsAsync(poi.Id);
+    UpdatePoiTranslationSummary(poi.Id, _translations);
+
+        _selectedLanguage = DetermineDefaultLanguage();
+        await SyncEditorFromSelectedLanguageAsync(autoTranslateIfMissing: true);
+    }
+
+    private string DetermineDefaultLanguage()
+    {
+        if (_selectedPoi is null)
+        {
+            return "en-US";
+        }
+
+        var primary = _selectedPoi.Language ?? "vi-VN";
+        var candidate = LanguageOptions.FirstOrDefault(x => !string.Equals(x.Code, primary, StringComparison.OrdinalIgnoreCase));
+        return candidate.Code == default ? "en-US" : candidate.Code;
+    }
+
+    private async Task OnSelectedLanguageChangedAsync(string languageCode)
+    {
+        _selectedLanguage = languageCode;
+        await SyncEditorFromSelectedLanguageAsync(autoTranslateIfMissing: true);
+    }
+
+    private async Task RefreshCurrentPoiAsync()
+    {
+        if (_selectedPoi is null)
+        {
+            return;
+        }
+
+        _refreshingCurrentPoi = true;
+        try
+        {
+            var latestPoi = await ApiService.GetPOIAsync(_selectedPoi.Id);
+            if (latestPoi is null)
+            {
+                Snackbar.Add("Không thể làm mới nội dung POI", Severity.Error);
+                return;
+            }
+
+            _selectedPoi = latestPoi;
+            var poiIndex = _pois.FindIndex(p => p.Id == latestPoi.Id);
+            if (poiIndex >= 0)
+            {
+                _pois[poiIndex] = latestPoi;
+            }
+
+            _translations = await ApiService.GetPOITranslationsAsync(latestPoi.Id);
+            UpdatePoiTranslationSummary(latestPoi.Id, _translations);
+
+            // Reload form from latest data first, then refresh translated content from base POI
+            // so old translations in editor do not remain stale after POI content changes.
+            await SyncEditorFromSelectedLanguageAsync(autoTranslateIfMissing: false);
+
+            if (CanEditTranslation)
+            {
+                await TranslateFromBaseContentAsync(showSuccessToast: false);
+            }
+
+            Snackbar.Add("Đã làm mới dữ liệu từ Quản lý địa điểm", Severity.Success);
+        }
+        finally
+        {
+            _refreshingCurrentPoi = false;
+        }
+    }
+
+    private async Task SyncEditorFromSelectedLanguageAsync(bool autoTranslateIfMissing)
+    {
+        if (_selectedPoi is null)
+        {
+            _editingTranslation = CreateEmptyTranslation(_selectedLanguage);
+            return;
+        }
+
+        var existing = _translations.FirstOrDefault(t => t.LanguageCode == _selectedLanguage);
+        if (existing is not null)
+        {
+            _editingTranslation = CloneTranslation(existing);
+            _showAudioPreview = false;
+            return;
+        }
+
+        _editingTranslation = new POITranslationDto
+        {
+            POIId = int.TryParse(_selectedPoi.Id, out var poiId) ? poiId : 0,
+            LanguageCode = _selectedLanguage,
+            Name = string.Empty,
+            ShortDescription = string.Empty,
+            FullDescription = string.Empty,
+            TTSScript = string.Empty,
+            AudioUrl = null,
+            IsOutdated = false,
+            IsAudioOutdated = false
+        };
+        _showAudioPreview = false;
+
+        if (autoTranslateIfMissing && CanEditTranslation)
+        {
+            await TranslateFromBaseContentAsync(showSuccessToast: false);
+        }
+    }
+
+    private async Task SaveTranslationAsync()
+    {
+        if (_selectedPoi is null)
+            return;
+
+        if (string.IsNullOrWhiteSpace(_editingTranslation.LanguageCode))
+        {
+            Snackbar.Add("Vui lòng chọn ngôn ngữ", Severity.Warning);
+            return;
+        }
+
+        if (IsOriginalLanguageSelected)
+        {
+            Snackbar.Add("Không thể lưu đè ngôn ngữ gốc tại màn bản dịch", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_editingTranslation.Name))
+        {
+            Snackbar.Add("Tên bản dịch không được để trống", Severity.Warning);
+            return;
+        }
+
+        var saved = await ApiService.UpsertPOITranslationAsync(_selectedPoi.Id, _editingTranslation.LanguageCode, _editingTranslation);
+        if (saved is null)
+        {
+            Snackbar.Add("Không thể lưu bản dịch", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add($"Đã lưu bản dịch {_editingTranslation.LanguageCode}", Severity.Success);
+        _translations = await ApiService.GetPOITranslationsAsync(_selectedPoi.Id);
+    UpdatePoiTranslationSummary(_selectedPoi.Id, _translations);
+        _selectedLanguage = saved.LanguageCode;
+        LoadTranslationToEditor(saved);
+    }
+
+    private async Task DeleteTranslationAsync(POITranslationDto translation)
+    {
+        if (_selectedPoi is null)
+            return;
+
+        var confirm = await DialogService.ShowMessageBox(
+            "Xóa bản dịch",
+            $"Bạn có chắc muốn xóa bản dịch '{translation.LanguageCode}' của POI '{_selectedPoi.Name}'?",
+            yesText: "Xóa", cancelText: "Hủy");
+
+        if (confirm != true)
+            return;
+
+        var deleted = await ApiService.DeletePOITranslationAsync(_selectedPoi.Id, translation.LanguageCode);
+        if (!deleted)
+        {
+            Snackbar.Add("Không thể xóa bản dịch", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add($"Đã xóa bản dịch {translation.LanguageCode}", Severity.Success);
+        _translations = await ApiService.GetPOITranslationsAsync(_selectedPoi.Id);
+        UpdatePoiTranslationSummary(_selectedPoi.Id, _translations);
+        await SyncEditorFromSelectedLanguageAsync(autoTranslateIfMissing: false);
+    }
+
+    private async Task LoadPoiTranslationSummariesAsync()
+    {
+        _loadingSummaries = true;
+        try
+        {
+            foreach (var poi in _pois.Where(p => p.IsActive))
+            {
+                try
+                {
+                    var translations = await ApiService.GetPOITranslationsAsync(poi.Id);
+                    UpdatePoiTranslationSummary(poi.Id, translations);
+                }
+                catch
+                {
+                    _poiTranslationSummaries[poi.Id] = (0, false);
+                }
+            }
+        }
+        finally
+        {
+            _loadingSummaries = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void UpdatePoiTranslationSummary(string poiId, List<POITranslationDto> translations)
+    {
+        _poiTranslationSummaries[poiId] = (
+            translations.Count,
+            translations.Any(t => t.IsOutdated || t.IsAudioOutdated));
+    }
+
+    private int GetPoiTranslationCount(string poiId)
+    {
+        return _poiTranslationSummaries.TryGetValue(poiId, out var summary)
+            ? summary.Count
+            : 0;
+    }
+
+    private bool HasPoiOutdatedTranslations(string poiId)
+    {
+        return _poiTranslationSummaries.TryGetValue(poiId, out var summary)
+            && summary.HasOutdated;
+    }
+
+    private void LoadTranslationToEditor(POITranslationDto translation)
+    {
+        _selectedLanguage = translation.LanguageCode;
+        _editingTranslation = CloneTranslation(translation);
+        _showAudioPreview = false;
+    }
+
+    private async Task ResetEditingTranslation()
+    {
+        await SyncEditorFromSelectedLanguageAsync(autoTranslateIfMissing: false);
+    }
+
+    private void ClearEditingAudio()
+    {
+        _editingTranslation.AudioUrl = null;
+        _editingTranslation.IsAudioOutdated = true;
+        _showAudioPreview = false;
+        Snackbar.Add("Đã xóa audio hiện tại khỏi form", Severity.Info);
+    }
+
+    private void PreviewAudio()
+    {
+        if (!HasEditingAudio)
+        {
+            Snackbar.Add("Chưa có audio để preview", Severity.Warning);
+            return;
+        }
+
+        _showAudioPreview = true;
+        Snackbar.Add("Bấm Play trong player để nghe preview", Severity.Info);
+    }
+
+    private async Task TranslateFromBaseContentAsync(bool showSuccessToast = true)
+    {
+        if (_selectedPoi is null)
+            return;
+
+        var sourceLanguage = _selectedPoi.Language ?? "vi-VN";
+        var targetLanguage = _editingTranslation.LanguageCode;
+
+        if (string.IsNullOrWhiteSpace(targetLanguage))
+        {
+            Snackbar.Add("Vui lòng chọn ngôn ngữ đích", Severity.Warning);
+            return;
+        }
+
+        _translatingContent = true;
+        try
+        {
+            var translated = await ApiService.TranslatePOIContentAsync(new TranslatePOIContentRequestDto
+            {
+                SourceLanguage = sourceLanguage,
+                TargetLanguage = targetLanguage,
+                Name = _selectedPoi.Name,
+                TTSScript = _selectedPoi.TTSScript ?? _selectedPoi.FullDescription ?? _selectedPoi.ShortDescription
+            });
+
+            if (translated is null)
+            {
+                Snackbar.Add("Không thể dịch nội dung tự động", Severity.Error);
+                return;
+            }
+
+            _editingTranslation.Name = translated.Name;
+            _editingTranslation.TTSScript = translated.TTSScript;
+            _editingTranslation.IsOutdated = false;
+            _editingTranslation.IsAudioOutdated = true;
+
+            if (showSuccessToast)
+            {
+                Snackbar.Add("Đã dịch nội dung theo ngôn ngữ đích", Severity.Success);
+            }
+        }
+        finally
+        {
+            _translatingContent = false;
+        }
+    }
+
+    private async Task GenerateTtsForEditingAsync()
+    {
+        if (!CanEditTranslation)
+        {
+            Snackbar.Add("Hãy chọn ngôn ngữ dịch khác ngôn ngữ gốc", Severity.Warning);
+            return;
+        }
+
+        var ttsText = _editingTranslation.TTSScript;
+
+        if (string.IsNullOrWhiteSpace(ttsText))
+        {
+            Snackbar.Add("Không có nội dung để tạo audio", Severity.Warning);
+            return;
+        }
+
+        _generatingTts = true;
+        try
+        {
+            // Đồng bộ với màn POIs: xóa audio cũ trước để buộc UI nhận source mới
+            _editingTranslation.AudioUrl = null;
+            _showAudioPreview = false;
+            StateHasChanged();
+
+            var audio = await ApiService.GenerateTtsAsync(ttsText, _editingTranslation.LanguageCode);
+            if (string.IsNullOrWhiteSpace(audio))
+            {
+                Snackbar.Add("Không thể tạo audio từ TTS", Severity.Error);
+                return;
+            }
+
+            _editingTranslation.AudioUrl = NormalizeAudioUrl(audio);
+            _editingTranslation.IsAudioOutdated = false;
+
+            _showAudioPreview = true;
+            Snackbar.Add("Đã tạo audio thành công", Severity.Success);
+        }
+        finally
+        {
+            _generatingTts = false;
+        }
+    }
+
+    private async Task UploadAudioFile(IBrowserFile file)
+    {
+        if (!CanEditTranslation)
+        {
+            Snackbar.Add("Hãy chọn ngôn ngữ dịch khác ngôn ngữ gốc", Severity.Warning);
+            return;
+        }
+
+        if (file is null)
+            return;
+
+        _uploadingAudio = true;
+        try
+        {
+            const long maxSize = 15 * 1024 * 1024;
+            await using var stream = file.OpenReadStream(maxSize);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+
+            var bytes = ms.ToArray();
+            if (bytes.Length == 0)
+            {
+                Snackbar.Add("File audio rỗng", Severity.Warning);
+                return;
+            }
+
+            var uploadedUrl = await ApiService.UploadAudioAsync(bytes, file.Name, file.ContentType);
+            if (string.IsNullOrWhiteSpace(uploadedUrl))
+            {
+                Snackbar.Add("Không thể tải audio lên máy chủ", Severity.Error);
+                return;
+            }
+
+            _editingTranslation.AudioUrl = NormalizeAudioUrl(uploadedUrl);
+            _editingTranslation.IsAudioOutdated = false;
+            _showAudioPreview = true;
+            Snackbar.Add("Tải audio thành công (đã lưu URL)", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Không thể tải audio: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _uploadingAudio = false;
+        }
+    }
+
+    private async Task UploadAudioFromInput(InputFileChangeEventArgs args)
+    {
+        var file = args.File;
+        if (file is null)
+            return;
+
+        await UploadAudioFile(file);
+    }
+
+    private static POITranslationDto CreateEmptyTranslation(string languageCode)
+    {
+        return new POITranslationDto
+        {
+            LanguageCode = languageCode,
+            Name = string.Empty,
+            TTSScript = string.Empty,
+            IsOutdated = false,
+            IsAudioOutdated = false
+        };
+    }
+
+    private static POITranslationDto CloneTranslation(POITranslationDto source)
+    {
+        return new POITranslationDto
+        {
+            Id = source.Id,
+            POIId = source.POIId,
+            LanguageCode = source.LanguageCode,
+            Name = source.Name,
+            ShortDescription = string.Empty,
+            FullDescription = string.Empty,
+            TTSScript = source.TTSScript,
+            AudioUrl = source.AudioUrl,
+            IsOutdated = source.IsOutdated,
+            IsAudioOutdated = source.IsAudioOutdated
+        };
+    }
+
+    private string GetLanguageLabel(string code)
+    {
+        var matched = LanguageOptions.FirstOrDefault(x => string.Equals(x.Code, code, StringComparison.OrdinalIgnoreCase));
+        return matched.Code == default ? code : matched.Label;
+    }
+
+    private static string GetStepLabel(int step)
+    {
+        return step switch
+        {
+            1 => "Language",
+            2 => "Content",
+            3 => "Audio",
+            _ => "Save"
+        };
+    }
+
+    private int ComputeCurrentStep()
+    {
+        if (_selectedPoi is null || string.IsNullOrWhiteSpace(_selectedLanguage) || IsOriginalLanguageSelected)
+            return 1;
+
+        if (string.IsNullOrWhiteSpace(_editingTranslation.Name) || string.IsNullOrWhiteSpace(_editingTranslation.TTSScript))
+            return 2;
+
+        if (!HasEditingAudio)
+            return 3;
+
+        return 4;
+    }
+
+    private static bool HasContent(POITranslationDto translation)
+    {
+        return !string.IsNullOrWhiteSpace(translation.Name)
+            && !string.IsNullOrWhiteSpace(translation.TTSScript);
+    }
+
+    private static bool HasAudio(POITranslationDto translation)
+    {
+        return !string.IsNullOrWhiteSpace(translation.AudioUrl);
+    }
+
+    private static string GetContentStatusText(POITranslationDto translation)
+    {
+        if (!HasContent(translation))
+            return "Missing";
+
+        return translation.IsOutdated ? "Outdated" : "Ready";
+    }
+
+    private static string GetContentStatusClass(POITranslationDto translation)
+    {
+        if (!HasContent(translation))
+            return "status-gray";
+
+        return translation.IsOutdated ? "status-yellow" : "status-green";
+    }
+
+    private static string GetAudioStatusText(POITranslationDto translation)
+    {
+        if (!HasAudio(translation))
+            return "Missing";
+
+        return translation.IsAudioOutdated ? "Outdated" : "Ready";
+    }
+
+    private static string GetAudioStatusClass(POITranslationDto translation)
+    {
+        if (!HasAudio(translation))
+            return "status-gray";
+
+        return translation.IsAudioOutdated ? "status-yellow" : "status-green";
+    }
+
+    private static string GetOverallStatusText(POITranslationDto translation)
+    {
+        var hasContent = HasContent(translation);
+        var hasAudio = HasAudio(translation);
+
+        if (!hasContent)
+            return "Not started";
+
+        if (translation.IsOutdated)
+            return "Content outdated";
+
+        if (!hasAudio)
+            return "Missing audio";
+
+        if (translation.IsAudioOutdated)
+            return "Audio outdated";
+
+        if (hasContent && hasAudio)
+            return "Complete";
+
+        if (hasContent)
+            return "Missing audio";
+
+        return "Not started";
+    }
+
+    private static string GetOverallStatusClass(POITranslationDto translation)
+    {
+        var hasContent = HasContent(translation);
+        var hasAudio = HasAudio(translation);
+
+        if (!hasContent)
+            return "status-gray";
+
+        if (translation.IsOutdated || translation.IsAudioOutdated)
+            return "status-yellow";
+
+        if (hasContent && hasAudio)
+            return "status-green";
+
+        if (hasContent)
+            return "status-yellow";
+
+        return "status-gray";
+    }
+
+    private static string ResolveAudioSource(string? audio)
+    {
+        if (string.IsNullOrWhiteSpace(audio))
+            return string.Empty;
+
+        var normalized = NormalizeAudioUrl(audio);
+
+        if (normalized.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+            || normalized.StartsWith("data:", StringComparison.OrdinalIgnoreCase)
+            || normalized.StartsWith("/", StringComparison.OrdinalIgnoreCase))
+        {
+            return normalized;
+        }
+
+        normalized = normalized.Replace("\r", string.Empty).Replace("\n", string.Empty);
+        return $"data:audio/mp3;base64,{normalized}";
+    }
+
+    private static string NormalizeAudioUrl(string audio)
+    {
+        if (string.IsNullOrWhiteSpace(audio))
+            return string.Empty;
+
+        var normalized = audio.Trim();
+        if (normalized.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+            || normalized.StartsWith("data:", StringComparison.OrdinalIgnoreCase)
+            || normalized.StartsWith("/", StringComparison.OrdinalIgnoreCase))
+        {
+            return normalized;
+        }
+
+        normalized = normalized.Replace("\r", string.Empty).Replace("\n", string.Empty);
+        return $"data:audio/mp3;base64,{normalized}";
+    }
+}

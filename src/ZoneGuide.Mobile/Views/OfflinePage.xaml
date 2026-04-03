@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
+             xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
+             x:Class="ZoneGuide.Mobile.Views.OfflinePage"
+             x:Name="OfflineRoot"
+             x:DataType="vm:OfflineViewModel"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F6F7FB">
+
+    <Grid RowDefinitions="Auto,*">
+        <Border Grid.Row="0"
+                BackgroundColor="#16A34A"
+                StrokeThickness="0"
+                StrokeShape="RoundRectangle 0,0,28,28"
+                Padding="20,28,20,20">
+            <VerticalStackLayout Spacing="18">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="12">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="{local:Translate offline_title}"
+                               FontSize="30"
+                               FontAttributes="Bold"
+                               TextColor="White" />
+                        <Label Text="{local:Translate offline_subtitle}"
+                               FontSize="14"
+                               TextColor="#D1FAE5" />
+                    </VerticalStackLayout>
+
+                    <Button Grid.Column="1"
+                            Text="{local:Translate offline_download_all}"
+                            Padding="14,8"
+                            BackgroundColor="#44FFFFFF"
+                            TextColor="White"
+                            CornerRadius="18"
+                            FontAttributes="Bold"
+                            Command="{Binding DownloadAllCommand}"
+                            IsEnabled="{Binding HasPendingItems}" />
+                </Grid>
+
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="12">
+                    <HorizontalStackLayout Spacing="18">
+                        <HorizontalStackLayout Spacing="6">
+                            <Label Text="◉"
+                                   TextColor="White"
+                                   VerticalTextAlignment="Center" />
+                            <Label Text="{Binding DownloadedSummaryText}"
+                                   FontSize="14"
+                                   TextColor="White"
+                                   VerticalTextAlignment="Center" />
+                        </HorizontalStackLayout>
+                        <HorizontalStackLayout Spacing="6">
+                            <Label Text="▣"
+                                   TextColor="White"
+                                   VerticalTextAlignment="Center" />
+                            <Label Text="{Binding StorageSummaryText}"
+                                   FontSize="14"
+                                   TextColor="White"
+                                   VerticalTextAlignment="Center" />
+                        </HorizontalStackLayout>
+                    </HorizontalStackLayout>
+
+                    <Button Grid.Column="1"
+                            Text="{local:Translate offline_clear_all}"
+                            Padding="0"
+                            BackgroundColor="Transparent"
+                            TextColor="#FECACA"
+                            Command="{Binding ClearAllCommand}"
+                            IsVisible="{Binding HasDownloadedItems}" />
+                </Grid>
+            </VerticalStackLayout>
+        </Border>
+
+        <RefreshView Grid.Row="1"
+                     IsRefreshing="{Binding IsRefreshing}"
+                     Command="{Binding RefreshCommand}">
+            <Grid RowDefinitions="Auto,*">
+                <HorizontalStackLayout Spacing="10"
+                                       Padding="16,14,16,10">
+                    <Button Text="{local:Translate offline_filter_all}"
+                            Padding="16,8"
+                            CornerRadius="18"
+                            BackgroundColor="{Binding IsAllSelected, Converter={StaticResource BoolToColorConverter}}"
+                            TextColor="{Binding IsAllSelected, Converter={StaticResource OfflineTabTextColorConverter}}"
+                            Command="{Binding ShowAllCommand}" />
+                    <Button Text="{local:Translate offline_filter_downloaded}"
+                            Padding="16,8"
+                            CornerRadius="18"
+                            BackgroundColor="{Binding IsDownloadedSelected, Converter={StaticResource BoolToColorConverter}}"
+                            TextColor="{Binding IsDownloadedSelected, Converter={StaticResource OfflineTabTextColorConverter}}"
+                            Command="{Binding ShowDownloadedCommand}" />
+                    <Button Text="{local:Translate offline_filter_pending}"
+                            Padding="16,8"
+                            CornerRadius="18"
+                            BackgroundColor="{Binding IsPendingSelected, Converter={StaticResource BoolToColorConverter}}"
+                            TextColor="{Binding IsPendingSelected, Converter={StaticResource OfflineTabTextColorConverter}}"
+                            Command="{Binding ShowPendingCommand}" />
+                </HorizontalStackLayout>
+
+                <CollectionView Grid.Row="1"
+                                ItemsSource="{Binding FilteredItems}"
+                                SelectionMode="None"
+                                Margin="0,0,0,8">
+                    <CollectionView.EmptyView>
+                        <VerticalStackLayout Padding="32,80"
+                                             Spacing="10"
+                                             HorizontalOptions="Center">
+                            <Label Text="{local:Translate offline_empty_title}"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   HorizontalTextAlignment="Center" />
+                            <Label Text="{local:Translate offline_empty_subtitle}"
+                                   FontSize="13"
+                                   TextColor="{StaticResource Gray500}"
+                                   HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </CollectionView.EmptyView>
+
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:OfflinePackItemViewModel">
+                            <Border Margin="16,8"
+                                    BackgroundColor="White"
+                                    Stroke="{Binding BorderColor}"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 22"
+                                    Padding="14">
+                                <VerticalStackLayout Spacing="14">
+                                    <Grid ColumnDefinitions="72,*,Auto"
+                                          ColumnSpacing="12">
+                                        <Grid Grid.Column="0"
+                                              WidthRequest="72"
+                                              HeightRequest="72">
+                                            <Border StrokeThickness="0"
+                                                    StrokeShape="RoundRectangle 18"
+                                                    BackgroundColor="#E5E7EB">
+                                                <Image Source="{Binding ImageSource, Converter={StaticResource FlexibleImageSourceConverter}}"
+                                                       Aspect="AspectFill" />
+                                            </Border>
+
+                                            <Border IsVisible="{Binding IsDownloaded}"
+                                                    BackgroundColor="White"
+                                                    Stroke="#22C55E"
+                                                    StrokeThickness="2"
+                                                    StrokeShape="RoundRectangle 14"
+                                                    WidthRequest="28"
+                                                    HeightRequest="28"
+                                                    HorizontalOptions="Start"
+                                                    VerticalOptions="End"
+                                                    Margin="-2,0,0,-2">
+                                                <Label Text="✓"
+                                                       HorizontalOptions="Center"
+                                                       VerticalOptions="Center"
+                                                       TextColor="#16A34A"
+                                                       FontAttributes="Bold" />
+                                            </Border>
+                                        </Grid>
+
+                                        <VerticalStackLayout Grid.Column="1"
+                                                             Spacing="4"
+                                                             VerticalOptions="Center">
+                                            <Border BackgroundColor="{Binding CategoryBackground}"
+                                                    StrokeThickness="0"
+                                                    StrokeShape="RoundRectangle 12"
+                                                    Padding="8,2"
+                                                    HorizontalOptions="Start">
+                                                <Label Text="{Binding CategoryText}"
+                                                       FontSize="11"
+                                                       TextColor="{Binding CategoryTextColor}" />
+                                            </Border>
+
+                                            <Label Text="{Binding Title}"
+                                                   FontSize="17"
+                                                   FontAttributes="Bold"
+                                                   TextColor="#0F172A"
+                                                   MaxLines="2" />
+
+                                            <HorizontalStackLayout Spacing="8">
+                                                <Label Text="{Binding TrackCountText}"
+                                                       FontSize="12"
+                                                       TextColor="#64748B" />
+                                                <Label Text="{Binding DurationText}"
+                                                       FontSize="12"
+                                                       TextColor="#64748B" />
+                                                <Label Text="{Binding SizeText}"
+                                                       FontSize="12"
+                                                       TextColor="#64748B" />
+                                            </HorizontalStackLayout>
+
+                                            <Label Text="{Binding DownloadedStatusText}"
+                                                   FontSize="12"
+                                                   TextColor="#16A34A"
+                                                   IsVisible="{Binding ShowDownloadedStatus}" />
+                                        </VerticalStackLayout>
+
+                                        <VerticalStackLayout Grid.Column="2"
+                                                             Spacing="10"
+                                                             VerticalOptions="Center">
+                                            <Button Text="{Binding ActionButtonText}"
+                                                    WidthRequest="46"
+                                                    HeightRequest="46"
+                                                    CornerRadius="23"
+                                                    Padding="0"
+                                                    FontSize="18"
+                                                    BackgroundColor="{Binding ActionButtonBackground}"
+                                                    TextColor="{Binding ActionButtonTextColor}"
+                                                    Command="{Binding BindingContext.ToggleDownloadCommand, Source={x:Reference OfflineRoot}}"
+                                                    CommandParameter="{Binding .}" />
+
+                                            <Button Text="{Binding RetryButtonText}"
+                                                    WidthRequest="40"
+                                                    HeightRequest="40"
+                                                    CornerRadius="20"
+                                                    Padding="0"
+                                                    FontSize="16"
+                                                    BackgroundColor="#F8FAFC"
+                                                    TextColor="#94A3B8"
+                                                    Command="{Binding BindingContext.RetryDownloadCommand, Source={x:Reference OfflineRoot}}"
+                                                    CommandParameter="{Binding .}"
+                                                    IsVisible="{Binding ShowRetryButton}" />
+
+                                            <Button Text="{Binding ExpandButtonText}"
+                                                    WidthRequest="40"
+                                                    HeightRequest="40"
+                                                    CornerRadius="20"
+                                                    Padding="0"
+                                                    FontSize="16"
+                                                    BackgroundColor="#F8FAFC"
+                                                    TextColor="#94A3B8"
+                                                    Command="{Binding BindingContext.ToggleExpandCommand, Source={x:Reference OfflineRoot}}"
+                                                    CommandParameter="{Binding .}" />
+                                        </VerticalStackLayout>
+                                    </Grid>
+
+                                    <VerticalStackLayout Spacing="10"
+                                                         IsVisible="{Binding IsExpanded}">
+                                        <Label Text="{local:Translate offline_track_list}"
+                                               FontSize="14"
+                                               TextColor="#94A3B8" />
+
+                                        <CollectionView ItemsSource="{Binding Tracks}"
+                                                        SelectionMode="None">
+                                            <CollectionView.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:OfflineTrackItemViewModel">
+                                                    <Border BackgroundColor="#FFFFFF"
+                                                            Stroke="#E5E7EB"
+                                                            StrokeShape="RoundRectangle 18"
+                                                            StrokeThickness="1"
+                                                            Padding="14"
+                                                            Margin="0,0,0,8">
+                                                        <Grid ColumnDefinitions="*,Auto,Auto"
+                                                              ColumnSpacing="12">
+                                                            <VerticalStackLayout Spacing="2">
+                                                                <Label Text="{Binding Title}"
+                                                                       FontSize="14"
+                                                                       FontAttributes="Bold"
+                                                                       TextColor="#111827"
+                                                                       MaxLines="2" />
+                                                                <Label Text="{Binding Language}"
+                                                                       FontSize="12"
+                                                                       TextColor="#94A3B8" />
+                                                            </VerticalStackLayout>
+
+                                                            <Label Grid.Column="1"
+                                                                   Text="{Binding DurationText}"
+                                                                   FontSize="13"
+                                                                   TextColor="#94A3B8"
+                                                                   VerticalTextAlignment="Center" />
+
+                                                            <Label Grid.Column="2"
+                                                                   Text="{Binding TrackStatusIcon}"
+                                                                   FontSize="16"
+                                                                   TextColor="#22C55E"
+                                                                   VerticalTextAlignment="Center" />
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </CollectionView.ItemTemplate>
+                                        </CollectionView>
+                                    </VerticalStackLayout>
+                                </VerticalStackLayout>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </Grid>
+        </RefreshView>
+    </Grid>
+
+</ContentPage>

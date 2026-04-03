@@ -43,11 +43,6 @@ public class POITranslation
     public string? TTSScript { get; set; }
     
     /// <summary>
-    /// Đường dẫn file audio (theo ngôn ngữ)
-    /// </summary>
-    public string? AudioFilePath { get; set; }
-    
-    /// <summary>
     /// URL audio online
     /// </summary>
     public string? AudioUrl { get; set; }

@@ -10,7 +10,7 @@
 <MudGrid Spacing="0">
     <!-- Sidebar / List Area -->
     <MudItem xs="12" md="4" Style="height: calc(100vh - 64px); display: flex; flex-direction: column; border-right: 1px solid var(--mud-palette-lines-default); background-color: #f7f9fa;">
-        <MudTabs Elevation="0" Rounded="false" ApplyEffectsToContainer="true" @bind-ActivePanelIndex="_activeTabIndex" Style="flex-grow: 1; display: flex; flex-direction: column; background-color: #f7f9fa;">
+    <MudTabs Elevation="0" Rounded="false" ApplyEffectsToContainer="true" ActivePanelIndex="@_activeTabIndex" ActivePanelIndexChanged="OnActiveTabIndexChanged" Style="flex-grow: 1; display: flex; flex-direction: column; background-color: #f7f9fa;">
             <MudTabPanel Text="@($"Danh sách ({ActivePoiCount})")">
                 @if (_isEditMode)
                 {
@@ -24,8 +24,30 @@
                         </div>
                         
                         <MudForm @ref="_editForm" @bind-IsValid="_isValid">
+                            <MudAutocomplete T="AddressSuggestion"
+                                             Text="@_poiAddressQuery"
+                                             TextChanged="OnPoiAddressTextChanged"
+                                             Value="@_selectedPoiAddressSuggestion"
+                                             ValueChanged="OnPoiAddressSuggestionSelected"
+                                             SearchFunc="SearchPoiAddressSuggestionsAsync"
+                                             ToStringFunc="@(item => item?.DisplayName)"
+                                             Label="Địa chỉ"
+                                             Placeholder="Nhập địa chỉ để gợi ý..."
+                                             Variant="Variant.Outlined"
+                                             Margin="Margin.Dense"
+                                             Adornment="Adornment.Start"
+                                             AdornmentIcon="@Icons.Material.Filled.LocationOn"
+                                             ResetValueOnEmptyText="true"
+                                             DebounceInterval="250"
+                                             MaxItems="5"
+                                             Class="mt-3" />
+                            @if (!string.IsNullOrWhiteSpace(_poiAddressStatus))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1 d-block">@_poiAddressStatus</MudText>
+                            }
+
                             <MudTextField @bind-Value="_newPoi.Name" Label="Tên địa điểm" Required="true" 
-                                          RequiredError="Tên là bắt buộc" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
+                                          RequiredError="Tên là bắt buộc" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-2" />
                             
                             <MudText Typo="Typo.caption" Class="mb-1 mt-3 d-block">Danh mục</MudText>
                             <div class="d-flex gap-2" style="overflow-x: auto; padding-bottom: 4px;">
@@ -40,18 +62,13 @@
                                 }
                             </div>
 
-                            <MudTextField @bind-Value="_newPoi.ShortDescription" Label="Mô tả" 
+                            <MudTextField @bind-Value="_newPoi.TTSScript" Label="Nội dung thuyết minh (TTS)" 
                                           Lines="3" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
 
                             <MudGrid Class="mt-1">
-                                <MudItem xs="6">
-                                    <MudTextField @bind-Value="_newPoi.Latitude" Label="Vĩ độ" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                                </MudItem>
-                                <MudItem xs="6">
-                                    <MudTextField @bind-Value="_newPoi.Longitude" Label="Kinh độ" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                                </MudItem>
                                 <MudItem xs="12" sm="6">
-                                    <MudNumericField T="double" @bind-Value="_newPoi.TriggerRadiusMeters"
+                                    <MudNumericField T="double" Value="_newPoi.TriggerRadius"
+                                                     ValueChanged="OnTriggerRadiusChanged"
                                                      Label="Bán kính kích hoạt (m)" Min="20" Max="300"
                                                      Variant="Variant.Outlined" Margin="Margin.Dense" />
                                 </MudItem>
@@ -62,74 +79,50 @@
                                 </MudItem>
                             </MudGrid>
 
+                            <MudGrid Class="mt-1">
+                                <MudItem xs="12" sm="6">
+                                    <MudNumericField T="double" @bind-Value="_newPoi.Latitude"
+                                                     Label="Vĩ độ" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                     Step="0.000001" Culture="@System.Globalization.CultureInfo.InvariantCulture" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudNumericField T="double" @bind-Value="_newPoi.Longitude"
+                                                     Label="Kinh độ" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                     Step="0.000001" Culture="@System.Globalization.CultureInfo.InvariantCulture" />
+                                </MudItem>
+                            </MudGrid>
+
+                            <MudNumericField T="int" @bind-Value="_newPoi.Priority"
+                                             Label="Độ ưu tiên" Min="1" Max="10"
+                                             Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-1" />
+
                             <MudFileUpload T="IBrowserFile" Accept=".png, .jpg, .jpeg" FilesChanged="UploadImage" Class="mt-3">
                                 <ActivatorContent>
-                                    <MudButton HtmlTag="label"
-                                               Variant="Variant.Outlined"
-                                               Color="Color.Primary"
-                                               StartIcon="@Icons.Material.Filled.CloudUpload"
-                                               FullWidth="true"
-                                               Style="border-style: dashed; border-width: 2px; padding: 20px;">
-                                        Tải lên hình ảnh
-                                    </MudButton>
+                                    <div class="poi-upload-frame">
+                                        <button type="button" class="poi-upload-box">
+                                            @if (string.IsNullOrWhiteSpace(_newPoi.ImageUrl))
+                                            {
+                                                <span class="poi-upload-placeholder">
+                                                    <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Medium" />
+                                                    <span>Tải lên hình ảnh</span>
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <img src="@_newPoi.ImageUrl" alt="Ảnh địa điểm" class="poi-upload-preview" />
+                                            }
+                                        </button>
+                                        @if (!string.IsNullOrWhiteSpace(_newPoi.ImageUrl))
+                                        {
+                                            <button type="button" class="poi-upload-remove"
+                                                    @onclick="@(() => _newPoi.ImageUrl = null)"
+                                                    @onclick:stopPropagation="true"
+                                                    @onclick:preventDefault="true"
+                                                    title="Xóa ảnh">×</button>
+                                        }
+                                    </div>
                                 </ActivatorContent>
                             </MudFileUpload>
-
-                            @if (!string.IsNullOrEmpty(_newPoi.ImageUrl))
-                            {
-                                <div class="mt-2 text-center">
-                                    <img src="@_newPoi.ImageUrl" style="max-height: 150px; max-width: 100%; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" />
-                                </div>
-                            }
-                            
-                            <MudPaper Class="pa-3 mt-4" Outlined="true" Style="background-color: #fbfdff; border: 1px solid #e0e0e0;">
-                                <div class="d-flex align-center mb-2">
-                                    <MudIcon Icon="@Icons.Material.Filled.Mic" Size="Size.Small" Color="Color.Primary" Class="mr-2" />
-                                    <MudText Typo="Typo.subtitle2" Style="color: var(--mud-palette-primary); font-weight: 600;">Thuyết minh Audio</MudText>
-                                    <MudSpacer />
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Tùy chọn</MudText>
-                                </div>
-                                <MudSelect @bind-Value="_newPoi.Language" Label="Ngôn ngữ thuyết minh " Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Style="background-color: white;">
-                                    <MudSelectItem Value="@("vi-VN")">🇻🇳 Tiếng Việt</MudSelectItem>
-                                    <MudSelectItem Value="@("en-US")">🇺🇸 English (US)</MudSelectItem>
-                                    <MudSelectItem Value="@("en-GB")">🇬🇧 English (UK)</MudSelectItem>
-                                    <MudSelectItem Value="@("zh-CN")">🇨🇳 中文</MudSelectItem>
-                                    <MudSelectItem Value="@("ja-JP")">🇯🇵 日本語</MudSelectItem>
-                                    <MudSelectItem Value="@("ko-KR")">🇰🇷 한국어</MudSelectItem>
-                                    <MudSelectItem Value="@("fr-FR")">🇫🇷 Français</MudSelectItem>
-                                    <MudSelectItem Value="@("de-DE")">🇩🇪 Deutsch</MudSelectItem>
-                                </MudSelect>
-
-                                <MudTextField @bind-Value="_newPoi.TTSScript" Label="Nội dung thuyết minh (TTS)"
-                                              Lines="4" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                              Placeholder="Nhập nội dung thuyết minh tại đây..." Style="background-color: white;" />
-
-                                <div class="d-flex gap-2 mt-2 mb-3 flex-wrap">
-                                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
-                                               StartIcon="@Icons.Material.Filled.Autorenew" Disabled="@_isGeneratingTts"
-                                               OnClick="PreviewTTS">
-                                        @(_isGeneratingTts ? "Đang tạo giọng đọc..." : "Tạo giọng đọc (Google Cloud)")
-                                    </MudButton>
-                                    @* <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
-                                               StartIcon="@Icons.Material.Filled.Stop"
-                                               OnClick="StopTTS">
-                                        Dừng
-                                    </MudButton> *@
-                                </div>
-
-
-                                <MudTextField @bind-Value="_newPoi.AudioUrl" Label="URL Audio thuyết minh" 
-                                              Variant="Variant.Outlined" Margin="Margin.Dense" Style="background-color: white;" />
-                                
-                                @if (!string.IsNullOrEmpty(_newPoi.AudioUrl))
-                                {
-                                    <div class="mt-2">
-                                        <audio controls style="width:100%">
-                                            <source src="@_newPoi.AudioUrl" />
-                                        </audio>
-                                    </div>
-                                }
-                            </MudPaper>
                             
                             <MudSwitch @bind-Value="_newPoi.IsActive" Label="Kích hoạt" Color="Color.Primary" Class="mt-3" />
 
@@ -155,12 +148,14 @@
                                 <MudText Typo="Typo.h6">Địa điểm</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary">@ActivePoiCount tổng • @FilteredPOIs.Count() đang hiển thị</MudText>
                             </div>
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateDialog">Thêm POI</MudButton>
+                            
                         </div>
-                        <div class="d-flex gap-2 mb-2">
+                        <div class="mb-2">
                             <MudTextField @bind-Value="_searchString" Placeholder="Tìm kiếm địa điểm..." 
                                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                                          Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="flex-grow-1" />
+                                          Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="w-100" />
+                        </div>
+                        <div class="d-flex gap-2 mb-2">
                             <MudSelect T="string" Label="Danh mục" @bind-Value="_selectedCategory" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Class="filter-select">
                                 <MudSelectItem Value="@( "Tất cả")" />
                                 <MudSelectItem Value="@( "Du lịch")" />
@@ -169,6 +164,11 @@
                                 <MudSelectItem Value="@( "Giải trí")" />
                                 <MudSelectItem Value="@( "Mua sắm")" />
                                 <MudSelectItem Value="@( "Khác")" />
+                            </MudSelect>
+                            <MudSelect T="string" Label="Trạng thái" @bind-Value="_selectedStatus" Variant="Variant.Outlined" Margin="Margin.Dense" Class="filter-select">
+                                <MudSelectItem Value="@( "Tất cả")" />
+                                <MudSelectItem Value="@( "Đang bật")" />
+                                <MudSelectItem Value="@( "Đã tắt")" />
                             </MudSelect>
                         </div>
                     </MudPaper>
@@ -184,7 +184,7 @@
                         {
                             @foreach (var poi in FilteredPOIs)
                             {
-                                <MudCard Class="mb-3 poi-card" @onclick="@(() => CenterOnPOI(poi))">
+                                <MudCard id="@($"poi-card-{poi.Id}")" Class="@($"mb-3 poi-card {GetPoiCardClass(poi)}")" @onclick="@(() => CenterOnPOI(poi))">
                                     <div class="poi-card-body">
                                         <img class="poi-thumb-img" src="@(string.IsNullOrEmpty(poi.ImageUrl) ? "/images/placeholder.png" : poi.ImageUrl)" alt="Ảnh địa điểm" />
                                         <div class="poi-main">
@@ -194,7 +194,11 @@
                                                 </div>
                                                 <div class="d-flex gap-1 poi-card-actions">
                                                     <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" title="Chỉnh sửa" OnClick="@(() => OpenEditMode(poi))" />
-                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" title="Xóa" OnClick="@(() => ConfirmDelete(poi))" />
+                                                    <MudIconButton Icon="@(poi.IsActive ? Icons.Material.Filled.ToggleOff : Icons.Material.Filled.ToggleOn)"
+                                                                   Size="Size.Small"
+                                                                   Color="@(poi.IsActive ? Color.Success : Color.Warning)"
+                                                                   title="@(poi.IsActive ? "Chuyển sang đã tắt" : "Chuyển sang đang bật")"
+                                                                   OnClick="@(() => TogglePoiStatus(poi))" />
                                                 </div>
                                             </div>
                                             <div class="d-flex gap-2 mb-1 flex-wrap">
@@ -203,10 +207,10 @@
                                             </div>
                                             <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-1 d-flex align-center gap-1">
                                                 <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" />
-                                                @($"{poi.Latitude:F6}, {poi.Longitude:F6}")
+                                                <span class="poi-address-ellipsis" title="@DisplayAddressOrFallback(poi.Address)">@DisplayAddressOrFallback(poi.Address)</span>
                                             </MudText>
                                             <MudText Typo="Typo.body2" Color="Color.Default" Class="clamp-2">
-                                                @(poi.ShortDescription ?? "Không có mô tả")
+                                                @(poi.TTSScript ?? poi.FullDescription ?? poi.ShortDescription ?? "Chưa có nội dung thuyết minh (TTS)")
                                             </MudText>
                                         </div>
                                     </div>
@@ -230,8 +234,30 @@
                     </MudText>
                     
                     <MudForm @ref="_createForm" @bind-IsValid="_isValid">
+                        <MudAutocomplete T="AddressSuggestion"
+                                         Text="@_poiAddressQuery"
+                                         TextChanged="OnPoiAddressTextChanged"
+                                         Value="@_selectedPoiAddressSuggestion"
+                                         ValueChanged="OnPoiAddressSuggestionSelected"
+                                         SearchFunc="SearchPoiAddressSuggestionsAsync"
+                                         ToStringFunc="@(item => item?.DisplayName)"
+                                         Label="Địa chỉ"
+                                         Placeholder="Nhập địa chỉ để gợi ý..."
+                                         Variant="Variant.Outlined"
+                                         Margin="Margin.Dense"
+                                         Adornment="Adornment.Start"
+                                         AdornmentIcon="@Icons.Material.Filled.LocationOn"
+                                         ResetValueOnEmptyText="true"
+                                         DebounceInterval="250"
+                                         MaxItems="5"
+                                         Class="mt-3" />
+                        @if (!string.IsNullOrWhiteSpace(_poiAddressStatus))
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1 d-block">@_poiAddressStatus</MudText>
+                        }
+
                         <MudTextField @bind-Value="_newPoi.Name" Label="Tên địa điểm" Required="true" 
-                                      RequiredError="Tên là bắt buộc" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
+                                      RequiredError="Tên là bắt buộc" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-2" />
                         
                         <MudText Typo="Typo.caption" Class="mb-1 mt-3 d-block">Danh mục</MudText>
                         <div class="d-flex gap-2" style="overflow-x: auto; padding-bottom: 4px;">
@@ -246,18 +272,13 @@
                             }
                         </div>
 
-                        <MudTextField @bind-Value="_newPoi.ShortDescription" Label="Mô tả" 
+                        <MudTextField @bind-Value="_newPoi.TTSScript" Label="Nội dung thuyết minh (TTS)" 
                                       Lines="3" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
 
                         <MudGrid Class="mt-1">
-                            <MudItem xs="6">
-                                <MudTextField @bind-Value="_newPoi.Latitude" Label="Vĩ độ" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                            </MudItem>
-                            <MudItem xs="6">
-                                <MudTextField @bind-Value="_newPoi.Longitude" Label="Kinh độ" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                            </MudItem>
                             <MudItem xs="12" sm="6">
-                                <MudNumericField T="double" @bind-Value="_newPoi.TriggerRadiusMeters"
+                                <MudNumericField T="double" Value="_newPoi.TriggerRadius"
+                                                 ValueChanged="OnTriggerRadiusChanged"
                                                  Label="Bán kính kích hoạt (m)" Min="20" Max="300"
                                                  Variant="Variant.Outlined" Margin="Margin.Dense" />
                             </MudItem>
@@ -268,70 +289,50 @@
                             </MudItem>
                         </MudGrid>
 
+                        <MudGrid Class="mt-1">
+                            <MudItem xs="12" sm="6">
+                                <MudNumericField T="double" @bind-Value="_newPoi.Latitude"
+                                                 Label="Vĩ độ" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                 Step="0.000001" Culture="@System.Globalization.CultureInfo.InvariantCulture" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudNumericField T="double" @bind-Value="_newPoi.Longitude"
+                                                 Label="Kinh độ" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                 Step="0.000001" Culture="@System.Globalization.CultureInfo.InvariantCulture" />
+                            </MudItem>
+                        </MudGrid>
+
+                        <MudNumericField T="int" @bind-Value="_newPoi.Priority"
+                                         Label="Độ ưu tiên" Min="1" Max="10"
+                                         Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-1" />
+
                         <MudFileUpload T="IBrowserFile" Accept=".png, .jpg, .jpeg" FilesChanged="UploadImage" Class="mt-3">
                             <ActivatorContent>
-                                <MudButton HtmlTag="label"
-                                           Variant="Variant.Outlined"
-                                           Color="Color.Primary"
-                                           StartIcon="@Icons.Material.Filled.CloudUpload"
-                                           FullWidth="true"
-                                           Style="border-style: dashed; border-width: 2px; padding: 20px;">
-                                    Tải lên hình ảnh
-                                </MudButton>
+                                <div class="poi-upload-frame">
+                                    <button type="button" class="poi-upload-box">
+                                        @if (string.IsNullOrWhiteSpace(_newPoi.ImageUrl))
+                                        {
+                                            <span class="poi-upload-placeholder">
+                                                <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Medium" />
+                                                <span>Tải lên hình ảnh</span>
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <img src="@_newPoi.ImageUrl" alt="Ảnh địa điểm" class="poi-upload-preview" />
+                                        }
+                                    </button>
+                                    @if (!string.IsNullOrWhiteSpace(_newPoi.ImageUrl))
+                                    {
+                                        <button type="button" class="poi-upload-remove"
+                                                @onclick="@(() => _newPoi.ImageUrl = null)"
+                                                @onclick:stopPropagation="true"
+                                                @onclick:preventDefault="true"
+                                                title="Xóa ảnh">×</button>
+                                    }
+                                </div>
                             </ActivatorContent>
                         </MudFileUpload>
-
-                        @if (!string.IsNullOrEmpty(_newPoi.ImageUrl))
-                        {
-                            <div class="mt-2 text-center">
-                                <img src="@_newPoi.ImageUrl" style="max-height: 150px; max-width: 100%; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" />
-                            </div>
-                        }
-                        
-                        <MudPaper Class="pa-3 mt-4" Outlined="true" Style="background-color: #fbfdff; border: 1px solid #e0e0e0;">
-                            <div class="d-flex align-center mb-2">
-                                <MudIcon Icon="@Icons.Material.Filled.Mic" Size="Size.Small" Color="Color.Primary" Class="mr-2" />
-                                <MudText Typo="Typo.subtitle2" Style="color: var(--mud-palette-primary); font-weight: 600;">Thuyết minh Audio</MudText>
-                                <MudSpacer />
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">Tùy chọn</MudText>
-                            </div>
-                            <MudSelect @bind-Value="_newPoi.Language" Label="Ngôn ngữ thuyết minh " Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Style="background-color: white;">
-                                <MudSelectItem Value="@("vi-VN")">🇻🇳 Tiếng Việt</MudSelectItem>
-                                <MudSelectItem Value="@("en-US")">🇺🇸 English (US)</MudSelectItem>
-                                <MudSelectItem Value="@("en-GB")">🇬🇧 English (UK)</MudSelectItem>
-                                <MudSelectItem Value="@("zh-CN")">🇨🇳 中文</MudSelectItem>
-                                <MudSelectItem Value="@("ja-JP")">🇯🇵 日本語</MudSelectItem>
-                                <MudSelectItem Value="@("ko-KR")">🇰🇷 한국어</MudSelectItem>
-                                <MudSelectItem Value="@("fr-FR")">🇫🇷 Français</MudSelectItem>
-                                <MudSelectItem Value="@("de-DE")">🇩🇪 Deutsch</MudSelectItem>
-                            </MudSelect>
-
-                            <MudTextField @bind-Value="_newPoi.TTSScript" Label="Nội dung thuyết minh (TTS)"
-                                          Lines="4" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                          Placeholder="Nhập nội dung thuyết minh tại đây..." Style="background-color: white;" />
-
-                            <div class="d-flex gap-2 mt-2 mb-3 flex-wrap">
-                                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
-                                           StartIcon="@Icons.Material.Filled.Autorenew" Disabled="@_isGeneratingTts"
-                                           OnClick="PreviewTTS">
-                                    @(_isGeneratingTts ? "Đang tạo giọng đọc..." : "Tạo giọng đọc (Google Cloud)")
-                                </MudButton>
-                            </div>
-
-                            <MudText Typo="Typo.body2" Align="Align.Center" Class="my-2">OR URL Audio</MudText>
-
-                            <MudTextField @bind-Value="_newPoi.AudioUrl" Label="URL Audio thuyết minh" 
-                                          Variant="Variant.Outlined" Margin="Margin.Dense" Style="background-color: white;" />
-                            
-                            @if (!string.IsNullOrEmpty(_newPoi.AudioUrl))
-                            {
-                                <div class="mt-2">
-                                    <audio controls style="width:100%">
-                                        <source src="@_newPoi.AudioUrl" />
-                                    </audio>
-                                </div>
-                            }
-                        </MudPaper>
                         
                         <MudSwitch @bind-Value="_newPoi.IsActive" Label="Kích hoạt" Color="Color.Primary" Class="mt-3" />
 
@@ -400,6 +401,11 @@
         border-radius: 12px;
         box-shadow: 0 6px 18px rgba(0,0,0,0.04);
     }
+    .poi-card.poi-card-selected {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37,99,235,0.16), 0 14px 30px rgba(37,99,235,0.12);
+        background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    }
     .poi-card-body { display: flex; gap: 12px; padding: 12px; align-items: flex-start; }
     .poi-thumb-img {
         width: 88px;
@@ -418,6 +424,14 @@
         white-space: nowrap;
     }
     .poi-card-actions { flex-shrink: 0; }
+    .poi-address-ellipsis {
+        display: inline-block;
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
     .clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .map-overlay {
         position: absolute;
@@ -429,6 +443,59 @@
         border: 1px solid #e7ebf0;
     }
     .filter-select { min-width: 140px; }
+    .poi-upload-box {
+        width: 100%;
+        min-height: 170px;
+        border-radius: 12px;
+        border: 2px dashed var(--mud-palette-primary);
+        background: #f8fbff;
+        padding: 0;
+        cursor: pointer;
+        overflow: hidden;
+        display: block;
+    }
+    .poi-upload-frame {
+        position: relative;
+    }
+    .poi-upload-placeholder {
+        min-height: 170px;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        color: var(--mud-palette-primary);
+        font-weight: 600;
+    }
+    .poi-upload-preview {
+        width: 100%;
+        min-height: 170px;
+        max-height: 220px;
+        object-fit: cover;
+        display: block;
+    }
+    .poi-upload-remove {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 30px;
+        height: 30px;
+        border: none;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.72);
+        color: #fff;
+        font-size: 22px;
+        line-height: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2;
+    }
+    .poi-upload-remove:hover {
+        background: rgba(220, 38, 38, 0.92);
+    }
 </style>
 
 @code {
@@ -436,7 +503,13 @@
     private string _searchString = "";
     private string _mapSearchQuery = "";
     private MapSearchSuggestion? _selectedMapSuggestion;
+    private AddressSuggestion? _selectedPoiAddressSuggestion;
+    private string _poiAddressQuery = "";
+    private string _poiAddressStatus = "";
+    private string? _lastAutoFilledPoiName;
     private string _selectedCategory = "Tất cả";
+    private string _selectedStatus = "Tất cả";
+    private string? _highlightedPoiId;
     private bool _loading = true;
     private bool _mapInitialized = false;
     
@@ -444,6 +517,11 @@
     private int _activeTabIndex = 0;
     private bool _isEditMode = false;
     private string? _editingPoiId = null;
+    private POIDto? _editDraftPoi;
+    private string _editAddressQuery = "";
+    private string _editAddressStatus = "";
+    private string? _editLastAutoFilledPoiName;
+    private AddressSuggestion? _editSelectedPoiAddressSuggestion;
     private POIDto _newPoi = CreateDefaultPoi();
     private MudForm _createForm = null!;
     private MudForm _editForm = null!;
@@ -473,18 +551,57 @@
         Category = "Khác",
         Language = "vi-VN",
         IsActive = true,
-        TriggerRadiusMeters = 50,
+        TriggerRadius = 50,
         ApproachRadius = 100,
         Priority = 1
     };
 
+    private static POIDto ClonePoi(POIDto poi) => new()
+    {
+        Id = poi.Id,
+        Name = poi.Name,
+        Address = poi.Address,
+        ShortDescription = poi.ShortDescription,
+        FullDescription = poi.FullDescription,
+        Latitude = poi.Latitude,
+        Longitude = poi.Longitude,
+        TriggerRadius = poi.TriggerRadius,
+        ApproachRadius = poi.ApproachRadius,
+        Priority = poi.Priority,
+        Category = poi.Category,
+        ImageUrl = poi.ImageUrl,
+        AudioUrl = poi.AudioUrl,
+        TTSScript = poi.TTSScript,
+        Language = poi.Language,
+        IsActive = poi.IsActive
+    };
+
+    private static AddressSuggestion? CreateAddressSuggestionFromAddress(string? address)
+    {
+        if (string.IsNullOrWhiteSpace(address))
+        {
+            return null;
+        }
+
+        return new AddressSuggestion
+        {
+            DisplayName = address.Trim(),
+            Name = ExtractPoiNameFromAddress(address)
+        };
+    }
+
     private IEnumerable<POIDto> FilteredPOIs => _pois
-        .Where(p => p.IsActive)
         .Where(p => string.IsNullOrWhiteSpace(_searchString) ||
                     p.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
-                    (p.ShortDescription?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false))
+                    (p.TTSScript?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (p.FullDescription?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (p.ShortDescription?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (p.Address?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false))
         .Where(p => string.IsNullOrWhiteSpace(_selectedCategory) || _selectedCategory == "Tất cả" ||
-                    (p.Category != null && p.Category.Equals(_selectedCategory, StringComparison.OrdinalIgnoreCase)));
+                    (p.Category != null && p.Category.Equals(_selectedCategory, StringComparison.OrdinalIgnoreCase)))
+        .Where(p => _selectedStatus == "Tất cả" ||
+                    (_selectedStatus == "Đang bật" && p.IsActive) ||
+                    (_selectedStatus == "Đã tắt" && !p.IsActive));
 
     private sealed class MapSearchSuggestion
     {
@@ -506,6 +623,40 @@
             return double.TryParse(Lat, System.Globalization.NumberStyles.Any, culture, out lat)
                 && double.TryParse(Lon, System.Globalization.NumberStyles.Any, culture, out lng);
         }
+    }
+
+    private sealed class AddressSuggestion
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("display_name")]
+        public string DisplayName { get; set; } = string.Empty;
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string? Name { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("lat")]
+        public string Lat { get; set; } = string.Empty;
+
+        [System.Text.Json.Serialization.JsonPropertyName("lon")]
+        public string Lon { get; set; } = string.Empty;
+
+        public bool TryGetCoordinates(out double lat, out double lng)
+        {
+            var culture = System.Globalization.CultureInfo.InvariantCulture;
+            lat = 0;
+            lng = 0;
+
+            return double.TryParse(Lat, System.Globalization.NumberStyles.Any, culture, out lat)
+                && double.TryParse(Lon, System.Globalization.NumberStyles.Any, culture, out lng);
+        }
+    }
+
+    private sealed class ReverseGeocodeResult
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("display_name")]
+        public string? DisplayName { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string? Name { get; set; }
     }
 
     protected override async Task OnInitializedAsync()
@@ -553,17 +704,19 @@
     {
         try
         {
-            var activePois = _pois.Where(p => p.IsActive).ToList();
-            double centerLat = activePois.Any() ? activePois.Average(p => p.Latitude) : 10.762622;
-            double centerLng = activePois.Any() ? activePois.Average(p => p.Longitude) : 106.660172;
+            var poisForMap = _pois.ToList();
+            double centerLat = poisForMap.Any() ? poisForMap.Average(p => p.Latitude) : 10.762622;
+            double centerLng = poisForMap.Any() ? poisForMap.Average(p => p.Longitude) : 106.660172;
 
-            var poiData = activePois.Select(p => new
+            var poiData = poisForMap.Select(p => new
             {
                 id = p.Id,
                 name = p.Name,
+                address = p.Address,
                 lat = p.Latitude,
                 lng = p.Longitude,
-                description = p.ShortDescription ?? "",
+                triggerRadius = p.TriggerRadius,
+                description = p.TTSScript ?? p.FullDescription ?? p.ShortDescription ?? "",
                 category = p.Category ?? "POI",
                 imageUrl = p.ImageUrl
             }).ToArray();
@@ -683,9 +836,10 @@
 
     private async Task CenterOnPOI(POIDto poi)
     {
+        _highlightedPoiId = poi.Id;
         try
         {
-            await JS.InvokeVoidAsync("centerMapOnPOI", poi.Latitude, poi.Longitude, poi.Name);
+            await JS.InvokeVoidAsync("centerMapOnPOI", poi.Id, poi.Latitude, poi.Longitude);
         }
         catch
         {
@@ -698,48 +852,99 @@
         _isEditMode = false;
         _editingPoiId = null;
         _newPoi = CreateDefaultPoi();
+        _poiAddressQuery = _newPoi.Address ?? string.Empty;
+        _poiAddressStatus = "";
+        _selectedPoiAddressSuggestion = null;
+        _lastAutoFilledPoiName = null;
         _activeTabIndex = 1; // Switch to Add/Edit Tab
-        await JS.InvokeVoidAsync("addTempMarkerToPOIMap", 10.762622, 106.660172); // Default center
+        await JS.InvokeVoidAsync("addTempMarkerToPOIMap", 10.762622, 106.660172, false, _newPoi.TriggerRadius); // Default center
     }
 
     private async Task OpenEditMode(POIDto poi)
     {
+        _highlightedPoiId = poi.Id;
         _isEditMode = true;
         _activeTabIndex = 0; // Stay in Danh sach tab
         _editingPoiId = poi.Id;
-        _newPoi = new POIDto
+        _editDraftPoi = ClonePoi(poi);
+        _newPoi = ClonePoi(_editDraftPoi);
+        _newPoi.Language ??= "vi-VN";
+        _poiAddressQuery = poi.Address ?? string.Empty;
+        _poiAddressStatus = "";
+    _selectedPoiAddressSuggestion = CreateAddressSuggestionFromAddress(_poiAddressQuery);
+        _lastAutoFilledPoiName = null;
+        _editAddressQuery = _poiAddressQuery;
+        _editAddressStatus = _poiAddressStatus;
+        _editSelectedPoiAddressSuggestion = _selectedPoiAddressSuggestion;
+        _editLastAutoFilledPoiName = _lastAutoFilledPoiName;
+        await InvokeAsync(StateHasChanged);
+        await JS.InvokeVoidAsync("addTempMarkerToPOIMap", poi.Latitude, poi.Longitude, false, _newPoi.TriggerRadius);
+    }
+
+    private async Task OnActiveTabIndexChanged(int index)
+    {
+        if (_activeTabIndex == index)
         {
-            Id = poi.Id,
-            Name = poi.Name,
-            ShortDescription = poi.ShortDescription,
-            FullDescription = poi.FullDescription,
-            Latitude = poi.Latitude,
-            Longitude = poi.Longitude,
-            TriggerRadiusMeters = poi.TriggerRadiusMeters,
-            ApproachRadius = poi.ApproachRadius,
-            Priority = poi.Priority,
-            Category = poi.Category,
-            ImageUrl = poi.ImageUrl,
-            AudioUrl = poi.AudioUrl,
-            AudioDurationSeconds = poi.AudioDurationSeconds,
-            TTSScript = poi.TTSScript,
-            Language = poi.Language ?? "vi-VN",
-            MapDeepLink = poi.MapDeepLink,
-            IsActive = poi.IsActive
-        };
-        await JS.InvokeVoidAsync("addTempMarkerToPOIMap", poi.Latitude, poi.Longitude);
+            return;
+        }
+
+        var previous = _activeTabIndex;
+        _activeTabIndex = index;
+
+        // Rời tab Danh sách đang chỉnh sửa -> tab Thêm mới: giữ nháp chỉnh sửa riêng, reset form thêm mới.
+        if (previous == 0 && index == 1 && _isEditMode)
+        {
+            _editDraftPoi = ClonePoi(_newPoi);
+            _editAddressQuery = _poiAddressQuery;
+            _editAddressStatus = _poiAddressStatus;
+            _editSelectedPoiAddressSuggestion = _selectedPoiAddressSuggestion;
+            _editLastAutoFilledPoiName = _lastAutoFilledPoiName;
+
+            _newPoi = CreateDefaultPoi();
+            _poiAddressQuery = "";
+            _poiAddressStatus = "";
+            _selectedPoiAddressSuggestion = null;
+            _lastAutoFilledPoiName = null;
+            _isValid = false;
+
+            await JS.InvokeVoidAsync("removeTempMarkerFromPOIMap");
+            await JS.InvokeVoidAsync("addTempMarkerToPOIMap", 10.762622, 106.660172, false, _newPoi.TriggerRadius);
+            return;
+        }
+
+        // Quay từ tab Thêm mới về Danh sách: khôi phục nháp chỉnh sửa nếu có.
+        if (previous == 1 && index == 0 && _isEditMode && _editDraftPoi != null)
+        {
+            _newPoi = ClonePoi(_editDraftPoi);
+            _poiAddressQuery = _editAddressQuery;
+            _poiAddressStatus = _editAddressStatus;
+            _selectedPoiAddressSuggestion = _editSelectedPoiAddressSuggestion ?? CreateAddressSuggestionFromAddress(_poiAddressQuery);
+            _lastAutoFilledPoiName = _editLastAutoFilledPoiName;
+
+            await JS.InvokeVoidAsync("removeTempMarkerFromPOIMap");
+            await JS.InvokeVoidAsync("addTempMarkerToPOIMap", _newPoi.Latitude, _newPoi.Longitude, false, _newPoi.TriggerRadius);
+        }
     }
     
     private async Task CancelEdit()
     {
         _isEditMode = false;
         _editingPoiId = null;
+        _editDraftPoi = null;
+        _editAddressQuery = "";
+        _editAddressStatus = "";
+        _editSelectedPoiAddressSuggestion = null;
+        _editLastAutoFilledPoiName = null;
         await JS.InvokeVoidAsync("removeTempMarkerFromPOIMap");
     }
 
     private void CancelCreate()
     {
         _newPoi = CreateDefaultPoi();
+        _poiAddressQuery = "";
+        _poiAddressStatus = "";
+        _selectedPoiAddressSuggestion = null;
+        _lastAutoFilledPoiName = null;
         _isValid = false;
         JS.InvokeVoidAsync("removeTempMarkerFromPOIMap");
     }
@@ -751,14 +956,17 @@
         {
             _newPoi.Latitude = Math.Round(lat, 6);
             _newPoi.Longitude = Math.Round(lng, 6);
-            await JS.InvokeVoidAsync("addTempMarkerToPOIMap", lat, lng, true);
+            await JS.InvokeVoidAsync("addTempMarkerToPOIMap", lat, lng, true, _newPoi.TriggerRadius);
+            await ResolvePoiAddressAsync(lat, lng);
             StateHasChanged();
         }
     }
 
     private async Task SavePOI()
     {
-        if (_isEditMode)
+        var isEditingCurrentTab = _activeTabIndex == 0 && _isEditMode && !string.IsNullOrEmpty(_editingPoiId);
+
+        if (isEditingCurrentTab)
         {
             await _editForm.Validate();
         }
@@ -772,25 +980,24 @@
         _saving = true;
         try
         {
-            if (_isEditMode && !string.IsNullOrEmpty(_editingPoiId))
+            if (isEditingCurrentTab)
             {
                 var updateDto = new UpdatePOIDto
                 {
+                    Address = NormalizePoiAddress(_newPoi.Address),
                     Name = _newPoi.Name,
                     ShortDescription = _newPoi.ShortDescription,
                     FullDescription = _newPoi.FullDescription,
                     Latitude = _newPoi.Latitude,
                     Longitude = _newPoi.Longitude,
-                    TriggerRadiusMeters = _newPoi.TriggerRadiusMeters,
+                    TriggerRadiusMeters = _newPoi.TriggerRadius,
                     ApproachRadius = _newPoi.ApproachRadius,
                     Priority = _newPoi.Priority,
                     Category = _newPoi.Category,
                     ImageUrl = _newPoi.ImageUrl,
                     AudioUrl = _newPoi.AudioUrl,
-                    AudioDurationSeconds = _newPoi.AudioDurationSeconds,
                     TTSScript = _newPoi.TTSScript,
                     Language = _newPoi.Language,
-                    MapDeepLink = _newPoi.MapDeepLink,
                     IsActive = _newPoi.IsActive
                 };
                 var updated = await ApiService.UpdatePOIAsync(_editingPoiId!, updateDto);
@@ -800,6 +1007,11 @@
                     _activeTabIndex = 0;
                     _isEditMode = false;
                     _editingPoiId = null;
+                    _editDraftPoi = null;
+                    _editAddressQuery = "";
+                    _editAddressStatus = "";
+                    _editSelectedPoiAddressSuggestion = null;
+                    _editLastAutoFilledPoiName = null;
                     await JS.InvokeVoidAsync("removeTempMarkerFromPOIMap");
                     await LoadPOIs();
                 }
@@ -812,21 +1024,20 @@
             {
                 var createDto = new CreatePOIDto
                 {
+                    Address = NormalizePoiAddress(_newPoi.Address),
                     Name = _newPoi.Name,
                     ShortDescription = _newPoi.ShortDescription,
                     FullDescription = _newPoi.FullDescription,
                     Latitude = _newPoi.Latitude,
                     Longitude = _newPoi.Longitude,
-                    TriggerRadiusMeters = _newPoi.TriggerRadiusMeters,
+                    TriggerRadiusMeters = _newPoi.TriggerRadius,
                     ApproachRadius = _newPoi.ApproachRadius,
                     Priority = _newPoi.Priority,
                     Category = _newPoi.Category,
                     ImageUrl = _newPoi.ImageUrl,
                     AudioUrl = _newPoi.AudioUrl,
-                    AudioDurationSeconds = _newPoi.AudioDurationSeconds,
                     TTSScript = _newPoi.TTSScript,
-                    Language = _newPoi.Language,
-                    MapDeepLink = _newPoi.MapDeepLink
+                    Language = _newPoi.Language
                 };
                 var created = await ApiService.CreatePOIAsync(createDto);
                 if (created != null)
@@ -849,24 +1060,259 @@
         }
     }
 
-    private async Task ConfirmDelete(POIDto poi)
+    private Task OnPoiAddressTextChanged(string text)
     {
+        _poiAddressQuery = text ?? string.Empty;
+        _newPoi.Address = string.IsNullOrWhiteSpace(_poiAddressQuery) ? null : _poiAddressQuery.Trim();
+        _poiAddressStatus = string.IsNullOrWhiteSpace(_poiAddressQuery) ? "" : "Chọn một gợi ý để định vị và tự điền tên địa điểm.";
+
+        if (_selectedPoiAddressSuggestion != null &&
+            !string.Equals(_selectedPoiAddressSuggestion.DisplayName, _poiAddressQuery, StringComparison.OrdinalIgnoreCase))
+        {
+            _selectedPoiAddressSuggestion = null;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task<IEnumerable<AddressSuggestion>> SearchPoiAddressSuggestionsAsync(string value, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Trim().Length < 3)
+        {
+            _poiAddressStatus = string.Empty;
+            return Array.Empty<AddressSuggestion>();
+        }
+
+        try
+        {
+            using var request = new HttpRequestMessage(
+                HttpMethod.Get,
+                $"https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&q={Uri.EscapeDataString(value.Trim())}");
+            request.Headers.TryAddWithoutValidation("User-Agent", "ZoneGuide-Admin/1.0");
+            request.Headers.TryAddWithoutValidation("Accept-Language", "vi");
+
+            using var response = await Http.SendAsync(request, token);
+            if (!response.IsSuccessStatusCode)
+            {
+                _poiAddressStatus = "Không thể lấy gợi ý địa chỉ.";
+                return Array.Empty<AddressSuggestion>();
+            }
+
+            var results = await response.Content.ReadFromJsonAsync<List<AddressSuggestion>>(cancellationToken: token)
+                          ?? new List<AddressSuggestion>();
+
+            _poiAddressStatus = results.Count == 0 ? "Không có địa chỉ" : $"Tìm thấy {results.Count} gợi ý địa chỉ.";
+            return results;
+        }
+        catch (OperationCanceledException)
+        {
+            return Array.Empty<AddressSuggestion>();
+        }
+        catch
+        {
+            _poiAddressStatus = "Không thể lấy gợi ý địa chỉ.";
+            return Array.Empty<AddressSuggestion>();
+        }
+    }
+
+    private async Task OnPoiAddressSuggestionSelected(AddressSuggestion? suggestion)
+    {
+        _selectedPoiAddressSuggestion = suggestion;
+
+        if (suggestion == null)
+        {
+            if (string.IsNullOrWhiteSpace(_poiAddressQuery))
+            {
+                _newPoi.Address = null;
+                _poiAddressStatus = string.Empty;
+            }
+            return;
+        }
+
+        _poiAddressQuery = suggestion.DisplayName;
+        _newPoi.Address = suggestion.DisplayName;
+        ApplyAutoPoiName(suggestion.Name, suggestion.DisplayName);
+        _poiAddressStatus = "Đã điền địa chỉ và cập nhật vị trí trên bản đồ.";
+
+        if (!suggestion.TryGetCoordinates(out var lat, out var lng))
+        {
+            _poiAddressStatus = "Không đọc được tọa độ từ gợi ý địa chỉ.";
+            return;
+        }
+
+        _newPoi.Latitude = Math.Round(lat, 6);
+        _newPoi.Longitude = Math.Round(lng, 6);
+        await JS.InvokeVoidAsync("addTempMarkerToPOIMap", lat, lng, false, _newPoi.TriggerRadius);
+        await ShowSearchResultOnMap(lat, lng, suggestion.DisplayName);
+        StateHasChanged();
+    }
+
+    private async Task OnTriggerRadiusChanged(double value)
+    {
+        _newPoi.TriggerRadius = value;
+
+        try
+        {
+            await JS.InvokeVoidAsync("updateTempRadiusPreviewOnPOIMap", value);
+        }
+        catch
+        {
+            // Bỏ qua nếu map chưa sẵn sàng
+        }
+    }
+
+    private async Task ResolvePoiAddressAsync(double lat, double lng)
+    {
+        try
+        {
+            using var request = new HttpRequestMessage(
+                HttpMethod.Get,
+                $"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat.ToString(System.Globalization.CultureInfo.InvariantCulture)}&lon={lng.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
+            request.Headers.TryAddWithoutValidation("User-Agent", "ZoneGuide-Admin/1.0");
+            request.Headers.TryAddWithoutValidation("Accept-Language", "vi");
+
+            using var response = await Http.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                SetPoiAddressNotFound();
+                return;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<ReverseGeocodeResult>();
+            if (string.IsNullOrWhiteSpace(result?.DisplayName))
+            {
+                SetPoiAddressNotFound();
+                return;
+            }
+
+            _newPoi.Address = result.DisplayName;
+            _poiAddressQuery = result.DisplayName;
+            _poiAddressStatus = "Đã cập nhật địa chỉ từ vị trí trên bản đồ.";
+            ApplyAutoPoiName(result.Name, result.DisplayName);
+        }
+        catch
+        {
+            SetPoiAddressNotFound();
+        }
+    }
+
+    private void SetPoiAddressNotFound()
+    {
+        const string fallback = "Không có địa chỉ";
+        _newPoi.Address = fallback;
+        _poiAddressQuery = fallback;
+        _poiAddressStatus = fallback;
+    }
+
+    private void ApplyAutoPoiName(string? candidateName, string? displayName)
+    {
+        var suggestedName = string.IsNullOrWhiteSpace(candidateName)
+            ? ExtractPoiNameFromAddress(displayName)
+            : candidateName!.Trim();
+
+        if (string.IsNullOrWhiteSpace(suggestedName))
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_newPoi.Name) ||
+            string.Equals(_newPoi.Name, _lastAutoFilledPoiName, StringComparison.Ordinal))
+        {
+            _newPoi.Name = suggestedName;
+            _lastAutoFilledPoiName = suggestedName;
+        }
+    }
+
+    private static string ExtractPoiNameFromAddress(string? displayName)
+    {
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            return string.Empty;
+        }
+
+        var firstPart = displayName.Split(',', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault();
+
+        return firstPart ?? displayName.Trim();
+    }
+
+    private static string DisplayAddressOrFallback(string? address)
+        => string.IsNullOrWhiteSpace(address) ? "Không có địa chỉ" : address.Trim();
+
+    private static string? NormalizePoiAddress(string? address)
+    {
+        if (string.IsNullOrWhiteSpace(address))
+        {
+            return null;
+        }
+
+        var trimmed = address.Trim();
+        return string.Equals(trimmed, "Không có địa chỉ", StringComparison.OrdinalIgnoreCase) ? trimmed : trimmed;
+    }
+
+    private string GetPoiCardClass(POIDto poi)
+        => string.Equals(_highlightedPoiId, poi.Id, StringComparison.Ordinal) ? "poi-card-selected" : string.Empty;
+
+    [JSInvokable]
+    public async Task OnPoiMarkerSelected(string poiId)
+    {
+        _highlightedPoiId = poiId;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            await JS.InvokeVoidAsync("scrollPoiCardIntoView", poiId);
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    [JSInvokable]
+    public Task OnPoiMarkerEditRequested(string poiId)
+    {
+        var poi = _pois.FirstOrDefault(p => p.Id == poiId);
+        return poi != null ? OpenEditMode(poi) : Task.CompletedTask;
+    }
+
+    [JSInvokable]
+    public Task OnPoiMarkerDeleteRequested(string poiId)
+    {
+        var poi = _pois.FirstOrDefault(p => p.Id == poiId);
+        return poi != null ? TogglePoiStatus(poi) : Task.CompletedTask;
+    }
+
+    private async Task TogglePoiStatus(POIDto poi)
+    {
+        var willActivate = !poi.IsActive;
         var confirm = await DialogService.ShowMessageBox(
-            "Xóa địa điểm",
-            $"Bạn có chắc muốn xóa '{poi.Name}' không?",
-            yesText: "Xóa", cancelText: "Hủy");
+            "Cập nhật trạng thái địa điểm",
+            willActivate
+                ? $"Bạn có chắc muốn bật lại '{poi.Name}' không?"
+                : $"Bạn có chắc muốn tắt '{poi.Name}' không?",
+            yesText: "Xác nhận", cancelText: "Hủy");
 
         if (confirm == true)
         {
-            var success = await ApiService.DeletePOIAsync(poi.Id);
-            if (success)
+            var success = await ApiService.UpdatePOIAsync(poi.Id, new UpdatePOIDto
             {
+                IsActive = willActivate
+            });
+
+            if (success != null)
+            {
+                if (!willActivate && string.Equals(_highlightedPoiId, poi.Id, StringComparison.Ordinal))
+                {
+                    _highlightedPoiId = null;
+                }
+
                 await LoadPOIs();
-                Snackbar.Add("Xóa thành công", Severity.Success);
+                Snackbar.Add(willActivate ? "Đã bật địa điểm" : "Đã tắt địa điểm", Severity.Success);
             }
             else
             {
-                Snackbar.Add("Failed to delete", Severity.Error);
+                Snackbar.Add("Không thể cập nhật trạng thái", Severity.Error);
             }
         }
     }
@@ -902,52 +1348,4 @@
         }
     }
 
-    private bool _isGeneratingTts = false;
-
-    private async Task PreviewTTS()
-    {
-        if (string.IsNullOrWhiteSpace(_newPoi.TTSScript))
-        {
-            Snackbar.Add("Vui lòng nhập nội dung thuyết minh!", Severity.Warning);
-            return;
-        }
-
-        _saving = true;
-        
-        // Xóa âm thanh cũ khỏi giao diện để ép nó thay thế bằng cái mới sau khi gọi API xong
-        _newPoi.AudioUrl = null; 
-        StateHasChanged();
-
-        try
-        {
-             var response = await ApiService.GenerateTtsAsync(_newPoi.TTSScript, _newPoi.Language);
-            if (!string.IsNullOrEmpty(response))
-            {
-                // Thêm tiền tố định dạng cho Base64 nếu backend chưa tự thêm
-                if (!response.StartsWith("data:audio"))
-                {
-                    _newPoi.AudioUrl = $"data:audio/mp3;base64,{response}";
-                }
-                else
-                {
-                    _newPoi.AudioUrl = response;
-                }
-                Snackbar.Add("Đã tạo giọng đọc mới thành công!", Severity.Success);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _saving = false;
-            StateHasChanged();
-        }
-    }
-
-    private void StopTTS()
-    {
-        // Removed browser TTS stop logic
-    }
 }

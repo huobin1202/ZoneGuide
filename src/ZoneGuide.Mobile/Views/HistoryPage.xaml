@@ -144,6 +144,24 @@
                                             Padding="0"
                                             Command="{Binding BindingContext.ReplayCommand, Source={x:Reference HistoryRoot}}"
                                             CommandParameter="{Binding .}" />
+                                                                                                                                      <Button Text="⏹"
+                                                                                                                                                                  WidthRequest="72"
+                                                                                                                                                                  HeightRequest="36"
+                                                                                                                                                                  CornerRadius="18"
+                                                                                                                                                                  FontSize="11"
+                                                                                                                                                                  Padding="0"
+                                                                                                                                                                  BackgroundColor="#FFE6E6"
+                                                                                                                                                                  TextColor="#B3261E"
+                                                                                                                                                                  Command="{Binding BindingContext.ToggleStopResumeCommand, Source={x:Reference HistoryRoot}}"
+                                                                                                                                                                  CommandParameter="{Binding .}">
+                                                                                                                                                    <Button.IsVisible>
+                                                                                                                                                                  <MultiBinding Converter="{StaticResource PoiMatchConverter}">
+                                                                                                                                                                                <Binding Source="{x:Reference HistoryRoot}" Path="BindingContext.CurrentNarrationPoiId" />
+                                                                                                                                                                                <Binding Path="POIId" />
+                                                                                                                                                                                <Binding Source="{x:Reference HistoryRoot}" Path="BindingContext.IsCurrentNarrationPlaying" />
+                                                                                                                                                                  </MultiBinding>
+                                                                                                                                                    </Button.IsVisible>
+                                                                                                                                      </Button>
                                        <Button Text="{local:Translate history_delete}"
                                               WidthRequest="72"
                                             HeightRequest="36"

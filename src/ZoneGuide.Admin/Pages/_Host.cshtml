@@ -33,6 +33,17 @@
         <a class="dismiss">🗙</a>
     </div>
 
+    <script>
+        try {
+            if (!sessionStorage.getItem("zoneguide_admin_session_started")) {
+                localStorage.removeItem("accessToken");
+                localStorage.removeItem("refreshToken");
+                localStorage.removeItem("user");
+                sessionStorage.setItem("zoneguide_admin_session_started", "1");
+            }
+        } catch (e) {
+        }
+    </script>
     <script src="_framework/blazor.server.js"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <!-- Leaflet JS for maps -->

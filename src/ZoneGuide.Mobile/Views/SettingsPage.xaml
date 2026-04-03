@@ -40,7 +40,7 @@
                                 <Picker Grid.Row="1"
                                         Grid.ColumnSpan="2"
                                         ItemsSource="{Binding AvailableLanguages}"
-                                        ItemDisplayBinding="{Binding DisplayName}"
+                                   ItemDisplayBinding="{Binding DisplayNameWithFlag}"
                                         SelectedItem="{Binding SelectedLanguageOption}" />
                             </Grid>
 
@@ -125,7 +125,7 @@
                                 </Grid>
                                 <Slider Grid.Row="1"
                                         Minimum="10"
-                                        Maximum="200"
+                                   Maximum="5000"
                                         Value="{Binding TriggerRadius}" />
                             </Grid>
 
@@ -141,7 +141,7 @@
                                 </Grid>
                                 <Slider Grid.Row="1"
                                         Minimum="50"
-                                        Maximum="500"
+                                   Maximum="5000"
                                         Value="{Binding ApproachRadius}" />
                             </Grid>
 
@@ -156,7 +156,7 @@
                                            FontAttributes="Bold" />
                                 </Grid>
                                 <Slider Grid.Row="1"
-                                        Minimum="60"
+                                        Minimum="1"
                                         Maximum="600"
                                         Value="{Binding CooldownSeconds}" />
                             </Grid>
@@ -242,10 +242,6 @@
                      <Label Text="{local:Translate settings_other}"
                                FontSize="18"
                                FontAttributes="Bold" />
-                   <Button Text="{local:Translate settings_logout_user}"
-                                BackgroundColor="#DC2626"
-                                TextColor="White"
-                                Command="{Binding LogoutCommand}" />
                      <Button Text="{local:Translate settings_clear_cache}"
                                 BackgroundColor="{StaticResource Gray500}"
                                 Command="{Binding ClearCacheCommand}" />

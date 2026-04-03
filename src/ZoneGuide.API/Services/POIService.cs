@@ -8,6 +8,9 @@ public interface IPOIService
 {
     Task<List<POIDto>> GetAllAsync(bool includeInactive = false);
     Task<POIDto?> GetByIdAsync(string id);
+    Task<List<POITranslationDto>> GetTranslationsAsync(string poiId);
+    Task<POITranslationDto?> UpsertTranslationAsync(string poiId, string languageCode, POITranslationDto dto);
+    Task<bool> DeleteTranslationAsync(string poiId, string languageCode);
     Task<List<POIDto>> GetByTourIdAsync(string tourId);
     Task<List<POIDto>> SearchAsync(string keyword);
     Task<List<POIDto>> GetNearbyAsync(double latitude, double longitude, double radiusMeters);
@@ -53,6 +56,142 @@ public interface IPOIService
         return entity != null ? MapToDto(entity) : null;
     }
 
+    public async Task<List<POITranslationDto>> GetTranslationsAsync(string poiId)
+    {
+        if (!int.TryParse(poiId, out var intPoiId))
+            return new List<POITranslationDto>();
+
+        return await _context.POITranslations
+            .Where(t => t.POIId == intPoiId)
+            .OrderBy(t => t.LanguageCode)
+            .Select(t => new POITranslationDto
+            {
+                Id = t.Id,
+                POIId = t.POIId,
+                LanguageCode = t.LanguageCode,
+                Name = t.Name,
+                ShortDescription = t.ShortDescription,
+                FullDescription = t.FullDescription,
+                TTSScript = t.TTSScript,
+                AudioUrl = t.AudioUrl,
+                IsOutdated = t.IsOutdated,
+                IsAudioOutdated = t.IsAudioOutdated
+            })
+            .ToListAsync();
+    }
+
+    public async Task<POITranslationDto?> UpsertTranslationAsync(string poiId, string languageCode, POITranslationDto dto)
+    {
+        if (!int.TryParse(poiId, out var intPoiId))
+            return null;
+
+        var normalizedLanguageCode = string.IsNullOrWhiteSpace(languageCode)
+            ? dto.LanguageCode?.Trim()
+            : languageCode.Trim();
+
+        if (string.IsNullOrWhiteSpace(normalizedLanguageCode))
+            return null;
+
+        var poi = await _context.POIs.FirstOrDefaultAsync(p => p.Id == intPoiId);
+        if (poi == null)
+            return null;
+
+        var existing = await _context.POITranslations
+            .FirstOrDefaultAsync(t => t.POIId == intPoiId && t.LanguageCode == normalizedLanguageCode);
+
+        if (existing == null)
+        {
+            existing = new POITranslationEntity
+            {
+                POIId = intPoiId,
+                LanguageCode = normalizedLanguageCode,
+                CreatedAt = DateTime.UtcNow,
+                IsOutdated = false,
+                IsAudioOutdated = false
+            };
+            _context.POITranslations.Add(existing);
+        }
+
+        var newName = string.IsNullOrWhiteSpace(dto.Name) ? poi.Name : dto.Name;
+        var normalizedNarration = ResolveNarration(dto.TTSScript, dto.FullDescription, dto.ShortDescription);
+        var normalizedShortDescription = string.IsNullOrWhiteSpace(dto.ShortDescription)
+            ? normalizedNarration
+            : dto.ShortDescription;
+        var normalizedFullDescription = string.IsNullOrWhiteSpace(dto.FullDescription)
+            ? normalizedNarration
+            : dto.FullDescription;
+
+        var newTts = normalizedNarration;
+        var previousName = existing.Name;
+        var previousTts = existing.TTSScript;
+        var previousAudio = existing.AudioUrl;
+        var contentChanged = !string.Equals(previousName, newName, StringComparison.Ordinal)
+            || !string.Equals(previousTts, newTts, StringComparison.Ordinal);
+
+        existing.Name = newName;
+        existing.ShortDescription = normalizedShortDescription;
+        existing.FullDescription = normalizedFullDescription;
+        existing.TTSScript = newTts;
+        existing.AudioUrl = dto.AudioUrl;
+        existing.IsOutdated = false;
+
+        if (contentChanged)
+        {
+            existing.IsAudioOutdated = true;
+        }
+
+        if (!string.Equals(previousAudio, dto.AudioUrl, StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(dto.AudioUrl))
+        {
+            existing.IsAudioOutdated = false;
+        }
+
+        existing.UpdatedAt = DateTime.UtcNow;
+        poi.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return new POITranslationDto
+        {
+            Id = existing.Id,
+            POIId = existing.POIId,
+            LanguageCode = existing.LanguageCode,
+            Name = existing.Name,
+            ShortDescription = existing.ShortDescription,
+            FullDescription = existing.FullDescription,
+            TTSScript = existing.TTSScript,
+            AudioUrl = existing.AudioUrl,
+            IsOutdated = existing.IsOutdated,
+            IsAudioOutdated = existing.IsAudioOutdated
+        };
+    }
+
+    public async Task<bool> DeleteTranslationAsync(string poiId, string languageCode)
+    {
+        if (!int.TryParse(poiId, out var intPoiId))
+            return false;
+
+        var normalizedLanguageCode = languageCode?.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedLanguageCode))
+            return false;
+
+        var translation = await _context.POITranslations
+            .FirstOrDefaultAsync(t => t.POIId == intPoiId && t.LanguageCode == normalizedLanguageCode);
+
+        if (translation == null)
+            return false;
+
+        _context.POITranslations.Remove(translation);
+
+        var poi = await _context.POIs.FirstOrDefaultAsync(p => p.Id == intPoiId);
+        if (poi != null)
+        {
+            poi.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
     public async Task<List<POIDto>> GetByTourIdAsync(string tourId)
     {
         if (!int.TryParse(tourId, out var intTourId))
@@ -86,7 +225,9 @@ public interface IPOIService
         var entities = await _context.POIs
             .Include(p => p.Translations)
             .Where(p => p.IsActive && 
-                (p.Name.Contains(keyword) || (p.ShortDescription != null && p.ShortDescription.Contains(keyword))))
+                (p.Name.Contains(keyword) ||
+                 (p.Address != null && p.Address.Contains(keyword)) ||
+                 (p.ShortDescription != null && p.ShortDescription.Contains(keyword))))
             .ToListAsync();
 
         return entities.Select(MapToDto).ToList();
@@ -133,21 +274,19 @@ public interface IPOIService
         var entity = new POIEntity
         {
             UniqueCode = Guid.NewGuid().ToString("N")[..8].ToUpper(),
+            Address = dto.Address,
             Name = dto.Name,
             ShortDescription = dto.ShortDescription,
             FullDescription = dto.FullDescription,
             Latitude = dto.Latitude,
             Longitude = dto.Longitude,
-            TriggerRadiusMeters = dto.TriggerRadiusMeters,
             TriggerRadius = dto.TriggerRadiusMeters,
             ApproachRadius = dto.ApproachRadius,
             Priority = dto.Priority,
             AudioUrl = dto.AudioUrl,
-            AudioDurationSeconds = dto.AudioDurationSeconds,
             TTSScript = dto.TTSScript,
             ImageUrl = dto.ImageUrl,
             Category = dto.Category,
-            MapDeepLink = dto.MapDeepLink,
             Language = dto.Language ?? "vi-VN",
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
@@ -165,61 +304,105 @@ public interface IPOIService
         if (!int.TryParse(id, out var intId))
             return null;
             
-        var entity = await _context.POIs.FindAsync(intId);
+        var entity = await _context.POIs
+            .Include(p => p.Translations)
+            .FirstOrDefaultAsync(p => p.Id == intId);
         if (entity == null)
             return null;
 
+        var originalName = entity.Name;
+        var originalTts = entity.TTSScript;
+
+        if (dto.Address != null) entity.Address = dto.Address;
         if (dto.Name != null) entity.Name = dto.Name;
         if (dto.ShortDescription != null) entity.ShortDescription = dto.ShortDescription;
         if (dto.FullDescription != null) entity.FullDescription = dto.FullDescription;
         if (dto.Latitude.HasValue) entity.Latitude = dto.Latitude.Value;
         if (dto.Longitude.HasValue) entity.Longitude = dto.Longitude.Value;
-        if (dto.TriggerRadiusMeters.HasValue) 
-        {
-            entity.TriggerRadiusMeters = dto.TriggerRadiusMeters.Value;
-            entity.TriggerRadius = dto.TriggerRadiusMeters.Value;
-        }
+        if (dto.TriggerRadiusMeters.HasValue) entity.TriggerRadius = dto.TriggerRadiusMeters.Value;
         if (dto.ApproachRadius.HasValue) entity.ApproachRadius = dto.ApproachRadius.Value;
         if (dto.Priority.HasValue) entity.Priority = dto.Priority.Value;
         if (dto.AudioUrl != null) entity.AudioUrl = dto.AudioUrl;
-        if (dto.AudioDurationSeconds.HasValue) entity.AudioDurationSeconds = dto.AudioDurationSeconds.Value;
         if (dto.TTSScript != null) entity.TTSScript = dto.TTSScript;
         if (dto.ImageUrl != null) entity.ImageUrl = dto.ImageUrl;
         if (dto.Category != null) entity.Category = dto.Category;
-        if (dto.MapDeepLink != null) entity.MapDeepLink = dto.MapDeepLink;
         if (dto.Language != null) entity.Language = dto.Language;
         if (dto.IsActive.HasValue) entity.IsActive = dto.IsActive.Value;
         entity.UpdatedAt = DateTime.UtcNow;
 
+        var sourceContentChanged = (dto.Name != null && !string.Equals(originalName, entity.Name, StringComparison.Ordinal))
+            || (dto.TTSScript != null && !string.Equals(originalTts, entity.TTSScript, StringComparison.Ordinal));
+
+        if (sourceContentChanged)
+        {
+            foreach (var translation in entity.Translations)
+            {
+                translation.IsOutdated = true;
+                translation.IsAudioOutdated = true;
+                translation.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
         // Cập nhật Translations nếu có
         if (dto.Translations != null)
         {
-            // Load existing translations
-            await _context.Entry(entity).Collection(e => e.Translations).LoadAsync();
-            
             foreach (var transDto in dto.Translations)
             {
                 var existing = entity.Translations.FirstOrDefault(t => t.LanguageCode == transDto.LanguageCode);
                 if (existing != null)
                 {
+                    var normalizedNarration = ResolveNarration(transDto.TTSScript, transDto.FullDescription, transDto.ShortDescription);
+                    var normalizedShortDescription = string.IsNullOrWhiteSpace(transDto.ShortDescription)
+                        ? normalizedNarration
+                        : transDto.ShortDescription;
+                    var normalizedFullDescription = string.IsNullOrWhiteSpace(transDto.FullDescription)
+                        ? normalizedNarration
+                        : transDto.FullDescription;
+
+                    var translationContentChanged = !string.Equals(existing.Name, transDto.Name, StringComparison.Ordinal)
+                        || !string.Equals(existing.TTSScript, normalizedNarration, StringComparison.Ordinal);
+                    var previousAudio = existing.AudioUrl;
+
                     existing.Name = transDto.Name;
-                    existing.ShortDescription = transDto.ShortDescription;
-                    existing.FullDescription = transDto.FullDescription;
-                    existing.TTSScript = transDto.TTSScript;
+                    existing.ShortDescription = normalizedShortDescription;
+                    existing.FullDescription = normalizedFullDescription;
+                    existing.TTSScript = normalizedNarration;
                     existing.AudioUrl = transDto.AudioUrl;
+                    existing.IsOutdated = false;
+
+                    if (translationContentChanged)
+                    {
+                        existing.IsAudioOutdated = true;
+                    }
+
+                    if (!string.Equals(previousAudio, transDto.AudioUrl, StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(transDto.AudioUrl))
+                    {
+                        existing.IsAudioOutdated = false;
+                    }
+
                     existing.UpdatedAt = DateTime.UtcNow;
                 }
                 else
                 {
+                    var normalizedNarration = ResolveNarration(transDto.TTSScript, transDto.FullDescription, transDto.ShortDescription);
+                    var normalizedShortDescription = string.IsNullOrWhiteSpace(transDto.ShortDescription)
+                        ? normalizedNarration
+                        : transDto.ShortDescription;
+                    var normalizedFullDescription = string.IsNullOrWhiteSpace(transDto.FullDescription)
+                        ? normalizedNarration
+                        : transDto.FullDescription;
+
                     entity.Translations.Add(new POITranslationEntity
                     {
                         POIId = entity.Id,
                         LanguageCode = transDto.LanguageCode,
                         Name = transDto.Name,
-                        ShortDescription = transDto.ShortDescription,
-                        FullDescription = transDto.FullDescription,
-                        TTSScript = transDto.TTSScript,
+                        ShortDescription = normalizedShortDescription,
+                        FullDescription = normalizedFullDescription,
+                        TTSScript = normalizedNarration,
                         AudioUrl = transDto.AudioUrl,
+                        IsOutdated = false,
+                        IsAudioOutdated = false,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     });
@@ -229,6 +412,20 @@ public interface IPOIService
 
         await _context.SaveChangesAsync();
         return MapToDto(entity);
+    }
+
+    private static string ResolveNarration(string? ttsScript, string? fullDescription, string? shortDescription)
+    {
+        if (!string.IsNullOrWhiteSpace(ttsScript))
+            return ttsScript;
+
+        if (!string.IsNullOrWhiteSpace(fullDescription))
+            return fullDescription;
+
+        if (!string.IsNullOrWhiteSpace(shortDescription))
+            return shortDescription;
+
+        return string.Empty;
     }
 
     public async Task<bool> DeleteAsync(string id)
@@ -244,6 +441,8 @@ public interface IPOIService
 
         entity.IsActive = false;
         entity.UpdatedAt = deletedAt;
+
+        await DetachPOIFromToursAsync(entity, deletedAt);
 
         var deletedRecord = await _context.DeletedRecords
             .FirstOrDefaultAsync(d => d.EntityType == "POI" && d.EntityId == entity.Id.ToString());
@@ -266,28 +465,93 @@ public interface IPOIService
         return true;
     }
 
+    private async Task DetachPOIFromToursAsync(POIEntity poi, DateTime changedAt)
+    {
+        var linksToRemove = await _context.TourPOIs
+            .Where(tp => tp.POIId == poi.Id)
+            .ToListAsync();
+
+        var affectedTourIds = linksToRemove
+            .Select(tp => tp.TourId)
+            .Distinct()
+            .ToHashSet();
+
+        if (poi.TourId.HasValue)
+        {
+            affectedTourIds.Add(poi.TourId.Value);
+        }
+
+        if (linksToRemove.Count > 0)
+        {
+            _context.TourPOIs.RemoveRange(linksToRemove);
+        }
+
+        poi.TourId = null;
+        poi.OrderInTour = 0;
+
+        if (affectedTourIds.Count == 0)
+            return;
+
+        var affectedTours = await _context.Tours
+            .Include(t => t.POIIds)
+            .ThenInclude(tp => tp.POI)
+            .Where(t => affectedTourIds.Contains(t.Id))
+            .ToListAsync();
+
+        foreach (var tour in affectedTours)
+        {
+            var staleLinks = tour.POIIds
+                .Where(tp => tp.POIId == poi.Id || tp.POI == null || !tp.POI.IsActive)
+                .ToList();
+
+            if (staleLinks.Count > 0)
+            {
+                _context.TourPOIs.RemoveRange(staleLinks);
+            }
+
+            var activeLinks = tour.POIIds
+                .Except(staleLinks)
+                .OrderBy(tp => tp.Order)
+                .ToList();
+
+            for (var index = 0; index < activeLinks.Count; index++)
+            {
+                var link = activeLinks[index];
+                link.Order = index;
+
+                if (link.POI != null)
+                {
+                    link.POI.TourId = tour.Id;
+                    link.POI.OrderInTour = index;
+                    link.POI.UpdatedAt = changedAt;
+                }
+            }
+
+            tour.POICount = activeLinks.Count;
+            tour.UpdatedAt = changedAt;
+        }
+    }
+
     private static POIDto MapToDto(POIEntity entity)
     {
         return new POIDto
         {
             Id = entity.Id.ToString(),
             UniqueCode = entity.UniqueCode,
+            Address = entity.Address,
             Name = entity.Name,
             ShortDescription = entity.ShortDescription,
             FullDescription = entity.FullDescription,
             Latitude = entity.Latitude,
             Longitude = entity.Longitude,
+            TriggerRadiusMeters = entity.TriggerRadius,
             TriggerRadius = entity.TriggerRadius,
-            TriggerRadiusMeters = entity.TriggerRadiusMeters,
             ApproachRadius = entity.ApproachRadius,
             Priority = entity.Priority,
             AudioUrl = entity.AudioUrl,
-            AudioDurationSeconds = entity.AudioDurationSeconds,
             TTSScript = entity.TTSScript,
             ImageUrl = entity.ImageUrl,
-            ThumbnailUrl = entity.ThumbnailUrl,
             MapLink = entity.MapLink,
-            MapDeepLink = entity.MapDeepLink,
             Category = entity.Category,
             Language = entity.Language,
             TourId = entity.TourId,
@@ -303,7 +567,9 @@ public interface IPOIService
                 ShortDescription = t.ShortDescription,
                 FullDescription = t.FullDescription,
                 TTSScript = t.TTSScript,
-                AudioUrl = t.AudioUrl
+                AudioUrl = t.AudioUrl,
+                IsOutdated = t.IsOutdated,
+                IsAudioOutdated = t.IsAudioOutdated
             }).ToList()
         };
     }

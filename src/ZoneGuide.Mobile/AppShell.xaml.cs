@@ -7,7 +7,7 @@ namespace ZoneGuide.Mobile;
 
 public partial class AppShell : Shell
 {
-    private static bool _narrationPrefsApplied;
+    private bool _narrationPrefsApplied;
 
     public AppShell()
     {
@@ -48,8 +48,9 @@ public partial class AppShell : Shell
     {
         PoisTab.Title = AppLocalizer.Instance.Translate("tab_pois");
         MapTab.Title = AppLocalizer.Instance.Translate("tab_map");
+        TourTab.Title = AppLocalizer.Instance.Translate("tab_tours");
         HistoryTab.Title = AppLocalizer.Instance.Translate("tab_history");
-        ToursTab.Title = AppLocalizer.Instance.Translate("tab_tours");
+        OfflineTab.Title = AppLocalizer.Instance.Translate("tab_offline");
         SettingsTab.Title = AppLocalizer.Instance.Translate("tab_settings");
     }
 

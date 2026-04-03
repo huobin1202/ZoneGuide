@@ -41,11 +41,15 @@ public class SyncService : ISyncService
                 .Where(p => p.UpdatedAt > request.LastSyncTime.Value)
                 .AnyAsync();
 
+            var lastPOITranslationUpdate = await _context.POITranslations
+                .Where(t => t.UpdatedAt > request.LastSyncTime.Value)
+                .AnyAsync();
+
             var lastTourUpdate = await _context.Tours
                 .Where(t => t.UpdatedAt > request.LastSyncTime.Value)
                 .AnyAsync();
 
-            if (!lastPOIUpdate && !lastTourUpdate && 
+            if (!lastPOIUpdate && !lastPOITranslationUpdate && !lastTourUpdate && 
                 request.LastContentVersion == latestVersion.Version)
             {
                 response.HasUpdates = false;
@@ -66,7 +70,10 @@ public class SyncService : ISyncService
 
             if (request.LastSyncTime.HasValue)
             {
-                poiQuery = poiQuery.Where(p => p.UpdatedAt > request.LastSyncTime.Value);
+                var lastSyncTime = request.LastSyncTime.Value;
+                poiQuery = poiQuery.Where(p =>
+                    p.UpdatedAt > lastSyncTime
+                    || p.Translations.Any(t => t.UpdatedAt > lastSyncTime));
             }
 
             if (request.BoundingBox != null)
@@ -87,6 +94,7 @@ public class SyncService : ISyncService
         {
             var tourQuery = _context.Tours
                 .Include(t => t.POIIds)
+                .ThenInclude(tp => tp.POI)
                 .Where(t => t.IsActive);
 
             if (request.LastSyncTime.HasValue)
@@ -96,19 +104,84 @@ public class SyncService : ISyncService
 
             var tours = await tourQuery.ToListAsync();
             response.Tours = tours.Select(MapToDto).ToList();
+
+            if (request.IncludePOIs && tours.Count > 0)
+            {
+                var referencedPoiIds = tours
+                    .SelectMany(t => t.POIIds)
+                    .Where(tp => tp.POI?.IsActive == true)
+                    .Select(tp => tp.POIId)
+                    .Distinct()
+                    .ToList();
+
+                if (referencedPoiIds.Count > 0)
+                {
+                    var existingPoiIds = response.POIs
+                        .Select(p => int.TryParse(p.Id, out var poiId) ? (int?)poiId : null)
+                        .Where(id => id.HasValue)
+                        .Select(id => id!.Value)
+                        .ToHashSet();
+
+                    var missingPoiIds = referencedPoiIds
+                        .Where(id => !existingPoiIds.Contains(id))
+                        .ToList();
+
+                    if (missingPoiIds.Count > 0)
+                    {
+                        var missingPois = await _context.POIs
+                            .Include(p => p.Translations)
+                            .Where(p => p.IsActive && missingPoiIds.Contains(p.Id))
+                            .ToListAsync();
+
+                        response.POIs.AddRange(missingPois.Select(MapToDto));
+                    }
+                }
+            }
         }
 
         // Get deleted IDs since last sync
         if (request.LastSyncTime.HasValue)
         {
-            response.DeletedPOIIds = await _context.DeletedRecords
+            var deletedPoiRecords = await _context.DeletedRecords
                 .Where(d => d.EntityType == "POI" && d.DeletedAt > request.LastSyncTime.Value)
                 .Select(d => d.EntityId)
                 .ToListAsync();
 
-            response.DeletedTourIds = await _context.DeletedRecords
+            var inactivePoiIds = await _context.POIs
+                .Where(p => !p.IsActive)
+                .Select(p => p.Id.ToString())
+                .ToListAsync();
+
+            response.DeletedPOIIds = deletedPoiRecords
+                .Concat(inactivePoiIds)
+                .Distinct()
+                .ToList();
+
+            var deletedTourRecords = await _context.DeletedRecords
                 .Where(d => d.EntityType == "Tour" && d.DeletedAt > request.LastSyncTime.Value)
                 .Select(d => d.EntityId)
+                .ToListAsync();
+
+            var inactiveTourIds = await _context.Tours
+                .Where(t => !t.IsActive)
+                .Select(t => t.Id.ToString())
+                .ToListAsync();
+
+            response.DeletedTourIds = deletedTourRecords
+                .Concat(inactiveTourIds)
+                .Distinct()
+                .ToList();
+        }
+        else
+        {
+            response.DeletedPOIIds = await _context.POIs
+                .Where(p => !p.IsActive)
+                .Select(p => p.Id.ToString())
+                .ToListAsync();
+
+            response.DeletedTourIds = await _context.Tours
+                .Where(t => !t.IsActive)
+                .Select(t => t.Id.ToString())
                 .ToListAsync();
         }
 
@@ -144,22 +217,20 @@ public class SyncService : ISyncService
         {
             Id = entity.Id.ToString(),
             UniqueCode = entity.UniqueCode,
+            Address = entity.Address,
             Name = entity.Name,
             ShortDescription = entity.ShortDescription,
             FullDescription = entity.FullDescription,
             Latitude = entity.Latitude,
             Longitude = entity.Longitude,
-            TriggerRadiusMeters = entity.TriggerRadiusMeters,
+            TriggerRadiusMeters = entity.TriggerRadius,
             TriggerRadius = entity.TriggerRadius,
             ApproachRadius = entity.ApproachRadius,
             Priority = entity.Priority,
             Category = entity.Category,
             ImageUrl = entity.ImageUrl,
-            ThumbnailUrl = entity.ThumbnailUrl,
             AudioUrl = entity.AudioUrl,
-            AudioDurationSeconds = entity.AudioDurationSeconds,
             TTSScript = entity.TTSScript,
-            MapDeepLink = entity.MapDeepLink,
             MapLink = entity.MapLink,
             Language = entity.Language,
             TourId = entity.TourId,
@@ -172,24 +243,41 @@ public class SyncService : ISyncService
                 Name = t.Name,
                 ShortDescription = t.ShortDescription ?? string.Empty,
                 FullDescription = t.FullDescription ?? string.Empty,
-                AudioUrl = t.AudioUrl
+                TTSScript = !string.IsNullOrWhiteSpace(t.TTSScript)
+                    ? t.TTSScript
+                    : (!string.IsNullOrWhiteSpace(t.FullDescription) ? t.FullDescription : t.ShortDescription),
+                AudioUrl = t.AudioUrl,
+                IsOutdated = t.IsOutdated,
+                IsAudioOutdated = t.IsAudioOutdated
             }).ToList() ?? new List<POITranslationDto>()
         };
     }
 
     private static TourDto MapToDto(TourEntity entity)
     {
+        var activePoiIds = entity.POIIds
+            .Where(tp => tp.POI == null || tp.POI.IsActive)
+            .OrderBy(tp => tp.Order)
+            .Select(tp => tp.POIId.ToString())
+            .ToList();
+
         return new TourDto
         {
             Id = entity.Id.ToString(),
+            UniqueCode = entity.UniqueCode,
             Name = entity.Name,
             Description = entity.Description,
             EstimatedDurationMinutes = entity.EstimatedDurationMinutes,
             DistanceKm = entity.DistanceKm,
+            POICount = activePoiIds.Count,
             ImageUrl = entity.ImageUrl,
+            ThumbnailUrl = entity.ThumbnailUrl,
+            Language = entity.Language,
             Difficulty = entity.Difficulty,
+            DifficultyLevel = entity.DifficultyLevel,
+            WheelchairAccessible = entity.WheelchairAccessible,
             IsActive = entity.IsActive,
-            POIIds = entity.POIIds.OrderBy(p => p.Order).Select(p => p.POIId.ToString()).ToList()
+            POIIds = activePoiIds
         };
     }
 }

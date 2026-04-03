@@ -35,6 +35,7 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => e.UniqueCode).IsUnique();
             entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
             entity.Property(e => e.UniqueCode).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Address).HasMaxLength(500);
             entity.HasOne(e => e.Tour)
                   .WithMany(t => t.POIs)
                   .HasForeignKey(e => e.TourId);
@@ -147,25 +148,22 @@ public class POIEntity
 {
     public int Id { get; set; }
     public string UniqueCode { get; set; } = string.Empty;
+    public string? Address { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? ShortDescription { get; set; }
     public string? FullDescription { get; set; }
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public double TriggerRadius { get; set; } = 50;
-    public double TriggerRadiusMeters { get; set; } = 50;
     public double ApproachRadius { get; set; } = 100;
     public int Priority { get; set; } = 5;
     public string? Category { get; set; }
     public string? AudioFilePath { get; set; }
     public string? AudioUrl { get; set; }
-    public int? AudioDurationSeconds { get; set; }
     public string? TTSScript { get; set; }
     public string? ImagePath { get; set; }
     public string? ImageUrl { get; set; }
-    public string? ThumbnailUrl { get; set; }
     public string? MapLink { get; set; }
-    public string? MapDeepLink { get; set; }
     public string Language { get; set; } = "vi-VN";
     public int? TourId { get; set; }
     public int OrderInTour { get; set; }
@@ -187,8 +185,9 @@ public class POITranslationEntity
     public string ShortDescription { get; set; } = string.Empty;
     public string FullDescription { get; set; } = string.Empty;
     public string? TTSScript { get; set; }
-    public string? AudioFilePath { get; set; }
     public string? AudioUrl { get; set; }
+    public bool IsOutdated { get; set; }
+    public bool IsAudioOutdated { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
@@ -206,7 +205,6 @@ public class TourEntity
     public double EstimatedDistanceMeters { get; set; }
     public int POICount { get; set; }
     public string? ImageUrl { get; set; }
-    public string? ThumbnailPath { get; set; }
     public string? ThumbnailUrl { get; set; }
     public string Language { get; set; } = "vi-VN";
     public string Difficulty { get; set; } = "Easy";

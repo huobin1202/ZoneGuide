@@ -17,9 +17,16 @@
         </MudButton>
     </MudStack>
 
-    <MudTextField @bind-Value="_searchString" Placeholder="Tim tour..."
-                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                  Immediate="true" Class="mt-4" />
+    <MudStack Row="true" Spacing="2" Class="mt-4">
+        <MudTextField @bind-Value="_searchString" Placeholder="Tim tour..."
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      Immediate="true" Class="flex-grow-1" />
+        <MudSelect T="string" Label="Trang thai" @bind-Value="_selectedStatus" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width: 170px;">
+            <MudSelectItem Value="@( "Tat ca")" />
+            <MudSelectItem Value="@( "Dang bat")" />
+            <MudSelectItem Value="@( "Da tat")" />
+        </MudSelect>
+    </MudStack>
 </MudPaper>
 
 @if (_loading)
@@ -31,7 +38,7 @@ else
     <MudGrid Spacing="3">
         @foreach (var tour in FilteredTours)
         {
-            <MudItem xs="12" sm="6" md="4" lg="4">
+            <MudItem xs="12" sm="6" md="4" lg="3" xl="3">
                 <MudPaper Outlined="true" Class="tour-card">
                     @if (HasImage(tour))
                     {
@@ -45,6 +52,10 @@ else
                     <div class="tour-card-body">
                         <MudText Typo="Typo.h6" Class="tour-name-ellipsis" title="@tour.Name">@tour.Name</MudText>
                         <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">@TruncateText(tour.Description, 110)</MudText>
+
+                        <MudChip T="string" Size="Size.Small" Color="@(tour.IsActive ? Color.Success : Color.Default)" Class="mb-2">
+                            @(tour.IsActive ? "Dang bat" : "Da tat")
+                        </MudChip>
 
                         <MudStack Row="true" Spacing="2" Class="mb-2">
                             <MudText Typo="Typo.caption" Class="d-flex align-center mud-text-secondary">
@@ -63,17 +74,17 @@ else
                                 Chinh sua
                             </MudButton>
 
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                           Color="Color.Error"
+                            <MudIconButton Icon="@(tour.IsActive ? Icons.Material.Filled.ToggleOff : Icons.Material.Filled.ToggleOn)"
+                                           Color="@(tour.IsActive ? Color.Success : Color.Warning)"
                                            Variant="Variant.Outlined"
-                                           OnClick="@(() => ConfirmDelete(tour))" />
+                                           OnClick="@(() => ToggleTourStatus(tour))" />
                         </MudStack>
                     </div>
                 </MudPaper>
             </MudItem>
         }
 
-        <MudItem xs="12" sm="6" md="4" lg="4">
+        <MudItem xs="12" sm="6" md="4" lg="3" xl="3">
             <MudPaper Outlined="true" Class="tour-create-card" @onclick="OpenCreateDialog">
                 <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="fill-height" Spacing="2">
                     <MudIcon Icon="@Icons.Material.Filled.Add" Size="Size.Large" Color="Color.Default" />
@@ -95,11 +106,13 @@ else
     .tour-card {
         border-radius: 16px;
         overflow: hidden;
+        max-width: 320px;
+        margin: 0 auto;
     }
 
     .tour-card-image {
         width: 100%;
-        height: 170px;
+        height: 136px;
         object-fit: cover;
         display: block;
     }
@@ -109,7 +122,7 @@ else
     }
 
     .tour-card-body {
-        padding: 20px;
+        padding: 14px 14px 12px;
     }
 
     .tour-name-ellipsis {
@@ -119,34 +132,46 @@ else
         white-space: nowrap;
     }
 
+    .tour-card-body .mud-typography-body2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
     .tour-edit-btn {
         flex: 1;
     }
 
     .tour-create-card {
         height: 100%;
-        min-height: 356px;
+        min-height: 282px;
         border-style: dashed;
         border-width: 2px;
         cursor: pointer;
         border-color: #d8dceb;
+        max-width: 320px;
+        margin: 0 auto;
     }
 
     .fill-height {
-        min-height: 356px;
+        min-height: 282px;
     }
 </style>
 
 @code {
     private List<TourDto> _tours = new();
     private string _searchString = "";
+    private string _selectedStatus = "Tat ca";
     private bool _loading = true;
 
-    private IEnumerable<TourDto> FilteredTours => string.IsNullOrWhiteSpace(_searchString)
-        ? _tours
-        : _tours.Where(t => 
+    private IEnumerable<TourDto> FilteredTours => _tours
+        .Where(t => string.IsNullOrWhiteSpace(_searchString) ||
             t.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
-            (t.Description?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false));
+            (t.Description?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false))
+        .Where(t => _selectedStatus == "Tat ca" ||
+                    (_selectedStatus == "Dang bat" && t.IsActive) ||
+                    (_selectedStatus == "Da tat" && !t.IsActive));
 
     private static bool HasImage(TourDto tour)
     {
@@ -176,7 +201,7 @@ else
         };
 
         var dialog = await DialogService.ShowAsync<TourDialog>("Create New Tour", parameters,
-            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+            new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true });
         var result = await dialog.Result;
 
         if (!result.Canceled)
@@ -197,7 +222,7 @@ else
         };
 
         var dialog = await DialogService.ShowAsync<TourDialog>("Edit Tour", parameters,
-            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+            new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true });
         var result = await dialog.Result;
 
         if (!result.Canceled)
@@ -222,24 +247,31 @@ else
         }
     }
 
-    private async Task ConfirmDelete(TourDto tour)
+    private async Task ToggleTourStatus(TourDto tour)
     {
+        var willActivate = !tour.IsActive;
         var confirm = await DialogService.ShowMessageBox(
-            "Delete Tour",
-            $"Are you sure you want to delete '{tour.Name}'?",
-            yesText: "Delete", cancelText: "Cancel");
+            "Cap nhat trang thai Tour",
+            willActivate
+                ? $"Ban co chac muon bat lai '{tour.Name}' khong?"
+                : $"Ban co chac muon tat '{tour.Name}' khong?",
+            yesText: "Xac nhan", cancelText: "Huy");
 
         if (confirm == true)
         {
-            var success = await ApiService.DeleteTourAsync(tour.Id);
-            if (success)
+            var updated = await ApiService.UpdateTourAsync(tour.Id, new UpdateTourDto
+            {
+                IsActive = willActivate
+            });
+
+            if (updated != null)
             {
                 await LoadTours();
-                Snackbar.Add("Tour deleted successfully", Severity.Success);
+                Snackbar.Add(willActivate ? "Da bat Tour" : "Da tat Tour", Severity.Success);
             }
             else
             {
-                Snackbar.Add("Failed to delete tour", Severity.Error);
+                Snackbar.Add("Khong the cap nhat trang thai Tour", Severity.Error);
             }
         }
     }
