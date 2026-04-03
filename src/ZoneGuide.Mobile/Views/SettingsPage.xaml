@@ -40,7 +40,7 @@
                                 <Picker Grid.Row="1"
                                         Grid.ColumnSpan="2"
                                         ItemsSource="{Binding AvailableLanguages}"
-                                        ItemDisplayBinding="{Binding DisplayName}"
+                                   ItemDisplayBinding="{Binding DisplayNameWithFlag}"
                                         SelectedItem="{Binding SelectedLanguageOption}" />
                             </Grid>
 

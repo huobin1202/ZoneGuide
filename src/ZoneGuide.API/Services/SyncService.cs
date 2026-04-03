@@ -41,11 +41,15 @@ public class SyncService : ISyncService
                 .Where(p => p.UpdatedAt > request.LastSyncTime.Value)
                 .AnyAsync();
 
+            var lastPOITranslationUpdate = await _context.POITranslations
+                .Where(t => t.UpdatedAt > request.LastSyncTime.Value)
+                .AnyAsync();
+
             var lastTourUpdate = await _context.Tours
                 .Where(t => t.UpdatedAt > request.LastSyncTime.Value)
                 .AnyAsync();
 
-            if (!lastPOIUpdate && !lastTourUpdate && 
+            if (!lastPOIUpdate && !lastPOITranslationUpdate && !lastTourUpdate && 
                 request.LastContentVersion == latestVersion.Version)
             {
                 response.HasUpdates = false;
@@ -66,7 +70,10 @@ public class SyncService : ISyncService
 
             if (request.LastSyncTime.HasValue)
             {
-                poiQuery = poiQuery.Where(p => p.UpdatedAt > request.LastSyncTime.Value);
+                var lastSyncTime = request.LastSyncTime.Value;
+                poiQuery = poiQuery.Where(p =>
+                    p.UpdatedAt > lastSyncTime
+                    || p.Translations.Any(t => t.UpdatedAt > lastSyncTime));
             }
 
             if (request.BoundingBox != null)
@@ -210,22 +217,20 @@ public class SyncService : ISyncService
         {
             Id = entity.Id.ToString(),
             UniqueCode = entity.UniqueCode,
+            Address = entity.Address,
             Name = entity.Name,
             ShortDescription = entity.ShortDescription,
             FullDescription = entity.FullDescription,
             Latitude = entity.Latitude,
             Longitude = entity.Longitude,
-            TriggerRadiusMeters = entity.TriggerRadiusMeters,
+            TriggerRadiusMeters = entity.TriggerRadius,
             TriggerRadius = entity.TriggerRadius,
             ApproachRadius = entity.ApproachRadius,
             Priority = entity.Priority,
             Category = entity.Category,
             ImageUrl = entity.ImageUrl,
-            ThumbnailUrl = entity.ThumbnailUrl,
             AudioUrl = entity.AudioUrl,
-            AudioDurationSeconds = entity.AudioDurationSeconds,
             TTSScript = entity.TTSScript,
-            MapDeepLink = entity.MapDeepLink,
             MapLink = entity.MapLink,
             Language = entity.Language,
             TourId = entity.TourId,
@@ -238,7 +243,12 @@ public class SyncService : ISyncService
                 Name = t.Name,
                 ShortDescription = t.ShortDescription ?? string.Empty,
                 FullDescription = t.FullDescription ?? string.Empty,
-                AudioUrl = t.AudioUrl
+                TTSScript = !string.IsNullOrWhiteSpace(t.TTSScript)
+                    ? t.TTSScript
+                    : (!string.IsNullOrWhiteSpace(t.FullDescription) ? t.FullDescription : t.ShortDescription),
+                AudioUrl = t.AudioUrl,
+                IsOutdated = t.IsOutdated,
+                IsAudioOutdated = t.IsAudioOutdated
             }).ToList() ?? new List<POITranslationDto>()
         };
     }

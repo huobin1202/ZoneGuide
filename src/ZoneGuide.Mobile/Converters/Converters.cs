@@ -135,6 +135,22 @@ public class TrackingButtonColorConverter : IValueConverter
     }
 }
 
+public class OfflineTabTextColorConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is bool isSelected)
+            return isSelected ? Colors.White : Color.FromArgb("#475569");
+
+        return Color.FromArgb("#475569");
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
 /// <summary>
 /// Icon Play/Pause
 /// </summary>

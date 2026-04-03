@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Net.Http.Headers;
 using ZoneGuide.Shared.Models;
 
 namespace ZoneGuide.Admin.Services;
@@ -8,6 +9,10 @@ public interface IApiService
     // POI Operations
     Task<List<POIDto>> GetPOIsAsync();
     Task<POIDto?> GetPOIAsync(string id);
+    Task<List<POITranslationDto>> GetPOITranslationsAsync(string poiId);
+    Task<POITranslationDto?> UpsertPOITranslationAsync(string poiId, string languageCode, POITranslationDto dto);
+    Task<bool> DeletePOITranslationAsync(string poiId, string languageCode);
+    Task<TranslatedPOIContentDto?> TranslatePOIContentAsync(TranslatePOIContentRequestDto request);
     Task<POIDto?> CreatePOIAsync(CreatePOIDto dto);
     Task<POIDto?> UpdatePOIAsync(string id, UpdatePOIDto dto);
     Task<bool> DeletePOIAsync(string id);
@@ -27,6 +32,7 @@ public interface IApiService
 
     // TTS
     Task<string?> GenerateTtsAsync(string text, string language);
+    Task<string?> UploadAudioAsync(byte[] bytes, string fileName, string? contentType = null);
 
     // Generic
     Task<T?> GetAsync<T>(string url) where T : class;
@@ -57,6 +63,67 @@ public class ApiService : IApiService
         try
         {
             return await _httpClient.GetFromJsonAsync<POIDto>($"api/pois/{id}");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<List<POITranslationDto>> GetPOITranslationsAsync(string poiId)
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<List<POITranslationDto>>($"api/pois/{poiId}/translations") ?? new();
+        }
+        catch
+        {
+            return new();
+        }
+    }
+
+    public async Task<POITranslationDto?> UpsertPOITranslationAsync(string poiId, string languageCode, POITranslationDto dto)
+    {
+        try
+        {
+            var response = await _httpClient.PutAsJsonAsync($"api/pois/{poiId}/translations/{Uri.EscapeDataString(languageCode)}", dto);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<POITranslationDto>();
+            }
+
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<bool> DeletePOITranslationAsync(string poiId, string languageCode)
+    {
+        try
+        {
+            var response = await _httpClient.DeleteAsync($"api/pois/{poiId}/translations/{Uri.EscapeDataString(languageCode)}");
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<TranslatedPOIContentDto?> TranslatePOIContentAsync(TranslatePOIContentRequestDto request)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("api/pois/translate-content", request);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<TranslatedPOIContentDto>();
+            }
+
+            return null;
         }
         catch
         {
@@ -116,7 +183,7 @@ public class ApiService : IApiService
     {
         try
         {
-            return await _httpClient.GetFromJsonAsync<List<TourDto>>("api/tours") ?? new();
+            return await _httpClient.GetFromJsonAsync<List<TourDto>>("api/tours/all") ?? new();
         }
         catch
         {
@@ -271,6 +338,31 @@ public class ApiService : IApiService
                 return result.GetProperty("audioUrl").GetString();
             }
             return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<string?> UploadAudioAsync(byte[] bytes, string fileName, string? contentType = null)
+    {
+        try
+        {
+            using var form = new MultipartFormDataContent();
+            using var fileContent = new ByteArrayContent(bytes);
+
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue(string.IsNullOrWhiteSpace(contentType) ? "audio/mpeg" : contentType);
+            form.Add(fileContent, "file", string.IsNullOrWhiteSpace(fileName) ? "audio.mp3" : fileName);
+
+            var response = await _httpClient.PostAsync("api/tts/upload", form);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+            return result.GetProperty("audioUrl").GetString();
         }
         catch
         {

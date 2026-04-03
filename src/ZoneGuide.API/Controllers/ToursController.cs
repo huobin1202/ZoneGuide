@@ -38,6 +38,24 @@ public class ToursController : ControllerBase
     }
 
     /// <summary>
+    /// Get all tours (Admin endpoint to get both active and inactive)
+    /// </summary>
+    [HttpGet("all")]
+    public async Task<ActionResult<List<TourDto>>> GetAllAdmin()
+    {
+        try
+        {
+            var tours = await _tourService.GetAllAsync(includeInactive: true);
+            return Ok(tours);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting admin tours");
+            return StatusCode(500, "An error occurred while retrieving tours");
+        }
+    }
+
+    /// <summary>
     /// Get tour by ID
     /// </summary>
     [HttpGet("{id}")]

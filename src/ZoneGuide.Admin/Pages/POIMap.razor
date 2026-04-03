@@ -109,7 +109,7 @@ else
                 name = p.Name,
                 lat = p.Latitude,
                 lng = p.Longitude,
-                description = p.ShortDescription ?? "",
+                description = p.TTSScript ?? p.FullDescription ?? p.ShortDescription ?? "",
                 category = p.Category ?? "POI"
             }).ToArray();
 

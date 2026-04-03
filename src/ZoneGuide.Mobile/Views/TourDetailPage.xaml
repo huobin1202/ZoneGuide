@@ -222,66 +222,35 @@
                     <Label Text="{Binding Tour.Name}"
                                                      FontSize="24"
                            FontAttributes="Bold"
-                           MaxLines="1"
-                           LineBreakMode="TailTruncation"
-                           VerticalOptions="Center" />
+                           TextColor="#111827" />
 
-                    <Border Grid.Column="1"
-                            BackgroundColor="#F3F4F6"
-                            StrokeThickness="0"
-                            StrokeShape="RoundRectangle 10"
-                            Padding="10,6"
-                            VerticalOptions="Center">
-                        <HorizontalStackLayout Spacing="4">
-                            <Label Text="⌖"
-                                   FontSize="14" />
-                            <Label Text="{Binding PoiCountDisplay}"
-                                   FontSize="14"
-                                   FontAttributes="Bold" />
-                        </HorizontalStackLayout>
-                    </Border>
-                </Grid>
+                    <CollectionView ItemsSource="{Binding POIs}"
+                                    SelectionMode="None"
+                                    HeightRequest="230">
+                        <CollectionView.ItemsLayout>
+                            <LinearItemsLayout Orientation="Horizontal" ItemSpacing="10" />
+                        </CollectionView.ItemsLayout>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="models:POI">
+                                <Frame WidthRequest="240"
+                                       Padding="12"
+                                       CornerRadius="18"
+                                       HasShadow="False"
+                                       BorderColor="#E5E7EB"
+                                       BackgroundColor="White">
+                                                               <Frame.Triggers>
+                                                                      <DataTrigger TargetType="Frame" Binding="{Binding IsActive}" Value="False">
+                                                                             <Setter Property="Opacity" Value="0.45" />
+                                                                      </DataTrigger>
+                                                               </Frame.Triggers>
+                                    <Frame.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:TourDetailViewModel}}, Path=ViewPOIDetailCommand}"
+                                                              CommandParameter="{Binding .}" />
+                                    </Frame.GestureRecognizers>
 
-                <CollectionView x:Name="PoiCollectionView"
-                                Grid.Row="2"
-                                Margin="12,0,0,0"
-                                ItemsSource="{Binding POIs}"
-                                SelectionMode="None"
-                                HeightRequest="220">
-                    <CollectionView.ItemsLayout>
-                        <LinearItemsLayout Orientation="Horizontal" ItemSpacing="10" />
-                    </CollectionView.ItemsLayout>
-                    <CollectionView.ItemTemplate>
-                        <DataTemplate x:DataType="models:POI">
-                            <Frame WidthRequest="240"
-                                   Padding="12"
-                                   CornerRadius="18"
-                                   HasShadow="False"
-                                   BorderColor="#E5E7EB"
-                                   BackgroundColor="White">
-                                <Frame.GestureRecognizers>
-                                    <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:TourDetailViewModel}}, Path=ViewPOIDetailCommand}"
-                                                          CommandParameter="{Binding .}" />
-                                </Frame.GestureRecognizers>
-
-                                <Grid RowDefinitions="96,Auto"
-                                      RowSpacing="10">
-                                    <Frame Grid.Row="0"
-                                           Padding="0"
-                                           CornerRadius="12"
-                                           HasShadow="False"
-                                           IsClippedToBounds="True"
-                                           BackgroundColor="#EEF2F7">
-                                        <Image Source="{Binding ImageUrl, Converter={StaticResource FlexibleImageSourceConverter}}"
-                                               Aspect="AspectFill" />
-                                    </Frame>
-
-                                    <Grid Grid.Row="1"
-                                          ColumnDefinitions="Auto,*,Auto"
-                                          ColumnSpacing="10">
-                                        <Frame Grid.Column="0"
-                                               WidthRequest="34"
-                                               HeightRequest="34"
+                                    <Grid RowDefinitions="96,Auto"
+                                          RowSpacing="10">
+                                        <Frame Grid.Row="0"
                                                Padding="0"
                                                CornerRadius="17"
                                                HasShadow="False"

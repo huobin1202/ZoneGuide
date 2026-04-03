@@ -263,7 +263,6 @@ public class POIContributionService : IPOIContributionService
                 Latitude = contribution.Latitude,
                 Longitude = contribution.Longitude,
                 TriggerRadius = contribution.TriggerRadius,
-                TriggerRadiusMeters = contribution.TriggerRadius,
                 ApproachRadius = contribution.ApproachRadius,
                 Priority = contribution.Priority,
                 AudioUrl = contribution.AudioUrl,

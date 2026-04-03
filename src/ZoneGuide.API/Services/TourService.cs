@@ -6,7 +6,7 @@ namespace ZoneGuide.API.Services;
 
 public interface ITourService
 {
-    Task<List<TourDto>> GetAllAsync();
+    Task<List<TourDto>> GetAllAsync(bool includeInactive = false);
     Task<TourDto?> GetByIdAsync(string id);
     Task<TourDto?> GetWithPOIsAsync(string id);
     Task<TourDto> CreateAsync(CreateTourDto dto);
@@ -26,12 +26,18 @@ public class TourService : ITourService
         _poiService = poiService;
     }
 
-    public async Task<List<TourDto>> GetAllAsync()
+    public async Task<List<TourDto>> GetAllAsync(bool includeInactive = false)
     {
-        var entities = await _context.Tours
+        var query = _context.Tours
             .Include(t => t.POIIds)
-            .ThenInclude(tp => tp.POI)
-            .Where(t => t.IsActive)
+            .AsQueryable();
+
+        if (!includeInactive)
+        {
+            query = query.Where(t => t.IsActive);
+        }
+
+        var entities = await query
             .OrderBy(t => t.Name)
             .ToListAsync();
 

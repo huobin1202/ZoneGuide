@@ -23,6 +23,13 @@
             Route="map" />
 
         <ShellContent
+            x:Name="TourTab"
+            Title="{local:Translate tab_tours}"
+            ContentTemplate="{DataTemplate views:TourListPage}"
+            Icon="location.png"
+            Route="tours" />
+
+        <ShellContent
             x:Name="HistoryTab"
             Title="{local:Translate tab_history}"
             ContentTemplate="{DataTemplate views:HistoryPage}"
@@ -30,11 +37,11 @@
             Route="history" />
 
         <ShellContent
-            x:Name="ToursTab"
-            Title="{local:Translate tab_tours}"
-            ContentTemplate="{DataTemplate views:TourListPage}"
-            Icon="route.png"
-            Route="tours" />
+            x:Name="OfflineTab"
+            Title="{local:Translate tab_offline}"
+            ContentTemplate="{DataTemplate views:OfflinePage}"
+            Icon="offline.svg"
+            Route="offline" />
 
         <ShellContent
             x:Name="SettingsTab"

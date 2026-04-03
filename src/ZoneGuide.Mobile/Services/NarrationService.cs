@@ -557,9 +557,7 @@ public class NarrationService : INarrationService, IDisposable
                 return;
 
             // Khi có bản dịch, ưu tiên dữ liệu audio/text theo ngôn ngữ đã chọn.
-            item.AudioPath = string.IsNullOrWhiteSpace(translation.AudioFilePath)
-                ? null
-                : translation.AudioFilePath;
+            item.AudioPath = null;
 
             item.AudioUrl = string.IsNullOrWhiteSpace(translation.AudioUrl)
                 ? null

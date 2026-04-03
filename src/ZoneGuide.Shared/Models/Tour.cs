@@ -41,11 +41,6 @@ public class Tour
     public int POICount { get; set; }
     
     /// <summary>
-    /// Ảnh đại diện
-    /// </summary>
-    public string? ThumbnailPath { get; set; }
-    
-    /// <summary>
     /// URL ảnh online
     /// </summary>
     public string? ThumbnailUrl { get; set; }

@@ -33,6 +33,7 @@ public class POIDto
 {
     public string Id { get; set; } = string.Empty;
     public string UniqueCode { get; set; } = string.Empty;
+    public string? Address { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? ShortDescription { get; set; }
     public string? FullDescription { get; set; }
@@ -43,11 +44,8 @@ public class POIDto
     public double ApproachRadius { get; set; }
     public int Priority { get; set; }
     public string? AudioUrl { get; set; }
-    public int? AudioDurationSeconds { get; set; }
     public string? TTSScript { get; set; }
     public string? ImageUrl { get; set; }
-    public string? ThumbnailUrl { get; set; }
-    public string? MapDeepLink { get; set; }
     public string? MapLink { get; set; }
     public string? Category { get; set; }
     public string Language { get; set; } = "vi-VN";
@@ -63,6 +61,7 @@ public class POIDto
 /// </summary>
 public class CreatePOIDto
 {
+    public string? Address { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? ShortDescription { get; set; }
     public string? FullDescription { get; set; }
@@ -72,11 +71,9 @@ public class CreatePOIDto
     public double ApproachRadius { get; set; } = 100;
     public int Priority { get; set; } = 1;
     public string? AudioUrl { get; set; }
-    public int? AudioDurationSeconds { get; set; }
     public string? TTSScript { get; set; }
     public string? ImageUrl { get; set; }
     public string? Category { get; set; }
-    public string? MapDeepLink { get; set; }
     public string Language { get; set; } = "vi-VN";
 }
 
@@ -85,6 +82,7 @@ public class CreatePOIDto
 /// </summary>
 public class UpdatePOIDto
 {
+    public string? Address { get; set; }
     public string? Name { get; set; }
     public string? ShortDescription { get; set; }
     public string? FullDescription { get; set; }
@@ -94,11 +92,9 @@ public class UpdatePOIDto
     public double? ApproachRadius { get; set; }
     public int? Priority { get; set; }
     public string? AudioUrl { get; set; }
-    public int? AudioDurationSeconds { get; set; }
     public string? TTSScript { get; set; }
     public string? ImageUrl { get; set; }
     public string? Category { get; set; }
-    public string? MapDeepLink { get; set; }
     public string? Language { get; set; }
     public bool? IsActive { get; set; }
     public List<POITranslationDto>? Translations { get; set; }
@@ -117,6 +113,28 @@ public class POITranslationDto
     public string FullDescription { get; set; } = string.Empty;
     public string? TTSScript { get; set; }
     public string? AudioUrl { get; set; }
+    public bool IsOutdated { get; set; }
+    public bool IsAudioOutdated { get; set; }
+}
+
+/// <summary>
+/// Request dịch nội dung POI sang ngôn ngữ đích.
+/// </summary>
+public class TranslatePOIContentRequestDto
+{
+    public string SourceLanguage { get; set; } = "vi-VN";
+    public string TargetLanguage { get; set; } = "en-US";
+    public string Name { get; set; } = string.Empty;
+    public string? TTSScript { get; set; }
+}
+
+/// <summary>
+/// Kết quả nội dung POI đã dịch theo ngôn ngữ đích.
+/// </summary>
+public class TranslatedPOIContentDto
+{
+    public string Name { get; set; } = string.Empty;
+    public string? TTSScript { get; set; }
 }
 
 /// <summary>

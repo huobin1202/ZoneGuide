@@ -80,6 +80,7 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddAuthorization();
+builder.Services.AddHttpClient();
 
 // Services
 builder.Services.AddScoped<IPOIService, POIService>();
@@ -117,6 +118,7 @@ else
     app.UseHttpsRedirection(); // Chỉ redirect HTTPS ở Production
 }
 
+app.UseStaticFiles();
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();

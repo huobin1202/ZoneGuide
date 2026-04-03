@@ -6,6 +6,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject IJSRuntime JS
 
 <PageTitle>ZoneGuide</PageTitle>
 
@@ -106,8 +107,8 @@
                                 }
                             </MudTd>
                             <MudTd DataLabel="Vị trí">
-                                <MudLink Href="@($"https://maps.google.com/?q={context.Latitude},{context.Longitude}")" Target="_blank">
-                                    @(context.Latitude?.ToString("F4") ?? "0"), @(context.Longitude?.ToString("F4") ?? "0")
+                                <MudLink Href="javascript:void(0)" OnClick="@(() => ShowLocationAsync(context))">
+                                    @GetLocationDisplay(context)
                                 </MudLink>
                             </MudTd>
                             <MudTd DataLabel="Trạng thái">
@@ -156,6 +157,7 @@
 @code {
     private UserDto? _currentUser;
     private List<POIContributionDto> _contributions = new();
+    private readonly Dictionary<int, string> _addressCache = new();
     private bool _isLoading = true;
     private int _activeTabIndex = 0;
     
@@ -215,6 +217,7 @@
             if (response.IsSuccessStatusCode)
             {
                 _contributions = await response.Content.ReadFromJsonAsync<List<POIContributionDto>>() ?? new();
+                await ResolveAddressesAsync();
                 CalculateStats();
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
@@ -326,6 +329,53 @@
         
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
         await DialogService.ShowAsync<ApprovalHistoryDialog>("Lịch sử duyệt", parameters, options);
+    }
+
+    private async Task ShowLocationAsync(POIContributionDto contribution)
+    {
+        var parameters = new DialogParameters
+        {
+            { "Contribution", contribution }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+        await DialogService.ShowAsync<ContributionLocationDialog>("Xem vị trí đóng góp", parameters, options);
+    }
+
+    private string GetLocationDisplay(POIContributionDto contribution)
+    {
+        if (_addressCache.TryGetValue(contribution.Id, out var address))
+        {
+            return address;
+        }
+
+        return contribution.Latitude.HasValue && contribution.Longitude.HasValue
+            ? "Đang tải địa chỉ..."
+            : "Không có địa chỉ";
+    }
+
+    private async Task ResolveAddressesAsync()
+    {
+        foreach (var contribution in _contributions.Where(c => c.Latitude.HasValue && c.Longitude.HasValue))
+        {
+            if (_addressCache.ContainsKey(contribution.Id))
+            {
+                continue;
+            }
+
+            try
+            {
+                var address = await JS.InvokeAsync<string>(
+                    "reverseGeocodeAddress",
+                    contribution.Latitude!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    contribution.Longitude!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                _addressCache[contribution.Id] = string.IsNullOrWhiteSpace(address) ? "Không có địa chỉ" : address;
+            }
+            catch
+            {
+                _addressCache[contribution.Id] = "Không có địa chỉ";
+            }
+        }
     }
     
 

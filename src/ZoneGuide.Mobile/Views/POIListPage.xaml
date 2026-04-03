@@ -136,7 +136,7 @@
                                               FontSize="11"
                                               TextColor="{StaticResource Primary}" />
                                       </Border>
-                                      <Label Text="{Binding ShortDescription}"
+                                      <Label Text="{Binding TTSScript}"
                                           FontSize="13"
                                           TextColor="{StaticResource Gray500}"
                                           MaxLines="3" />

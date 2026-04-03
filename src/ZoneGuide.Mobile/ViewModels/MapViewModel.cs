@@ -321,8 +321,8 @@ public partial class MapViewModel : ObservableObject
             
             var pin = new Pin
             {
-                Label = poi.OrderInTour > 0 ? $"{poi.OrderInTour}.{poi.Name}" : poi.Name,
-                Address = poi.ShortDescription,
+                Label = poi.Name,
+                Address = poi.TTSScript ?? poi.FullDescription ?? poi.ShortDescription,
                 Location = new Location(poi.Latitude, poi.Longitude),
                 Type = PinType.Place
             };
@@ -334,6 +334,7 @@ public partial class MapViewModel : ObservableObject
     private async Task ApplyStartTourRouteIfRequestedAsync(int tourId)
     {
         var tourPois = (await _poiRepository.GetByTourIdAsync(tourId))
+            .Where(p => p.IsActive)
             .Where(p => p.Latitude is >= -90 and <= 90 && p.Longitude is >= -180 and <= 180)
             .OrderBy(p => p.OrderInTour)
             .ToList();
@@ -586,6 +587,8 @@ public partial class MapViewModel : ObservableObject
         var query = SearchQuery?.ToLowerInvariant();
         var results = _allPOIs.Where(p => 
             (string.IsNullOrWhiteSpace(query) || p.Name.ToLowerInvariant().Contains(query) || 
+            (p.TTSScript != null && p.TTSScript.ToLowerInvariant().Contains(query)) ||
+            (p.FullDescription != null && p.FullDescription.ToLowerInvariant().Contains(query)) ||
             (p.ShortDescription != null && p.ShortDescription.ToLowerInvariant().Contains(query))) &&
             (string.IsNullOrWhiteSpace(SelectedCategory) || SelectedCategory == "Tất cả" || p.Category == SelectedCategory))
             .ToList();

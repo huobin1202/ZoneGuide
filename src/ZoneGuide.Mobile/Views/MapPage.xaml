@@ -127,18 +127,24 @@
                                          Spacing="5"
                                          VerticalOptions="Center">
                         <Label Text="{Binding SelectedPOI.Name}"
-                               FontSize="17"
-                               FontAttributes="Bold"
-                               MaxLines="1"
-                               LineBreakMode="TailTruncation" />
-                        <HorizontalStackLayout Spacing="5">
-                            <Label Text="➤"
-                                   FontSize="13"
-                                   TextColor="#4B5563"
-                                   VerticalTextAlignment="Center" />
-                            <Label Text="{Binding SelectedPoiDistanceDisplay}"
-                                   FontSize="13"
-                                   TextColor="#4B5563"
+                               FontSize="18"
+                               FontAttributes="Bold" />
+               <Label Text="{Binding SelectedPOI.TTSScript}"
+                               FontSize="13"
+                               TextColor="{StaticResource Gray500}"
+                               MaxLines="2" />
+                        <HorizontalStackLayout Spacing="8">
+                            <Border BackgroundColor="#F2EFFF"
+                                    StrokeThickness="0"
+                                    StrokeShape="RoundRectangle 10"
+                                    Padding="8,2">
+                                    <Label Text="{Binding SelectedPOI.Category, Converter={StaticResource LocalizedCategoryConverter}}"
+                                       FontSize="11"
+                                       TextColor="{StaticResource Primary}" />
+                            </Border>
+                            <Label Text="{Binding SelectedPOI.Priority, StringFormat='Ưu tiên {0}'}"
+                                   FontSize="11"
+                                   TextColor="{StaticResource Gray500}"
                                    VerticalTextAlignment="Center" />
                         </HorizontalStackLayout>
                     </VerticalStackLayout>
