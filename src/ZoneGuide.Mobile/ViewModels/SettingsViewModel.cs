@@ -20,7 +20,6 @@ public partial class SettingsViewModel : ObservableObject
     private readonly ISyncService _syncService;
     private readonly ITTSService _ttsService;
     private readonly INarrationService _narrationService;
-    private readonly IUserSessionService _userSessionService;
 
     [ObservableProperty]
     private string preferredLanguage = "vi-VN";
@@ -87,20 +86,16 @@ public partial class SettingsViewModel : ObservableObject
     public ObservableCollection<string> AvailableVoices { get; } = new();
     public ObservableCollection<string> GpsAccuracyOptions { get; } = new();
 
-    public event EventHandler? LogoutRequested;
-
     public SettingsViewModel(
         ISettingsService settingsService,
         ISyncService syncService,
         ITTSService ttsService,
-        INarrationService narrationService,
-        IUserSessionService userSessionService)
+        INarrationService narrationService)
     {
         _settingsService = settingsService;
         _syncService = syncService;
         _ttsService = ttsService;
         _narrationService = narrationService;
-        _userSessionService = userSessionService;
 
         foreach (var option in LanguageOptionItem.CreateDefaults())
         {
@@ -325,22 +320,6 @@ public partial class SettingsViewModel : ObservableObject
                 AppLocalizer.Instance.Translate("settings_clear_cache_success_message"),
                 AppLocalizer.Instance.Translate("alert_ok"));
         }
-    }
-
-    [RelayCommand]
-    private async Task LogoutAsync()
-    {
-        var confirm = await Shell.Current.DisplayAlert(
-            AppLocalizer.Instance.Translate("settings_logout_confirm_title"),
-            AppLocalizer.Instance.Translate("settings_logout_confirm_message"),
-            AppLocalizer.Instance.Translate("settings_logout_user"),
-            AppLocalizer.Instance.Translate("alert_cancel"));
-
-        if (!confirm)
-            return;
-
-        await _userSessionService.LogoutAsync();
-        LogoutRequested?.Invoke(this, EventArgs.Empty);
     }
 
     partial void OnPreferredLanguageChanged(string value)

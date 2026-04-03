@@ -537,8 +537,7 @@
 
             foreach (var poiId in Tour.POIIds)
             {
-                var poi = AvailablePOIs.FirstOrDefault(p => p.Id == poiId);
-                if (poi != null)
+                if (activeLookup.TryGetValue(poiId, out var poi))
                 {
                     _selectedPOIs.Add(poi);
                 }

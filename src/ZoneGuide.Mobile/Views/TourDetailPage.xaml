@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
              xmlns:models="clr-namespace:ZoneGuide.Shared.Models;assembly=ZoneGuide.Shared"
+             xmlns:maps="clr-namespace:Microsoft.Maui.Controls.Maps;assembly=Microsoft.Maui.Controls.Maps"
              xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
              x:Class="ZoneGuide.Mobile.Views.TourDetailPage"
              x:DataType="vm:TourDetailViewModel"
@@ -10,144 +11,216 @@
              BackgroundColor="#F6F7FB"
              Title="{Binding Tour.Name}">
 
-    <Grid RowDefinitions="300,*">
-        <Grid Grid.Row="0">
-            <Image Source="{Binding Tour.ThumbnailUrl, Converter={StaticResource FlexibleImageSourceConverter}}"
-                   Aspect="AspectFill"
-                   BackgroundColor="#E5E7EB" />
-            <BoxView Color="#66000000" />
+    <Grid>
+        <ScrollView>
+            <VerticalStackLayout Padding="0,0,0,380"
+                                 Spacing="0">
+                <Grid HeightRequest="300">
+                    <Image Source="{Binding Tour.ThumbnailUrl, Converter={StaticResource FlexibleImageSourceConverter}}"
+                           Aspect="AspectFill"
+                           BackgroundColor="#E5E7EB" />
+                    <BoxView Color="#66000000" />
 
-            <Grid Padding="16,26,16,18"
-                  RowDefinitions="Auto,*,Auto">
-                <Button Grid.Row="0"
-                        Text="←"
-                        WidthRequest="42"
-                        HeightRequest="42"
-                        CornerRadius="21"
-                        FontSize="18"
-                        Padding="0"
-                        HorizontalOptions="Start"
-                        VerticalOptions="Start"
-                        BackgroundColor="#66FFFFFF"
-                        TextColor="White"
-                        Clicked="OnBackClicked" />
+                    <Grid Padding="16,26,16,18"
+                          RowDefinitions="Auto,*,Auto">
+                        <Button Grid.Row="0"
+                                Text="←"
+                                WidthRequest="42"
+                                HeightRequest="42"
+                                CornerRadius="21"
+                                FontSize="18"
+                                Padding="0"
+                                HorizontalOptions="Start"
+                                VerticalOptions="Start"
+                                BackgroundColor="#66FFFFFF"
+                                TextColor="White"
+                                Clicked="OnBackClicked" />
 
-                <VerticalStackLayout Grid.Row="2"
-                                     Spacing="8">
-                    <Label Text="{Binding Tour.Name}"
-                           FontSize="28"
-                           FontAttributes="Bold"
-                           TextColor="White"
-                           MaxLines="2" />
-                    <Label Text="{Binding Tour.Description}"
-                           FontSize="14"
-                           TextColor="#F3F4F6"
-                           MaxLines="2" />
-                </VerticalStackLayout>
-            </Grid>
-        </Grid>
-
-        <ScrollView Grid.Row="1">
-                     <VerticalStackLayout Padding="16,-20,16,108"
-                                 Spacing="14">
-                <Border BackgroundColor="White"
-                        StrokeThickness="0"
-                        StrokeShape="RoundRectangle 20"
-                        Padding="16">
-                    <Grid ColumnDefinitions="*,*,*"
-                          ColumnSpacing="10">
-                        <VerticalStackLayout Grid.Column="0"
-                                             Spacing="2"
-                                             HorizontalOptions="Center">
-                            <Label Text="{Binding Tour.POICount}"
-                                   FontSize="20"
+                        <VerticalStackLayout Grid.Row="2"
+                                             Spacing="8">
+                            <Label Text="{Binding Tour.Name}"
+                                   FontSize="28"
                                    FontAttributes="Bold"
-                                   HorizontalTextAlignment="Center" />
-                            <Label Text="{local:Translate tour_detail_points}"
-                                   FontSize="11"
-                                   TextColor="#6B7280"
-                                   HorizontalTextAlignment="Center" />
-                        </VerticalStackLayout>
-
-                        <VerticalStackLayout Grid.Column="1"
-                                             Spacing="2"
-                                             HorizontalOptions="Center">
-                            <Label Text="{Binding Tour.EstimatedDurationMinutes}"
-                                   FontSize="20"
-                                   FontAttributes="Bold"
-                                   HorizontalTextAlignment="Center" />
-                            <Label Text="{local:Translate tour_detail_duration}"
-                                   FontSize="11"
-                                   TextColor="#6B7280"
-                                   HorizontalTextAlignment="Center" />
-                        </VerticalStackLayout>
-
-                        <VerticalStackLayout Grid.Column="2"
-                                             Spacing="2"
-                                             HorizontalOptions="Center">
-                            <Label Text="{Binding DistanceDisplay}"
-                                   FontSize="20"
-                                   FontAttributes="Bold"
-                                   HorizontalTextAlignment="Center" />
-                            <Label Text="{local:Translate tour_detail_distance}"
-                                   FontSize="11"
-                                   TextColor="#6B7280"
-                                   HorizontalTextAlignment="Center" />
+                                   TextColor="White"
+                                   MaxLines="2" />
                         </VerticalStackLayout>
                     </Grid>
-                </Border>
+                </Grid>
 
-                <Frame Padding="16"
-                       CornerRadius="18"
-                       HasShadow="False"
-                       BackgroundColor="{Binding OfflineCardBackground}">
-                    <VerticalStackLayout Spacing="12">
-                        <Grid ColumnDefinitions="*,Auto"
-                              ColumnSpacing="12">
-                            <VerticalStackLayout Spacing="2">
-                                <Label Text="{local:Translate tour_detail_offline}"
-                                       FontSize="16"
+                <VerticalStackLayout Padding="16,12,16,24"
+                                     Spacing="14">
+                    <Border BackgroundColor="White"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 20"
+                            Padding="16">
+                        <Grid ColumnDefinitions="*,*,*"
+                              ColumnSpacing="10">
+                            <VerticalStackLayout Grid.Column="0"
+                                                 Spacing="2"
+                                                 HorizontalOptions="Center">
+                                    <Label Text="{Binding PoiCountDisplay}"
+                                       FontSize="20"
                                        FontAttributes="Bold"
-                                       TextColor="White" />
-                                <Label Text="{Binding OfflineStatusText}"
-                                       FontSize="12"
-                                       TextColor="#F3F4F6" />
+                                       HorizontalTextAlignment="Center" />
+                                <Label Text="{local:Translate tour_detail_points}"
+                                       FontSize="11"
+                                       TextColor="#6B7280"
+                                       HorizontalTextAlignment="Center" />
                             </VerticalStackLayout>
-                            <Button Grid.Column="1"
-                                    Text="{Binding OfflineActionText}"
-                                    Padding="14,8"
-                                    BackgroundColor="White"
-                                    TextColor="{StaticResource Primary}"
-                                    FontSize="12"
-                                    CornerRadius="16"
-                                    Command="{Binding ToggleOfflineCommand}" />
+
+                            <VerticalStackLayout Grid.Column="1"
+                                                 Spacing="2"
+                                                 HorizontalOptions="Center">
+                                <Label Text="{Binding Tour.EstimatedDurationMinutes}"
+                                       FontSize="20"
+                                       FontAttributes="Bold"
+                                       HorizontalTextAlignment="Center" />
+                                <Label Text="{local:Translate tour_detail_duration}"
+                                       FontSize="11"
+                                       TextColor="#6B7280"
+                                       HorizontalTextAlignment="Center" />
+                            </VerticalStackLayout>
+
+                            <VerticalStackLayout Grid.Column="2"
+                                                 Spacing="2"
+                                                 HorizontalOptions="Center">
+                                <Label Text="{Binding DistanceDisplay}"
+                                       FontSize="20"
+                                       FontAttributes="Bold"
+                                       HorizontalTextAlignment="Center" />
+                                <Label Text="{local:Translate tour_detail_distance}"
+                                       FontSize="11"
+                                       TextColor="#6B7280"
+                                       HorizontalTextAlignment="Center" />
+                            </VerticalStackLayout>
                         </Grid>
-                        <ProgressBar Progress="{Binding DownloadProgress}"
-                                     ProgressColor="White"
-                                     BackgroundColor="#4DFFFFFF"
-                                     IsVisible="{Binding IsDownloading}" />
-                    </VerticalStackLayout>
-                </Frame>
+                    </Border>
 
-                <Frame Padding="16"
-                       CornerRadius="18"
-                       HasShadow="False"
-                       BorderColor="#E5E7EB"
-                       BackgroundColor="White">
-                    <VerticalStackLayout Spacing="8">
-                        <Label Text="{local:Translate tour_detail_stops}"
-                               FontSize="18"
-                               FontAttributes="Bold" />
-                        <Label Text="{Binding HighlightsText}"
-                               FontSize="14"
-                               TextColor="#4B5563"
-                               LineHeight="1.4" />
-                    </VerticalStackLayout>
-                </Frame>
+                    <Frame Padding="16"
+                           CornerRadius="18"
+                           HasShadow="False"
+                           BackgroundColor="{Binding OfflineCardBackground}">
+                        <VerticalStackLayout Spacing="12">
+                            <Grid ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="12">
+                                <VerticalStackLayout Spacing="2">
+                                    <Label Text="{local:Translate tour_detail_offline}"
+                                           FontSize="16"
+                                           FontAttributes="Bold"
+                                           TextColor="White" />
+                                    <Label Text="{Binding OfflineStatusText}"
+                                           FontSize="12"
+                                           TextColor="#F3F4F6" />
+                                </VerticalStackLayout>
+                                <Button Grid.Column="1"
+                                        Text="{Binding OfflineActionText}"
+                                        Padding="14,8"
+                                        BackgroundColor="White"
+                                        TextColor="{StaticResource Primary}"
+                                        FontSize="12"
+                                        CornerRadius="16"
+                                        Command="{Binding ToggleOfflineCommand}" />
+                            </Grid>
+                            <ProgressBar Progress="{Binding DownloadProgress}"
+                                         ProgressColor="White"
+                                         BackgroundColor="#4DFFFFFF"
+                                         IsVisible="{Binding IsDownloading}" />
+                        </VerticalStackLayout>
+                    </Frame>
 
-                <VerticalStackLayout Spacing="10">
-                    <Label Text="{local:Translate tour_detail_pois}"
-                           FontSize="18"
+                    <Frame Padding="16"
+                           CornerRadius="18"
+                           HasShadow="False"
+                           BorderColor="#E5E7EB"
+                           BackgroundColor="White">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="{local:Translate tour_detail_about}"
+                                   FontSize="18"
+                                   FontAttributes="Bold" />
+                            <Label Text="{Binding Tour.Description}"
+                                   FontSize="14"
+                                   TextColor="#4B5563"
+                                   LineHeight="1.4" />
+                        </VerticalStackLayout>
+                    </Frame>
+
+                          <Frame Padding="0"
+                              CornerRadius="18"
+                              HasShadow="False"
+                              BorderColor="#E5E7EB"
+                              BackgroundColor="White">
+                           <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnMiniMapTapped" />
+                           </Frame.GestureRecognizers>
+
+                           <Grid RowDefinitions="220,Auto">
+                            <maps:Map x:Name="MiniRouteMap"
+                                   Grid.Row="0"
+                                   IsShowingUser="False"
+                                   IsTrafficEnabled="False"
+                                   IsScrollEnabled="False"
+                                   IsZoomEnabled="False" />
+
+                            <Grid Grid.Row="1"
+                                  Padding="14,10"
+                                  ColumnDefinitions="Auto,*"
+                                  ColumnSpacing="8"
+                                  BackgroundColor="White">
+                                <Label Text="⌖"
+                                    FontSize="16"
+                                    VerticalOptions="Center"
+                                    TextColor="{StaticResource Primary}" />
+                                <Label Grid.Column="1"
+                                    Text="Mở bản đồ để xem route chi tiết và thứ tự POI"
+                                    FontSize="13"
+                                    TextColor="#374151"
+                                    VerticalOptions="Center" />
+                            </Grid>
+                           </Grid>
+                          </Frame>
+
+                    <Button Text="{local:Translate tour_detail_start}"
+                            BackgroundColor="{StaticResource Primary}"
+                            TextColor="White"
+                            FontSize="18"
+                            FontAttributes="Bold"
+                            HeightRequest="56"
+                            CornerRadius="28"
+                            Command="{Binding StartTourCommand}" />
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <Border x:Name="PoiBottomSheet"
+                VerticalOptions="End"
+                BackgroundColor="White"
+                Stroke="#E5E7EB"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 24,24,0,0"
+            HeightRequest="220"
+                Padding="0,8,0,16"
+                ZIndex="20">
+            <Grid RowDefinitions="Auto,Auto,*"
+                  RowSpacing="8">
+                <Grid Grid.Row="0"
+                      Padding="0,4,0,6">
+                    <Grid.GestureRecognizers>
+                        <PanGestureRecognizer PanUpdated="OnSheetPanUpdated" />
+                    </Grid.GestureRecognizers>
+                    <Border HorizontalOptions="Center"
+                            WidthRequest="52"
+                            HeightRequest="6"
+                            BackgroundColor="#D1D5DB"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 3" />
+                </Grid>
+
+                <Grid Grid.Row="1"
+                      Padding="16,0,16,0"
+                      ColumnDefinitions="*,Auto"
+                      ColumnSpacing="12">
+                    <Label Text="{Binding Tour.Name}"
+                                                     FontSize="24"
                            FontAttributes="Bold"
                            TextColor="#111827" />
 
@@ -179,68 +252,39 @@
                                           RowSpacing="10">
                                         <Frame Grid.Row="0"
                                                Padding="0"
-                                               CornerRadius="12"
+                                               CornerRadius="17"
                                                HasShadow="False"
-                                               IsClippedToBounds="True"
-                                               BackgroundColor="#EEF2F7">
-                                            <Image Source="{Binding ImageUrl, Converter={StaticResource FlexibleImageSourceConverter}}"
-                                                   Aspect="AspectFill" />
+                                               BackgroundColor="{StaticResource Primary}">
+                                            <Label Text="{Binding OrderInTour}"
+                                                   FontSize="14"
+                                                   FontAttributes="Bold"
+                                                   TextColor="White"
+                                                   HorizontalOptions="Center"
+                                                   VerticalOptions="Center" />
                                         </Frame>
 
-                                        <Grid Grid.Row="1"
-                                              ColumnDefinitions="Auto,*,Auto"
-                                              ColumnSpacing="10">
-                                            <Frame Grid.Column="0"
-                                                   WidthRequest="34"
-                                                   HeightRequest="34"
-                                                   Padding="0"
-                                                   CornerRadius="17"
-                                                   HasShadow="False"
-                                                   BackgroundColor="{StaticResource Primary}">
-                                                <Label Text="{Binding OrderInTour}"
-                                                       FontSize="14"
-                                                       FontAttributes="Bold"
-                                                       TextColor="White"
-                                                       HorizontalOptions="Center"
-                                                       VerticalOptions="Center" />
-                                            </Frame>
+                                        <VerticalStackLayout Grid.Column="1"
+                                                             Spacing="2"
+                                                             VerticalOptions="Center">
+                                            <Label Text="{Binding Name}"
+                                                   FontSize="14"
+                                                   FontAttributes="Bold"
+                                                   MaxLines="1" />
+                                        </VerticalStackLayout>
 
-                                            <VerticalStackLayout Grid.Column="1"
-                                                                 Spacing="2"
-                                                                 VerticalOptions="Center">
-                                                <Label Text="{Binding Name}"
-                                                       FontSize="14"
-                                                       FontAttributes="Bold"
-                                                       MaxLines="1" />
-                                                <Label Text="{Binding ShortDescription}"
-                                                       FontSize="12"
-                                                       TextColor="#6B7280"
-                                                       MaxLines="2" />
-                                            </VerticalStackLayout>
-
-                                            <Label Grid.Column="2"
-                                                   Text="›"
-                                                   FontSize="22"
-                                                   TextColor="#9CA3AF"
-                                                   VerticalOptions="Center" />
-                                        </Grid>
+                                        <Label Grid.Column="2"
+                                               Text="›"
+                                               FontSize="22"
+                                               TextColor="#9CA3AF"
+                                               VerticalOptions="Center" />
                                     </Grid>
-                                </Frame>
-                            </DataTemplate>
-                        </CollectionView.ItemTemplate>
-                    </CollectionView>
-                </VerticalStackLayout>
-
-                <Button Text="{local:Translate tour_detail_start}"
-                        BackgroundColor="{StaticResource Primary}"
-                        TextColor="White"
-                        FontSize="18"
-                        FontAttributes="Bold"
-                        HeightRequest="56"
-                        CornerRadius="28"
-                        Command="{Binding StartTourCommand}" />
-            </VerticalStackLayout>
-        </ScrollView>
+                                </Grid>
+                            </Frame>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </Grid>
+        </Border>
     </Grid>
 
 </ContentPage>

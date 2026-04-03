@@ -11,14 +11,12 @@ public partial class App : Application
 {
     private readonly IServiceProvider _services;
     private readonly ISettingsService _settingsService;
-    private readonly IUserSessionService _userSessionService;
 
-    public App(IServiceProvider services, ISettingsService settingsService, IUserSessionService userSessionService)
+    public App(IServiceProvider services, ISettingsService settingsService)
     {
         InitializeComponent();
         _services = services;
         _settingsService = settingsService;
-        _userSessionService = userSessionService;
 
         // Bắt unhandled exceptions để debug
         AppDomain.CurrentDomain.UnhandledException += (s, e) =>

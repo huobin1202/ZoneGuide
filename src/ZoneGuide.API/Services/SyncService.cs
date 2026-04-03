@@ -94,6 +94,7 @@ public class SyncService : ISyncService
         {
             var tourQuery = _context.Tours
                 .Include(t => t.POIIds)
+                .ThenInclude(tp => tp.POI)
                 .Where(t => t.IsActive);
 
             if (request.LastSyncTime.HasValue)
@@ -103,15 +104,58 @@ public class SyncService : ISyncService
 
             var tours = await tourQuery.ToListAsync();
             response.Tours = tours.Select(MapToDto).ToList();
+
+            if (request.IncludePOIs && tours.Count > 0)
+            {
+                var referencedPoiIds = tours
+                    .SelectMany(t => t.POIIds)
+                    .Where(tp => tp.POI?.IsActive == true)
+                    .Select(tp => tp.POIId)
+                    .Distinct()
+                    .ToList();
+
+                if (referencedPoiIds.Count > 0)
+                {
+                    var existingPoiIds = response.POIs
+                        .Select(p => int.TryParse(p.Id, out var poiId) ? (int?)poiId : null)
+                        .Where(id => id.HasValue)
+                        .Select(id => id!.Value)
+                        .ToHashSet();
+
+                    var missingPoiIds = referencedPoiIds
+                        .Where(id => !existingPoiIds.Contains(id))
+                        .ToList();
+
+                    if (missingPoiIds.Count > 0)
+                    {
+                        var missingPois = await _context.POIs
+                            .Include(p => p.Translations)
+                            .Where(p => p.IsActive && missingPoiIds.Contains(p.Id))
+                            .ToListAsync();
+
+                        response.POIs.AddRange(missingPois.Select(MapToDto));
+                    }
+                }
+            }
         }
 
         // Get deleted IDs since last sync
         if (request.LastSyncTime.HasValue)
         {
-            response.DeletedPOIIds = await _context.DeletedRecords
+            var deletedPoiRecords = await _context.DeletedRecords
                 .Where(d => d.EntityType == "POI" && d.DeletedAt > request.LastSyncTime.Value)
                 .Select(d => d.EntityId)
                 .ToListAsync();
+
+            var inactivePoiIds = await _context.POIs
+                .Where(p => !p.IsActive)
+                .Select(p => p.Id.ToString())
+                .ToListAsync();
+
+            response.DeletedPOIIds = deletedPoiRecords
+                .Concat(inactivePoiIds)
+                .Distinct()
+                .ToList();
 
             var deletedTourRecords = await _context.DeletedRecords
                 .Where(d => d.EntityType == "Tour" && d.DeletedAt > request.LastSyncTime.Value)
@@ -130,6 +174,11 @@ public class SyncService : ISyncService
         }
         else
         {
+            response.DeletedPOIIds = await _context.POIs
+                .Where(p => !p.IsActive)
+                .Select(p => p.Id.ToString())
+                .ToListAsync();
+
             response.DeletedTourIds = await _context.Tours
                 .Where(t => !t.IsActive)
                 .Select(t => t.Id.ToString())
@@ -206,17 +255,29 @@ public class SyncService : ISyncService
 
     private static TourDto MapToDto(TourEntity entity)
     {
+        var activePoiIds = entity.POIIds
+            .Where(tp => tp.POI == null || tp.POI.IsActive)
+            .OrderBy(tp => tp.Order)
+            .Select(tp => tp.POIId.ToString())
+            .ToList();
+
         return new TourDto
         {
             Id = entity.Id.ToString(),
+            UniqueCode = entity.UniqueCode,
             Name = entity.Name,
             Description = entity.Description,
             EstimatedDurationMinutes = entity.EstimatedDurationMinutes,
             DistanceKm = entity.DistanceKm,
+            POICount = activePoiIds.Count,
             ImageUrl = entity.ImageUrl,
+            ThumbnailUrl = entity.ThumbnailUrl,
+            Language = entity.Language,
             Difficulty = entity.Difficulty,
+            DifficultyLevel = entity.DifficultyLevel,
+            WheelchairAccessible = entity.WheelchairAccessible,
             IsActive = entity.IsActive,
-            POIIds = entity.POIIds.OrderBy(p => p.Order).Select(p => p.POIId.ToString()).ToList()
+            POIIds = activePoiIds
         };
     }
 }

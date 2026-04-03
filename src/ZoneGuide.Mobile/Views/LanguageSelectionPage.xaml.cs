@@ -23,7 +23,7 @@ public partial class LanguageSelectionPage : ContentPage
         BindingContext = viewModel;
     }
 
-    private async void OnCompleted(object? sender, EventArgs e)
+    private void OnCompleted(object? sender, EventArgs e)
     {
         var window = Application.Current?.Windows.FirstOrDefault();
         if (window != null)

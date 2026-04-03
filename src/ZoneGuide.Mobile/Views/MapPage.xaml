@@ -2,9 +2,11 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
+             xmlns:models="clr-namespace:ZoneGuide.Shared.Models;assembly=ZoneGuide.Shared"
              xmlns:maps="clr-namespace:Microsoft.Maui.Controls.Maps;assembly=Microsoft.Maui.Controls.Maps"
              xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
              x:Class="ZoneGuide.Mobile.Views.MapPage"
+             x:Name="MapPageRoot"
              x:DataType="vm:MapViewModel"
              Shell.NavBarIsVisible="False"
              BackgroundColor="#F6F7FB">
@@ -78,18 +80,52 @@
                     SemanticProperties.Hint="Định vị vị trí hiện tại" />
                 </VerticalStackLayout>
 
-            <Border BackgroundColor="White"
+            <Border x:Name="SelectedPoiOverlay"
+                    BackgroundColor="White"
                     StrokeThickness="0"
                     StrokeShape="RoundRectangle 22"
                     Margin="16,0,16,16"
-                    Padding="14"
+                    Padding="12"
                     VerticalOptions="End"
                     IsVisible="{Binding SelectedPOI, Converter={StaticResource IsNotNullConverter}}">
-                                <Grid ColumnDefinitions="*,Auto"
-                                            RowDefinitions="Auto,*"
-                                            ColumnSpacing="12"
-                                            RowSpacing="8">
-                    <VerticalStackLayout Spacing="4">
+                <Border.Triggers>
+                    <DataTrigger TargetType="Border"
+                                 Binding="{Binding IsTourPoiListVisible}"
+                                 Value="True">
+                        <Setter Property="Margin"
+                                Value="16,0,16,228" />
+                    </DataTrigger>
+                </Border.Triggers>
+
+                                <Grid ColumnDefinitions="Auto,*,Auto"
+                                            ColumnSpacing="12">
+                    <Grid WidthRequest="88"
+                          HeightRequest="72"
+                          VerticalOptions="Center">
+                        <Border StrokeThickness="0"
+                                StrokeShape="RoundRectangle 12"
+                                BackgroundColor="#E5E7EB">
+                            <Image Source="{Binding SelectedPOI.ImageUrl, Converter={StaticResource FlexibleImageSourceConverter}}"
+                                   Aspect="AspectFill" />
+                        </Border>
+
+                        <Border HorizontalOptions="Start"
+                                VerticalOptions="End"
+                                Margin="0,0,0,2"
+                                BackgroundColor="#E11D48"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 6"
+                                Padding="8,2">
+                            <Label Text="{Binding SelectedPOI.OrderInTour}"
+                                   FontSize="12"
+                                   FontAttributes="Bold"
+                                   TextColor="White" />
+                        </Border>
+                    </Grid>
+
+                    <VerticalStackLayout Grid.Column="1"
+                                         Spacing="5"
+                                         VerticalOptions="Center">
                         <Label Text="{Binding SelectedPOI.Name}"
                                FontSize="18"
                                FontAttributes="Bold" />
@@ -113,50 +149,144 @@
                         </HorizontalStackLayout>
                     </VerticalStackLayout>
 
-                            <Button Grid.Column="1"
-                                Grid.Row="0"
-                                Text="✕"
-                                WidthRequest="34"
-                                HeightRequest="34"
-                                CornerRadius="17"
+                    <Grid Grid.Column="2"
+                          ColumnDefinitions="Auto,*"
+                          VerticalOptions="Fill">
+                        <BoxView Grid.Column="0"
+                                WidthRequest="1"
+                                Color="#E5E7EB"
+                                Margin="0,6,8,6" />
+                        <Button Grid.Column="1"
+                                Text="🔊"
+                                WidthRequest="36"
+                                HeightRequest="36"
+                                CornerRadius="18"
                                 Padding="0"
-                                FontSize="13"
-                                BackgroundColor="#EFEAFD"
-                                TextColor="{StaticResource Primary}"
-                                Command="{Binding DismissSelectedPOICommand}" />
+                                FontSize="18"
+                                BackgroundColor="Transparent"
+                                TextColor="#6B7280"
+                                Command="{Binding PlaySelectedPOICommand}">
+                            <Button.Triggers>
+                                <DataTrigger TargetType="Button"
+                                             Binding="{Binding IsSelectedPoiNarrationActive}"
+                                             Value="True">
+                                    <Setter Property="TextColor"
+                                            Value="{StaticResource Primary}" />
+                                </DataTrigger>
+                            </Button.Triggers>
+                        </Button>
+                    </Grid>
+                </Grid>
+            </Border>
 
-                    <VerticalStackLayout Grid.Column="1"
-                                     Grid.Row="1"
-                                         Spacing="10"
-                                         VerticalOptions="Center">
-                        <Button Text="▶"
-                                WidthRequest="46"
-                                HeightRequest="46"
-                                CornerRadius="23"
-                                Padding="0"
-                                FontSize="16"
-                                Command="{Binding PlaySelectedPOICommand}" />
-                        <Button Text="⏹"
-                            WidthRequest="40"
-                            HeightRequest="40"
-                            CornerRadius="20"
-                            Padding="0"
-                            FontSize="15"
-                            BackgroundColor="#FFE6E6"
-                            TextColor="#B3261E"
-                            IsVisible="{Binding IsSelectedPoiNarrationActive}"
-                            Command="{Binding StopNarrationAndBlockReplayCommand}"
-                            SemanticProperties.Hint="Dừng phát tại điểm hiện tại" />
-                        <Button Text="↗"
-                                WidthRequest="40"
-                                HeightRequest="40"
-                                CornerRadius="20"
-                                Padding="0"
-                                FontSize="15"
-                                BackgroundColor="#EEE9FF"
-                                TextColor="{StaticResource Primary}"
-                                Command="{Binding NavigateToPOICommand}" />
-                    </VerticalStackLayout>
+            <Border x:Name="TourPoiBottomSheet"
+                    IsVisible="{Binding IsTourPoiListVisible}"
+                    VerticalOptions="End"
+                    BackgroundColor="White"
+                    Stroke="#E5E7EB"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 24,24,0,0"
+                    Margin="8,0,8,8"
+                    HeightRequest="220"
+                    Padding="0,6,0,10">
+                <Grid RowDefinitions="Auto,Auto,*"
+                      RowSpacing="6">
+                    <Border Grid.Row="0"
+                            HorizontalOptions="Center"
+                            WidthRequest="52"
+                            HeightRequest="6"
+                            BackgroundColor="#D1D5DB"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 3" />
+
+                    <Grid Grid.Row="1"
+                          Padding="14,0,14,0"
+                          ColumnDefinitions="*,Auto"
+                          ColumnSpacing="8">
+                        <Label Text="{Binding ActiveTourName}"
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               LineBreakMode="TailTruncation"
+                               MaxLines="1"
+                               VerticalOptions="Center" />
+
+                        <Border Grid.Column="1"
+                                BackgroundColor="#F3F4F6"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 10"
+                                Padding="10,5"
+                                VerticalOptions="Center">
+                            <HorizontalStackLayout Spacing="4">
+                                <Label Text="⌖"
+                                       FontSize="13" />
+                                <Label Text="{Binding ActiveTourPoiCount}"
+                                       FontSize="13"
+                                       FontAttributes="Bold" />
+                            </HorizontalStackLayout>
+                        </Border>
+                    </Grid>
+
+                    <CollectionView Grid.Row="2"
+                                    ItemsSource="{Binding POIs}"
+                                    SelectionMode="None"
+                                    Margin="10,0,0,0"
+                                    HeightRequest="168">
+                        <CollectionView.ItemsLayout>
+                            <LinearItemsLayout Orientation="Horizontal"
+                                               ItemSpacing="10" />
+                        </CollectionView.ItemsLayout>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="models:POI">
+                                <Frame WidthRequest="206"
+                                       Padding="8"
+                                       CornerRadius="16"
+                                       HasShadow="False"
+                                       BorderColor="#E5E7EB"
+                                       BackgroundColor="White">
+                                    <Frame.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding Source={x:Reference MapPageRoot}, Path=BindingContext.SelectPOICommand}"
+                                                              CommandParameter="{Binding .}" />
+                                    </Frame.GestureRecognizers>
+
+                                    <Grid RowDefinitions="102,Auto"
+                                          RowSpacing="8">
+                                        <Frame Grid.Row="0"
+                                               Padding="0"
+                                               CornerRadius="12"
+                                               HasShadow="False"
+                                               BackgroundColor="#EEF2F7">
+                                            <Grid>
+                                                <Image Source="{Binding ImageUrl, Converter={StaticResource FlexibleImageSourceConverter}}"
+                                                       Aspect="AspectFill" />
+                                            </Grid>
+                                        </Frame>
+
+                                        <Grid Grid.Row="1"
+                                              ColumnDefinitions="Auto,*"
+                                              ColumnSpacing="8">
+                                            <Border BackgroundColor="#E8EDFF"
+                                                    StrokeThickness="0"
+                                                    StrokeShape="RoundRectangle 8"
+                                                    Padding="8,3"
+                                                    VerticalOptions="Start">
+                                                <Label Text="{Binding OrderInTour}"
+                                                       FontSize="12"
+                                                       FontAttributes="Bold"
+                                                       TextColor="{StaticResource Primary}" />
+                                            </Border>
+
+                                            <Label Grid.Column="1"
+                                                   Text="{Binding Name}"
+                                                   FontSize="14"
+                                                   FontAttributes="Bold"
+                                                   MaxLines="2"
+                                                   LineBreakMode="TailTruncation" />
+                                        </Grid>
+                                    </Grid>
+                                </Frame>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
                 </Grid>
             </Border>
 
