@@ -9,53 +9,71 @@ namespace ZoneGuide.Mobile.Services;
 public class POIRepository : IPOIRepository
 {
     private readonly DatabaseService _database;
+    private readonly IPOITranslationRepository _poiTranslationRepository;
+    private readonly ISettingsService _settingsService;
 
-    public POIRepository(DatabaseService database)
+    public POIRepository(
+        DatabaseService database,
+        IPOITranslationRepository poiTranslationRepository,
+        ISettingsService settingsService)
     {
         _database = database;
+        _poiTranslationRepository = poiTranslationRepository;
+        _settingsService = settingsService;
     }
 
     public async Task<List<POI>> GetAllAsync()
     {
         var db = await _database.GetConnectionAsync();
-        return await db.Table<POI>().ToListAsync();
+        var pois = await db.Table<POI>().ToListAsync();
+        return await ApplyPreferredLanguageAsync(pois);
     }
 
     public async Task<POI?> GetByIdAsync(int id)
     {
         var db = await _database.GetConnectionAsync();
-        return await db.Table<POI>().FirstOrDefaultAsync(p => p.Id == id);
+        var poi = await db.Table<POI>().FirstOrDefaultAsync(p => p.Id == id);
+        if (poi == null)
+            return null;
+
+        return await ApplyPreferredLanguageAsync(poi);
     }
 
     public async Task<POI?> GetByCodeAsync(string code)
     {
         var db = await _database.GetConnectionAsync();
-        return await db.Table<POI>().FirstOrDefaultAsync(p => p.UniqueCode == code);
+        var poi = await db.Table<POI>().FirstOrDefaultAsync(p => p.UniqueCode == code);
+        if (poi == null)
+            return null;
+
+        return await ApplyPreferredLanguageAsync(poi);
     }
 
     public async Task<List<POI>> GetByTourIdAsync(int tourId)
     {
         var db = await _database.GetConnectionAsync();
-        return await db.Table<POI>()
+        var pois = await db.Table<POI>()
             .Where(p => p.TourId == tourId)
             .OrderBy(p => p.OrderInTour)
             .ToListAsync();
+
+        return await ApplyPreferredLanguageAsync(pois);
     }
 
     public async Task<List<POI>> GetActiveAsync()
     {
         var db = await _database.GetConnectionAsync();
-        return await db.Table<POI>().Where(p => p.IsActive).ToListAsync();
+        var pois = await db.Table<POI>().Where(p => p.IsActive).ToListAsync();
+        return await ApplyPreferredLanguageAsync(pois);
     }
 
     public async Task<List<POI>> SearchAsync(string keyword)
     {
-        var db = await _database.GetConnectionAsync();
-        var lowerKeyword = keyword.ToLower();
-        var all = await db.Table<POI>().ToListAsync();
-        return all.Where(p => 
+        var all = await GetAllAsync();
+        return all.Where(p =>
             p.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
-            p.ShortDescription.Contains(keyword, StringComparison.OrdinalIgnoreCase)).ToList();
+            p.ShortDescription.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+            (p.TTSScript?.Contains(keyword, StringComparison.OrdinalIgnoreCase) ?? false)).ToList();
     }
 
     public async Task<int> InsertAsync(POI poi)
@@ -95,6 +113,134 @@ public class POIRepository : IPOIRepository
         return all.Where(p => p.CalculateDistance(lat, lon) <= radiusMeters)
             .OrderBy(p => p.CalculateDistance(lat, lon))
             .ToList();
+    }
+
+    private async Task<List<POI>> ApplyPreferredLanguageAsync(List<POI> pois)
+    {
+        if (pois.Count == 0)
+            return pois;
+
+        var result = new List<POI>(pois.Count);
+        foreach (var poi in pois)
+        {
+            result.Add(await ApplyPreferredLanguageAsync(poi));
+        }
+
+        return result;
+    }
+
+    private async Task<POI> ApplyPreferredLanguageAsync(POI poi)
+    {
+        var preferredLanguage = NormalizeLanguage(_settingsService.Settings.PreferredLanguage);
+        var sourceLanguage = NormalizeLanguage(poi.Language);
+
+        // When user selects the source language, keep original POI content.
+        if (string.Equals(GetPrimaryLanguage(preferredLanguage), GetPrimaryLanguage(sourceLanguage), StringComparison.OrdinalIgnoreCase))
+        {
+            return poi;
+        }
+
+        var translation = await _poiTranslationRepository.GetByPOIIdAndLanguageAsync(poi.Id, preferredLanguage);
+        if (translation == null)
+        {
+            var missing = GetMissingTranslationMessage(preferredLanguage);
+            return ClonePoiWithResolvedContent(
+                poi,
+                name: poi.Name,
+                shortDescription: missing,
+                fullDescription: missing,
+                ttsScript: missing,
+                audioFilePath: null,
+                audioUrl: null,
+                language: preferredLanguage);
+        }
+
+        return ClonePoiWithResolvedContent(
+            poi,
+            name: string.IsNullOrWhiteSpace(translation.Name) ? poi.Name : translation.Name,
+            shortDescription: string.IsNullOrWhiteSpace(translation.ShortDescription) ? poi.ShortDescription : translation.ShortDescription,
+            fullDescription: string.IsNullOrWhiteSpace(translation.FullDescription) ? poi.FullDescription : translation.FullDescription,
+            ttsScript: string.IsNullOrWhiteSpace(translation.TTSScript) ? poi.TTSScript : translation.TTSScript,
+            audioFilePath: null,
+            audioUrl: translation.AudioUrl,
+            language: preferredLanguage);
+    }
+
+    private static POI ClonePoiWithResolvedContent(
+        POI source,
+        string name,
+        string shortDescription,
+        string fullDescription,
+        string? ttsScript,
+        string? audioFilePath,
+        string? audioUrl,
+        string language)
+    {
+        return new POI
+        {
+            Id = source.Id,
+            UniqueCode = source.UniqueCode,
+            Name = name,
+            ShortDescription = shortDescription,
+            FullDescription = fullDescription,
+            Latitude = source.Latitude,
+            Longitude = source.Longitude,
+            TriggerRadius = source.TriggerRadius,
+            ApproachRadius = source.ApproachRadius,
+            Priority = source.Priority,
+            AudioFilePath = audioFilePath,
+            AudioUrl = audioUrl,
+            TTSScript = ttsScript,
+            ImagePath = source.ImagePath,
+            ImageUrl = source.ImageUrl,
+            MapLink = source.MapLink,
+            Language = language,
+            TourId = source.TourId,
+            OrderInTour = source.OrderInTour,
+            CreatedAt = source.CreatedAt,
+            UpdatedAt = source.UpdatedAt,
+            IsActive = source.IsActive,
+            CooldownSeconds = source.CooldownSeconds,
+            Category = source.Category
+        };
+    }
+
+    private static string NormalizeLanguage(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            return "vi-VN";
+
+        var value = code.Trim().Replace('_', '-');
+        return value.ToLowerInvariant() switch
+        {
+            var c when c.StartsWith("vi") => "vi-VN",
+            var c when c.StartsWith("en") => "en-US",
+            var c when c.StartsWith("zh") => "zh-CN",
+            var c when c.StartsWith("ja") => "ja-JP",
+            var c when c.StartsWith("ko") => "ko-KR",
+            var c when c.StartsWith("fr") => "fr-FR",
+            _ => value
+        };
+    }
+
+    private static string GetPrimaryLanguage(string code)
+    {
+        var normalized = NormalizeLanguage(code);
+        var idx = normalized.IndexOf('-');
+        return idx > 0 ? normalized[..idx] : normalized;
+    }
+
+    private static string GetMissingTranslationMessage(string languageCode)
+    {
+        return NormalizeLanguage(languageCode) switch
+        {
+            "en-US" => "Translation for this place has not been created in the selected language.",
+            "zh-CN" => "该地点尚未创建所选语言的翻译。",
+            "ja-JP" => "この地点の選択言語の翻訳はまだ作成されていません。",
+            "ko-KR" => "이 지점의 선택한 언어 번역이 아직 생성되지 않았습니다.",
+            "fr-FR" => "La traduction de ce lieu dans la langue sélectionnée n'a pas encore été créée.",
+            _ => "Chưa tạo bản dịch của điểm này theo ngôn ngữ đã chọn."
+        };
     }
 }
 
