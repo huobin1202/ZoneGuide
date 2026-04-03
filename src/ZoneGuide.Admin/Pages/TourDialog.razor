@@ -522,6 +522,10 @@
 
     protected override void OnInitialized()
     {
+        var poiLookup = AvailablePOIs
+            .GroupBy(p => p.Id)
+            .ToDictionary(g => g.Key, g => g.First());
+
         if (Tour != null)
         {
             _model = new TourFormModel
@@ -537,7 +541,7 @@
 
             foreach (var poiId in Tour.POIIds)
             {
-                if (activeLookup.TryGetValue(poiId, out var poi))
+                if (poiLookup.TryGetValue(poiId, out var poi))
                 {
                     _selectedPOIs.Add(poi);
                 }

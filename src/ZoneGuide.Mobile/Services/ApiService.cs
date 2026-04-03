@@ -80,6 +80,16 @@ public class ApiService
         if (Uri.TryCreate(trimmed, UriKind.Absolute, out var absoluteUri) &&
             (absoluteUri.Scheme == Uri.UriSchemeHttp || absoluteUri.Scheme == Uri.UriSchemeHttps))
         {
+            if (IsLoopbackHost(absoluteUri.Host))
+            {
+                var rebasedRoot = BuildServerRoot(apiBaseUrl);
+                var pathAndQuery = absoluteUri.PathAndQuery;
+                if (!string.IsNullOrWhiteSpace(pathAndQuery) && pathAndQuery.StartsWith("/", StringComparison.Ordinal))
+                {
+                    return $"{rebasedRoot}{pathAndQuery}";
+                }
+            }
+
             return absoluteUri.ToString();
         }
 
@@ -117,6 +127,14 @@ public class ApiService
         var serverRoot = BuildServerRoot(apiBaseUrl);
 
         return $"{serverRoot}{trimmed}";
+    }
+
+    private static bool IsLoopbackHost(string host)
+    {
+        return string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(host, "::1", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(host, "10.0.2.2", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<T?> GetFromAnyBaseUrlAsync<T>(string relativePath)
@@ -284,6 +302,7 @@ public class ApiService
                 var serverRequest = new
                 {
                     LastSyncTime = request.LastSyncTime,
+                    Language = request.Language,
                     IncludePOIs = true,
                     IncludeTours = true
                 };
@@ -302,10 +321,14 @@ public class ApiService
 
                     if (syncResponse != null)
                     {
+                        var normalizedPois = (syncResponse.POIs ?? new List<POIDto>())
+                            .Select(poi => NormalizePoiMediaUrls(poi, syncBaseUrl))
+                            .ToList();
+
                         return new SyncDataDto
                         {
                             LastSyncTime = syncResponse.SyncedAt,
-                            POIs = syncResponse.POIs ?? new(),
+                            POIs = normalizedPois,
                             Tours = syncResponse.Tours ?? new(),
                             DeletedPOIIds = syncResponse.DeletedPOIIds?
                                 .Where(id => int.TryParse(id, out _))
@@ -344,6 +367,22 @@ public class ApiService
         public List<TourDto> Tours { get; set; } = new();
         public List<string> DeletedPOIIds { get; set; } = new();
         public List<string> DeletedTourIds { get; set; } = new();
+    }
+
+    private static POIDto NormalizePoiMediaUrls(POIDto poi, string apiBaseUrl)
+    {
+        poi.AudioUrl = ResolveMediaUrl(poi.AudioUrl ?? string.Empty, apiBaseUrl);
+        poi.ImageUrl = ResolveMediaUrl(poi.ImageUrl ?? string.Empty, apiBaseUrl);
+
+        if (poi.Translations != null)
+        {
+            foreach (var translation in poi.Translations)
+            {
+                translation.AudioUrl = ResolveMediaUrl(translation.AudioUrl ?? string.Empty, apiBaseUrl);
+            }
+        }
+
+        return poi;
     }
 
     #endregion

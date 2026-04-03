@@ -197,7 +197,7 @@
                 Stroke="#E5E7EB"
                 StrokeThickness="1"
                 StrokeShape="RoundRectangle 24,24,0,0"
-            HeightRequest="220"
+                HeightRequest="220"
                 Padding="0,8,0,16"
                 ZIndex="20">
             <Grid RowDefinitions="Auto,Auto,*"
@@ -220,59 +220,63 @@
                       ColumnDefinitions="*,Auto"
                       ColumnSpacing="12">
                     <Label Text="{Binding Tour.Name}"
-                                                     FontSize="24"
+                           FontSize="24"
                            FontAttributes="Bold"
                            TextColor="#111827" />
+                </Grid>
 
-                    <CollectionView ItemsSource="{Binding POIs}"
-                                    SelectionMode="None"
-                                    HeightRequest="230">
-                        <CollectionView.ItemsLayout>
-                            <LinearItemsLayout Orientation="Horizontal" ItemSpacing="10" />
-                        </CollectionView.ItemsLayout>
-                        <CollectionView.ItemTemplate>
-                            <DataTemplate x:DataType="models:POI">
-                                <Frame WidthRequest="240"
-                                       Padding="12"
-                                       CornerRadius="18"
-                                       HasShadow="False"
-                                       BorderColor="#E5E7EB"
-                                       BackgroundColor="White">
-                                                               <Frame.Triggers>
-                                                                      <DataTrigger TargetType="Frame" Binding="{Binding IsActive}" Value="False">
-                                                                             <Setter Property="Opacity" Value="0.45" />
-                                                                      </DataTrigger>
-                                                               </Frame.Triggers>
-                                    <Frame.GestureRecognizers>
-                                        <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:TourDetailViewModel}}, Path=ViewPOIDetailCommand}"
-                                                              CommandParameter="{Binding .}" />
-                                    </Frame.GestureRecognizers>
+                <CollectionView x:Name="PoiCollectionView"
+                                Grid.Row="2"
+                                ItemsSource="{Binding POIs}"
+                                SelectionMode="None"
+                                HeightRequest="230"
+                                Margin="16,0,16,0">
+                    <CollectionView.ItemsLayout>
+                        <LinearItemsLayout Orientation="Horizontal" ItemSpacing="10" />
+                    </CollectionView.ItemsLayout>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="models:POI">
+                            <Frame WidthRequest="240"
+                                   Padding="12"
+                                   CornerRadius="18"
+                                   HasShadow="False"
+                                   BorderColor="#E5E7EB"
+                                   BackgroundColor="White">
+                                <Frame.Triggers>
+                                    <DataTrigger TargetType="Frame" Binding="{Binding IsActive}" Value="False">
+                                        <Setter Property="Opacity" Value="0.45" />
+                                    </DataTrigger>
+                                </Frame.Triggers>
+                                <Frame.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:TourDetailViewModel}}, Path=ViewPOIDetailCommand}"
+                                                          CommandParameter="{Binding .}" />
+                                </Frame.GestureRecognizers>
 
-                                    <Grid RowDefinitions="96,Auto"
-                                          RowSpacing="10">
-                                        <Frame Grid.Row="0"
-                                               Padding="0"
-                                               CornerRadius="17"
-                                               HasShadow="False"
-                                               BackgroundColor="{StaticResource Primary}">
-                                            <Label Text="{Binding OrderInTour}"
-                                                   FontSize="14"
-                                                   FontAttributes="Bold"
-                                                   TextColor="White"
-                                                   HorizontalOptions="Center"
-                                                   VerticalOptions="Center" />
-                                        </Frame>
+                                <Grid RowDefinitions="96,Auto"
+                                      RowSpacing="10">
+                                    <Frame Grid.Row="0"
+                                           Padding="0"
+                                           CornerRadius="17"
+                                           HasShadow="False"
+                                           BackgroundColor="{StaticResource Primary}">
+                                        <Label Text="{Binding OrderInTour}"
+                                               FontSize="14"
+                                               FontAttributes="Bold"
+                                               TextColor="White"
+                                               HorizontalOptions="Center"
+                                               VerticalOptions="Center" />
+                                    </Frame>
 
-                                        <VerticalStackLayout Grid.Column="1"
-                                                             Spacing="2"
-                                                             VerticalOptions="Center">
-                                            <Label Text="{Binding Name}"
-                                                   FontSize="14"
-                                                   FontAttributes="Bold"
-                                                   MaxLines="1" />
-                                        </VerticalStackLayout>
+                                    <Grid Grid.Row="1"
+                                          ColumnDefinitions="*,Auto"
+                                          ColumnSpacing="8">
+                                        <Label Text="{Binding Name}"
+                                               FontSize="14"
+                                               FontAttributes="Bold"
+                                               MaxLines="1"
+                                               VerticalOptions="Center" />
 
-                                        <Label Grid.Column="2"
+                                        <Label Grid.Column="1"
                                                Text="›"
                                                FontSize="22"
                                                TextColor="#9CA3AF"

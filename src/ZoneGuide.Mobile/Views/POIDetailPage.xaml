@@ -94,20 +94,20 @@
                             VerticalTextAlignment="Center" />
                        </Grid>
 
-                        <Button Text="⏯"
+                        <Button Text="▶"
                                 HeightRequest="52"
                                 CornerRadius="16"
                                 BackgroundColor="{StaticResource Primary}"
                                 TextColor="White"
-                                Command="{Binding TogglePlayPauseCommand}" />
-
-                        <Button Text="⏹"
-                            HeightRequest="48"
-                            CornerRadius="14"
-                            BackgroundColor="#6B7280"
-                            TextColor="White"
-                            IsVisible="{Binding IsPlaying}"
-                                Command="{Binding StopCommand}" />
+                                Command="{Binding TogglePlayPauseCommand}">
+                            <Button.Triggers>
+                                <DataTrigger TargetType="Button"
+                                             Binding="{Binding IsPlaying}"
+                                             Value="True">
+                                    <Setter Property="Text" Value="⏸" />
+                                </DataTrigger>
+                            </Button.Triggers>
+                        </Button>
                     </VerticalStackLayout>
                 </Border>
 

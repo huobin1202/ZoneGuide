@@ -182,7 +182,7 @@ public class POIRepository : IPOIRepository
             fullDescription: resolvedFullDescription,
             ttsScript: resolvedNarration,
             audioFilePath: null,
-            audioUrl: translation.AudioUrl,
+            audioUrl: string.IsNullOrWhiteSpace(translation.AudioUrl) ? poi.AudioUrl : translation.AudioUrl,
             language: preferredLanguage);
     }
 

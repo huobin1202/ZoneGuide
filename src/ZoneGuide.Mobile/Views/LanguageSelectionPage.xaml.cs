@@ -7,18 +7,15 @@ namespace ZoneGuide.Mobile.Views;
 public partial class LanguageSelectionPage : ContentPage
 {
     private readonly IServiceProvider _serviceProvider;
-    private readonly IUserSessionService _userSessionService;
     private readonly LanguageSelectionViewModel _viewModel;
 
     public LanguageSelectionPage(
         LanguageSelectionViewModel viewModel,
-        IServiceProvider serviceProvider,
-        IUserSessionService userSessionService)
+        IServiceProvider serviceProvider)
     {
         InitializeComponent();
         _viewModel = viewModel;
         _serviceProvider = serviceProvider;
-        _userSessionService = userSessionService;
         _viewModel.Completed += OnCompleted;
         BindingContext = viewModel;
     }
@@ -28,12 +25,9 @@ public partial class LanguageSelectionPage : ContentPage
         var window = Application.Current?.Windows.FirstOrDefault();
         if (window != null)
         {
-            var isLoggedIn = await _userSessionService.IsAuthenticatedAsync();
             try
             {
-                window.Page = isLoggedIn
-                    ? _serviceProvider.GetRequiredService<AppShell>()
-                    : _serviceProvider.GetRequiredService<LoginPage>();
+                window.Page = _serviceProvider.GetRequiredService<AppShell>();
             }
             catch (ObjectDisposedException)
             {

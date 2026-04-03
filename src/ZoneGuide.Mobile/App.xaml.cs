@@ -57,9 +57,7 @@ public partial class App : Application
             await _settingsService.LoadAsync();
             AppLocalizer.Instance.SetLanguage(_settingsService.Settings.PreferredLanguage);
 
-            var isLoggedIn = await _userSessionService.IsAuthenticatedAsync();
-
-            var rootPage = ResolveRootPage(_settingsService.Settings.HasCompletedLanguageSelection, isLoggedIn);
+            var rootPage = ResolveRootPage(_settingsService.Settings.HasCompletedLanguageSelection);
 
             await MainThread.InvokeOnMainThreadAsync(() => window.Page = rootPage);
         }
@@ -76,16 +74,14 @@ public partial class App : Application
         }
     }
 
-    private Page ResolveRootPage(bool hasCompletedLanguageSelection, bool isLoggedIn)
+    private Page ResolveRootPage(bool hasCompletedLanguageSelection)
     {
         if (!hasCompletedLanguageSelection)
         {
             return _services.GetRequiredService<LanguageSelectionPage>();
         }
 
-        return isLoggedIn
-            ? _services.GetRequiredService<AppShell>()
-            : _services.GetRequiredService<LoginPage>();
+        return _services.GetRequiredService<AppShell>();
     }
 
     private static Page CreateLoadingPage()
