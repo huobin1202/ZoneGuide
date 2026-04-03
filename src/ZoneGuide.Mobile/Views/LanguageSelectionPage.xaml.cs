@@ -1,25 +1,23 @@
 using ZoneGuide.Mobile.ViewModels;
 using ZoneGuide.Mobile.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ZoneGuide.Mobile.Views;
 
 public partial class LanguageSelectionPage : ContentPage
 {
-    private readonly AppShell _appShell;
-    private readonly LoginPage _loginPage;
+    private readonly IServiceProvider _serviceProvider;
     private readonly IUserSessionService _userSessionService;
     private readonly LanguageSelectionViewModel _viewModel;
 
     public LanguageSelectionPage(
         LanguageSelectionViewModel viewModel,
-        AppShell appShell,
-        LoginPage loginPage,
+        IServiceProvider serviceProvider,
         IUserSessionService userSessionService)
     {
         InitializeComponent();
         _viewModel = viewModel;
-        _appShell = appShell;
-        _loginPage = loginPage;
+        _serviceProvider = serviceProvider;
         _userSessionService = userSessionService;
         _viewModel.Completed += OnCompleted;
         BindingContext = viewModel;
@@ -31,7 +29,16 @@ public partial class LanguageSelectionPage : ContentPage
         if (window != null)
         {
             var isLoggedIn = await _userSessionService.IsAuthenticatedAsync();
-            window.Page = isLoggedIn ? _appShell : _loginPage;
+            try
+            {
+                window.Page = isLoggedIn
+                    ? _serviceProvider.GetRequiredService<AppShell>()
+                    : _serviceProvider.GetRequiredService<LoginPage>();
+            }
+            catch (ObjectDisposedException)
+            {
+                // App is being torn down, ignore navigation.
+            }
         }
     }
 }

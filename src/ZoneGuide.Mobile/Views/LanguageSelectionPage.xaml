@@ -131,9 +131,8 @@
                                                 StrokeThickness="0"
                                                 StrokeShape="RoundRectangle 12"
                                                 VerticalOptions="Center">
-                                            <Label Text="{Binding ShortCode}"
-                                                   FontSize="14"
-                                                   FontAttributes="Bold"
+                                              <Label Text="{Binding FlagEmoji}"
+                                                  FontSize="20"
                                                    HorizontalTextAlignment="Center"
                                                    VerticalTextAlignment="Center"
                                                    TextColor="{StaticResource Gray900}" />

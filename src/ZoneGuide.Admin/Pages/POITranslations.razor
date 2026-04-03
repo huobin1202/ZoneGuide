@@ -216,6 +216,7 @@ else
                                 <MudTh>Title</MudTh>
                                 <MudTh>Content</MudTh>
                                 <MudTh>Audio</MudTh>
+                                <MudTh></MudTh>
                             </HeaderContent>
                             <RowTemplate>
                                 <MudTd DataLabel="Ngôn ngữ">@context.LanguageCode</MudTd>
@@ -225,6 +226,10 @@ else
                                 </MudTd>
                                 <MudTd DataLabel="Audio">
                                     <MudText Typo="Typo.caption" Class="@GetAudioStatusClass(context)">@GetAudioStatusText(context)</MudText>
+                                </MudTd>
+                                <MudTd Class="text-right">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
+                                                   OnClick="@(() => LoadTranslationToEditor(context))" />
                                 </MudTd>
                             </RowTemplate>
                         </MudTable>

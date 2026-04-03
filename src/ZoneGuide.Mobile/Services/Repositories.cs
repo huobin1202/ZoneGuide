@@ -134,15 +134,17 @@ public class POIRepository : IPOIRepository
         var preferredLanguage = NormalizeLanguage(_settingsService.Settings.PreferredLanguage);
         var sourceLanguage = NormalizeLanguage(poi.Language);
 
-        // When user selects the source language, keep original POI content.
-        if (string.Equals(GetPrimaryLanguage(preferredLanguage), GetPrimaryLanguage(sourceLanguage), StringComparison.OrdinalIgnoreCase))
-        {
-            return poi;
-        }
-
         var translation = await _poiTranslationRepository.GetByPOIIdAndLanguageAsync(poi.Id, preferredLanguage);
         if (translation == null)
         {
+            // For default/source language, keep original POI content.
+            if (string.Equals(GetPrimaryLanguage(preferredLanguage), "vi", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(GetPrimaryLanguage(preferredLanguage), GetPrimaryLanguage(sourceLanguage), StringComparison.OrdinalIgnoreCase))
+            {
+                return poi;
+            }
+
+            // For other selected languages without a translation record, surface explicit missing-translation message.
             var missing = GetMissingTranslationMessage(preferredLanguage);
             return ClonePoiWithResolvedContent(
                 poi,
@@ -155,12 +157,20 @@ public class POIRepository : IPOIRepository
                 language: preferredLanguage);
         }
 
+        var translatedNarration = FirstNonEmpty(
+            translation.TTSScript,
+            translation.FullDescription,
+            translation.ShortDescription,
+            poi.TTSScript,
+            poi.FullDescription,
+            poi.ShortDescription);
+
         return ClonePoiWithResolvedContent(
             poi,
             name: string.IsNullOrWhiteSpace(translation.Name) ? poi.Name : translation.Name,
             shortDescription: string.IsNullOrWhiteSpace(translation.ShortDescription) ? poi.ShortDescription : translation.ShortDescription,
             fullDescription: string.IsNullOrWhiteSpace(translation.FullDescription) ? poi.FullDescription : translation.FullDescription,
-            ttsScript: string.IsNullOrWhiteSpace(translation.TTSScript) ? poi.TTSScript : translation.TTSScript,
+            ttsScript: translatedNarration,
             audioFilePath: null,
             audioUrl: translation.AudioUrl,
             language: preferredLanguage);
@@ -241,6 +251,17 @@ public class POIRepository : IPOIRepository
             "fr-FR" => "La traduction de ce lieu dans la langue sélectionnée n'a pas encore été créée.",
             _ => "Chưa tạo bản dịch của điểm này theo ngôn ngữ đã chọn."
         };
+    }
+
+    private static string FirstNonEmpty(params string?[] values)
+    {
+        foreach (var value in values)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                return value;
+        }
+
+        return string.Empty;
     }
 }
 

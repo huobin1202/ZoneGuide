@@ -59,17 +59,15 @@ public partial class App : Application
             await _settingsService.LoadAsync();
             AppLocalizer.Instance.SetLanguage(_settingsService.Settings.PreferredLanguage);
 
-            var appShell = _services.GetRequiredService<AppShell>();
-            var languageSelectionPage = _services.GetRequiredService<LanguageSelectionPage>();
-            var loginPage = _services.GetRequiredService<LoginPage>();
-
             var isLoggedIn = await _userSessionService.IsAuthenticatedAsync();
 
-            var rootPage = _settingsService.Settings.HasCompletedLanguageSelection
-                ? (isLoggedIn ? (Page)appShell : loginPage)
-                : languageSelectionPage;
+            var rootPage = ResolveRootPage(_settingsService.Settings.HasCompletedLanguageSelection, isLoggedIn);
 
             await MainThread.InvokeOnMainThreadAsync(() => window.Page = rootPage);
+        }
+        catch (ObjectDisposedException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[App] Root initialization skipped due to disposal: {ex.Message}");
         }
         catch (Exception ex)
         {
@@ -78,6 +76,18 @@ public partial class App : Application
             var fallbackPage = CreateFallbackErrorPage(ex);
             await MainThread.InvokeOnMainThreadAsync(() => window.Page = fallbackPage);
         }
+    }
+
+    private Page ResolveRootPage(bool hasCompletedLanguageSelection, bool isLoggedIn)
+    {
+        if (!hasCompletedLanguageSelection)
+        {
+            return _services.GetRequiredService<LanguageSelectionPage>();
+        }
+
+        return isLoggedIn
+            ? _services.GetRequiredService<AppShell>()
+            : _services.GetRequiredService<LoginPage>();
     }
 
     private static Page CreateLoadingPage()
