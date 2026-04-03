@@ -31,17 +31,22 @@ else
                         <MudCard Class="@($"poi-item-card {(poi.Id == _selectedPoiId ? "active" : string.Empty)}")"
                                  @onclick="() => SelectPoiAsync(poi)">
                             <MudCardContent Class="pa-2">
-                                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start" Class="mb-1">
-                                    <MudText Typo="Typo.subtitle2">@poi.Name</MudText>
-                                    @if (HasPoiOutdatedTranslations(poi.Id))
-                                    {
-                                        <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Color="Color.Warning" Size="Size.Small" Title="Có bản dịch/audio outdated" />
-                                    }
-                                </MudStack>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-1">@(string.IsNullOrWhiteSpace(poi.Address) ? $"Mã: {poi.UniqueCode}" : poi.Address)</MudText>
-                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info">
-                                    @($"{GetPoiTranslationCount(poi.Id)} bản dịch")
-                                </MudChip>
+                                <div class="poi-list-item-layout">
+                                    <img class="poi-list-thumb" src="@(string.IsNullOrEmpty(poi.ImageUrl) ? "/images/placeholder.png" : poi.ImageUrl)" alt="Ảnh POI @poi.Name" />
+                                    <div class="poi-list-main">
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start" Class="mb-1">
+                                            <MudText Typo="Typo.subtitle2">@poi.Name</MudText>
+                                            @if (HasPoiOutdatedTranslations(poi.Id))
+                                            {
+                                                <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Color="Color.Warning" Size="Size.Small" Title="Có bản dịch/audio outdated" />
+                                            }
+                                        </MudStack>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-1">@(string.IsNullOrWhiteSpace(poi.Address) ? $"Mã: {poi.UniqueCode}" : poi.Address)</MudText>
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info">
+                                            @($"{GetPoiTranslationCount(poi.Id)} bản dịch")
+                                        </MudChip>
+                                    </div>
+                                </div>
                             </MudCardContent>
                         </MudCard>
 
@@ -64,12 +69,17 @@ else
                 <MudPaper Class="pa-3 mb-3" Outlined="true">
                     <MudStack Spacing="1">
                         <MudText Typo="Typo.h6">@_selectedPoi.Name</MudText>
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Original: @OriginalLanguageLabel</MudText>
                     </MudStack>
                 </MudPaper>
 
                 <MudPaper Class="pa-3" Outlined="true">
-                    <MudText Typo="Typo.subtitle1" Class="mb-2">Bản tạo audio / bản dịch</MudText>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+                        <MudText Typo="Typo.subtitle1">Bản tạo audio / bản dịch</MudText>
+                        <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh"
+                                   OnClick="RefreshCurrentPoiAsync" Disabled="@(_selectedPoi is null || _refreshingCurrentPoi)">
+                            @(_refreshingCurrentPoi ? "Đang làm mới..." : "Làm mới")
+                        </MudButton>
+                    </MudStack>
 
                     <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End" Class="mb-2 flex-wrap">
                         <MudSelect T="string" Value="@_selectedLanguage" ValueChanged="OnSelectedLanguageChangedAsync" Label="Target language" Style="min-width: 260px;">
@@ -79,7 +89,6 @@ else
                             }
                         </MudSelect>
                     </MudStack>
-                    <MudText Typo="Typo.caption" Class="lang-tag">@OriginalLanguageTag</MudText>
 
                     @if (IsOriginalLanguageSelected)
                     {
@@ -100,13 +109,13 @@ else
                                   Disabled="@(!CanEditTranslation)" />
 
                     <MudText Typo="Typo.subtitle2" Class="mb-2">Audio</MudText>
-                    <MudStack Spacing="2" Class="mb-2">
+                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mb-2 audio-actions-row">
                         <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.GraphicEq"
                                    OnClick="GenerateTtsForEditingAsync" Disabled="@(_generatingTts || !CanEditTranslation)">
                             @(_generatingTts ? "Generating audio..." : "Generate audio (TTS)")
                         </MudButton>
 
-                        <div>
+                        <div class="audio-upload-action">
                             <InputFile id="audio-upload" class="audio-upload-input" OnChange="UploadAudioFromInput" accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm" disabled="@(!CanEditTranslation || _uploadingAudio)" />
                             <MudButton HtmlTag="label" for="audio-upload" Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.UploadFile"
                                        Disabled="@(!CanEditTranslation || _uploadingAudio)">
@@ -179,14 +188,10 @@ else
                                 </audio>
 
                                 <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd">
-                                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
-                                               OnClick="() => LoadTranslationToEditor(audio)">
-                                        Dùng bản này
-                                    </MudButton>
-                                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Error"
-                                               OnClick="() => DeleteTranslationAsync(audio)">
-                                        Xóa
-                                    </MudButton>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
+                                                   OnClick="() => LoadTranslationToEditor(audio)" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                                   OnClick="() => DeleteTranslationAsync(audio)" />
                                 </MudStack>
                             </MudPaper>
                         }
@@ -211,7 +216,6 @@ else
                                 <MudTh>Title</MudTh>
                                 <MudTh>Content</MudTh>
                                 <MudTh>Audio</MudTh>
-                                <MudTh></MudTh>
                             </HeaderContent>
                             <RowTemplate>
                                 <MudTd DataLabel="Ngôn ngữ">@context.LanguageCode</MudTd>
@@ -221,10 +225,6 @@ else
                                 </MudTd>
                                 <MudTd DataLabel="Audio">
                                     <MudText Typo="Typo.caption" Class="@GetAudioStatusClass(context)">@GetAudioStatusText(context)</MudText>
-                                </MudTd>
-                                <MudTd Class="text-right">
-                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
-                                                   OnClick="@(() => LoadTranslationToEditor(context))" />
                                 </MudTd>
                             </RowTemplate>
                         </MudTable>
@@ -257,6 +257,27 @@ else
         border-color: #1976d2;
         box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.12);
         background: rgba(25, 118, 210, 0.08);
+    }
+
+    .poi-list-item-layout {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .poi-list-thumb {
+        width: 64px;
+        height: 64px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        flex: 0 0 auto;
+    }
+
+    .poi-list-main {
+        min-width: 0;
+        flex: 1;
     }
 
     .workflow-steps {
@@ -326,6 +347,21 @@ else
         display: none;
     }
 
+    .audio-actions-row {
+        flex-wrap: nowrap;
+    }
+
+    .audio-actions-row > * {
+        flex: 0 0 auto;
+    }
+
+    @@media (max-width: 900px) {
+        .audio-actions-row {
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+    }
+
     .audio-created-scroll {
         max-height: calc(100vh - 360px);
         overflow-y: auto;
@@ -365,6 +401,7 @@ else
     private bool _uploadingAudio;
     private bool _showAudioPreview;
     private bool _loadingSummaries;
+    private bool _refreshingCurrentPoi;
     private string _searchPoi = string.Empty;
     private string _selectedPoiId = string.Empty;
     private string _selectedLanguage = "en-US";
@@ -444,6 +481,50 @@ else
     {
         _selectedLanguage = languageCode;
         await SyncEditorFromSelectedLanguageAsync(autoTranslateIfMissing: true);
+    }
+
+    private async Task RefreshCurrentPoiAsync()
+    {
+        if (_selectedPoi is null)
+        {
+            return;
+        }
+
+        _refreshingCurrentPoi = true;
+        try
+        {
+            var latestPoi = await ApiService.GetPOIAsync(_selectedPoi.Id);
+            if (latestPoi is null)
+            {
+                Snackbar.Add("Không thể làm mới nội dung POI", Severity.Error);
+                return;
+            }
+
+            _selectedPoi = latestPoi;
+            var poiIndex = _pois.FindIndex(p => p.Id == latestPoi.Id);
+            if (poiIndex >= 0)
+            {
+                _pois[poiIndex] = latestPoi;
+            }
+
+            _translations = await ApiService.GetPOITranslationsAsync(latestPoi.Id);
+            UpdatePoiTranslationSummary(latestPoi.Id, _translations);
+
+            // Reload form from latest data first, then refresh translated content from base POI
+            // so old translations in editor do not remain stale after POI content changes.
+            await SyncEditorFromSelectedLanguageAsync(autoTranslateIfMissing: false);
+
+            if (CanEditTranslation)
+            {
+                await TranslateFromBaseContentAsync(showSuccessToast: false);
+            }
+
+            Snackbar.Add("Đã làm mới dữ liệu từ Quản lý địa điểm", Severity.Success);
+        }
+        finally
+        {
+            _refreshingCurrentPoi = false;
+        }
     }
 
     private async Task SyncEditorFromSelectedLanguageAsync(bool autoTranslateIfMissing)
