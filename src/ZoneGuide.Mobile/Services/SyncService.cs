@@ -8,6 +8,7 @@ namespace ZoneGuide.Mobile.Services;
 /// </summary>
 public class SyncService : ISyncService
 {
+    private const string LastSyncLanguageKey = "last_sync_language";
     public event EventHandler? SyncStarted;
     public event EventHandler<bool>? SyncCompleted;
     public event EventHandler<double>? SyncProgress;
@@ -52,13 +53,17 @@ public class SyncService : ISyncService
         {
             await EnsureSyncStateLoadedAsync();
 
+            var currentLanguage = NormalizeLanguage(_settingsService.Settings.PreferredLanguage);
+            var previousLanguage = NormalizeLanguage(await _settingsService.GetAsync<string>(LastSyncLanguageKey));
+            var forceFullSync = !string.Equals(currentLanguage, previousLanguage, StringComparison.OrdinalIgnoreCase);
+
             IsSyncing = true;
             SyncStarted?.Invoke(this, EventArgs.Empty);
 
             var request = new SyncRequest
             {
-                LastSyncTime = LastSyncTime,
-                Language = _settingsService.Settings.PreferredLanguage
+                LastSyncTime = forceFullSync ? null : LastSyncTime,
+                Language = currentLanguage
             };
 
             SyncProgress?.Invoke(this, 0.1);
@@ -71,10 +76,34 @@ public class SyncService : ISyncService
                 return false;
             }
 
+            var localActivePoisBeforeSync = await _poiRepository.GetActiveAsync();
+            var incomingPoiIds = syncData.POIs
+                .Select(p => int.TryParse(p.Id, out var parsed) ? parsed : 0)
+                .Where(id => id > 0)
+                .ToHashSet();
+
+            var effectiveDeletedPoiIds = syncData.DeletedPOIIds
+                .Where(id => !incomingPoiIds.Contains(id))
+                .Distinct()
+                .ToList();
+
+            var looksLikeMassDeletion = localActivePoisBeforeSync.Count > 0
+                && incomingPoiIds.Count == 0
+                && effectiveDeletedPoiIds.Count >= Math.Max(3, (int)Math.Ceiling(localActivePoisBeforeSync.Count * 0.7));
+
+            if (looksLikeMassDeletion)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[SyncService] Blocked suspicious sync delete. localActive={localActivePoisBeforeSync.Count}, incoming={incomingPoiIds.Count}, deleted={effectiveDeletedPoiIds.Count}");
+
+                SyncCompleted?.Invoke(this, false);
+                return false;
+            }
+
             SyncProgress?.Invoke(this, 0.3);
 
             // Xóa các POI đã bị xóa trên server
-            foreach (var deletedId in syncData.DeletedPOIIds)
+            foreach (var deletedId in effectiveDeletedPoiIds)
             {
                 await _poiRepository.DeleteAsync(deletedId);
             }
@@ -108,6 +137,7 @@ public class SyncService : ISyncService
 
             LastSyncTime = syncData.LastSyncTime;
             await _settingsService.SetAsync("last_sync_time", LastSyncTime);
+            await _settingsService.SetAsync(LastSyncLanguageKey, currentLanguage);
 
             SyncCompleted?.Invoke(this, true);
             return true;
@@ -464,4 +494,5 @@ public class SyncService : ISyncService
             _syncStateLock.Release();
         }
     }
+
 }

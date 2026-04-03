@@ -263,27 +263,6 @@ public partial class SettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task UploadAnalyticsAsync()
-    {
-        var success = await _syncService.UploadAnalyticsAsync();
-
-        if (success)
-        {
-            await Shell.Current.DisplayAlert(
-                AppLocalizer.Instance.Translate("settings_save_success_title"),
-                AppLocalizer.Instance.Translate("settings_upload_success_message"),
-                AppLocalizer.Instance.Translate("alert_ok"));
-        }
-        else
-        {
-            await Shell.Current.DisplayAlert(
-                AppLocalizer.Instance.Translate("settings_sync_error_title"),
-                AppLocalizer.Instance.Translate("settings_upload_error_message"),
-                AppLocalizer.Instance.Translate("alert_ok"));
-        }
-    }
-
-    [RelayCommand]
     private async Task TestTTSAsync()
     {
         _ttsService.SetVolume(Volume);

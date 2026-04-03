@@ -560,7 +560,7 @@ public class NarrationService : INarrationService, IDisposable
             item.AudioPath = null;
 
             item.AudioUrl = string.IsNullOrWhiteSpace(translation.AudioUrl)
-                ? null
+                ? item.AudioUrl
                 : translation.AudioUrl;
 
             item.TTSText = !string.IsNullOrWhiteSpace(translation.TTSScript)

@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ZoneGuide.Mobile.Localization;
 using ZoneGuide.Mobile.Services;
 using ZoneGuide.Shared.Interfaces;
 using ZoneGuide.Shared.Models;
@@ -590,7 +591,7 @@ public partial class MapViewModel : ObservableObject
             (p.TTSScript != null && p.TTSScript.ToLowerInvariant().Contains(query)) ||
             (p.FullDescription != null && p.FullDescription.ToLowerInvariant().Contains(query)) ||
             (p.ShortDescription != null && p.ShortDescription.ToLowerInvariant().Contains(query))) &&
-            (string.IsNullOrWhiteSpace(SelectedCategory) || SelectedCategory == "Tất cả" || p.Category == SelectedCategory))
+            (string.IsNullOrWhiteSpace(SelectedCategory) || IsAllCategorySelection(SelectedCategory) || p.Category == SelectedCategory))
             .ToList();
 
         PopulatePins(results);
@@ -1318,5 +1319,19 @@ public partial class MapViewModel : ObservableObject
     public double? GetDistanceToNearestPOI()
     {
         return _geofenceService.NearestPOIDistance;
+    }
+
+    private static bool IsAllCategorySelection(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return true;
+
+        var normalized = value.Trim().ToLowerInvariant();
+        var localizedAll = AppLocalizer.Instance.Translate("pois_filter_all", "Tất cả")
+            .Trim()
+            .ToLowerInvariant();
+
+        return normalized is "tất cả" or "tat ca" or "all" or "全部" or "すべて" or "모두" or "tous"
+               || normalized == localizedAll;
     }
 }

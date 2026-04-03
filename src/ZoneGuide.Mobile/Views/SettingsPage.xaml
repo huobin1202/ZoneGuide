@@ -227,10 +227,6 @@
                             <Button Text="{Binding IsSyncing, Converter={StaticResource SyncButtonTextConverter}}"
                                     Command="{Binding SyncDataCommand}"
                                     IsEnabled="{Binding IsSyncing, Converter={StaticResource InverseBoolConverter}}" />
-
-                                <Button Text="{local:Translate settings_upload_analytics}"
-                                    BackgroundColor="{StaticResource Secondary}"
-                                    Command="{Binding UploadAnalyticsCommand}" />
                         </VerticalStackLayout>
                     </Frame>
                 </VerticalStackLayout>
