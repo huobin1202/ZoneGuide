@@ -71,6 +71,7 @@ Desktop.ini
 # Secrets
 appsettings.Development.json
 appsettings.*.local.json
+src/ZoneGuide.API/appsettings.json
 secrets.json
 *.pfx
 *.key
