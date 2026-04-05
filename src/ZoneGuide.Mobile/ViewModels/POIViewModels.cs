@@ -325,7 +325,9 @@ public partial class POIListViewModel : ObservableObject
 
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            var previousCategoryKey = NormalizeCategoryKey(SelectedCategory);
+            var previousCategoryKey = string.IsNullOrWhiteSpace(SelectedCategory)
+                ? "all"
+                : NormalizeCategoryKey(SelectedCategory);
 
             RefreshLocalizedCategories();
 
@@ -339,7 +341,9 @@ public partial class POIListViewModel : ObservableObject
 
     private void RefreshLocalizedCategories()
     {
-        var currentCategoryKey = NormalizeCategoryKey(SelectedCategory);
+        var currentCategoryKey = string.IsNullOrWhiteSpace(SelectedCategory)
+            ? "all"
+            : NormalizeCategoryKey(SelectedCategory);
 
         Categories.Clear();
         Categories.Add(AppLocalizer.Instance.Translate("pois_filter_all", "All"));

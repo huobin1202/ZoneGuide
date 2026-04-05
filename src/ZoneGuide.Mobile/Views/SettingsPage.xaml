@@ -161,14 +161,15 @@
                                         Value="{Binding CooldownSeconds}" />
                             </Grid>
 
-                                                 <Grid ColumnDefinitions="*,Auto"
-                                                          RowSpacing="6">
-                                                     <Label Text="Đơn vị khoảng cách (Tắt = m, Bật = km)"
-                                                                  FontSize="14"
-                                                                  VerticalOptions="Center" />
-                                                        <Switch Grid.Column="1"
-                                                                      IsToggled="{Binding UseKilometerUnit}" />
-                                                 </Grid>
+                            <Grid RowDefinitions="Auto,Auto"
+                                  RowSpacing="6">
+                                <Label Text="Đơn vị khoảng cách"
+                                       FontSize="14"
+                                       TextColor="{StaticResource Gray500}" />
+                                <Picker Grid.Row="1"
+                                        SelectedIndex="{Binding DistanceUnitIndex}"
+                                        ItemsSource="{Binding DistanceUnitOptions}" />
+                            </Grid>
                         </VerticalStackLayout>
                     </Frame>
                 </VerticalStackLayout>
