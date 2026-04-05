@@ -56,6 +56,7 @@ public partial class App : Application
         {
             await _settingsService.LoadAsync();
             AppLocalizer.Instance.SetLanguage(_settingsService.Settings.PreferredLanguage);
+            DistanceUnitService.SetPreferredUnit(_settingsService.Settings.DistanceUnit);
 
             var rootPage = ResolveRootPage(_settingsService.Settings.HasCompletedLanguageSelection);
 

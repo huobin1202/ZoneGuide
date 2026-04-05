@@ -10,6 +10,8 @@
                 <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
             </ResourceDictionary.MergedDictionaries>
             <converters:OfflineTabTextColorConverter x:Key="OfflineTabTextColorConverter" />
+            <converters:CategoryChipIconConverter x:Key="CategoryChipIconConverter" />
+            <converters:PreferredDistanceConverter x:Key="PreferredDistanceConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

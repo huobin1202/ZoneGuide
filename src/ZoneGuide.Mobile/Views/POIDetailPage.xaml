@@ -135,7 +135,7 @@
                     <HorizontalStackLayout Spacing="8">
                         <Label Text="📍"
                                FontSize="14" />
-                        <Label Text="{Binding Distance, StringFormat='Cách {0:F0}m'}"
+               <Label Text="{Binding Distance, Converter={StaticResource PreferredDistanceConverter}, ConverterParameter=prefix}"
                                FontSize="14"
                                TextColor="{StaticResource Primary}" />
                     </HorizontalStackLayout>

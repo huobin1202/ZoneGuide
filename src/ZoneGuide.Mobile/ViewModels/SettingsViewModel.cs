@@ -79,6 +79,9 @@ public partial class SettingsViewModel : ObservableObject
     private string selectedVoice = string.Empty;
 
     [ObservableProperty]
+    private bool useKilometerUnit;
+
+    [ObservableProperty]
     private LanguageOptionItem? selectedLanguageOption;
 
     public ObservableCollection<LanguageOptionItem> AvailableLanguages { get; } = new();
@@ -133,8 +136,10 @@ public partial class SettingsViewModel : ObservableObject
         OfflineMode = settings.OfflineMode;
         AutoDownloadOffline = settings.AutoDownloadOffline;
         SelectedVoice = settings.PreferredVoice;
+    UseKilometerUnit = string.Equals(settings.DistanceUnit, "km", StringComparison.OrdinalIgnoreCase);
         SelectedLanguageOption = AvailableLanguages.FirstOrDefault(x => x.Code == PreferredLanguage) ?? AvailableLanguages.FirstOrDefault();
         AppLocalizer.Instance.SetLanguage(PreferredLanguage);
+    DistanceUnitService.SetPreferredUnit(settings.DistanceUnit);
 
         LastSyncTime = _syncService.LastSyncTime;
         LastSyncTimeLabel = BuildLastSyncTimeLabel(LastSyncTime);
@@ -209,9 +214,11 @@ public partial class SettingsViewModel : ObservableObject
         settings.OfflineMode = OfflineMode;
         settings.AutoDownloadOffline = AutoDownloadOffline;
         settings.PreferredVoice = SelectedVoice;
+    settings.DistanceUnit = UseKilometerUnit ? "km" : "m";
 
         await _settingsService.SaveAsync();
         AppLocalizer.Instance.SetLanguage(PreferredLanguage);
+    DistanceUnitService.SetPreferredUnit(settings.DistanceUnit);
 
         var languageChanged = !string.Equals(previousLanguage, PreferredLanguage, StringComparison.OrdinalIgnoreCase);
         if (languageChanged)
@@ -369,5 +376,10 @@ public partial class SettingsViewModel : ObservableObject
     partial void OnLastSyncTimeChanged(DateTime? value)
     {
         LastSyncTimeLabel = BuildLastSyncTimeLabel(value);
+    }
+
+    partial void OnUseKilometerUnitChanged(bool value)
+    {
+        DistanceUnitService.SetPreferredUnit(value ? "km" : "m");
     }
 }

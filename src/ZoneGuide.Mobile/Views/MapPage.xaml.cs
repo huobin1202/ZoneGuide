@@ -1,4 +1,5 @@
 using ZoneGuide.Mobile.ViewModels;
+using ZoneGuide.Shared.Models;
 using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Maps;
 using System.Collections.Specialized;
@@ -15,6 +16,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
     private CancellationTokenSource? _routeUpdateDebounceCts;
     private const int CollectionUpdateDebounceMs = 80;
     private bool _tourOverlayRequestedOnNavigation;
+    private bool _isSearchSheetOpen;
 
     public MapPage(MapViewModel viewModel)
     {
@@ -115,6 +117,8 @@ public partial class MapPage : ContentPage, IQueryAttributable
             UpdateMapPins();
             UpdateTourRoute();
             UpdateMapRegion();
+
+            ResetSearchSheetLayout();
         }
         catch (Exception ex)
         {
@@ -368,5 +372,91 @@ public partial class MapPage : ContentPage, IQueryAttributable
                 Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
         var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
         return earthRadiusKm * c;
+    }
+
+    private void ResetSearchSheetLayout()
+    {
+        if (MapSearchSheet == null || SearchSheetBackdrop == null)
+            return;
+
+        _isSearchSheetOpen = false;
+        SearchSheetBackdrop.IsVisible = false;
+        SearchSheetBackdrop.Opacity = 0;
+        MapSearchSheet.TranslationY = GetSearchSheetClosedTranslationY();
+    }
+
+    private double GetSearchSheetClosedTranslationY()
+    {
+        var sheetHeight = MapSearchSheet?.Height ?? 0;
+        var pageHeight = Height;
+        var height = Math.Max(sheetHeight, pageHeight);
+
+        if (height <= 0)
+            return 700;
+
+        return height + 24;
+    }
+
+    private async Task OpenSearchSheetAsync()
+    {
+        if (_isSearchSheetOpen || MapSearchSheet == null || SearchSheetBackdrop == null)
+            return;
+
+        _isSearchSheetOpen = true;
+        SearchSheetBackdrop.IsVisible = true;
+        SearchSheetBackdrop.Opacity = 0;
+        MapSearchSheet.TranslationY = GetSearchSheetClosedTranslationY();
+
+        await Task.WhenAll(
+            SearchSheetBackdrop.FadeToAsync(1, 150, Easing.CubicOut),
+            MapSearchSheet.TranslateToAsync(0, 0, 220, Easing.CubicOut));
+    }
+
+    private async Task CloseSearchSheetAsync()
+    {
+        if (!_isSearchSheetOpen || MapSearchSheet == null || SearchSheetBackdrop == null)
+            return;
+
+        _isSearchSheetOpen = false;
+
+        await Task.WhenAll(
+            SearchSheetBackdrop.FadeToAsync(0, 120, Easing.CubicIn),
+            MapSearchSheet.TranslateToAsync(0, GetSearchSheetClosedTranslationY(), 180, Easing.CubicIn));
+
+        SearchSheetBackdrop.IsVisible = false;
+    }
+
+    private async void OnOpenSearchSheetTapped(object? sender, TappedEventArgs e)
+    {
+        await OpenSearchSheetAsync();
+    }
+
+    private async void OnCloseSearchSheetTapped(object? sender, TappedEventArgs e)
+    {
+        await CloseSearchSheetAsync();
+    }
+
+    private async void OnMapSearchResultSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (e.CurrentSelection.FirstOrDefault() is not POI poi)
+            return;
+
+        _viewModel.SelectPOICommand.Execute(poi);
+
+        await CloseSearchSheetAsync();
+
+        try
+        {
+            await Shell.Current.GoToAsync($"POIDetailPage?id={poi.Id}");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MapPage] Navigate to POIDetailPage error: {ex}");
+        }
+
+        if (sender is CollectionView collectionView)
+        {
+            collectionView.SelectedItem = null;
+        }
     }
 }

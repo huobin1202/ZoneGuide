@@ -66,6 +66,9 @@ public partial class MapViewModel : ObservableObject
     private bool isSelectedPoiNarrationPaused;
 
     [ObservableProperty]
+    private bool isSelectedPoiPlayerVisible;
+
+    [ObservableProperty]
     private int? currentNarrationPoiId;
 
     [ObservableProperty]
@@ -177,6 +180,8 @@ public partial class MapViewModel : ObservableObject
         _narrationService.NarrationStarted += OnNarrationStateChanged;
         _narrationService.NarrationCompleted += OnNarrationStateChanged;
         _narrationService.NarrationStopped += OnNarrationStateChanged;
+
+        SelectedCategory = Categories.FirstOrDefault();
 
         UpdateSelectedPoiNarrationState();
     }
@@ -1265,6 +1270,11 @@ public partial class MapViewModel : ObservableObject
         PerformSearch();
     }
 
+    partial void OnSearchQueryChanged(string? value)
+    {
+        PerformSearch();
+    }
+
     partial void OnSelectedPOIChanged(POI? value)
     {
         UpdateSelectedPoiDistanceDisplay();
@@ -1292,6 +1302,7 @@ public partial class MapViewModel : ObservableObject
 
         IsSelectedPoiNarrationActive = isCurrentSelected && _narrationService.IsPlaying;
         IsSelectedPoiNarrationPaused = isCurrentSelected && _narrationService.IsPaused;
+        IsSelectedPoiPlayerVisible = SelectedPOI != null && (IsSelectedPoiNarrationActive || IsSelectedPoiNarrationPaused);
     }
 
     private void UpdateSelectedPoiDistanceDisplay()
@@ -1314,9 +1325,7 @@ public partial class MapViewModel : ObservableObject
             SelectedPOI.Latitude,
             SelectedPOI.Longitude);
 
-        SelectedPoiDistanceDisplay = km >= 1
-            ? $"{Math.Round(km):0} km"
-            : $"{Math.Round(km * 1000):0} m";
+        SelectedPoiDistanceDisplay = DistanceUnitService.FormatFromMeters(km * 1000d);
     }
 
     public POI? FindNearestPOI()

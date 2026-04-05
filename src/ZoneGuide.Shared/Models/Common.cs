@@ -202,6 +202,11 @@ public class AppSettings
     /// Tự động tải nội dung offline
     /// </summary>
     public bool AutoDownloadOffline { get; set; } = true;
+
+    /// <summary>
+    /// Đơn vị khoảng cách hiển thị (m/km)
+    /// </summary>
+    public string DistanceUnit { get; set; } = "m";
 }
 
 /// <summary>

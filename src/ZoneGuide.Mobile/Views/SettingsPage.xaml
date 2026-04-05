@@ -160,6 +160,15 @@
                                         Maximum="600"
                                         Value="{Binding CooldownSeconds}" />
                             </Grid>
+
+                                                 <Grid ColumnDefinitions="*,Auto"
+                                                          RowSpacing="6">
+                                                     <Label Text="Đơn vị khoảng cách (Tắt = m, Bật = km)"
+                                                                  FontSize="14"
+                                                                  VerticalOptions="Center" />
+                                                        <Switch Grid.Column="1"
+                                                                      IsToggled="{Binding UseKilometerUnit}" />
+                                                 </Grid>
                         </VerticalStackLayout>
                     </Frame>
                 </VerticalStackLayout>
