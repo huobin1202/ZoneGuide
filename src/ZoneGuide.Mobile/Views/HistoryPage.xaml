@@ -153,6 +153,8 @@
                                             CornerRadius="22"
                                                                                                                                                                  FontSize="16"
                                             Padding="0"
+                                            BackgroundColor="{StaticResource Primary}"
+                                            TextColor="White"
                                             Command="{Binding BindingContext.ReplayCommand, Source={x:Reference HistoryRoot}}"
                                                                              CommandParameter="{Binding .}">
                                                                              <Button.Triggers>
@@ -165,8 +167,8 @@
                                                                                                   </MultiBinding>
                                                                                            </DataTrigger.Binding>
                                                                                            <Setter Property="Text" Value="⏸" />
-                                                                                           <Setter Property="BackgroundColor" Value="#FFE6E6" />
-                                                                                           <Setter Property="TextColor" Value="#B3261E" />
+                                                                                           <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+                                                                                           <Setter Property="TextColor" Value="White" />
                                                                                            <Setter Property="Command">
                                                                                                   <Setter.Value>
                                                                                                          <Binding Source="{x:Reference HistoryRoot}" Path="BindingContext.ToggleStopResumeCommand" />

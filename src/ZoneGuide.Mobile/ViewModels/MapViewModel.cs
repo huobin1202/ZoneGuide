@@ -285,7 +285,15 @@ public partial class MapViewModel : ObservableObject
     {
         try
         {
-            var pois = (await _poiRepository.GetActiveAsync())
+            var activePois = await _poiRepository.GetActiveAsync();
+            var sourcePois = activePois.Count > 0 ? activePois : await _poiRepository.GetAllAsync();
+
+            if (activePois.Count == 0)
+            {
+                System.Diagnostics.Debug.WriteLine("[MapVM] Active POIs are empty, fallback to all POIs for map rendering.");
+            }
+
+            var pois = sourcePois
                 .Where(p => p.Latitude is >= -90 and <= 90 && p.Longitude is >= -180 and <= 180)
                 .ToList();
 

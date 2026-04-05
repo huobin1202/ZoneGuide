@@ -178,6 +178,10 @@ public class NarrationService : INarrationService, IDisposable
             await _audioService.StopAsync();
             await CloseHistoryRecordAsync(false);
             _geofenceService.ResetCooldown(currentItem.POI.Id);
+
+            IsPlaying = false;
+            IsPaused = false;
+            CurrentProgress = 0;
             
             NarrationStopped?.Invoke(this, currentItem);
 
@@ -299,6 +303,13 @@ public class NarrationService : INarrationService, IDisposable
                         item.Status = NarrationStatus.Completed;
                         await CloseHistoryRecordAsync(true);
                         _geofenceService.ResetCooldown(item.POI.Id);
+
+                        // Update state before raising completion event so ViewModels
+                        // don't read stale IsPlaying=true and keep pause icon.
+                        IsPlaying = false;
+                        IsPaused = false;
+                        CurrentProgress = 1.0;
+
                         NarrationCompleted?.Invoke(this, item);
                     }
                 }
