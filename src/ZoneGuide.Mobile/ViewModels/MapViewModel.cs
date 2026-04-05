@@ -666,6 +666,9 @@ public partial class MapViewModel : ObservableObject
     [RelayCommand]
     private void SelectPOI(POI poi)
     {
+        if (poi == null)
+            return;
+
         SelectedPOI = poi;
 
         var radius = IsTourModeActive
@@ -675,6 +678,32 @@ public partial class MapViewModel : ObservableObject
         MapSpan = MapSpan.FromCenterAndRadius(
             new Location(poi.Latitude, poi.Longitude), 
             radius);
+    }
+
+    public async Task<bool> FocusPOIByIdAsync(int poiId)
+    {
+        if (poiId <= 0)
+            return false;
+
+        var poi = _allPOIs.FirstOrDefault(p => p.Id == poiId)
+                  ?? POIs.FirstOrDefault(p => p.Id == poiId)
+                  ?? await _poiRepository.GetByIdAsync(poiId);
+
+        if (poi == null)
+            return false;
+
+        if (_allPOIs.All(p => p.Id != poi.Id))
+        {
+            _allPOIs.Add(poi);
+        }
+
+        if (POIs.All(p => p.Id != poi.Id))
+        {
+            POIs.Add(poi);
+        }
+
+        SelectPOI(poi);
+        return true;
     }
 
     [RelayCommand]

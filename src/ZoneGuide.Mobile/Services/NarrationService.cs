@@ -164,6 +164,27 @@ public class NarrationService : INarrationService, IDisposable
         IsPaused = true;
     }
 
+    public async Task RewindAsync(double seconds)
+    {
+        if (seconds <= 0)
+            return;
+
+        if (_currentItem == null)
+            return;
+
+        var duration = _audioService.Duration;
+        var currentPosition = _audioService.CurrentPosition;
+
+        if (duration <= 0 || currentPosition <= 0)
+            return;
+
+        var targetPosition = Math.Max(0, currentPosition - seconds);
+        await _audioService.SeekAsync(targetPosition);
+
+        CurrentProgress = duration > 0 ? Math.Clamp(targetPosition / duration, 0, 1) : 0;
+        ProgressUpdated?.Invoke(this, CurrentProgress);
+    }
+
     public async Task StopAsync()
     {
         _cancellationTokenSource?.Cancel();

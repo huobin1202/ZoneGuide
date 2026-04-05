@@ -470,6 +470,9 @@ public partial class POIDetailViewModel : ObservableObject
     [ObservableProperty]
     private string imageSource = "location.svg";
 
+    [ObservableProperty]
+    private bool isPlayerPanelVisible;
+
     public POIDetailViewModel(
         IPOIRepository poiRepository,
         INarrationService narrationService,
@@ -521,6 +524,7 @@ public partial class POIDetailViewModel : ObservableObject
 
         try
         {
+            IsPlayerPanelVisible = true;
             _geofenceService.ResetCooldown(CurrentPoi.Id);
 
             var isCurrentPoi = _narrationService.CurrentItem?.POI.Id == CurrentPoi.Id;
@@ -546,6 +550,8 @@ public partial class POIDetailViewModel : ObservableObject
     {
         if (CurrentPoi == null)
             return;
+
+        IsPlayerPanelVisible = true;
 
         var isCurrentPoi = _narrationService.CurrentItem?.POI.Id == CurrentPoi.Id;
         if (isCurrentPoi && _narrationService.IsPlaying)
@@ -598,6 +604,29 @@ public partial class POIDetailViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task TogglePlayerPanelAsync()
+    {
+        IsPlayerPanelVisible = true;
+        await TogglePlayPauseAsync();
+    }
+
+    [RelayCommand]
+    private void HidePlayerPanel()
+    {
+        IsPlayerPanelVisible = false;
+    }
+
+    [RelayCommand]
+    private async Task Rewind10SecondsAsync()
+    {
+        if (CurrentPoi == null)
+            return;
+
+        await _narrationService.RewindAsync(10);
+        SyncFromNarrationService();
+    }
+
+    [RelayCommand]
     private async Task BackAsync()
     {
         if (Shell.Current.Navigation.NavigationStack.Count > 1)
@@ -621,6 +650,15 @@ public partial class POIDetailViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task OpenMapAsync()
+    {
+        if (CurrentPoi == null)
+            return;
+
+        await Shell.Current.GoToAsync($"//map?poiId={CurrentPoi.Id}");
+    }
+
+    [RelayCommand]
     private async Task ShareAsync()
     {
         if (CurrentPoi == null)
@@ -640,6 +678,7 @@ public partial class POIDetailViewModel : ObservableObject
             if (CurrentPoi == null || item.POI.Id != CurrentPoi.Id)
                 return;
 
+            IsPlayerPanelVisible = true;
             IsPlaying = true;
             IsPaused = false;
             Progress = Math.Clamp(_narrationService.CurrentProgress, 0, 1);

@@ -19,7 +19,7 @@
         <Border Margin="14,12,14,0"
                 VerticalOptions="Start"
                 BackgroundColor="White"
-                Stroke="#E2E8F0"
+        Stroke="#000000"
                 StrokeShape="RoundRectangle 22"
                 StrokeThickness="1"
                 Padding="14,10">
@@ -304,7 +304,7 @@
 
                 <Border Grid.Row="1"
                         BackgroundColor="White"
-                        Stroke="#E2E8F0"
+            Stroke="#000000"
                         StrokeShape="RoundRectangle 20"
                         StrokeThickness="1"
                         Padding="12,2">

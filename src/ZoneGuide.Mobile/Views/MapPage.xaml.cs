@@ -22,6 +22,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
     private const int CollectionUpdateDebounceMs = 80;
     private bool _tourOverlayRequestedOnNavigation;
     private bool _isSearchSheetOpen;
+    private int? _focusPoiIdRequestedOnNavigation;
 #if ANDROID
     private GoogleMap? _nativeMap;
     private readonly Dictionary<Marker, POI> _nativePoiMarkers = new();
@@ -116,6 +117,14 @@ public partial class MapPage : ContentPage, IQueryAttributable
             UpdateTourRoute();
             UpdateMapRegion();
 
+            if (_focusPoiIdRequestedOnNavigation.HasValue)
+            {
+                await _viewModel.FocusPOIByIdAsync(_focusPoiIdRequestedOnNavigation.Value);
+                UpdateMapPins();
+                UpdateMapRegion();
+                _focusPoiIdRequestedOnNavigation = null;
+            }
+
             if (!_tourOverlayRequestedOnNavigation)
             {
                 _viewModel.IsTourPoiListVisible = false;
@@ -141,6 +150,8 @@ public partial class MapPage : ContentPage, IQueryAttributable
     {
         try
         {
+            _focusPoiIdRequestedOnNavigation = TryGetIntQueryValue(query, "poiId");
+
             var tourId = TryGetIntQueryValue(query, "tourId");
             var startTour = TryGetBoolQueryValue(query, "startTour");
             var hasTourOverlayContext = startTour && tourId.HasValue;
@@ -154,11 +165,31 @@ public partial class MapPage : ContentPage, IQueryAttributable
             _viewModel.SetTourRequest(tourId, startTour);
 
             if (!startTour || !tourId.HasValue || !_hasInitialized)
+            {
+                if (_focusPoiIdRequestedOnNavigation.HasValue && _hasInitialized)
+                {
+                    _ = MainThread.InvokeOnMainThreadAsync(async () =>
+                    {
+                        await _viewModel.FocusPOIByIdAsync(_focusPoiIdRequestedOnNavigation.Value);
+                        UpdateMapPins();
+                        UpdateMapRegion();
+                        _focusPoiIdRequestedOnNavigation = null;
+                    });
+                }
+
                 return;
+            }
 
             _ = MainThread.InvokeOnMainThreadAsync(async () =>
             {
                 await _viewModel.ApplyTourRequestAsync();
+
+                if (_focusPoiIdRequestedOnNavigation.HasValue)
+                {
+                    await _viewModel.FocusPOIByIdAsync(_focusPoiIdRequestedOnNavigation.Value);
+                    _focusPoiIdRequestedOnNavigation = null;
+                }
+
                 UpdateMapPins();
                 UpdateTourRoute();
                 UpdateMapRegion();

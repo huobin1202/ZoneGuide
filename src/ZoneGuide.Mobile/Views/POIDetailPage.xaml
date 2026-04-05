@@ -2,13 +2,14 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
+                         xmlns:maps="clr-namespace:Microsoft.Maui.Controls.Maps;assembly=Microsoft.Maui.Controls.Maps"
              xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
              x:Class="ZoneGuide.Mobile.Views.POIDetailPage"
              x:DataType="vm:POIDetailViewModel"
              Shell.NavBarIsVisible="False"
              BackgroundColor="#F6F7FB">
 
-    <Grid RowDefinitions="Auto,*">
+        <Grid RowDefinitions="300,*">
         <Grid Grid.Row="0"
               HeightRequest="300">
             <Image Source="{Binding ImageSource}"
@@ -17,114 +18,106 @@
             <BoxView Color="#66000000" />
 
             <Grid Padding="16,26,16,18"
-                  RowDefinitions="Auto,*,Auto">
+                                    RowDefinitions="Auto,*,Auto"
+                                    ZIndex="3">
                 <Button Grid.Row="0"
-                    Text="← Quay lại"
-                    WidthRequest="112"
-                        HeightRequest="42"
-                    CornerRadius="18"
-                    FontSize="14"
-                    Padding="12,0"
+                    Text="←"
+                    WidthRequest="46"
+                        HeightRequest="46"
+                    CornerRadius="23"
+                    FontSize="22"
+                    Padding="0"
                         HorizontalOptions="Start"
                         VerticalOptions="Start"
                         BackgroundColor="#66FFFFFF"
                         TextColor="White"
                         SemanticProperties.Hint="{local:Translate poi_detail_back}"
                         Command="{Binding BackCommand}" />
-
-                <VerticalStackLayout Grid.Row="2"
-                                     Spacing="10">
-                    <Border BackgroundColor="#66FFFFFF"
-                            StrokeThickness="0"
-                            StrokeShape="RoundRectangle 12"
-                            Padding="10,4"
-                            HorizontalOptions="Start">
-                        <Label Text="{Binding CurrentPoi.Category, Converter={StaticResource LocalizedCategoryConverter}}"
-                               TextColor="White"
-                               FontSize="12" />
-                    </Border>
-
-                    <Label Text="{Binding CurrentPoi.Name}"
-                           FontSize="28"
-                           FontAttributes="Bold"
-                           TextColor="White"
-                           LineBreakMode="WordWrap" />
-
-              <Label Text="{Binding CurrentPoi.TTSScript}"
-                           FontSize="14"
-                           TextColor="#F3F0FF"
-                           MaxLines="3" />
-                </VerticalStackLayout>
             </Grid>
         </Grid>
 
-        <ScrollView Grid.Row="1"
-                Margin="0,12,0,0">
-            <VerticalStackLayout Padding="20,20,20,24"
-                                 Spacing="18">
-                <Border BackgroundColor="White"
+        <Button Grid.Row="0"
+                Text="🔊 Phát"
+                HeightRequest="54"
+                WidthRequest="170"
+                CornerRadius="27"
+                Margin="18,0,0,-26"
+                HorizontalOptions="Start"
+                VerticalOptions="End"
+        BackgroundColor="#111111"
+        TextColor="White"
+                FontAttributes="Bold"
+                Command="{Binding TogglePlayerPanelCommand}"
+                ZIndex="10" />
+
+    <ScrollView Grid.Row="1"
+        Margin="0,0,0,0"
+        VerticalScrollBarVisibility="Never"
+        HorizontalScrollBarVisibility="Never">
+            <VerticalStackLayout Padding="20,36,20,116"
+                                 Spacing="14">
+                <Label Text="{Binding CurrentPoi.Name}"
+                       FontSize="44"
+                       FontAttributes="Bold"
+                       TextColor="{StaticResource Gray900}"
+                       LineBreakMode="WordWrap" />
+
+                <Border BackgroundColor="#CDD2DA"
                         StrokeThickness="0"
-                        StrokeShape="RoundRectangle 22"
-                        Padding="18">
-                    <VerticalStackLayout Spacing="14">
-                       <VerticalStackLayout Spacing="4">
-                        <Label Text="{local:Translate poi_detail_now_playing}"
-                            FontSize="18"
-                            FontAttributes="Bold"
-                            TextColor="{StaticResource Gray900}" />
-                        <Label Text="{Binding PlaybackStatusText}"
-                            FontSize="13"
-                            TextColor="{StaticResource Gray500}" />
-                       </VerticalStackLayout>
-
-                       <Grid ColumnDefinitions="*,Auto"
-                          ColumnSpacing="10">
-                        <ProgressBar Grid.Column="0"
-                                  Progress="{Binding Progress}"
-                                  HeightRequest="8"
-                                  VerticalOptions="Center"
-                                  ProgressColor="{StaticResource Primary}"
-                                  BackgroundColor="#ECEAF8" />
-
-                        <Label Grid.Column="1"
-                            Text="{Binding ProgressText}"
-                            FontSize="12"
-                            FontAttributes="Bold"
-                            TextColor="{StaticResource Primary}"
-                            VerticalTextAlignment="Center" />
-                       </Grid>
-
-                        <Button Text="▶"
-                                HeightRequest="52"
-                                CornerRadius="16"
-                                BackgroundColor="{StaticResource Primary}"
-                                TextColor="White"
-                                Command="{Binding TogglePlayPauseCommand}">
-                            <Button.Triggers>
-                                <DataTrigger TargetType="Button"
-                                             Binding="{Binding IsPlaying}"
-                                             Value="True">
-                                    <Setter Property="Text" Value="⏸" />
-                                </DataTrigger>
-                            </Button.Triggers>
-                        </Button>
-                    </VerticalStackLayout>
+                        StrokeShape="RoundRectangle 14"
+                        Padding="12,9"
+                        HorizontalOptions="Start">
+                    <HorizontalStackLayout Spacing="8">
+                        <Label Text="🏷"
+                               FontSize="14"
+                               VerticalTextAlignment="Center"
+                               TextColor="#1F2937" />
+                        <Label Text="{Binding CurrentPoi.Category, Converter={StaticResource LocalizedCategoryConverter}}"
+                               FontSize="15"
+                               FontAttributes="Bold"
+                               TextColor="#1F2937"
+                               VerticalTextAlignment="Center"
+                               LineBreakMode="WordWrap" />
+                    </HorizontalStackLayout>
                 </Border>
 
+                <Label Text="{Binding CurrentPoi.TTSScript}"
+                       FontSize="19"
+              TextColor="{StaticResource Gray600}"
+                       LineHeight="1.45" />
+
                 <Border BackgroundColor="White"
                         StrokeThickness="0"
                         StrokeShape="RoundRectangle 22"
-                        Padding="18">
-                    <VerticalStackLayout Spacing="12">
-               <Label Text="Nội dung thuyết minh (TTS)"
-                               FontSize="18"
-                               FontAttributes="Bold" />
+                        Padding="0">
+                    <Grid RowDefinitions="220,Auto">
+                        <maps:Map x:Name="MiniPoiMap"
+                                  Grid.Row="0"
+                                  IsShowingUser="False"
+                                  IsTrafficEnabled="False"
+                                  IsScrollEnabled="False"
+                                  IsZoomEnabled="False" />
 
-               <Label Text="{Binding CurrentPoi.TTSScript}"
-                               FontSize="14"
-                               TextColor="{StaticResource Gray600}"
-                               LineHeight="1.5" />
-                    </VerticalStackLayout>
+                        <Grid Grid.Row="1"
+                              Padding="14,10"
+                              ColumnDefinitions="Auto,*"
+                              ColumnSpacing="8"
+                              BackgroundColor="White">
+                            <Label Text="⌖"
+                                   FontSize="16"
+                                   VerticalOptions="Center"
+                                   TextColor="{StaticResource Primary}" />
+                            <Label Grid.Column="1"
+                                   Text="Chạm để mở bản đồ và xem đúng vị trí điểm"
+                                   FontSize="13"
+                                   TextColor="#374151"
+                                   VerticalOptions="Center" />
+                        </Grid>
+
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding OpenMapCommand}" />
+                        </Grid.GestureRecognizers>
+                    </Grid>
                 </Border>
 
                 <Border BackgroundColor="White"
@@ -161,6 +154,64 @@
                 </Grid>
             </VerticalStackLayout>
         </ScrollView>
+
+        <Border Grid.Row="1"
+                Margin="16,0,16,16"
+                VerticalOptions="End"
+                BackgroundColor="#111111"
+                StrokeThickness="0"
+                StrokeShape="RoundRectangle 20"
+                Padding="12,10"
+                IsVisible="{Binding IsPlayerPanelVisible}"
+                ZIndex="20">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto"
+                  ColumnSpacing="10">
+                <Slider Grid.Column="0"
+                        Minimum="0"
+                        Maximum="1"
+                        Value="{Binding Progress}"
+                        IsEnabled="False"
+                        ThumbColor="#F97316"
+                        MinimumTrackColor="#F97316"
+                        MaximumTrackColor="#6B7280"
+                        HeightRequest="26"
+                        VerticalOptions="Center" />
+
+                <Button Grid.Column="1"
+                        Text="⏹"
+                        WidthRequest="40"
+                        HeightRequest="40"
+                        CornerRadius="20"
+                        Padding="0"
+                        FontSize="16"
+                        BackgroundColor="#2A2A2A"
+                        TextColor="White"
+                        Command="{Binding StopCommand}" />
+
+        <Button Grid.Column="2"
+            Text="↺10"
+            WidthRequest="46"
+            HeightRequest="40"
+            CornerRadius="20"
+            Padding="0"
+            FontSize="12"
+            FontAttributes="Bold"
+            BackgroundColor="#2A2A2A"
+            TextColor="White"
+            Command="{Binding Rewind10SecondsCommand}" />
+
+        <Button Grid.Column="3"
+                        Text="✕"
+                        WidthRequest="40"
+                        HeightRequest="40"
+                        CornerRadius="20"
+                        Padding="0"
+                        FontSize="14"
+                        BackgroundColor="#2A2A2A"
+                        TextColor="White"
+                        Command="{Binding HidePlayerPanelCommand}" />
+            </Grid>
+        </Border>
     </Grid>
 
 </ContentPage>
