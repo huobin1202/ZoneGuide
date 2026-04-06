@@ -70,6 +70,9 @@ public class ApiService
         if (string.IsNullOrWhiteSpace(raw))
             return string.Empty;
 
+        if (raw.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+            return raw;
+
         var trimmed = raw.Replace('\\', '/');
 
         if (trimmed.StartsWith("~/", StringComparison.Ordinal))
@@ -325,11 +328,15 @@ public class ApiService
                             .Select(poi => NormalizePoiMediaUrls(poi, syncBaseUrl))
                             .ToList();
 
+                        var normalizedTours = (syncResponse.Tours ?? new List<TourDto>())
+                            .Select(tour => NormalizeTourMediaUrls(tour, syncBaseUrl))
+                            .ToList();
+
                         return new SyncDataDto
                         {
                             LastSyncTime = syncResponse.SyncedAt,
                             POIs = normalizedPois,
-                            Tours = syncResponse.Tours ?? new(),
+                            Tours = normalizedTours,
                             DeletedPOIIds = syncResponse.DeletedPOIIds?
                                 .Where(id => int.TryParse(id, out _))
                                 .Select(id => int.Parse(id)).ToList() ?? new(),
@@ -383,6 +390,19 @@ public class ApiService
         }
 
         return poi;
+    }
+
+    private static TourDto NormalizeTourMediaUrls(TourDto tour, string apiBaseUrl)
+    {
+        var normalizedImageUrl = ResolveMediaUrl(tour.ImageUrl ?? string.Empty, apiBaseUrl);
+        var normalizedThumbnailUrl = ResolveMediaUrl(tour.ThumbnailUrl ?? string.Empty, apiBaseUrl);
+
+        tour.ImageUrl = normalizedImageUrl;
+        tour.ThumbnailUrl = !string.IsNullOrWhiteSpace(normalizedThumbnailUrl)
+            ? normalizedThumbnailUrl
+            : normalizedImageUrl;
+
+        return tour;
     }
 
     #endregion

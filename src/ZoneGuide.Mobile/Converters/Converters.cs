@@ -322,6 +322,66 @@ public class LocalizedCategoryConverter : IValueConverter
     }
 }
 
+public class PreferredDistanceConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value == null)
+            return string.Empty;
+
+        var meters = value switch
+        {
+            double d => d,
+            float f => f,
+            int i => i,
+            long l => l,
+            _ => 0d
+        };
+
+        var formatted = DistanceUnitService.FormatFromMeters(meters);
+
+        if (parameter is string p && string.Equals(p, "prefix", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Cách {formatted}";
+        }
+
+        return formatted;
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+public class CategoryChipIconConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is not string raw || string.IsNullOrWhiteSpace(raw))
+            return "●";
+
+        var category = raw.Trim().ToLowerInvariant();
+
+        return category switch
+        {
+            "tất cả" or "tat ca" or "all" => "◉",
+            "du lịch" or "tourism" => "⌘",
+            "dịch vụ" or "dich vu" or "service" or "services" => "⚙",
+            "ăn uống" or "an uong" or "food" => "⌂",
+            "giải trí" or "giai tri" or "entertainment" => "♪",
+            "mua sắm" or "mua sam" or "shopping" => "◍",
+            "khác" or "khac" or "other" => "○",
+            _ => "●"
+        };
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
 /// <summary>
 /// Kiem tra POI dang hien thi co trung voi POI dang phat khong.
 /// values[0] = current narration poi id, values[1] = item poi id

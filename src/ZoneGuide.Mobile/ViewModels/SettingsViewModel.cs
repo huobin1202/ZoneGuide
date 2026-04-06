@@ -79,12 +79,19 @@ public partial class SettingsViewModel : ObservableObject
     private string selectedVoice = string.Empty;
 
     [ObservableProperty]
+    private bool useKilometerUnit;
+
+    [ObservableProperty]
+    private int distanceUnitIndex;
+
+    [ObservableProperty]
     private LanguageOptionItem? selectedLanguageOption;
 
     public ObservableCollection<LanguageOptionItem> AvailableLanguages { get; } = new();
 
     public ObservableCollection<string> AvailableVoices { get; } = new();
     public ObservableCollection<string> GpsAccuracyOptions { get; } = new();
+    public ObservableCollection<string> DistanceUnitOptions { get; } = new();
 
     public SettingsViewModel(
         ISettingsService settingsService,
@@ -133,8 +140,11 @@ public partial class SettingsViewModel : ObservableObject
         OfflineMode = settings.OfflineMode;
         AutoDownloadOffline = settings.AutoDownloadOffline;
         SelectedVoice = settings.PreferredVoice;
+        UseKilometerUnit = string.Equals(settings.DistanceUnit, "km", StringComparison.OrdinalIgnoreCase);
+        DistanceUnitIndex = UseKilometerUnit ? 1 : 0;
         SelectedLanguageOption = AvailableLanguages.FirstOrDefault(x => x.Code == PreferredLanguage) ?? AvailableLanguages.FirstOrDefault();
         AppLocalizer.Instance.SetLanguage(PreferredLanguage);
+        DistanceUnitService.SetPreferredUnit(settings.DistanceUnit);
 
         LastSyncTime = _syncService.LastSyncTime;
         LastSyncTimeLabel = BuildLastSyncTimeLabel(LastSyncTime);
@@ -152,6 +162,10 @@ public partial class SettingsViewModel : ObservableObject
         GpsAccuracyOptions.Add(AppLocalizer.Instance.Translate("settings_gps_low"));
         GpsAccuracyOptions.Add(AppLocalizer.Instance.Translate("settings_gps_medium"));
         GpsAccuracyOptions.Add(AppLocalizer.Instance.Translate("settings_gps_high"));
+
+        DistanceUnitOptions.Clear();
+        DistanceUnitOptions.Add("Mét (m)");
+        DistanceUnitOptions.Add("Kilômét (km)");
     }
 
     private static string BuildLastSyncTimeLabel(DateTime? value)
@@ -209,9 +223,12 @@ public partial class SettingsViewModel : ObservableObject
         settings.OfflineMode = OfflineMode;
         settings.AutoDownloadOffline = AutoDownloadOffline;
         settings.PreferredVoice = SelectedVoice;
+        settings.DistanceUnit = DistanceUnitIndex == 1 ? "km" : "m";
+        UseKilometerUnit = DistanceUnitIndex == 1;
 
         await _settingsService.SaveAsync();
         AppLocalizer.Instance.SetLanguage(PreferredLanguage);
+        DistanceUnitService.SetPreferredUnit(settings.DistanceUnit);
 
         var languageChanged = !string.Equals(previousLanguage, PreferredLanguage, StringComparison.OrdinalIgnoreCase);
         if (languageChanged)
@@ -369,5 +386,24 @@ public partial class SettingsViewModel : ObservableObject
     partial void OnLastSyncTimeChanged(DateTime? value)
     {
         LastSyncTimeLabel = BuildLastSyncTimeLabel(value);
+    }
+
+    partial void OnUseKilometerUnitChanged(bool value)
+    {
+        DistanceUnitIndex = value ? 1 : 0;
+        DistanceUnitService.SetPreferredUnit(value ? "km" : "m");
+    }
+
+    partial void OnDistanceUnitIndexChanged(int value)
+    {
+        var normalized = value == 1 ? 1 : 0;
+        if (normalized != value)
+        {
+            DistanceUnitIndex = normalized;
+            return;
+        }
+
+        UseKilometerUnit = normalized == 1;
+        DistanceUnitService.SetPreferredUnit(UseKilometerUnit ? "km" : "m");
     }
 }

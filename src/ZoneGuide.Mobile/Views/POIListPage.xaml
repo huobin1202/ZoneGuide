@@ -9,177 +9,190 @@
              Shell.NavBarIsVisible="False"
              BackgroundColor="#F6F7FB">
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="Auto,Auto,*"
+          Padding="14,10,14,0"
+          RowSpacing="8">
         <Border Grid.Row="0"
-                BackgroundColor="{StaticResource Primary}"
-                StrokeThickness="0"
-                StrokeShape="RoundRectangle 0,0,28,28"
-                Padding="20,28,20,24">
-            <VerticalStackLayout Spacing="18">
-                    <Label Text="{local:Translate pois_title}"
-                       FontSize="30"
-                       FontAttributes="Bold"
-                       TextColor="White" />
-
-                <Border BackgroundColor="White"
-                        StrokeThickness="0"
-                        StrokeShape="RoundRectangle 18"
-                        Padding="14,4">
-                    <Grid ColumnDefinitions="Auto,*"
-                          ColumnSpacing="10">
-                        <Label Text="⌕"
-                               FontSize="18"
-                               TextColor="{StaticResource Gray400}"
-                               VerticalTextAlignment="Center" />
-                        <Entry Grid.Column="1"
-                               Text="{Binding SearchText}"
-                               Placeholder="{local:Translate pois_search_placeholder}"
-                               ClearButtonVisibility="WhileEditing"
-                               BackgroundColor="Transparent"
-                               Margin="0,0,0,0" />
-                    </Grid>
-                </Border>
-            </VerticalStackLayout>
+                BackgroundColor="White"
+                Stroke="#E2E8F0"
+                StrokeShape="RoundRectangle 22"
+                StrokeThickness="1"
+                Padding="14,4">
+            <Grid ColumnDefinitions="Auto,*"
+                  ColumnSpacing="10">
+                <Label Text="⌕"
+                       FontSize="20"
+                       TextColor="{StaticResource Gray400}"
+                       VerticalTextAlignment="Center" />
+                <Entry Grid.Column="1"
+                       Text="{Binding SearchText}"
+                       Placeholder="{local:Translate pois_search_placeholder}"
+                       ClearButtonVisibility="WhileEditing"
+                       BackgroundColor="Transparent" />
+            </Grid>
         </Border>
 
-        <Grid Grid.Row="1"
-              RowDefinitions="Auto,*"
-              Margin="0,10,0,0">
-            <Grid Grid.Row="0"
-                  Padding="20,0,20,10"
-                  ColumnDefinitions="*,Auto"
-                  ColumnSpacing="12">
-                                <Label Text="{Binding FilteredCountText}"
-                       FontSize="14"
-                       TextColor="{StaticResource Gray500}"
-                       VerticalTextAlignment="Center" />
-
-                <Border Grid.Column="1"
-                        BackgroundColor="White"
-                        Stroke="#ECEAF5"
-                        StrokeShape="RoundRectangle 14"
-                        Padding="10,0">
-                    <Picker WidthRequest="150"
-                            Title="{local:Translate pois_filter_title}"
-                            ItemsSource="{Binding Categories}"
-                            SelectedItem="{Binding SelectedCategory}"
-                            TitleColor="{StaticResource Gray500}"
-                            TextColor="{StaticResource Gray900}"
-                            BackgroundColor="Transparent" />
-                </Border>
-            </Grid>
-
-            <RefreshView Grid.Row="1"
-                         IsRefreshing="{Binding IsRefreshing}"
-                         Command="{Binding RefreshCommand}">
-                <CollectionView ItemsSource="{Binding FilteredPOIs}"
-                                SelectionMode="None"
-                                Margin="0,0,0,12">
-                    <CollectionView.EmptyView>
-                        <VerticalStackLayout HorizontalOptions="Center"
-                                             VerticalOptions="Center"
-                                             Padding="32,72"
-                                             Spacing="10">
-                            <Label Text="{local:Translate pois_empty_title}"
-                                   FontSize="18"
+        <CollectionView Grid.Row="1"
+                        HeightRequest="52"
+                        ItemsSource="{Binding Categories}"
+                        SelectedItem="{Binding SelectedCategory}"
+                        SelectionMode="Single"
+                        Margin="0,2,0,2">
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout Orientation="Horizontal"
+                                   ItemSpacing="8" />
+            </CollectionView.ItemsLayout>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                    <Border Padding="14,8"
+                            BackgroundColor="White"
+                            Stroke="#D9E0EA"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 18">
+                        <HorizontalStackLayout Spacing="6">
+                            <Label Text="{Binding Converter={StaticResource CategoryChipIconConverter}}"
+                                   FontSize="14"
+                                   TextColor="#111111"
+                                   VerticalTextAlignment="Center" />
+                            <Label x:Name="ChipLabel"
+                                   Text="{Binding}"
+                                   FontSize="14"
+                                   TextColor="{StaticResource Gray900}"
                                    FontAttributes="Bold"
-                                   HorizontalTextAlignment="Center" />
-                            <Label Text="{local:Translate pois_empty_subtitle}"
-                                   FontSize="13"
-                                   TextColor="{StaticResource Gray500}"
-                                   HorizontalTextAlignment="Center" />
-                        </VerticalStackLayout>
-                    </CollectionView.EmptyView>
+                                   VerticalTextAlignment="Center" />
+                        </HorizontalStackLayout>
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroupList>
+                                <VisualStateGroup Name="CommonStates">
+                                    <VisualState Name="Normal" />
+                                    <VisualState Name="Selected">
+                                        <VisualState.Setters>
+                                            <Setter Property="BackgroundColor"
+                                                    Value="#DDF4E4" />
+                                            <Setter Property="Stroke"
+                                                    Value="#34C759" />
+                                            <Setter TargetName="ChipLabel"
+                                                    Property="Label.TextColor"
+                                                    Value="#198754" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateGroupList>
+                        </VisualStateManager.VisualStateGroups>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
 
-                    <CollectionView.ItemTemplate>
-                        <DataTemplate x:DataType="models:POI">
-                            <Frame Margin="16,6"
-                                   Padding="12"
-                                   CornerRadius="18"
-                                   BackgroundColor="White"
-                                   HasShadow="False">
-                                <Grid ColumnDefinitions="82,*,Auto"
+        <RefreshView Grid.Row="2"
+                     IsRefreshing="{Binding IsRefreshing}"
+                     Command="{Binding RefreshCommand}">
+            <CollectionView ItemsSource="{Binding FilteredPOIs}"
+                            SelectionMode="None"
+                            Margin="0,0,0,12">
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout HorizontalOptions="Center"
+                                         VerticalOptions="Center"
+                                         Padding="32,72"
+                                         Spacing="10">
+                        <Label Text="{local:Translate pois_empty_title}"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               HorizontalTextAlignment="Center" />
+                        <Label Text="{local:Translate pois_empty_subtitle}"
+                               FontSize="13"
+                               TextColor="{StaticResource Gray500}"
+                               HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:POI">
+                        <Frame Margin="2,6"
+                               Padding="10"
+                               CornerRadius="16"
+                               BackgroundColor="White"
+                               HasShadow="False">
+                            <Grid ColumnDefinitions="78,*,Auto"
+                                  ColumnSpacing="12">
+                                <Grid Grid.Column="0"
+                                      Grid.ColumnSpan="2"
+                                      ColumnDefinitions="78,*"
                                       ColumnSpacing="12">
-                                 <Grid Grid.Column="0"
-                                    Grid.ColumnSpan="2"
-                                    ColumnDefinitions="82,*"
-                                    ColumnSpacing="12">
-                                     <Grid.GestureRecognizers>
-                                      <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:POIListViewModel}}, Path=ViewDetailCommand}"
-                                                   CommandParameter="{Binding .}" />
-                                     </Grid.GestureRecognizers>
+                                    <Grid.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:POIListViewModel}}, Path=ViewDetailCommand}"
+                                                              CommandParameter="{Binding .}" />
+                                    </Grid.GestureRecognizers>
 
-                                     <Frame Grid.Column="0"
-                                         WidthRequest="82"
-                                         HeightRequest="82"
-                                         CornerRadius="16"
-                                         Padding="0"
-                                         BackgroundColor="#ECEAF8"
-                                         IsClippedToBounds="True">
-                                      <Image Source="{Binding ImageUrl, Converter={StaticResource FlexibleImageSourceConverter}}"
-                                          Aspect="AspectFill" />
-                                     </Frame>
+                                    <Frame Grid.Column="0"
+                                           WidthRequest="78"
+                                           HeightRequest="78"
+                                           CornerRadius="14"
+                                           Padding="0"
+                                           BackgroundColor="#ECEAF8"
+                                           IsClippedToBounds="True">
+                                        <Image Source="{Binding ImageUrl, Converter={StaticResource FlexibleImageSourceConverter}}"
+                                               Aspect="AspectFill" />
+                                    </Frame>
 
-                                     <VerticalStackLayout Grid.Column="1"
-                                                 Spacing="6"
-                                                 VerticalOptions="Center">
-                                      <Label Text="{Binding Name}"
-                                          FontSize="18"
-                                          FontAttributes="Bold"
-                                          MaxLines="1" />
-                                      <Border BackgroundColor="#F2EFFF"
-                                           StrokeThickness="0"
-                                           StrokeShape="RoundRectangle 10"
-                                           Padding="8,2"
-                                           HorizontalOptions="Start">
-                                          <Label Text="{Binding Category, Converter={StaticResource LocalizedCategoryConverter}}"
-                                              FontSize="11"
-                                              TextColor="{StaticResource Primary}" />
-                                      </Border>
-                                      <Label Text="{Binding TTSScript}"
-                                          FontSize="13"
-                                          TextColor="{StaticResource Gray500}"
-                                          MaxLines="3" />
-                                     </VerticalStackLayout>
-                                 </Grid>
-
-                                    <VerticalStackLayout Grid.Column="2"
-                                                         Spacing="8"
+                                    <VerticalStackLayout Grid.Column="1"
+                                                         Spacing="5"
                                                          VerticalOptions="Center">
-                                        <Button Text="▶"
-                                                WidthRequest="46"
-                                                HeightRequest="46"
-                                                CornerRadius="23"
-                                                FontSize="16"
-                                                Padding="0"
-                                                VerticalOptions="Center"
-                                                Command="{Binding Source={RelativeSource AncestorType={x:Type vm:POIListViewModel}}, Path=PlayPOICommand}"
-                                                CommandParameter="{Binding .}">
-                                            <Button.Triggers>
-                                                <DataTrigger TargetType="Button" Value="True">
-                                                    <DataTrigger.Binding>
-                                                        <MultiBinding Converter="{StaticResource PoiMatchConverter}">
-                                                            <Binding Source="{RelativeSource AncestorType={x:Type vm:POIListViewModel}}" Path="CurrentNarrationPoiId" />
-                                                            <Binding Path="Id" />
-                                                            <Binding Source="{RelativeSource AncestorType={x:Type vm:POIListViewModel}}" Path="IsCurrentNarrationPlaying" />
-                                                        </MultiBinding>
-                                                    </DataTrigger.Binding>
-                                                    <Setter Property="Text" Value="⏸" />
-                                                    <Setter Property="BackgroundColor" Value="#FFE6E6" />
-                                                    <Setter Property="TextColor" Value="#B3261E" />
-                                                    <Setter Property="Command"
-                                                            Value="{Binding Source={RelativeSource AncestorType={x:Type vm:POIListViewModel}}, Path=ToggleStopResumePOICommand}" />
-                                                </DataTrigger>
-                                            </Button.Triggers>
-                                        </Button>
+                                        <Label Text="{Binding Name}"
+                                               FontSize="18"
+                                               FontAttributes="Bold"
+                                               MaxLines="2" />
+                                        <Label Text="{Binding Category, Converter={StaticResource LocalizedCategoryConverter}}"
+                                               FontSize="14"
+                                               TextColor="{StaticResource Gray500}"
+                                               MaxLines="1" />
                                     </VerticalStackLayout>
                                 </Grid>
-                            </Frame>
-                        </DataTemplate>
-                    </CollectionView.ItemTemplate>
-                </CollectionView>
-            </RefreshView>
-        </Grid>
+
+                                <VerticalStackLayout Grid.Column="2"
+                                                     Spacing="8"
+                                                     VerticalOptions="Center">
+                                    <Button Text="▶"
+                                            WidthRequest="46"
+                                            HeightRequest="46"
+                                            CornerRadius="23"
+                                            FontSize="16"
+                                            Padding="0"
+                                            BackgroundColor="{StaticResource Primary}"
+                                            TextColor="White"
+                                            VerticalOptions="Center"
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type vm:POIListViewModel}}, Path=PlayPOICommand}"
+                                            CommandParameter="{Binding .}">
+                                        <Button.Triggers>
+                                            <DataTrigger TargetType="Button"
+                                                         Value="True">
+                                                <DataTrigger.Binding>
+                                                    <MultiBinding Converter="{StaticResource PoiMatchConverter}">
+                                                        <Binding Source="{RelativeSource AncestorType={x:Type vm:POIListViewModel}}"
+                                                                 Path="CurrentNarrationPoiId" />
+                                                        <Binding Path="Id" />
+                                                        <Binding Source="{RelativeSource AncestorType={x:Type vm:POIListViewModel}}"
+                                                                 Path="IsCurrentNarrationPlaying" />
+                                                    </MultiBinding>
+                                                </DataTrigger.Binding>
+                                                <Setter Property="Text"
+                                                        Value="⏸" />
+                                                <Setter Property="BackgroundColor"
+                                                        Value="{StaticResource Primary}" />
+                                                <Setter Property="TextColor"
+                                                        Value="White" />
+                                                <Setter Property="Command"
+                                                        Value="{Binding Source={RelativeSource AncestorType={x:Type vm:POIListViewModel}}, Path=ToggleStopResumePOICommand}" />
+                                            </DataTrigger>
+                                        </Button.Triggers>
+                                    </Button>
+                                </VerticalStackLayout>
+                            </Grid>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </RefreshView>
     </Grid>
 
 </ContentPage>

@@ -66,6 +66,9 @@ public partial class MapViewModel : ObservableObject
     private bool isSelectedPoiNarrationPaused;
 
     [ObservableProperty]
+    private bool isSelectedPoiPlayerVisible;
+
+    [ObservableProperty]
     private int? currentNarrationPoiId;
 
     [ObservableProperty]
@@ -178,6 +181,8 @@ public partial class MapViewModel : ObservableObject
         _narrationService.NarrationCompleted += OnNarrationStateChanged;
         _narrationService.NarrationStopped += OnNarrationStateChanged;
 
+        SelectedCategory = Categories.FirstOrDefault();
+
         UpdateSelectedPoiNarrationState();
     }
 
@@ -285,7 +290,15 @@ public partial class MapViewModel : ObservableObject
     {
         try
         {
-            var pois = (await _poiRepository.GetActiveAsync())
+            var activePois = await _poiRepository.GetActiveAsync();
+            var sourcePois = activePois.Count > 0 ? activePois : await _poiRepository.GetAllAsync();
+
+            if (activePois.Count == 0)
+            {
+                System.Diagnostics.Debug.WriteLine("[MapVM] Active POIs are empty, fallback to all POIs for map rendering.");
+            }
+
+            var pois = sourcePois
                 .Where(p => p.Latitude is >= -90 and <= 90 && p.Longitude is >= -180 and <= 180)
                 .ToList();
 
@@ -653,6 +666,9 @@ public partial class MapViewModel : ObservableObject
     [RelayCommand]
     private void SelectPOI(POI poi)
     {
+        if (poi == null)
+            return;
+
         SelectedPOI = poi;
 
         var radius = IsTourModeActive
@@ -662,6 +678,32 @@ public partial class MapViewModel : ObservableObject
         MapSpan = MapSpan.FromCenterAndRadius(
             new Location(poi.Latitude, poi.Longitude), 
             radius);
+    }
+
+    public async Task<bool> FocusPOIByIdAsync(int poiId)
+    {
+        if (poiId <= 0)
+            return false;
+
+        var poi = _allPOIs.FirstOrDefault(p => p.Id == poiId)
+                  ?? POIs.FirstOrDefault(p => p.Id == poiId)
+                  ?? await _poiRepository.GetByIdAsync(poiId);
+
+        if (poi == null)
+            return false;
+
+        if (_allPOIs.All(p => p.Id != poi.Id))
+        {
+            _allPOIs.Add(poi);
+        }
+
+        if (POIs.All(p => p.Id != poi.Id))
+        {
+            POIs.Add(poi);
+        }
+
+        SelectPOI(poi);
+        return true;
     }
 
     [RelayCommand]
@@ -1257,6 +1299,11 @@ public partial class MapViewModel : ObservableObject
         PerformSearch();
     }
 
+    partial void OnSearchQueryChanged(string? value)
+    {
+        PerformSearch();
+    }
+
     partial void OnSelectedPOIChanged(POI? value)
     {
         UpdateSelectedPoiDistanceDisplay();
@@ -1284,6 +1331,7 @@ public partial class MapViewModel : ObservableObject
 
         IsSelectedPoiNarrationActive = isCurrentSelected && _narrationService.IsPlaying;
         IsSelectedPoiNarrationPaused = isCurrentSelected && _narrationService.IsPaused;
+        IsSelectedPoiPlayerVisible = SelectedPOI != null && (IsSelectedPoiNarrationActive || IsSelectedPoiNarrationPaused);
     }
 
     private void UpdateSelectedPoiDistanceDisplay()
@@ -1306,9 +1354,7 @@ public partial class MapViewModel : ObservableObject
             SelectedPOI.Latitude,
             SelectedPOI.Longitude);
 
-        SelectedPoiDistanceDisplay = km >= 1
-            ? $"{Math.Round(km):0} km"
-            : $"{Math.Round(km * 1000):0} m";
+        SelectedPoiDistanceDisplay = DistanceUnitService.FormatFromMeters(km * 1000d);
     }
 
     public POI? FindNearestPOI()

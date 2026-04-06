@@ -398,6 +398,10 @@ public class SyncService : ISyncService
 
     private static Tour MapToTour(TourDto dto)
     {
+        var thumbnailUrl = !string.IsNullOrWhiteSpace(dto.ThumbnailUrl)
+            ? dto.ThumbnailUrl
+            : dto.ImageUrl;
+
         return new Tour
         {
             Id = int.TryParse(dto.Id, out var id) ? id : 0,
@@ -407,7 +411,7 @@ public class SyncService : ISyncService
             EstimatedDurationMinutes = dto.EstimatedDurationMinutes,
             EstimatedDistanceMeters = dto.DistanceKm * 1000, // Convert km to meters
             POICount = dto.POICount,
-            ThumbnailUrl = dto.ThumbnailUrl,
+            ThumbnailUrl = thumbnailUrl,
             Language = dto.Language,
             DifficultyLevel = dto.DifficultyLevel,
             WheelchairAccessible = dto.WheelchairAccessible,

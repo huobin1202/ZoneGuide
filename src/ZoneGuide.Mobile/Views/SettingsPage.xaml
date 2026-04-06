@@ -160,6 +160,16 @@
                                         Maximum="600"
                                         Value="{Binding CooldownSeconds}" />
                             </Grid>
+
+                            <Grid RowDefinitions="Auto,Auto"
+                                  RowSpacing="6">
+                                <Label Text="Đơn vị khoảng cách"
+                                       FontSize="14"
+                                       TextColor="{StaticResource Gray500}" />
+                                <Picker Grid.Row="1"
+                                        SelectedIndex="{Binding DistanceUnitIndex}"
+                                        ItemsSource="{Binding DistanceUnitOptions}" />
+                            </Grid>
                         </VerticalStackLayout>
                     </Frame>
                 </VerticalStackLayout>

@@ -11,41 +11,40 @@
              Shell.NavBarIsVisible="False"
              BackgroundColor="#F6F7FB">
 
-    <Grid RowDefinitions="Auto,*">
-        <Border Grid.Row="0"
-                BackgroundColor="{StaticResource Primary}"
-                StrokeThickness="0"
-                StrokeShape="RoundRectangle 0,0,28,28"
-                Padding="20,28,20,24">
-            <VerticalStackLayout Spacing="18">
-                    <Label Text="{local:Translate map_title}"
-                       FontSize="30"
-                       FontAttributes="Bold"
-                       TextColor="White" />
+    <Grid>
+        <maps:Map x:Name="MainMap"
+                  IsShowingUser="True"
+                  MapType="Street" />
 
-                <Border BackgroundColor="White"
-                        StrokeThickness="0"
-                        StrokeShape="RoundRectangle 18"
-                        Padding="8,0">
-                    <SearchBar Placeholder="{local:Translate map_search_placeholder}"
-                               Text="{Binding SearchQuery}"
-                               SearchCommand="{Binding PerformSearchCommand}"
-                               BackgroundColor="Transparent" />
-                </Border>
-            </VerticalStackLayout>
+        <Border Margin="14,12,14,0"
+                VerticalOptions="Start"
+                BackgroundColor="White"
+        Stroke="#000000"
+                StrokeShape="RoundRectangle 22"
+                StrokeThickness="1"
+                Padding="14,10">
+            <Grid ColumnDefinitions="Auto,*"
+                  ColumnSpacing="10">
+                <Label Text="⌕"
+                       FontSize="20"
+                       TextColor="{StaticResource Gray400}"
+                       VerticalTextAlignment="Center" />
+                <Label Grid.Column="1"
+                       Text="{local:Translate map_search_placeholder}"
+                       FontSize="16"
+                       TextColor="{StaticResource Gray500}"
+                       VerticalTextAlignment="Center" />
+            </Grid>
+            <Border.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnOpenSearchSheetTapped" />
+            </Border.GestureRecognizers>
         </Border>
 
-        <Grid Grid.Row="1"
-              Margin="0,12,0,0">
-            <maps:Map x:Name="MainMap"
-                      IsShowingUser="True"
-                      MapType="Street" />
-
-                <VerticalStackLayout HorizontalOptions="End"
+        <VerticalStackLayout HorizontalOptions="End"
                          VerticalOptions="Start"
-                         Margin="0,18,18,0"
+                         Margin="0,82,18,0"
                          Spacing="10">
-                <Button Text="◉"
+            <Button Text="◉"
                     WidthRequest="48"
                     HeightRequest="48"
                     CornerRadius="24"
@@ -56,7 +55,7 @@
                     Command="{Binding ShowTourGroupMarkersCommand}"
                     SemanticProperties.Hint="Hiển thị POI trong tour hiện tại" />
 
-                <Button Text="⏹"
+            <Button Text="⏹"
                     WidthRequest="48"
                     HeightRequest="48"
                     CornerRadius="24"
@@ -68,7 +67,7 @@
                     IsVisible="{Binding IsTourModeActive}"
                     SemanticProperties.Hint="Dừng tour hiện tại" />
 
-                <Button Text="◎"
+            <Button Text="◎"
                     WidthRequest="48"
                     HeightRequest="48"
                     CornerRadius="24"
@@ -78,16 +77,17 @@
                     TextColor="{StaticResource Primary}"
                     Command="{Binding CenterOnUserCommand}"
                     SemanticProperties.Hint="Định vị vị trí hiện tại" />
-                </VerticalStackLayout>
+        </VerticalStackLayout>
 
-            <Border x:Name="SelectedPoiOverlay"
-                    BackgroundColor="White"
-                    StrokeThickness="0"
-                    StrokeShape="RoundRectangle 22"
-                    Margin="16,0,16,16"
-                    Padding="12"
-                    VerticalOptions="End"
-                    IsVisible="{Binding SelectedPOI, Converter={StaticResource IsNotNullConverter}}">
+    <Border x:Name="SelectedPoiOverlay"
+        BackgroundColor="White"
+        Stroke="{StaticResource Primary}"
+        StrokeThickness="1"
+        StrokeShape="RoundRectangle 20"
+        Margin="16,0,16,16"
+        Padding="12,10"
+        VerticalOptions="End"
+                IsVisible="{Binding IsSelectedPoiPlayerVisible}">
                 <Border.Triggers>
                     <DataTrigger TargetType="Border"
                                  Binding="{Binding IsTourPoiListVisible}"
@@ -97,98 +97,82 @@
                     </DataTrigger>
                 </Border.Triggers>
 
-                                <Grid ColumnDefinitions="Auto,*,Auto"
-                                            ColumnSpacing="12">
-                    <Grid WidthRequest="88"
-                          HeightRequest="72"
-                          VerticalOptions="Center">
-                        <Border StrokeThickness="0"
-                                StrokeShape="RoundRectangle 12"
-                                BackgroundColor="#E5E7EB">
-                            <Image Source="{Binding SelectedPOI.ImageUrl, Converter={StaticResource FlexibleImageSourceConverter}}"
-                                   Aspect="AspectFill" />
-                        </Border>
-
-                        <Border HorizontalOptions="Start"
-                                VerticalOptions="End"
-                                Margin="0,0,0,2"
-                                BackgroundColor="#E11D48"
-                                StrokeThickness="0"
-                                StrokeShape="RoundRectangle 6"
-                                Padding="8,2">
-                            <Label Text="{Binding SelectedPOI.OrderInTour}"
-                                   FontSize="12"
-                                   FontAttributes="Bold"
-                                   TextColor="White" />
-                        </Border>
-                    </Grid>
-
-                    <VerticalStackLayout Grid.Column="1"
-                                         Spacing="5"
+                <Grid ColumnDefinitions="*,Auto,Auto"
+                      ColumnSpacing="10">
+                    <VerticalStackLayout Grid.Column="0"
+                                         Spacing="4"
                                          VerticalOptions="Center">
                         <Label Text="{Binding SelectedPOI.Name}"
-                               FontSize="18"
-                               FontAttributes="Bold" />
-               <Label Text="{Binding SelectedPOI.TTSScript}"
-                               FontSize="13"
-                               TextColor="{StaticResource Gray500}"
-                               MaxLines="2" />
+                               FontSize="16"
+                               FontAttributes="Bold"
+                               MaxLines="1"
+                               LineBreakMode="TailTruncation" />
                         <HorizontalStackLayout Spacing="8">
                             <Border BackgroundColor="#F2EFFF"
                                     StrokeThickness="0"
                                     StrokeShape="RoundRectangle 10"
                                     Padding="8,2">
-                                    <Label Text="{Binding SelectedPOI.Category, Converter={StaticResource LocalizedCategoryConverter}}"
+                                <Label Text="{Binding SelectedPOI.Category, Converter={StaticResource LocalizedCategoryConverter}}"
                                        FontSize="11"
                                        TextColor="{StaticResource Primary}" />
                             </Border>
-                            <Label Text="{Binding SelectedPOI.Priority, StringFormat='Ưu tiên {0}'}"
-                                   FontSize="11"
+                            <Label Text="{Binding SelectedPoiDistanceDisplay}"
+                                   FontSize="12"
                                    TextColor="{StaticResource Gray500}"
                                    VerticalTextAlignment="Center" />
                         </HorizontalStackLayout>
                     </VerticalStackLayout>
 
-                    <Grid Grid.Column="2"
-                          ColumnDefinitions="Auto,*"
-                          VerticalOptions="Fill">
-                        <BoxView Grid.Column="0"
-                                WidthRequest="1"
-                                Color="#E5E7EB"
-                                Margin="0,6,8,6" />
-                        <Button Grid.Column="1"
-                                Text="🔊"
-                                WidthRequest="36"
-                                HeightRequest="36"
-                                CornerRadius="18"
-                                Padding="0"
-                                FontSize="18"
-                                BackgroundColor="Transparent"
-                                TextColor="#6B7280"
-                                Command="{Binding PlaySelectedPOICommand}">
-                            <Button.Triggers>
-                                <DataTrigger TargetType="Button"
-                                             Binding="{Binding IsSelectedPoiNarrationActive}"
-                                             Value="True">
-                                    <Setter Property="TextColor"
-                                            Value="{StaticResource Primary}" />
-                                </DataTrigger>
-                            </Button.Triggers>
-                        </Button>
-                    </Grid>
-                </Grid>
-            </Border>
+                    <Button Grid.Column="1"
+                            WidthRequest="42"
+                            HeightRequest="42"
+                            CornerRadius="21"
+                            Padding="0"
+                            FontSize="18"
+                            BackgroundColor="{StaticResource Primary}"
+                            TextColor="White"
+                            Command="{Binding PlaySelectedPOICommand}">
+                        <Button.Triggers>
+                            <DataTrigger TargetType="Button"
+                                         Binding="{Binding IsSelectedPoiNarrationActive}"
+                                         Value="True">
+                                <Setter Property="Text"
+                                        Value="⏸" />
+                            </DataTrigger>
+                            <DataTrigger TargetType="Button"
+                                         Binding="{Binding IsSelectedPoiNarrationActive}"
+                                         Value="False">
+                                <Setter Property="Text"
+                                        Value="▶" />
+                            </DataTrigger>
+                        </Button.Triggers>
+                    </Button>
 
-            <Border x:Name="TourPoiBottomSheet"
-                    IsVisible="{Binding IsTourPoiListVisible}"
-                    VerticalOptions="End"
-                    BackgroundColor="White"
-                    Stroke="#E5E7EB"
-                    StrokeThickness="1"
-                    StrokeShape="RoundRectangle 24,24,0,0"
-                    Margin="8,0,8,8"
-                    HeightRequest="220"
-                    Padding="0,6,0,10">
+                    <Button Grid.Column="2"
+                            Text="▢"
+                            WidthRequest="42"
+                            HeightRequest="42"
+                            CornerRadius="21"
+                            Padding="0"
+                            FontSize="16"
+                            BackgroundColor="White"
+                            BorderColor="#D1D5DB"
+                            BorderWidth="1"
+                            TextColor="#374151"
+                            Command="{Binding ViewPOIDetailCommand}" />
+                </Grid>
+        </Border>
+
+        <Border x:Name="TourPoiBottomSheet"
+                IsVisible="{Binding IsTourPoiListVisible}"
+                VerticalOptions="End"
+                BackgroundColor="White"
+                Stroke="#E5E7EB"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 24,24,0,0"
+                Margin="8,0,8,8"
+                HeightRequest="220"
+                Padding="0,6,0,10">
                 <Grid RowDefinitions="Auto,Auto,*"
                       RowSpacing="6">
                     <Border Grid.Row="0"
@@ -288,14 +272,149 @@
                         </CollectionView.ItemTemplate>
                     </CollectionView>
                 </Grid>
-            </Border>
+        </Border>
 
-            <ActivityIndicator IsRunning="{Binding IsLoading}"
-                               IsVisible="{Binding IsLoading}"
-                               HorizontalOptions="Center"
-                               VerticalOptions="Center"
-                               Color="{StaticResource Primary}" />
-        </Grid>
+        <BoxView x:Name="SearchSheetBackdrop"
+                 IsVisible="False"
+                 Opacity="0"
+                 BackgroundColor="#66000000">
+            <BoxView.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnCloseSearchSheetTapped" />
+            </BoxView.GestureRecognizers>
+        </BoxView>
+
+    <Border x:Name="MapSearchSheet"
+        VerticalOptions="Fill"
+        Margin="0"
+        Padding="12,8,12,12"
+                BackgroundColor="White"
+                Stroke="#E5E7EB"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 24,24,0,0"
+                TranslationY="700">
+            <Grid RowDefinitions="Auto,Auto,Auto,*"
+                  RowSpacing="8">
+                <Border Grid.Row="0"
+                        HorizontalOptions="Center"
+                        WidthRequest="52"
+                        HeightRequest="6"
+                        BackgroundColor="#D1D5DB"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 3" />
+
+                <Border Grid.Row="1"
+                        BackgroundColor="White"
+            Stroke="#000000"
+                        StrokeShape="RoundRectangle 20"
+                        StrokeThickness="1"
+                        Padding="12,2">
+                    <SearchBar Placeholder="{local:Translate map_search_placeholder}"
+                               Text="{Binding SearchQuery}"
+                               SearchCommand="{Binding PerformSearchCommand}"
+                               BackgroundColor="Transparent" />
+                </Border>
+
+                <CollectionView Grid.Row="2"
+                                HeightRequest="50"
+                                ItemsSource="{Binding Categories}"
+                                SelectedItem="{Binding SelectedCategory}"
+                                SelectionMode="Single">
+                    <CollectionView.ItemsLayout>
+                        <LinearItemsLayout Orientation="Horizontal"
+                                           ItemSpacing="8" />
+                    </CollectionView.ItemsLayout>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <Border Padding="14,8"
+                                    BackgroundColor="White"
+                                    Stroke="#D9E0EA"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 18">
+                                <HorizontalStackLayout Spacing="6">
+                                    <Label Text="{Binding Converter={StaticResource CategoryChipIconConverter}}"
+                                           FontSize="14"
+                                           TextColor="#111111"
+                                           VerticalTextAlignment="Center" />
+                                    <Label x:Name="MapChipLabel"
+                                           Text="{Binding}"
+                                           FontSize="14"
+                                           TextColor="{StaticResource Gray900}"
+                                           FontAttributes="Bold"
+                                           VerticalTextAlignment="Center" />
+                                </HorizontalStackLayout>
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroupList>
+                                        <VisualStateGroup Name="CommonStates">
+                                            <VisualState Name="Normal" />
+                                            <VisualState Name="Selected">
+                                                <VisualState.Setters>
+                                                    <Setter Property="BackgroundColor"
+                                                            Value="#DDF4E4" />
+                                                    <Setter Property="Stroke"
+                                                            Value="#34C759" />
+                                                    <Setter TargetName="MapChipLabel"
+                                                            Property="Label.TextColor"
+                                                            Value="#198754" />
+                                                </VisualState.Setters>
+                                            </VisualState>
+                                        </VisualStateGroup>
+                                    </VisualStateGroupList>
+                                </VisualStateManager.VisualStateGroups>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <CollectionView Grid.Row="3"
+                                x:Name="MapSearchResults"
+                                ItemsSource="{Binding POIs}"
+                                SelectionMode="Single"
+                                SelectionChanged="OnMapSearchResultSelectionChanged">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="models:POI">
+                            <Grid ColumnDefinitions="78,*,Auto"
+                                  ColumnSpacing="12"
+                                  Padding="4,8">
+                                <Frame Grid.Column="0"
+                                       WidthRequest="78"
+                                       HeightRequest="78"
+                                       CornerRadius="14"
+                                       Padding="0"
+                                       BackgroundColor="#ECEAF8"
+                                       IsClippedToBounds="True">
+                                    <Image Source="{Binding ImageUrl, Converter={StaticResource FlexibleImageSourceConverter}}"
+                                           Aspect="AspectFill" />
+                                </Frame>
+
+                                <VerticalStackLayout Grid.Column="1"
+                                                     Spacing="4"
+                                                     VerticalOptions="Center">
+                                    <Label Text="{Binding Name}"
+                                           FontSize="18"
+                                           FontAttributes="Bold"
+                                           MaxLines="2" />
+                                    <Label Text="{Binding Category, Converter={StaticResource LocalizedCategoryConverter}}"
+                                           FontSize="14"
+                                           TextColor="{StaticResource Gray500}" />
+                                </VerticalStackLayout>
+
+                                <Label Grid.Column="2"
+                                       Text="›"
+                                       FontSize="28"
+                                       TextColor="{StaticResource Gray400}"
+                                       VerticalTextAlignment="Center" />
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </Grid>
+        </Border>
+
+        <ActivityIndicator IsRunning="{Binding IsLoading}"
+                           IsVisible="{Binding IsLoading}"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"
+                           Color="{StaticResource Primary}" />
     </Grid>
 
 </ContentPage>

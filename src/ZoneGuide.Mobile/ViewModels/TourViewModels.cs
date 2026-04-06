@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ZoneGuide.Mobile.Localization;
+using ZoneGuide.Mobile.Services;
 using ZoneGuide.Shared.Interfaces;
 using ZoneGuide.Shared.Models;
 using System.Collections.ObjectModel;
@@ -206,8 +207,8 @@ public partial class TourDetailViewModel : ObservableObject
             : Tour?.POICount ?? 0;
 
         DistanceDisplay = Tour == null
-            ? "0m"
-            : $"{Tour.EstimatedDistanceMeters:F0}m";
+            ? DistanceUnitService.FormatFromMeters(0)
+            : DistanceUnitService.FormatFromMeters(Tour.EstimatedDistanceMeters);
 
         HighlightsText = BuildHighlightsText();
 

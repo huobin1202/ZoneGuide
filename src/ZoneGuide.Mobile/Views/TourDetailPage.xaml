@@ -56,42 +56,48 @@
                         <Grid ColumnDefinitions="*,*,*"
                               ColumnSpacing="10">
                             <VerticalStackLayout Grid.Column="0"
-                                                 Spacing="2"
+                            Spacing="6"
                                                  HorizontalOptions="Center">
-                                    <Label Text="{Binding PoiCountDisplay}"
-                                       FontSize="20"
-                                       FontAttributes="Bold"
-                                       HorizontalTextAlignment="Center" />
-                                <Label Text="{local:Translate tour_detail_points}"
-                                       FontSize="11"
-                                       TextColor="#6B7280"
-                                       HorizontalTextAlignment="Center" />
+                    <HorizontalStackLayout Spacing="6"
+                                  HorizontalOptions="Center">
+                     <Label Text="📍"
+                         FontSize="16"
+                         VerticalTextAlignment="Center" />
+                     <Label Text="{Binding PoiCountDisplay}"
+                         FontSize="20"
+                         FontAttributes="Bold"
+                         VerticalTextAlignment="Center" />
+                    </HorizontalStackLayout>
                             </VerticalStackLayout>
 
                             <VerticalStackLayout Grid.Column="1"
-                                                 Spacing="2"
+                            Spacing="6"
                                                  HorizontalOptions="Center">
-                                <Label Text="{Binding Tour.EstimatedDurationMinutes}"
-                                       FontSize="20"
-                                       FontAttributes="Bold"
-                                       HorizontalTextAlignment="Center" />
-                                <Label Text="{local:Translate tour_detail_duration}"
-                                       FontSize="11"
-                                       TextColor="#6B7280"
-                                       HorizontalTextAlignment="Center" />
+                    <HorizontalStackLayout Spacing="6"
+                                  HorizontalOptions="Center">
+                     <Label Text="⏱️"
+                         FontSize="16"
+                         VerticalTextAlignment="Center" />
+                     <Label Text="{Binding Tour.EstimatedDurationMinutes}"
+                         FontSize="20"
+                         FontAttributes="Bold"
+                         VerticalTextAlignment="Center" />
+                    </HorizontalStackLayout>
                             </VerticalStackLayout>
 
                             <VerticalStackLayout Grid.Column="2"
-                                                 Spacing="2"
+                            Spacing="6"
                                                  HorizontalOptions="Center">
-                                <Label Text="{Binding DistanceDisplay}"
-                                       FontSize="20"
-                                       FontAttributes="Bold"
-                                       HorizontalTextAlignment="Center" />
-                                <Label Text="{local:Translate tour_detail_distance}"
-                                       FontSize="11"
-                                       TextColor="#6B7280"
-                                       HorizontalTextAlignment="Center" />
+                    <HorizontalStackLayout Spacing="6"
+                                  HorizontalOptions="Center">
+                     <Label Text="🚶"
+                         FontSize="16"
+                         VerticalTextAlignment="Center" />
+                     <Label Text="{Binding DistanceDisplay}"
+                         FontSize="20"
+                         FontAttributes="Bold"
+                         VerticalTextAlignment="Center" />
+                    </HorizontalStackLayout>
                             </VerticalStackLayout>
                         </Grid>
                     </Border>

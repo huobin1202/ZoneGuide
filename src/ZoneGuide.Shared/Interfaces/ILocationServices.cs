@@ -208,6 +208,11 @@ public interface INarrationService
     /// Tạm dừng
     /// </summary>
     Task PauseAsync();
+
+    /// <summary>
+    /// Tua lùi theo số giây
+    /// </summary>
+    Task RewindAsync(double seconds);
     
     /// <summary>
     /// Dừng hẳn

@@ -1,7 +1,13 @@
 using ZoneGuide.Mobile.ViewModels;
+using ZoneGuide.Shared.Models;
 using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Maps;
 using System.Collections.Specialized;
+#if ANDROID
+using Android.Gms.Maps;
+using Android.Gms.Maps.Model;
+using Android.Graphics;
+#endif
 
 namespace ZoneGuide.Mobile.Views;
 
@@ -9,12 +15,20 @@ public partial class MapPage : ContentPage, IQueryAttributable
 {
     private readonly MapViewModel _viewModel;
     private int _lastRenderedPinCount = -1;
-    private Polyline? _tourRoutePolyline;
+    private Microsoft.Maui.Controls.Maps.Polyline? _tourRoutePolyline;
     private bool _hasInitialized;
     private CancellationTokenSource? _pinsUpdateDebounceCts;
     private CancellationTokenSource? _routeUpdateDebounceCts;
     private const int CollectionUpdateDebounceMs = 80;
     private bool _tourOverlayRequestedOnNavigation;
+    private bool _isSearchSheetOpen;
+    private int? _focusPoiIdRequestedOnNavigation;
+#if ANDROID
+    private GoogleMap? _nativeMap;
+    private readonly Dictionary<Marker, POI> _nativePoiMarkers = new();
+    private readonly Dictionary<string, BitmapDescriptor> _markerIconCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly HttpClient MarkerImageHttpClient = new() { Timeout = TimeSpan.FromSeconds(4) };
+#endif
 
     public MapPage(MapViewModel viewModel)
     {
@@ -103,6 +117,14 @@ public partial class MapPage : ContentPage, IQueryAttributable
             UpdateTourRoute();
             UpdateMapRegion();
 
+            if (_focusPoiIdRequestedOnNavigation.HasValue)
+            {
+                await _viewModel.FocusPOIByIdAsync(_focusPoiIdRequestedOnNavigation.Value);
+                UpdateMapPins();
+                UpdateMapRegion();
+                _focusPoiIdRequestedOnNavigation = null;
+            }
+
             if (!_tourOverlayRequestedOnNavigation)
             {
                 _viewModel.IsTourPoiListVisible = false;
@@ -115,6 +137,8 @@ public partial class MapPage : ContentPage, IQueryAttributable
             UpdateMapPins();
             UpdateTourRoute();
             UpdateMapRegion();
+
+            ResetSearchSheetLayout();
         }
         catch (Exception ex)
         {
@@ -126,6 +150,8 @@ public partial class MapPage : ContentPage, IQueryAttributable
     {
         try
         {
+            _focusPoiIdRequestedOnNavigation = TryGetIntQueryValue(query, "poiId");
+
             var tourId = TryGetIntQueryValue(query, "tourId");
             var startTour = TryGetBoolQueryValue(query, "startTour");
             var hasTourOverlayContext = startTour && tourId.HasValue;
@@ -139,11 +165,31 @@ public partial class MapPage : ContentPage, IQueryAttributable
             _viewModel.SetTourRequest(tourId, startTour);
 
             if (!startTour || !tourId.HasValue || !_hasInitialized)
+            {
+                if (_focusPoiIdRequestedOnNavigation.HasValue && _hasInitialized)
+                {
+                    _ = MainThread.InvokeOnMainThreadAsync(async () =>
+                    {
+                        await _viewModel.FocusPOIByIdAsync(_focusPoiIdRequestedOnNavigation.Value);
+                        UpdateMapPins();
+                        UpdateMapRegion();
+                        _focusPoiIdRequestedOnNavigation = null;
+                    });
+                }
+
                 return;
+            }
 
             _ = MainThread.InvokeOnMainThreadAsync(async () =>
             {
                 await _viewModel.ApplyTourRequestAsync();
+
+                if (_focusPoiIdRequestedOnNavigation.HasValue)
+                {
+                    await _viewModel.FocusPOIByIdAsync(_focusPoiIdRequestedOnNavigation.Value);
+                    _focusPoiIdRequestedOnNavigation = null;
+                }
+
                 UpdateMapPins();
                 UpdateTourRoute();
                 UpdateMapRegion();
@@ -200,9 +246,9 @@ public partial class MapPage : ContentPage, IQueryAttributable
                 if (_viewModel.TourRoutePoints.Count < 2)
                     return;
 
-                var polyline = new Polyline
+                var polyline = new Microsoft.Maui.Controls.Maps.Polyline
                 {
-                    StrokeColor = Color.FromArgb("#4F2DD9"),
+                    StrokeColor = Microsoft.Maui.Graphics.Color.FromArgb("#4F2DD9"),
                     StrokeWidth = 6
                 };
 
@@ -269,6 +315,45 @@ public partial class MapPage : ContentPage, IQueryAttributable
             if (MainMap == null)
                 return;
 
+#if ANDROID
+            MainThread.BeginInvokeOnMainThread(async () =>
+            {
+                await EnsureNativeMapAsync();
+                if (_nativeMap == null)
+                    return;
+
+                _nativeMap.Clear();
+                _nativePoiMarkers.Clear();
+
+                foreach (var poi in _viewModel.POIs)
+                {
+                    var markerOptions = new MarkerOptions()
+                        .SetPosition(new LatLng(poi.Latitude, poi.Longitude))
+                        .SetTitle(poi.Name ?? "Không tên");
+
+                    var icon = await GetPoiMarkerIconAsync(poi);
+                    if (icon != null)
+                    {
+                        markerOptions.SetIcon(icon);
+                    }
+
+                    var marker = _nativeMap.AddMarker(markerOptions);
+                    if (marker != null)
+                    {
+                        _nativePoiMarkers[marker] = poi;
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[MapPage] Android image markers rendered: {_nativePoiMarkers.Count}");
+
+                if (_viewModel.SelectedPOI == null && _nativePoiMarkers.Count > 0 && _nativePoiMarkers.Count != _lastRenderedPinCount)
+                {
+                    FitMapToAllPins();
+                }
+
+                _lastRenderedPinCount = _nativePoiMarkers.Count;
+            });
+#else
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 MainMap.Pins.Clear();
@@ -301,12 +386,133 @@ public partial class MapPage : ContentPage, IQueryAttributable
 
                 _lastRenderedPinCount = MainMap.Pins.Count;
             });
+#endif
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[MapPage] UpdateMapPins Error: {ex}");
         }
     }
+
+#if ANDROID
+    private async Task EnsureNativeMapAsync()
+    {
+        if (_nativeMap != null || MainMap?.Handler?.PlatformView is not MapView mapView)
+            return;
+
+        var tcs = new TaskCompletionSource<GoogleMap>();
+        mapView.GetMapAsync(new SingleMapReadyCallback(map => tcs.TrySetResult(map)));
+        _nativeMap = await tcs.Task;
+
+        _nativeMap.MarkerClick -= OnNativeMarkerClick;
+        _nativeMap.MarkerClick += OnNativeMarkerClick;
+    }
+
+    private void OnNativeMarkerClick(object? sender, GoogleMap.MarkerClickEventArgs e)
+    {
+        if (_nativePoiMarkers.TryGetValue(e.Marker, out var poi))
+        {
+            _viewModel.SelectPOICommand.Execute(poi);
+            e.Handled = true;
+            return;
+        }
+
+        e.Handled = false;
+    }
+
+    private async Task<BitmapDescriptor?> GetPoiMarkerIconAsync(POI poi)
+    {
+        var resolvedImageSource = POIListViewModel.ResolveImageSource(poi.ImageUrl);
+        if (string.IsNullOrWhiteSpace(resolvedImageSource))
+            return null;
+
+        if (_markerIconCache.TryGetValue(resolvedImageSource, out var cachedDescriptor))
+            return cachedDescriptor;
+
+        var sourceBitmap = await LoadBitmapForMarkerAsync(resolvedImageSource);
+        if (sourceBitmap == null)
+            return null;
+
+        using var iconBitmap = CreateCircularMarkerBitmap(sourceBitmap);
+        sourceBitmap.Dispose();
+
+        var descriptor = BitmapDescriptorFactory.FromBitmap(iconBitmap);
+        _markerIconCache[resolvedImageSource] = descriptor;
+        return descriptor;
+    }
+
+    private static async Task<Bitmap?> LoadBitmapForMarkerAsync(string imageSource)
+    {
+        try
+        {
+            if (Uri.TryCreate(imageSource, UriKind.Absolute, out var uri))
+            {
+                if (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+                {
+                    var bytes = await MarkerImageHttpClient.GetByteArrayAsync(uri);
+                    return BitmapFactory.DecodeByteArray(bytes, 0, bytes.Length);
+                }
+
+                if (uri.IsFile && File.Exists(uri.LocalPath))
+                {
+                    return BitmapFactory.DecodeFile(uri.LocalPath);
+                }
+            }
+
+            if (File.Exists(imageSource))
+            {
+                return BitmapFactory.DecodeFile(imageSource);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MapPage] LoadBitmapForMarkerAsync failed for {imageSource}: {ex.Message}");
+        }
+
+        return null;
+    }
+
+    private static Bitmap CreateCircularMarkerBitmap(Bitmap source)
+    {
+        const int markerSize = 96;
+        const float borderWidth = 4f;
+
+        using var scaled = Bitmap.CreateScaledBitmap(source, markerSize, markerSize, true);
+    var output = Bitmap.CreateBitmap(markerSize, markerSize, Bitmap.Config.Argb8888!);
+        using var canvas = new Canvas(output);
+
+        using var borderPaint = new Android.Graphics.Paint(Android.Graphics.PaintFlags.AntiAlias)
+        {
+            Color = Android.Graphics.Color.White
+        };
+        canvas.DrawCircle(markerSize / 2f, markerSize / 2f, markerSize / 2f, borderPaint);
+
+        using var shader = new BitmapShader(scaled, Shader.TileMode.Clamp!, Shader.TileMode.Clamp!);
+        using var imagePaint = new Android.Graphics.Paint(Android.Graphics.PaintFlags.AntiAlias)
+        {
+            AntiAlias = true
+        };
+        imagePaint.SetShader(shader);
+
+        canvas.DrawCircle(markerSize / 2f, markerSize / 2f, (markerSize / 2f) - borderWidth, imagePaint);
+        return output;
+    }
+
+    private sealed class SingleMapReadyCallback : Java.Lang.Object, IOnMapReadyCallback
+    {
+        private readonly Action<GoogleMap> _onMapReady;
+
+        public SingleMapReadyCallback(Action<GoogleMap> onMapReady)
+        {
+            _onMapReady = onMapReady;
+        }
+
+        public void OnMapReady(GoogleMap googleMap)
+        {
+            _onMapReady.Invoke(googleMap);
+        }
+    }
+#endif
 
     private void UpdateMapRegion()
     {
@@ -329,6 +535,32 @@ public partial class MapPage : ContentPage, IQueryAttributable
     {
         try
         {
+#if ANDROID
+            var poiPoints = _viewModel.POIs
+                .Select(p => new Location(p.Latitude, p.Longitude))
+                .ToList();
+
+            if (MainMap == null || poiPoints.Count == 0)
+                return;
+
+            if (poiPoints.Count == 1)
+            {
+                MainMap.MoveToRegion(MapSpan.FromCenterAndRadius(poiPoints[0], Distance.FromKilometers(1)));
+                return;
+            }
+
+            var minLatAndroid = poiPoints.Min(p => p.Latitude);
+            var maxLatAndroid = poiPoints.Max(p => p.Latitude);
+            var minLonAndroid = poiPoints.Min(p => p.Longitude);
+            var maxLonAndroid = poiPoints.Max(p => p.Longitude);
+
+            var centerAndroid = new Location((minLatAndroid + maxLatAndroid) / 2, (minLonAndroid + maxLonAndroid) / 2);
+            var verticalKmAndroid = MapViewModelCalculateDistanceKm(minLatAndroid, centerAndroid.Longitude, maxLatAndroid, centerAndroid.Longitude);
+            var horizontalKmAndroid = MapViewModelCalculateDistanceKm(centerAndroid.Latitude, minLonAndroid, centerAndroid.Latitude, maxLonAndroid);
+            var radiusKmAndroid = Math.Max(1.0, Math.Max(verticalKmAndroid, horizontalKmAndroid) * 0.8 + 0.7);
+
+            MainMap.MoveToRegion(MapSpan.FromCenterAndRadius(centerAndroid, Distance.FromKilometers(radiusKmAndroid)));
+#else
             if (MainMap == null || MainMap.Pins.Count == 0)
                 return;
 
@@ -351,6 +583,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
             var radiusKm = Math.Max(1.0, Math.Max(verticalKm, horizontalKm) * 0.8 + 0.7);
 
             MainMap.MoveToRegion(MapSpan.FromCenterAndRadius(center, Distance.FromKilometers(radiusKm)));
+#endif
         }
         catch (Exception ex)
         {
@@ -368,5 +601,91 @@ public partial class MapPage : ContentPage, IQueryAttributable
                 Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
         var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
         return earthRadiusKm * c;
+    }
+
+    private void ResetSearchSheetLayout()
+    {
+        if (MapSearchSheet == null || SearchSheetBackdrop == null)
+            return;
+
+        _isSearchSheetOpen = false;
+        SearchSheetBackdrop.IsVisible = false;
+        SearchSheetBackdrop.Opacity = 0;
+        MapSearchSheet.TranslationY = GetSearchSheetClosedTranslationY();
+    }
+
+    private double GetSearchSheetClosedTranslationY()
+    {
+        var sheetHeight = MapSearchSheet?.Height ?? 0;
+        var pageHeight = Height;
+        var height = Math.Max(sheetHeight, pageHeight);
+
+        if (height <= 0)
+            return 700;
+
+        return height + 24;
+    }
+
+    private async Task OpenSearchSheetAsync()
+    {
+        if (_isSearchSheetOpen || MapSearchSheet == null || SearchSheetBackdrop == null)
+            return;
+
+        _isSearchSheetOpen = true;
+        SearchSheetBackdrop.IsVisible = true;
+        SearchSheetBackdrop.Opacity = 0;
+        MapSearchSheet.TranslationY = GetSearchSheetClosedTranslationY();
+
+        await Task.WhenAll(
+            SearchSheetBackdrop.FadeToAsync(1, 150, Easing.CubicOut),
+            MapSearchSheet.TranslateToAsync(0, 0, 220, Easing.CubicOut));
+    }
+
+    private async Task CloseSearchSheetAsync()
+    {
+        if (!_isSearchSheetOpen || MapSearchSheet == null || SearchSheetBackdrop == null)
+            return;
+
+        _isSearchSheetOpen = false;
+
+        await Task.WhenAll(
+            SearchSheetBackdrop.FadeToAsync(0, 120, Easing.CubicIn),
+            MapSearchSheet.TranslateToAsync(0, GetSearchSheetClosedTranslationY(), 180, Easing.CubicIn));
+
+        SearchSheetBackdrop.IsVisible = false;
+    }
+
+    private async void OnOpenSearchSheetTapped(object? sender, TappedEventArgs e)
+    {
+        await OpenSearchSheetAsync();
+    }
+
+    private async void OnCloseSearchSheetTapped(object? sender, TappedEventArgs e)
+    {
+        await CloseSearchSheetAsync();
+    }
+
+    private async void OnMapSearchResultSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (e.CurrentSelection.FirstOrDefault() is not POI poi)
+            return;
+
+        _viewModel.SelectPOICommand.Execute(poi);
+
+        await CloseSearchSheetAsync();
+
+        try
+        {
+            await Shell.Current.GoToAsync($"POIDetailPage?id={poi.Id}");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MapPage] Navigate to POIDetailPage error: {ex}");
+        }
+
+        if (sender is CollectionView collectionView)
+        {
+            collectionView.SelectedItem = null;
+        }
     }
 }

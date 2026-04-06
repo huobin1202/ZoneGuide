@@ -57,11 +57,6 @@
                                            TextColor="White"
                                            MaxLines="2"
                                            LineBreakMode="TailTruncation" />
-                                    <Label Text="{Binding Description}"
-                                           FontSize="13"
-                                           TextColor="#F3F4F6"
-                                           MaxLines="2"
-                                           LineBreakMode="TailTruncation" />
                                 </VerticalStackLayout>
                             </Grid>
 
@@ -76,20 +71,17 @@
                                            HasShadow="False"
                                            BorderColor="#E5E7EB"
                                            BackgroundColor="#F9FAFB">
-                                        <VerticalStackLayout Spacing="4"
-                                                             HorizontalOptions="Center">
+                                        <HorizontalStackLayout Spacing="6"
+                                                               HorizontalOptions="Center"
+                                                               VerticalOptions="Center">
                                             <Label Text="📍"
                                                    FontSize="16"
-                                                   HorizontalOptions="Center" />
+                                                   VerticalTextAlignment="Center" />
                                             <Label Text="{Binding POICount}"
                                                    FontSize="16"
                                                    FontAttributes="Bold"
-                                                   HorizontalOptions="Center" />
-                                            <Label Text="{local:Translate tour_detail_points}"
-                                                   FontSize="11"
-                                                   TextColor="#6B7280"
-                                                   HorizontalOptions="Center" />
-                                        </VerticalStackLayout>
+                                                   VerticalTextAlignment="Center" />
+                                        </HorizontalStackLayout>
                                     </Frame>
 
                                     <Frame Grid.Column="1"
@@ -98,20 +90,17 @@
                                            HasShadow="False"
                                            BorderColor="#E5E7EB"
                                            BackgroundColor="#F9FAFB">
-                                        <VerticalStackLayout Spacing="4"
-                                                             HorizontalOptions="Center">
+                                        <HorizontalStackLayout Spacing="6"
+                                                               HorizontalOptions="Center"
+                                                               VerticalOptions="Center">
                                             <Label Text="⏱️"
                                                    FontSize="16"
-                                                   HorizontalOptions="Center" />
+                                                   VerticalTextAlignment="Center" />
                                             <Label Text="{Binding EstimatedDurationMinutes}"
                                                    FontSize="16"
                                                    FontAttributes="Bold"
-                                                   HorizontalOptions="Center" />
-                                            <Label Text="{local:Translate tour_detail_duration}"
-                                                   FontSize="11"
-                                                   TextColor="#6B7280"
-                                                   HorizontalOptions="Center" />
-                                        </VerticalStackLayout>
+                                                   VerticalTextAlignment="Center" />
+                                        </HorizontalStackLayout>
                                     </Frame>
 
                                     <Frame Grid.Column="2"
@@ -120,33 +109,19 @@
                                            HasShadow="False"
                                            BorderColor="#E5E7EB"
                                            BackgroundColor="#F9FAFB">
-                                        <VerticalStackLayout Spacing="4"
-                                                             HorizontalOptions="Center">
+                                        <HorizontalStackLayout Spacing="6"
+                                                               HorizontalOptions="Center"
+                                                               VerticalOptions="Center">
                                             <Label Text="🚶"
                                                    FontSize="16"
-                                                   HorizontalOptions="Center" />
-                                            <Label Text="{Binding EstimatedDistanceMeters, StringFormat='{}{0:F0}m'}"
+                                                   VerticalTextAlignment="Center" />
+                                            <Label Text="{Binding EstimatedDistanceMeters, Converter={StaticResource PreferredDistanceConverter}}"
                                                    FontSize="16"
                                                    FontAttributes="Bold"
-                                                   HorizontalOptions="Center" />
-                                            <Label Text="{local:Translate tour_detail_distance}"
-                                                   FontSize="11"
-                                                   TextColor="#6B7280"
-                                                   HorizontalOptions="Center" />
-                                        </VerticalStackLayout>
+                                                   VerticalTextAlignment="Center" />
+                                        </HorizontalStackLayout>
                                     </Frame>
                                 </Grid>
-
-                                <Label Text="{local:Translate tour_detail_about}"
-                                       FontSize="13"
-                                       FontAttributes="Bold"
-                                       TextColor="#111827" />
-
-                                <Label Text="{Binding Description}"
-                                       FontSize="13"
-                                       TextColor="#6B7280"
-                                       MaxLines="3"
-                                       LineBreakMode="TailTruncation" />
                             </VerticalStackLayout>
                         </Grid>
                     </Frame>

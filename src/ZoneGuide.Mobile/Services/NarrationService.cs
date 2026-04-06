@@ -164,6 +164,27 @@ public class NarrationService : INarrationService, IDisposable
         IsPaused = true;
     }
 
+    public async Task RewindAsync(double seconds)
+    {
+        if (seconds <= 0)
+            return;
+
+        if (_currentItem == null)
+            return;
+
+        var duration = _audioService.Duration;
+        var currentPosition = _audioService.CurrentPosition;
+
+        if (duration <= 0 || currentPosition <= 0)
+            return;
+
+        var targetPosition = Math.Max(0, currentPosition - seconds);
+        await _audioService.SeekAsync(targetPosition);
+
+        CurrentProgress = duration > 0 ? Math.Clamp(targetPosition / duration, 0, 1) : 0;
+        ProgressUpdated?.Invoke(this, CurrentProgress);
+    }
+
     public async Task StopAsync()
     {
         _cancellationTokenSource?.Cancel();
@@ -178,6 +199,10 @@ public class NarrationService : INarrationService, IDisposable
             await _audioService.StopAsync();
             await CloseHistoryRecordAsync(false);
             _geofenceService.ResetCooldown(currentItem.POI.Id);
+
+            IsPlaying = false;
+            IsPaused = false;
+            CurrentProgress = 0;
             
             NarrationStopped?.Invoke(this, currentItem);
 
@@ -299,6 +324,13 @@ public class NarrationService : INarrationService, IDisposable
                         item.Status = NarrationStatus.Completed;
                         await CloseHistoryRecordAsync(true);
                         _geofenceService.ResetCooldown(item.POI.Id);
+
+                        // Update state before raising completion event so ViewModels
+                        // don't read stale IsPlaying=true and keep pause icon.
+                        IsPlaying = false;
+                        IsPaused = false;
+                        CurrentProgress = 1.0;
+
                         NarrationCompleted?.Invoke(this, item);
                     }
                 }
