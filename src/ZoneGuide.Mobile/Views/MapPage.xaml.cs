@@ -3,10 +3,12 @@ using ZoneGuide.Shared.Models;
 using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Maps;
 using System.Collections.Specialized;
+using System.Globalization;
 #if ANDROID
 using Android.Gms.Maps;
 using Android.Gms.Maps.Model;
 using Android.Graphics;
+using Typeface = Android.Graphics.Typeface;
 #endif
 
 namespace ZoneGuide.Mobile.Views;
@@ -28,6 +30,8 @@ public partial class MapPage : ContentPage, IQueryAttributable
     private readonly Dictionary<Marker, POI> _nativePoiMarkers = new();
     private readonly Dictionary<string, BitmapDescriptor> _markerIconCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly HttpClient MarkerImageHttpClient = new() { Timeout = TimeSpan.FromSeconds(4) };
+    private Marker? _nativeUserMarker;
+    private BitmapDescriptor? _userCursorMarkerIcon;
 #endif
 
     public MapPage(MapViewModel viewModel)
@@ -61,6 +65,12 @@ public partial class MapPage : ContentPage, IQueryAttributable
             {
                 FitMapToAllPins();
             }
+#if ANDROID
+            else if (e.PropertyName == nameof(MapViewModel.UserLocation))
+            {
+                MainThread.BeginInvokeOnMainThread(RefreshNativeUserLocationMarker);
+            }
+#endif
         };
     }
 
@@ -325,13 +335,16 @@ public partial class MapPage : ContentPage, IQueryAttributable
                 _nativeMap.Clear();
                 _nativePoiMarkers.Clear();
 
-                foreach (var poi in _viewModel.POIs)
+                for (var index = 0; index < _viewModel.POIs.Count; index++)
                 {
+                    var poi = _viewModel.POIs[index];
+                    var orderText = GetPoiOrderText(poi, index + 1);
                     var markerOptions = new MarkerOptions()
                         .SetPosition(new LatLng(poi.Latitude, poi.Longitude))
-                        .SetTitle(poi.Name ?? "Không tên");
+                        .SetTitle($"{orderText}. {poi.Name ?? "Không tên"}")
+                        .Anchor(0.5f, 0.5f);
 
-                    var icon = await GetPoiMarkerIconAsync(poi);
+                    var icon = await GetPoiMarkerIconAsync(poi, orderText);
                     if (icon != null)
                     {
                         markerOptions.SetIcon(icon);
@@ -343,6 +356,8 @@ public partial class MapPage : ContentPage, IQueryAttributable
                         _nativePoiMarkers[marker] = poi;
                     }
                 }
+
+                RefreshNativeUserLocationMarker();
 
                 System.Diagnostics.Debug.WriteLine($"[MapPage] Android image markers rendered: {_nativePoiMarkers.Count}");
 
@@ -358,11 +373,17 @@ public partial class MapPage : ContentPage, IQueryAttributable
             {
                 MainMap.Pins.Clear();
 
-                foreach (var poi in _viewModel.POIs)
+                for (var index = 0; index < _viewModel.POIs.Count; index++)
                 {
+                    var poi = _viewModel.POIs[index];
+                    var orderText = GetPoiOrderText(poi, index + 1);
+                    var label = _viewModel.IsTourModeActive
+                        ? $"{orderText}. {poi.Name ?? "Không tên"}"
+                        : poi.Name ?? "Không tên";
+
                     var pin = new Pin
                     {
-                        Label = poi.Name ?? "Không tên",
+                        Label = label,
                         Address = poi.TTSScript ?? poi.FullDescription ?? poi.ShortDescription ?? "",
                         Location = new Location(poi.Latitude, poi.Longitude),
                         Type = PinType.Place
@@ -394,6 +415,12 @@ public partial class MapPage : ContentPage, IQueryAttributable
         }
     }
 
+    private static string GetPoiOrderText(POI poi, int fallbackOrder)
+    {
+        var order = poi.OrderInTour > 0 ? poi.OrderInTour : fallbackOrder;
+        return order.ToString(CultureInfo.InvariantCulture);
+    }
+
 #if ANDROID
     private async Task EnsureNativeMapAsync()
     {
@@ -406,6 +433,11 @@ public partial class MapPage : ContentPage, IQueryAttributable
 
         _nativeMap.MarkerClick -= OnNativeMarkerClick;
         _nativeMap.MarkerClick += OnNativeMarkerClick;
+
+        if (_nativeMap.UiSettings != null)
+        {
+            _nativeMap.UiSettings.MyLocationButtonEnabled = false;
+        }
     }
 
     private void OnNativeMarkerClick(object? sender, GoogleMap.MarkerClickEventArgs e)
@@ -420,25 +452,111 @@ public partial class MapPage : ContentPage, IQueryAttributable
         e.Handled = false;
     }
 
-    private async Task<BitmapDescriptor?> GetPoiMarkerIconAsync(POI poi)
+    private void RefreshNativeUserLocationMarker()
     {
-        var resolvedImageSource = POIListViewModel.ResolveImageSource(poi.ImageUrl);
-        if (string.IsNullOrWhiteSpace(resolvedImageSource))
-            return null;
+        if (_nativeMap == null)
+            return;
 
-        if (_markerIconCache.TryGetValue(resolvedImageSource, out var cachedDescriptor))
+        _nativeUserMarker?.Remove();
+        _nativeUserMarker = null;
+
+        if (_viewModel.UserLocation == null)
+            return;
+
+        var markerOptions = new MarkerOptions()
+            .SetPosition(new LatLng(_viewModel.UserLocation.Latitude, _viewModel.UserLocation.Longitude))
+            .SetTitle("Vi tri hien tai")
+            .Anchor(0.5f, 0.5f)
+            .SetIcon(GetUserCursorMarkerIcon());
+
+        _nativeUserMarker = _nativeMap.AddMarker(markerOptions);
+    }
+
+    private BitmapDescriptor GetUserCursorMarkerIcon()
+    {
+        if (_userCursorMarkerIcon != null)
+            return _userCursorMarkerIcon;
+
+        using var bitmap = CreateUserCursorMarkerBitmap();
+        _userCursorMarkerIcon = BitmapDescriptorFactory.FromBitmap(bitmap);
+        return _userCursorMarkerIcon;
+    }
+
+    private static Bitmap CreateUserCursorMarkerBitmap()
+    {
+        const int markerSize = 74;
+        var output = Bitmap.CreateBitmap(markerSize, markerSize, Bitmap.Config.Argb8888!);
+        using var canvas = new Canvas(output);
+
+        using var backgroundPaint = new Android.Graphics.Paint(Android.Graphics.PaintFlags.AntiAlias)
+        {
+            Color = Android.Graphics.Color.White
+        };
+        canvas.DrawCircle(markerSize / 2f, markerSize / 2f, markerSize / 2f, backgroundPaint);
+
+        using var borderPaint = new Android.Graphics.Paint(Android.Graphics.PaintFlags.AntiAlias)
+        {
+            Color = Android.Graphics.Color.ParseColor("#CBD5E1"),
+            StrokeWidth = 2.5f
+        };
+        borderPaint.SetStyle(Android.Graphics.Paint.Style.Stroke);
+        canvas.DrawCircle(markerSize / 2f, markerSize / 2f, (markerSize / 2f) - 1.8f, borderPaint);
+
+        using var textPaint = new Android.Graphics.Paint(Android.Graphics.PaintFlags.AntiAlias)
+        {
+            Color = Android.Graphics.Color.ParseColor("#2563EB"),
+            TextSize = 40f,
+            TextAlign = Android.Graphics.Paint.Align.Center
+        };
+        textPaint.SetTypeface(Typeface.Create(Typeface.Default, TypefaceStyle.Bold));
+
+        canvas.Save();
+        canvas.Rotate(-45f, markerSize / 2f, markerSize / 2f);
+        DrawCenteredText(canvas, "➤", markerSize / 2f, markerSize / 2f + 1f, textPaint);
+        canvas.Restore();
+
+        return output;
+    }
+
+    private async Task<BitmapDescriptor?> GetPoiMarkerIconAsync(POI poi, string orderText)
+    {
+        var resolvedImageSource = ResolvePoiMarkerImageSource(poi);
+        var cacheKey = $"{resolvedImageSource ?? "placeholder"}|{orderText}";
+
+        if (_markerIconCache.TryGetValue(cacheKey, out var cachedDescriptor))
             return cachedDescriptor;
 
-        var sourceBitmap = await LoadBitmapForMarkerAsync(resolvedImageSource);
-        if (sourceBitmap == null)
-            return null;
+        Bitmap? sourceBitmap = null;
+        if (!string.IsNullOrWhiteSpace(resolvedImageSource))
+        {
+            sourceBitmap = await LoadBitmapForMarkerAsync(resolvedImageSource);
+        }
 
-        using var iconBitmap = CreateCircularMarkerBitmap(sourceBitmap);
-        sourceBitmap.Dispose();
+        using var iconBitmap = CreateCircularMarkerBitmap(sourceBitmap, orderText);
+        sourceBitmap?.Dispose();
 
         var descriptor = BitmapDescriptorFactory.FromBitmap(iconBitmap);
-        _markerIconCache[resolvedImageSource] = descriptor;
+        _markerIconCache[cacheKey] = descriptor;
         return descriptor;
+    }
+
+    private static string? ResolvePoiMarkerImageSource(POI poi)
+    {
+        var candidates = new[] { poi.ImagePath, poi.ImageUrl };
+
+        foreach (var candidate in candidates)
+        {
+            if (string.IsNullOrWhiteSpace(candidate))
+                continue;
+
+            var resolved = POIListViewModel.ResolveImageSource(candidate);
+            if (!string.IsNullOrWhiteSpace(resolved) && !string.Equals(resolved, "location.svg", StringComparison.OrdinalIgnoreCase))
+            {
+                return resolved;
+            }
+        }
+
+        return null;
     }
 
     private static async Task<Bitmap?> LoadBitmapForMarkerAsync(string imageSource)
@@ -472,30 +590,84 @@ public partial class MapPage : ContentPage, IQueryAttributable
         return null;
     }
 
-    private static Bitmap CreateCircularMarkerBitmap(Bitmap source)
+    private static Bitmap CreateCircularMarkerBitmap(Bitmap? source, string orderText)
     {
-        const int markerSize = 96;
-        const float borderWidth = 4f;
+        const int markerSize = 108;
+        const float outerBorderWidth = 4f;
+        const float innerPadding = 6f;
+        const float badgeRadius = 18f;
 
-        using var scaled = Bitmap.CreateScaledBitmap(source, markerSize, markerSize, true);
-    var output = Bitmap.CreateBitmap(markerSize, markerSize, Bitmap.Config.Argb8888!);
+        var output = Bitmap.CreateBitmap(markerSize, markerSize, Bitmap.Config.Argb8888!);
         using var canvas = new Canvas(output);
 
-        using var borderPaint = new Android.Graphics.Paint(Android.Graphics.PaintFlags.AntiAlias)
+        using var backgroundPaint = new Android.Graphics.Paint(Android.Graphics.PaintFlags.AntiAlias)
         {
             Color = Android.Graphics.Color.White
         };
-        canvas.DrawCircle(markerSize / 2f, markerSize / 2f, markerSize / 2f, borderPaint);
+        canvas.DrawCircle(markerSize / 2f, markerSize / 2f, markerSize / 2f, backgroundPaint);
 
-        using var shader = new BitmapShader(scaled, Shader.TileMode.Clamp!, Shader.TileMode.Clamp!);
-        using var imagePaint = new Android.Graphics.Paint(Android.Graphics.PaintFlags.AntiAlias)
+        var imageRadius = (markerSize / 2f) - outerBorderWidth;
+
+        if (source != null)
         {
-            AntiAlias = true
-        };
-        imagePaint.SetShader(shader);
+            using var scaled = Bitmap.CreateScaledBitmap(source, markerSize, markerSize, true);
+            using var shader = new BitmapShader(scaled, Shader.TileMode.Clamp!, Shader.TileMode.Clamp!);
+            using var imagePaint = new Android.Graphics.Paint(Android.Graphics.PaintFlags.AntiAlias);
+            imagePaint.SetShader(shader);
 
-        canvas.DrawCircle(markerSize / 2f, markerSize / 2f, (markerSize / 2f) - borderWidth, imagePaint);
+            canvas.DrawCircle(markerSize / 2f, markerSize / 2f, imageRadius - innerPadding, imagePaint);
+        }
+        else
+        {
+            using var fallbackPaint = new Android.Graphics.Paint(Android.Graphics.PaintFlags.AntiAlias)
+            {
+                Color = Android.Graphics.Color.ParseColor("#9CA3AF")
+            };
+            canvas.DrawCircle(markerSize / 2f, markerSize / 2f, imageRadius - innerPadding, fallbackPaint);
+        }
+
+        using var ringPaint = new Android.Graphics.Paint(Android.Graphics.PaintFlags.AntiAlias)
+        {
+            Color = Android.Graphics.Color.ParseColor("#1D4ED8"),
+            StrokeWidth = outerBorderWidth
+        };
+        ringPaint.SetStyle(Android.Graphics.Paint.Style.Stroke);
+        canvas.DrawCircle(markerSize / 2f, markerSize / 2f, (markerSize / 2f) - (outerBorderWidth / 2f), ringPaint);
+
+        var badgeCenterX = badgeRadius + 7f;
+        var badgeCenterY = markerSize - badgeRadius - 8f;
+
+        using var badgePaint = new Android.Graphics.Paint(Android.Graphics.PaintFlags.AntiAlias)
+        {
+            Color = Android.Graphics.Color.ParseColor("#E91E63")
+        };
+        canvas.DrawCircle(badgeCenterX, badgeCenterY, badgeRadius, badgePaint);
+
+        using var badgeBorderPaint = new Android.Graphics.Paint(Android.Graphics.PaintFlags.AntiAlias)
+        {
+            Color = Android.Graphics.Color.White,
+            StrokeWidth = 2f
+        };
+        badgeBorderPaint.SetStyle(Android.Graphics.Paint.Style.Stroke);
+        canvas.DrawCircle(badgeCenterX, badgeCenterY, badgeRadius - 1f, badgeBorderPaint);
+
+        using var textPaint = new Android.Graphics.Paint(Android.Graphics.PaintFlags.AntiAlias)
+        {
+            Color = Android.Graphics.Color.White,
+            TextSize = 23f,
+            TextAlign = Android.Graphics.Paint.Align.Center
+        };
+        textPaint.SetTypeface(Typeface.Create(Typeface.Default, TypefaceStyle.Bold));
+        DrawCenteredText(canvas, orderText, badgeCenterX, badgeCenterY + 0.5f, textPaint);
+
         return output;
+    }
+
+    private static void DrawCenteredText(Canvas canvas, string text, float centerX, float centerY, Android.Graphics.Paint paint)
+    {
+        var metrics = paint.GetFontMetrics();
+        var baseline = centerY - ((metrics.Ascent + metrics.Descent) / 2f);
+        canvas.DrawText(text, centerX, baseline, paint);
     }
 
     private sealed class SingleMapReadyCallback : Java.Lang.Object, IOnMapReadyCallback

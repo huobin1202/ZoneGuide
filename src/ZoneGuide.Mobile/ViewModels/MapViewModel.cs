@@ -367,6 +367,7 @@ public partial class MapViewModel : ObservableObject
         }
 
         var tour = await _tourRepository.GetByIdAsync(tourId);
+        NormalizeTourOrder(tourPois);
 
         _currentTourPois.Clear();
         _currentTourPois.AddRange(tourPois);
@@ -393,6 +394,14 @@ public partial class MapViewModel : ObservableObject
 
         _startTourRequested = false;
         _requestedTourId = null;
+    }
+
+    private static void NormalizeTourOrder(IList<POI> tourPois)
+    {
+        for (var index = 0; index < tourPois.Count; index++)
+        {
+            tourPois[index].OrderInTour = index + 1;
+        }
     }
 
     private async Task SetTourRouteAsync(List<POI> tourPois)
@@ -1331,7 +1340,7 @@ public partial class MapViewModel : ObservableObject
 
         IsSelectedPoiNarrationActive = isCurrentSelected && _narrationService.IsPlaying;
         IsSelectedPoiNarrationPaused = isCurrentSelected && _narrationService.IsPaused;
-        IsSelectedPoiPlayerVisible = SelectedPOI != null && (IsSelectedPoiNarrationActive || IsSelectedPoiNarrationPaused);
+        IsSelectedPoiPlayerVisible = SelectedPOI != null;
     }
 
     private void UpdateSelectedPoiDistanceDisplay()

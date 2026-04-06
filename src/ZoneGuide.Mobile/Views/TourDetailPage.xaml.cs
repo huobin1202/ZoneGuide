@@ -9,9 +9,9 @@ namespace ZoneGuide.Mobile.Views;
 
 public partial class TourDetailPage : ContentPage
 {
-    private const double SheetExpandedHeight = 350;
-    private const double SheetHalfHeight = 220;
-    private const double SheetCollapsedHeight = 108;
+    private const double SheetExpandedHeight = 348;
+    private const double SheetCollapsedHeight = 128;
+    private const uint SheetSnapAnimationMs = 260;
 
     private double _panStartHeight;
     private bool _isPanning;
@@ -31,7 +31,7 @@ public partial class TourDetailPage : ContentPage
     {
         base.OnAppearing();
 
-        ApplySheetState(SheetHalfHeight);
+        ApplySheetState(SheetExpandedHeight, animate: false);
         RenderMiniMap();
     }
 
@@ -91,52 +91,75 @@ public partial class TourDetailPage : ContentPage
 
                 _isPanning = false;
 
-                var snapHeight = GetNearestSnapHeight(PoiBottomSheet.HeightRequest);
-                ApplySheetState(snapHeight);
+                var snapHeight = GetNearestSnapHeight(PoiBottomSheet.HeightRequest, e.TotalY);
+                ApplySheetState(snapHeight, animate: true);
                 break;
         }
     }
 
-    private static double GetNearestSnapHeight(double currentHeight)
+    private static double GetNearestSnapHeight(double currentHeight, double totalPanY)
     {
-        var targets = new[]
-        {
-            SheetCollapsedHeight,
-            SheetHalfHeight,
-            SheetExpandedHeight
-        };
+        var midpoint = (SheetExpandedHeight + SheetCollapsedHeight) / 2d;
 
-        var nearest = targets[0];
-        var bestDistance = Math.Abs(currentHeight - nearest);
-
-        for (var i = 1; i < targets.Length; i++)
+        if (Math.Abs(totalPanY) > 12)
         {
-            var candidate = targets[i];
-            var distance = Math.Abs(currentHeight - candidate);
-            if (distance < bestDistance)
-            {
-                nearest = candidate;
-                bestDistance = distance;
-            }
+            return totalPanY > 0 ? SheetCollapsedHeight : SheetExpandedHeight;
         }
 
-        return nearest;
+        return currentHeight >= midpoint ? SheetExpandedHeight : SheetCollapsedHeight;
     }
 
-    private void ApplySheetState(double targetHeight)
+    private void ApplySheetState(double targetHeight, bool animate)
     {
-        if (PoiBottomSheet != null)
+        if (PoiBottomSheet == null)
+            return;
+
+        var startHeight = PoiBottomSheet.HeightRequest > 0
+            ? PoiBottomSheet.HeightRequest
+            : targetHeight;
+
+        if (!animate || Math.Abs(startHeight - targetHeight) < 0.5d)
         {
             PoiBottomSheet.HeightRequest = targetHeight;
+            if (PoiCollectionView != null)
+            {
+                PoiCollectionView.IsVisible = targetHeight > (SheetCollapsedHeight + 8);
+            }
+
+            return;
         }
 
-        if (PoiCollectionView != null)
+        this.AbortAnimation("PoiBottomSheetSnap");
+        var animation = new Animation(v =>
         {
-            PoiCollectionView.IsVisible = targetHeight > (SheetCollapsedHeight + 8);
-        }
+            PoiBottomSheet.HeightRequest = v;
+
+            if (PoiCollectionView != null)
+            {
+                PoiCollectionView.IsVisible = v > (SheetCollapsedHeight + 8);
+            }
+        }, startHeight, targetHeight);
+
+        animation.Commit(this, "PoiBottomSheetSnap", 16, SheetSnapAnimationMs, Easing.CubicOut);
     }
 
     private async void OnMiniMapTapped(object? sender, EventArgs e)
+    {
+        if (_viewModel.Tour == null)
+            return;
+
+        await Shell.Current.GoToAsync($"//map?tourId={_viewModel.Tour.Id}&startTour=true");
+    }
+
+    private async void OnMapButtonTapped(object? sender, EventArgs e)
+    {
+        if (_viewModel.Tour == null)
+            return;
+
+        await Shell.Current.GoToAsync($"//map?tourId={_viewModel.Tour.Id}");
+    }
+
+    private async void OnDirectionsTapped(object? sender, EventArgs e)
     {
         if (_viewModel.Tour == null)
             return;

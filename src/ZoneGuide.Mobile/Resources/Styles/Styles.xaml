@@ -21,6 +21,8 @@
     <converters:OfflineStatusTextConverter x:Key="OfflineStatusTextConverter" />
     <converters:OfflineButtonTextConverter x:Key="OfflineButtonTextConverter" />
     <converters:FlexibleImageSourceConverter x:Key="FlexibleImageSourceConverter" />
+    <converters:PreferredPoiImageSourceConverter x:Key="PreferredPoiImageSourceConverter" />
+    <converters:PoiDistanceFromLocationConverter x:Key="PoiDistanceFromLocationConverter" />
     <converters:LocalizedCategoryConverter x:Key="LocalizedCategoryConverter" />
     <converters:PoiMatchConverter x:Key="PoiMatchConverter" />
     <converters:StopResumeGlyphConverter x:Key="StopResumeGlyphConverter" />
