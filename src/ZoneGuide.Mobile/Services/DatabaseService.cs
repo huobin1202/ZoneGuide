@@ -27,6 +27,7 @@ public class DatabaseService
         await _database.CreateTableAsync<POI>();
         await _database.CreateTableAsync<POITranslation>();
         await _database.CreateTableAsync<Tour>();
+        await _database.CreateTableAsync<TourTranslation>();
         await _database.CreateTableAsync<LocationHistory>();
         await _database.CreateTableAsync<NarrationHistory>();
         await _database.CreateTableAsync<POIStatistics>();
@@ -41,6 +42,7 @@ public class DatabaseService
         count += await db.DeleteAllAsync<POI>();
         count += await db.DeleteAllAsync<POITranslation>();
         count += await db.DeleteAllAsync<Tour>();
+        count += await db.DeleteAllAsync<TourTranslation>();
         return count;
     }
 

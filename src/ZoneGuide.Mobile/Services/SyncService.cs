@@ -17,6 +17,7 @@ public class SyncService : ISyncService
     private readonly IPOIRepository _poiRepository;
     private readonly IPOITranslationRepository _poiTranslationRepository;
     private readonly ITourRepository _tourRepository;
+    private readonly ITourTranslationRepository _tourTranslationRepository;
     private readonly IAnalyticsRepository _analyticsRepository;
     private readonly ISettingsService _settingsService;
     private readonly INarrationService _narrationService;
@@ -31,6 +32,7 @@ public class SyncService : ISyncService
         IPOIRepository poiRepository,
         IPOITranslationRepository poiTranslationRepository,
         ITourRepository tourRepository,
+        ITourTranslationRepository tourTranslationRepository,
         IAnalyticsRepository analyticsRepository,
         ISettingsService settingsService,
         INarrationService narrationService)
@@ -39,6 +41,7 @@ public class SyncService : ISyncService
         _poiRepository = poiRepository;
         _poiTranslationRepository = poiTranslationRepository;
         _tourRepository = tourRepository;
+        _tourTranslationRepository = tourTranslationRepository;
         _analyticsRepository = analyticsRepository;
         _settingsService = settingsService;
         _narrationService = narrationService;
@@ -131,6 +134,7 @@ public class SyncService : ISyncService
             {
                 var tour = MapToTour(tourDto);
                 await _tourRepository.InsertOrUpdateAsync(tour);
+                await SyncTourTranslationsAsync(tourDto, tour.Id);
             }
 
             SyncProgress?.Invoke(this, 1.0);
@@ -477,6 +481,44 @@ public class SyncService : ISyncService
             var c when c.StartsWith("fr") => "fr-FR",
             _ => value
         };
+    }
+
+    private async Task SyncTourTranslationsAsync(TourDto tourDto, int tourId)
+    {
+        if (tourId <= 0)
+            return;
+
+        var incoming = tourDto.Translations ?? new List<TourTranslationDto>();
+        var existing = await _tourTranslationRepository.GetByTourIdAsync(tourId);
+
+        var incomingKeys = incoming
+            .Select(t => NormalizeLanguage(t.LanguageCode))
+            .Where(code => !string.IsNullOrWhiteSpace(code))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var old in existing)
+        {
+            if (!incomingKeys.Contains(NormalizeLanguage(old.LanguageCode)))
+            {
+                await _tourTranslationRepository.DeleteAsync(old.Id);
+            }
+        }
+
+        foreach (var translation in incoming)
+        {
+            if (string.IsNullOrWhiteSpace(translation.LanguageCode))
+                continue;
+
+            var entry = new TourTranslation
+            {
+                TourId = tourId,
+                LanguageCode = NormalizeLanguage(translation.LanguageCode),
+                Description = translation.Description ?? string.Empty,
+                IsOutdated = translation.IsOutdated
+            };
+
+            await _tourTranslationRepository.InsertOrUpdateAsync(entry);
+        }
     }
 
     private async Task EnsureSyncStateLoadedAsync()

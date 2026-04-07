@@ -100,6 +100,96 @@ public class ToursController : ControllerBase
     }
 
     /// <summary>
+    /// Get all translations for a tour
+    /// </summary>
+    [HttpGet("{id}/translations")]
+    public async Task<ActionResult<List<TourTranslationDto>>> GetTranslations(string id)
+    {
+        try
+        {
+            var tour = await _tourService.GetByIdAsync(id);
+            if (tour == null)
+            {
+                return NotFound($"Tour with ID '{id}' not found");
+            }
+
+            var translations = await _tourService.GetTranslationsAsync(id);
+            return Ok(translations);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting translations for Tour {Id}", id);
+            return StatusCode(500, "An error occurred while retrieving Tour translations");
+        }
+    }
+
+    /// <summary>
+    /// Create or update a translation for a tour
+    /// </summary>
+    [HttpPut("{id}/translations/{languageCode}")]
+    public async Task<ActionResult<TourTranslationDto>> UpsertTranslation(string id, string languageCode, [FromBody] TourTranslationDto dto)
+    {
+        try
+        {
+            var translation = await _tourService.UpsertTranslationAsync(id, languageCode, dto);
+            if (translation == null)
+            {
+                return NotFound($"Tour with ID '{id}' not found or translation input is invalid");
+            }
+
+            await _activityLogService.LogAsync(
+                "Update",
+                "TourTranslation",
+                $"{id}:{translation.LanguageCode}",
+                null,
+                $"Cập nhật bản dịch {translation.LanguageCode} cho Tour ID: {id}",
+                null,
+                "admin",
+                "Admin");
+
+            return Ok(translation);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error upserting translation for Tour {Id} language {LanguageCode}", id, languageCode);
+            return StatusCode(500, "An error occurred while saving Tour translation");
+        }
+    }
+
+    /// <summary>
+    /// Delete a translation for a tour
+    /// </summary>
+    [HttpDelete("{id}/translations/{languageCode}")]
+    public async Task<ActionResult> DeleteTranslation(string id, string languageCode)
+    {
+        try
+        {
+            var success = await _tourService.DeleteTranslationAsync(id, languageCode);
+            if (!success)
+            {
+                return NotFound($"Translation '{languageCode}' for Tour '{id}' not found");
+            }
+
+            await _activityLogService.LogAsync(
+                "Delete",
+                "TourTranslation",
+                $"{id}:{languageCode}",
+                null,
+                $"Xóa bản dịch {languageCode} của Tour ID: {id}",
+                null,
+                "admin",
+                "Admin");
+
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting translation for Tour {Id} language {LanguageCode}", id, languageCode);
+            return StatusCode(500, "An error occurred while deleting Tour translation");
+        }
+    }
+
+    /// <summary>
     /// Create a new tour
     /// </summary>
     [HttpPost]

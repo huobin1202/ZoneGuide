@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<POIEntity> POIs { get; set; }
     public DbSet<POITranslationEntity> POITranslations { get; set; }
     public DbSet<TourEntity> Tours { get; set; }
+    public DbSet<TourTranslationEntity> TourTranslations { get; set; }
     public DbSet<TourPOIEntity> TourPOIs { get; set; }
     public DbSet<LocationHistoryEntity> LocationHistories { get; set; }
     public DbSet<NarrationHistoryEntity> NarrationHistories { get; set; }
@@ -57,6 +58,16 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.UniqueCode).IsUnique();
             entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+        });
+
+        // Tour Translation
+        modelBuilder.Entity<TourTranslationEntity>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.TourId, e.LanguageCode }).IsUnique();
+            entity.HasOne(e => e.Tour)
+                  .WithMany(t => t.Translations)
+                  .HasForeignKey(e => e.TourId);
         });
 
         // Location History
@@ -215,7 +226,21 @@ public class TourEntity
     public bool IsActive { get; set; } = true;
 
     public ICollection<POIEntity> POIs { get; set; } = new List<POIEntity>();
+    public ICollection<TourTranslationEntity> Translations { get; set; } = new List<TourTranslationEntity>();
     public ICollection<TourPOIEntity> POIIds { get; set; } = new List<TourPOIEntity>();
+}
+
+public class TourTranslationEntity
+{
+    public int Id { get; set; }
+    public int TourId { get; set; }
+    public string LanguageCode { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public bool IsOutdated { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    public TourEntity Tour { get; set; } = null!;
 }
 
 public class LocationHistoryEntity

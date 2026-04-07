@@ -9,6 +9,9 @@ public interface ITourService
     Task<List<TourDto>> GetAllAsync(bool includeInactive = false);
     Task<TourDto?> GetByIdAsync(string id);
     Task<TourDto?> GetWithPOIsAsync(string id);
+    Task<List<TourTranslationDto>> GetTranslationsAsync(string tourId);
+    Task<TourTranslationDto?> UpsertTranslationAsync(string tourId, string languageCode, TourTranslationDto dto);
+    Task<bool> DeleteTranslationAsync(string tourId, string languageCode);
     Task<TourDto> CreateAsync(CreateTourDto dto);
     Task<TourDto?> UpdateAsync(string id, UpdateTourDto dto);
     Task<bool> DeleteAsync(string id);
@@ -29,6 +32,7 @@ public class TourService : ITourService
     public async Task<List<TourDto>> GetAllAsync(bool includeInactive = false)
     {
         var query = _context.Tours
+            .Include(t => t.Translations)
             .Include(t => t.POIIds)
             .AsQueryable();
 
@@ -50,6 +54,7 @@ public class TourService : ITourService
             return null;
             
         var entity = await _context.Tours
+            .Include(t => t.Translations)
             .Include(t => t.POIIds)
             .ThenInclude(tp => tp.POI)
             .FirstOrDefaultAsync(t => t.Id == intId);
@@ -62,6 +67,7 @@ public class TourService : ITourService
             return null;
             
         var entity = await _context.Tours
+            .Include(t => t.Translations)
             .Include(t => t.POIIds)
             .ThenInclude(tp => tp.POI)
             .FirstOrDefaultAsync(t => t.Id == intId);
@@ -71,6 +77,100 @@ public class TourService : ITourService
         var dto = MapToDto(entity);
         dto.POIs = await _poiService.GetByTourIdAsync(id);
         return dto;
+    }
+
+    public async Task<List<TourTranslationDto>> GetTranslationsAsync(string tourId)
+    {
+        if (!int.TryParse(tourId, out var intTourId))
+            return new List<TourTranslationDto>();
+
+        return await _context.TourTranslations
+            .Where(t => t.TourId == intTourId)
+            .OrderBy(t => t.LanguageCode)
+            .Select(t => new TourTranslationDto
+            {
+                Id = t.Id,
+                TourId = t.TourId,
+                LanguageCode = t.LanguageCode,
+                Description = t.Description,
+                IsOutdated = t.IsOutdated
+            })
+            .ToListAsync();
+    }
+
+    public async Task<TourTranslationDto?> UpsertTranslationAsync(string tourId, string languageCode, TourTranslationDto dto)
+    {
+        if (!int.TryParse(tourId, out var intTourId))
+            return null;
+
+        var normalizedLanguageCode = string.IsNullOrWhiteSpace(languageCode)
+            ? dto.LanguageCode?.Trim()
+            : languageCode.Trim();
+
+        if (string.IsNullOrWhiteSpace(normalizedLanguageCode))
+            return null;
+
+        var tour = await _context.Tours.FirstOrDefaultAsync(t => t.Id == intTourId);
+        if (tour == null)
+            return null;
+
+        var existing = await _context.TourTranslations
+            .FirstOrDefaultAsync(t => t.TourId == intTourId && t.LanguageCode == normalizedLanguageCode);
+
+        if (existing == null)
+        {
+            existing = new TourTranslationEntity
+            {
+                TourId = intTourId,
+                LanguageCode = normalizedLanguageCode,
+                CreatedAt = DateTime.UtcNow,
+                IsOutdated = false
+            };
+            _context.TourTranslations.Add(existing);
+        }
+
+        existing.Description = dto.Description ?? string.Empty;
+        existing.IsOutdated = false;
+        existing.UpdatedAt = DateTime.UtcNow;
+        tour.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return new TourTranslationDto
+        {
+            Id = existing.Id,
+            TourId = existing.TourId,
+            LanguageCode = existing.LanguageCode,
+            Description = existing.Description,
+            IsOutdated = existing.IsOutdated
+        };
+    }
+
+    public async Task<bool> DeleteTranslationAsync(string tourId, string languageCode)
+    {
+        if (!int.TryParse(tourId, out var intTourId))
+            return false;
+
+        var normalizedLanguageCode = languageCode?.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedLanguageCode))
+            return false;
+
+        var translation = await _context.TourTranslations
+            .FirstOrDefaultAsync(t => t.TourId == intTourId && t.LanguageCode == normalizedLanguageCode);
+
+        if (translation == null)
+            return false;
+
+        _context.TourTranslations.Remove(translation);
+
+        var tour = await _context.Tours.FirstOrDefaultAsync(t => t.Id == intTourId);
+        if (tour != null)
+        {
+            tour.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     public async Task<TourDto> CreateAsync(CreateTourDto dto)
@@ -131,6 +231,7 @@ public class TourService : ITourService
             return null;
             
         var entity = await _context.Tours
+            .Include(t => t.Translations)
             .Include(t => t.POIIds)
             .ThenInclude(tp => tp.POI)
             .FirstOrDefaultAsync(t => t.Id == intId);
@@ -144,6 +245,16 @@ public class TourService : ITourService
         if (dto.ImageUrl != null) entity.ImageUrl = dto.ImageUrl;
         if (dto.Difficulty != null) entity.Difficulty = dto.Difficulty;
         if (dto.IsActive.HasValue) entity.IsActive = dto.IsActive.Value;
+
+        if (dto.Description != null)
+        {
+            foreach (var translation in entity.Translations)
+            {
+                translation.IsOutdated = true;
+                translation.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
         entity.UpdatedAt = DateTime.UtcNow;
 
         // Update POI associations if provided
@@ -233,6 +344,7 @@ public class TourService : ITourService
             return null;
             
         var entity = await _context.Tours
+            .Include(t => t.Translations)
             .Include(t => t.POIIds)
             .ThenInclude(tp => tp.POI)
             .FirstOrDefaultAsync(t => t.Id == intId);
@@ -307,6 +419,17 @@ public class TourService : ITourService
             DifficultyLevel = entity.DifficultyLevel,
             WheelchairAccessible = entity.WheelchairAccessible,
             IsActive = entity.IsActive,
+            Translations = entity.Translations
+                .OrderBy(t => t.LanguageCode)
+                .Select(t => new TourTranslationDto
+                {
+                    Id = t.Id,
+                    TourId = t.TourId,
+                    LanguageCode = t.LanguageCode,
+                    Description = t.Description,
+                    IsOutdated = t.IsOutdated
+                })
+                .ToList(),
             POICount = activePoiIds.Count,
             POIIds = activePoiIds
         };

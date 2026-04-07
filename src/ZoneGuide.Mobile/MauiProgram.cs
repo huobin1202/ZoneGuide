@@ -43,6 +43,7 @@ public static class MauiProgram
         // Register Repositories
         builder.Services.AddSingleton<IPOIRepository, POIRepository>();
         builder.Services.AddSingleton<IPOITranslationRepository, POITranslationRepository>();
+        builder.Services.AddSingleton<ITourTranslationRepository, TourTranslationRepository>();
         builder.Services.AddSingleton<ITourRepository, TourRepository>();
         builder.Services.AddSingleton<IAnalyticsRepository, AnalyticsRepository>();
 
