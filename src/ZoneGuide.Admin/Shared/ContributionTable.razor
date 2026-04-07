@@ -1,10 +1,11 @@
 @using ZoneGuide.Shared.Models
 @inject IJSRuntime JS
 
-<MudTable Items="@Contributions" Hover="true" Striped="true" Loading="@IsLoading" LoadingProgressColor="Color.Primary" Dense="true">
+<MudTable Items="@FilteredContributions" Hover="true" Striped="true" Loading="@IsLoading" LoadingProgressColor="Color.Primary" Dense="true">
     <HeaderContent>
         <MudTh>ID</MudTh>
         <MudTh>Tên POI</MudTh>
+        <MudTh>Mô tả</MudTh>
         <MudTh>Người đóng góp</MudTh>
         <MudTh>Vị trí</MudTh>
         <MudTh>Trạng thái</MudTh>
@@ -16,10 +17,11 @@
         <MudTd DataLabel="ID">@context.Id</MudTd>
         <MudTd DataLabel="Tên">
             <MudText Typo="Typo.body2"><strong>@context.Name</strong></MudText>
-            @if (!string.IsNullOrEmpty(context.ShortDescription))
-            {
-                <MudText Typo="Typo.caption" Class="mud-text-secondary">@TruncateText(context.ShortDescription, 50)</MudText>
-            }
+        </MudTd>
+        <MudTd DataLabel="Mô tả">
+            <MudTooltip Text="@GetDescriptionText(context)">
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">@TruncateText(GetDescriptionText(context), 80)</MudText>
+            </MudTooltip>
         </MudTd>
         <MudTd DataLabel="Người đóng góp">@context.ContributorName</MudTd>
         <MudTd DataLabel="Vị trí">
@@ -55,6 +57,7 @@
 
 @code {
     [Parameter] public List<POIContributionDto> Contributions { get; set; } = new();
+    [Parameter] public string? SearchKeyword { get; set; }
     [Parameter] public bool IsLoading { get; set; }
     [Parameter] public bool ShowReviewActions { get; set; } = true;
     [Parameter] public EventCallback<POIContributionDto> OnReview { get; set; }
@@ -63,6 +66,11 @@
 
     private readonly Dictionary<int, string> _addressCache = new();
     private readonly HashSet<int> _resolvingAddresses = new();
+
+    private IEnumerable<POIContributionDto> FilteredContributions =>
+        string.IsNullOrWhiteSpace(SearchKeyword)
+            ? Contributions
+            : Contributions.Where(MatchesSearchKeyword);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -106,6 +114,29 @@
     {
         if (string.IsNullOrEmpty(value)) return value ?? "";
         return value.Length <= maxLength ? value : value.Substring(0, maxLength) + "...";
+    }
+
+    private string GetDescriptionText(POIContributionDto contribution)
+    {
+        return contribution.TTSScript
+            ?? contribution.FullDescription
+            ?? contribution.ShortDescription
+            ?? "-";
+    }
+
+    private bool MatchesSearchKeyword(POIContributionDto contribution)
+    {
+        var keyword = SearchKeyword?.Trim();
+        if (string.IsNullOrWhiteSpace(keyword))
+        {
+            return true;
+        }
+
+        return (contribution.Name?.Contains(keyword, StringComparison.OrdinalIgnoreCase) ?? false)
+               || (contribution.ContributorName?.Contains(keyword, StringComparison.OrdinalIgnoreCase) ?? false)
+               || (contribution.Category?.Contains(keyword, StringComparison.OrdinalIgnoreCase) ?? false)
+               || (contribution.Status?.Contains(keyword, StringComparison.OrdinalIgnoreCase) ?? false)
+               || (GetDescriptionText(contribution).Contains(keyword, StringComparison.OrdinalIgnoreCase));
     }
 
     private string GetLocationDisplay(POIContributionDto contribution)

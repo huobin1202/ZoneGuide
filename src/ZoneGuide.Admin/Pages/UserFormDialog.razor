@@ -1,0 +1,191 @@
+@using System.Text.Json
+@using ZoneGuide.Shared.Models
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@(_isEdit ? Icons.Material.Filled.Edit : Icons.Material.Filled.PersonAdd)" Class="mr-2" />
+            @(_isEdit ? "Cập nhật người dùng" : "Thêm người dùng")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudTextField @bind-Value="_model.Email"
+                          Label="Email"
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          RequiredError="Vui lòng nhập email" />
+
+            <MudTextField @bind-Value="_model.DisplayName"
+                          Label="Tên hiển thị"
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          RequiredError="Vui lòng nhập tên hiển thị"
+                          Class="mt-3" />
+
+            <MudTextField @bind-Value="_model.PhoneNumber"
+                          Label="Số điện thoại"
+                          Variant="Variant.Outlined"
+                          Class="mt-3" />
+
+            @if (!_isEdit)
+            {
+                <MudTextField @bind-Value="_model.Password"
+                              Label="Mật khẩu"
+                              Variant="Variant.Outlined"
+                              InputType="InputType.Password"
+                              Required="true"
+                              RequiredError="Vui lòng nhập mật khẩu"
+                              Class="mt-3" />
+            }
+
+            <MudSelect @bind-Value="_model.Role" Label="Role" Required="true" Variant="Variant.Outlined" Class="mt-3">
+                <MudSelectItem Value="@("Contributor")">Contributor - Người đóng góp</MudSelectItem>
+                <MudSelectItem Value="@("Admin")">Admin - Quản trị viên</MudSelectItem>
+            </MudSelect>
+
+            <MudSelect @bind-Value="_model.Status" Label="Trạng thái" Required="true" Variant="Variant.Outlined" Class="mt-3">
+                <MudSelectItem Value="@("Active")">Active - Hoạt động</MudSelectItem>
+                <MudSelectItem Value="@("Suspended")">Suspended - Đã khóa</MudSelectItem>
+            </MudSelect>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@_isSaving">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            @(_isEdit ? "Lưu" : "Tạo tài khoản")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance? MudDialog { get; set; }
+    [Parameter] public UserDto? User { get; set; }
+
+    private MudForm? _form;
+    private bool _isValid;
+    private bool _isSaving;
+    private bool _isEdit => User is not null;
+
+    private UserFormModel _model = new();
+
+    protected override void OnInitialized()
+    {
+        if (User is null)
+        {
+            _model = new UserFormModel();
+            return;
+        }
+
+        _model = new UserFormModel
+        {
+            Email = User.Email,
+            DisplayName = User.DisplayName,
+            PhoneNumber = User.PhoneNumber,
+            Role = User.Role,
+            Status = User.Status
+        };
+    }
+
+    private async Task Submit()
+    {
+        if (_form is null)
+        {
+            return;
+        }
+
+        await _form.Validate();
+        if (!_isValid)
+        {
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            HttpResponseMessage response;
+            if (_isEdit)
+            {
+                response = await Http.PutAsJsonAsync($"api/users/{User!.Id}", new
+                {
+                    _model.Email,
+                    _model.DisplayName,
+                    _model.PhoneNumber,
+                    _model.Role,
+                    _model.Status
+                });
+            }
+            else
+            {
+                response = await Http.PostAsJsonAsync("api/users", new
+                {
+                    _model.Email,
+                    _model.Password,
+                    _model.DisplayName,
+                    _model.PhoneNumber,
+                    _model.Role,
+                    _model.Status
+                });
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add(_isEdit ? "Cập nhật người dùng thành công" : "Tạo tài khoản thành công", Severity.Success);
+                MudDialog?.Close(DialogResult.Ok(true));
+                return;
+            }
+
+            Snackbar.Add(await ExtractErrorMessage(response), Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task<string> ExtractErrorMessage(HttpResponseMessage response)
+    {
+        var content = await response.Content.ReadAsStringAsync();
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return "Không thể xử lý yêu cầu";
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(content);
+            if (document.RootElement.TryGetProperty("message", out var messageProperty))
+            {
+                return messageProperty.GetString() ?? content;
+            }
+        }
+        catch
+        {
+            // Ignore parse error and fallback to raw content
+        }
+
+        return content;
+    }
+
+    private void Cancel() => MudDialog?.Cancel();
+
+    private sealed class UserFormModel
+    {
+        public string Email { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
+        public string? PhoneNumber { get; set; }
+        public string Password { get; set; } = string.Empty;
+        public string Role { get; set; } = "Contributor";
+        public string Status { get; set; } = "Active";
+    }
+}

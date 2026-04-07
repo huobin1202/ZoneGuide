@@ -9,10 +9,16 @@
 <PageTitle>ZoneGuide</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <MudText Typo="Typo.h4" Class="mb-4">
-        <MudIcon Icon="@Icons.Material.Filled.People" Class="mr-2" />
-        Quản lý Users
-    </MudText>
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+        <MudText Typo="Typo.h4">
+            <MudIcon Icon="@Icons.Material.Filled.People" Class="mr-2" />
+            Quản lý người dùng
+        </MudText>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.PersonAdd"
+                   OnClick="@(() => OpenUserFormDialog())">
+            Thêm người dùng
+        </MudButton>
+    </MudStack>
     
     <MudPaper Elevation="2" Class="pa-4">
         <MudTable Items="@users" Hover="true" Striped="true" Loading="@isLoading" LoadingProgressColor="Color.Primary"
@@ -51,7 +57,9 @@
                 <MudTd DataLabel="Đăng nhập cuối">@(context.LastLoginAt?.ToString("dd/MM/yyyy HH:mm") ?? "-")</MudTd>
                 <MudTd DataLabel="Hành động">
                     <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
-                                   OnClick="@(() => OpenChangeRoleDialog(context))" title="Đổi Role" />
+                                   OnClick="@(() => OpenUserFormDialog(context))" title="Sửa người dùng" />
+                    <MudIconButton Icon="@Icons.Material.Filled.History" Color="Color.Info" Size="Size.Small"
+                                   OnClick="@(() => OpenUserHistory())" title="Lịch sử" />
                 </MudTd>
             </RowTemplate>
             <NoRecordsContent>
@@ -125,21 +133,28 @@
         StateHasChanged();
     }
     
-    private async Task OpenChangeRoleDialog(UserDto user)
+    private async Task OpenUserFormDialog(UserDto? user = null)
     {
-        var parameters = new DialogParameters
+        var parameters = new DialogParameters();
+        if (user != null)
         {
-            { "User", user }
-        };
-        
-        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small };
-        var dialog = await DialogService.ShowAsync<ChangeRoleDialog>("Đổi Role", parameters, options);
+            parameters.Add("User", user);
+        }
+
+        var title = user == null ? "Thêm người dùng" : "Chỉnh sửa người dùng";
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<UserFormDialog>(title, parameters, options);
         var result = await dialog.Result;
-        
+
         if (result != null && !result.Canceled)
         {
             await LoadUsers();
         }
+    }
+
+    private void OpenUserHistory()
+    {
+        Navigation.NavigateTo("/activity-log?entityType=User");
     }
     
     private Color GetRoleColor(string role) => role switch

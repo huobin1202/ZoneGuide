@@ -1,6 +1,7 @@
 using ZoneGuide.API.Services;
 using ZoneGuide.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 
@@ -129,6 +130,7 @@ public class POIsController : ControllerBase
     {
         try
         {
+            var (actorEmail, actorName) = GetActorIdentity();
             var translation = await _poiService.UpsertTranslationAsync(id, languageCode, dto);
             if (translation == null)
             {
@@ -142,8 +144,8 @@ public class POIsController : ControllerBase
                 translation.Name,
                 $"Cập nhật bản dịch {translation.LanguageCode} cho POI ID: {id}",
                 null,
-                "admin",
-                "Admin");
+                actorEmail,
+                actorName);
 
             return Ok(translation);
         }
@@ -162,6 +164,7 @@ public class POIsController : ControllerBase
     {
         try
         {
+            var (actorEmail, actorName) = GetActorIdentity();
             var success = await _poiService.DeleteTranslationAsync(id, languageCode);
             if (!success)
             {
@@ -175,8 +178,8 @@ public class POIsController : ControllerBase
                 null,
                 $"Xóa bản dịch {languageCode} của POI ID: {id}",
                 null,
-                "admin",
-                "Admin");
+                actorEmail,
+                actorName);
 
             return NoContent();
         }
@@ -263,8 +266,9 @@ public class POIsController : ControllerBase
     {
         try
         {
+            var (actorEmail, actorName) = GetActorIdentity();
             var poi = await _poiService.CreateAsync(dto);
-            await _activityLogService.LogAsync("Create", "POI", poi.Id, poi.Name, $"Tạo POI mới: {poi.Name}", null, "admin", "Admin");
+            await _activityLogService.LogAsync("Create", "POI", poi.Id, poi.Name, $"Tạo POI mới: {poi.Name}", null, actorEmail, actorName);
             return CreatedAtAction(nameof(GetById), new { id = poi.Id }, poi);
         }
         catch (Exception ex)
@@ -282,12 +286,13 @@ public class POIsController : ControllerBase
     {
         try
         {
+            var (actorEmail, actorName) = GetActorIdentity();
             var poi = await _poiService.UpdateAsync(id, dto);
             if (poi == null)
             {
                 return NotFound($"POI with ID '{id}' not found");
             }
-            await _activityLogService.LogAsync("Update", "POI", id, poi.Name, $"Cập nhật POI: {poi.Name}", null, "admin", "Admin");
+            await _activityLogService.LogAsync("Update", "POI", id, poi.Name, $"Cập nhật POI: {poi.Name}", null, actorEmail, actorName);
             return Ok(poi);
         }
         catch (Exception ex)
@@ -305,12 +310,13 @@ public class POIsController : ControllerBase
     {
         try
         {
+            var (actorEmail, actorName) = GetActorIdentity();
             var success = await _poiService.DeleteAsync(id);
             if (!success)
             {
                 return NotFound($"POI with ID '{id}' not found");
             }
-            await _activityLogService.LogAsync("Delete", "POI", id, null, $"Xóa POI ID: {id}", null, "admin", "Admin");
+            await _activityLogService.LogAsync("Delete", "POI", id, null, $"Xóa POI ID: {id}", null, actorEmail, actorName);
             return NoContent();
         }
         catch (Exception ex)
@@ -435,5 +441,15 @@ public class POIsController : ControllerBase
         }
 
         return trimmed.ToLowerInvariant();
+    }
+
+    private (string Email, string Name) GetActorIdentity()
+    {
+        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+        var name = User.FindFirst(ClaimTypes.Name)?.Value;
+
+        return (
+            string.IsNullOrWhiteSpace(email) ? "system" : email,
+            string.IsNullOrWhiteSpace(name) ? "Hệ thống" : name);
     }
 }

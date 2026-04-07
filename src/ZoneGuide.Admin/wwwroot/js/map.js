@@ -11,7 +11,7 @@ var pickerMap = null;
 var pickerMarker = null;
 var dotNetRef = null;
 
-window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetReference, readOnlyMode, focusPoiId) {
+window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetReference, readOnlyMode, focusPoiId, compactPopupMode) {
     // Destroy existing map if any
     if (poiMap) {
         poiMap.remove();
@@ -22,6 +22,7 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
     searchResultMarker = null;
     dotNetRef = dotNetReference || null;
     var isReadOnlyMode = readOnlyMode === true;
+    var isCompactPopupMode = compactPopupMode === true;
 
     // Initialize map
     poiMap = L.map(elementId, {
@@ -117,6 +118,13 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
                 ? '<div style="position:absolute;top:0;right:10px;display:flex;gap:8px;align-items:center;z-index:4;padding:6px 8px;border-radius:999px;background:rgba(255,255,255,0.98);box-shadow:0 8px 20px rgba(15,23,42,0.18);">' + actionButtons + '</div>'
                 : '';
 
+            var popupDetailHtml = isCompactPopupMode
+                ? ''
+                : '<p style="margin: 0 0 8px 0; font-size: 13px; color: #555; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">' +
+                    (poi.description ? poi.description : 'Chưa có nội dung thuyết minh (TTS)') + '</p>' +
+                  '<p style="margin: 0; font-size: 12px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' +
+                    '📍 ' + (poi.address ? poi.address : (poi.lat.toFixed(6) + ', ' + poi.lng.toFixed(6))) + '</p>';
+
             var marker = L.marker([poi.lat, poi.lng], { icon: getCustomIcon(poi.category, poi.isContribution) })
                 .addTo(poiMap)
                 .bindPopup(
@@ -132,10 +140,7 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
                             '🏛 ' + poi.category + 
                         '</span>' +
                     '</div>' +
-                    '<p style="margin: 0 0 8px 0; font-size: 13px; color: #555; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">' + 
-                    (poi.description ? poi.description : 'Chưa có nội dung thuyết minh (TTS)') + '</p>' +
-                    '<p style="margin: 0; font-size: 12px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' +
-                    '📍 ' + (poi.address ? poi.address : (poi.lat.toFixed(6) + ', ' + poi.lng.toFixed(6))) + '</p>' +
+                    popupDetailHtml +
                     '</div></div>', {
                         className: 'custom-poi-popup',
                         minWidth: 250,

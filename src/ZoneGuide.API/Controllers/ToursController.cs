@@ -1,6 +1,7 @@
 using ZoneGuide.API.Services;
 using ZoneGuide.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ZoneGuide.API.Controllers;
 
@@ -131,6 +132,7 @@ public class ToursController : ControllerBase
     {
         try
         {
+            var (actorEmail, actorName) = GetActorIdentity();
             var translation = await _tourService.UpsertTranslationAsync(id, languageCode, dto);
             if (translation == null)
             {
@@ -144,8 +146,8 @@ public class ToursController : ControllerBase
                 null,
                 $"Cập nhật bản dịch {translation.LanguageCode} cho Tour ID: {id}",
                 null,
-                "admin",
-                "Admin");
+                actorEmail,
+                actorName);
 
             return Ok(translation);
         }
@@ -164,6 +166,7 @@ public class ToursController : ControllerBase
     {
         try
         {
+            var (actorEmail, actorName) = GetActorIdentity();
             var success = await _tourService.DeleteTranslationAsync(id, languageCode);
             if (!success)
             {
@@ -177,8 +180,8 @@ public class ToursController : ControllerBase
                 null,
                 $"Xóa bản dịch {languageCode} của Tour ID: {id}",
                 null,
-                "admin",
-                "Admin");
+                actorEmail,
+                actorName);
 
             return NoContent();
         }
@@ -197,8 +200,9 @@ public class ToursController : ControllerBase
     {
         try
         {
+            var (actorEmail, actorName) = GetActorIdentity();
             var tour = await _tourService.CreateAsync(dto);
-            await _activityLogService.LogAsync("Create", "Tour", tour.Id, tour.Name, $"Tạo Tour mới: {tour.Name}", null, "admin", "Admin");
+            await _activityLogService.LogAsync("Create", "Tour", tour.Id, tour.Name, $"Tạo Tour mới: {tour.Name}", null, actorEmail, actorName);
             return CreatedAtAction(nameof(GetById), new { id = tour.Id }, tour);
         }
         catch (Exception ex)
@@ -216,12 +220,13 @@ public class ToursController : ControllerBase
     {
         try
         {
+            var (actorEmail, actorName) = GetActorIdentity();
             var tour = await _tourService.UpdateAsync(id, dto);
             if (tour == null)
             {
                 return NotFound($"Tour with ID '{id}' not found");
             }
-            await _activityLogService.LogAsync("Update", "Tour", id, tour.Name, $"Cập nhật Tour: {tour.Name}", null, "admin", "Admin");
+            await _activityLogService.LogAsync("Update", "Tour", id, tour.Name, $"Cập nhật Tour: {tour.Name}", null, actorEmail, actorName);
             return Ok(tour);
         }
         catch (Exception ex)
@@ -239,12 +244,13 @@ public class ToursController : ControllerBase
     {
         try
         {
+            var (actorEmail, actorName) = GetActorIdentity();
             var success = await _tourService.DeleteAsync(id);
             if (!success)
             {
                 return NotFound($"Tour with ID '{id}' not found");
             }
-            await _activityLogService.LogAsync("Delete", "Tour", id, null, $"Xóa Tour ID: {id}", null, "admin", "Admin");
+            await _activityLogService.LogAsync("Delete", "Tour", id, null, $"Xóa Tour ID: {id}", null, actorEmail, actorName);
             return NoContent();
         }
         catch (Exception ex)
@@ -274,5 +280,15 @@ public class ToursController : ControllerBase
             _logger.LogError(ex, "Error reordering POIs in tour {Id}", id);
             return StatusCode(500, "An error occurred while reordering POIs");
         }
+    }
+
+    private (string Email, string Name) GetActorIdentity()
+    {
+        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+        var name = User.FindFirst(ClaimTypes.Name)?.Value;
+
+        return (
+            string.IsNullOrWhiteSpace(email) ? "system" : email,
+            string.IsNullOrWhiteSpace(name) ? "Hệ thống" : name);
     }
 }
