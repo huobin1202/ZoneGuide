@@ -9,9 +9,9 @@ namespace ZoneGuide.Mobile.Views;
 
 public partial class TourDetailPage : ContentPage
 {
-    private const double SheetExpandedHeight = 348;
+    private const double SheetExpandedHeight = 326;
     private const double SheetCollapsedHeight = 128;
-    private const uint SheetSnapAnimationMs = 260;
+    private const uint SheetSnapAnimationMs = 460;
 
     private double _panStartHeight;
     private bool _isPanning;
@@ -140,7 +140,7 @@ public partial class TourDetailPage : ContentPage
             }
         }, startHeight, targetHeight);
 
-        animation.Commit(this, "PoiBottomSheetSnap", 16, SheetSnapAnimationMs, Easing.CubicOut);
+        animation.Commit(this, "PoiBottomSheetSnap", 16, SheetSnapAnimationMs, Easing.SinOut);
     }
 
     private async void OnMiniMapTapped(object? sender, EventArgs e)

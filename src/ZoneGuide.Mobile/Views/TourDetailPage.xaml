@@ -289,22 +289,22 @@
                 Stroke="#D1D5DB"
                 StrokeThickness="1"
                 StrokeShape="RoundRectangle 24,24,0,0"
-                HeightRequest="348"
-                Padding="0,8,0,16"
+                HeightRequest="326"
+                Padding="0,8,0,10"
                 ZIndex="20">
             <Grid RowDefinitions="Auto,Auto,*"
                   RowSpacing="12">
                 <Grid Grid.Row="0"
-                      Padding="0,4,0,4">
+                      Padding="0,8,0,8">
                     <Grid.GestureRecognizers>
                         <PanGestureRecognizer PanUpdated="OnSheetPanUpdated" />
                     </Grid.GestureRecognizers>
                     <Border HorizontalOptions="Center"
-                            WidthRequest="56"
-                            HeightRequest="6"
+                            WidthRequest="72"
+                            HeightRequest="8"
                             BackgroundColor="#D1D5DB"
                             StrokeThickness="0"
-                            StrokeShape="RoundRectangle 3" />
+                            StrokeShape="RoundRectangle 4" />
                 </Grid>
 
                 <Grid Grid.Row="1"
@@ -341,14 +341,14 @@
                                 Grid.Row="2"
                                 ItemsSource="{Binding POIs}"
                                 SelectionMode="None"
-                                HeightRequest="258"
-                                Margin="16,0,16,4">
+                                HeightRequest="226"
+                                Margin="16,0,16,0">
                     <CollectionView.ItemsLayout>
-                        <LinearItemsLayout Orientation="Horizontal" ItemSpacing="12" />
+                        <LinearItemsLayout Orientation="Horizontal" ItemSpacing="10" />
                     </CollectionView.ItemsLayout>
                     <CollectionView.ItemTemplate>
                         <DataTemplate x:DataType="models:POI">
-                            <Border WidthRequest="228"
+                            <Border WidthRequest="196"
                                     Padding="0"
                                     BackgroundColor="White"
                                     Stroke="#E5E7EB"
@@ -364,8 +364,8 @@
                                                           CommandParameter="{Binding .}" />
                                 </Border.GestureRecognizers>
 
-                                <Grid RowDefinitions="150,Auto"
-                                      RowSpacing="10">
+                                <Grid RowDefinitions="124,Auto"
+                                      RowSpacing="8">
                                     <Grid Grid.Row="0">
                                         <Image Aspect="AspectFill">
                                             <Image.Source>
@@ -391,7 +391,7 @@
                                     </Grid>
 
                                     <VerticalStackLayout Grid.Row="1"
-                                                         Padding="12,0,12,12"
+                                                         Padding="12,0,12,8"
                                                          Spacing="4">
                                         <Label Text="{Binding Name}"
                                                FontSize="16"

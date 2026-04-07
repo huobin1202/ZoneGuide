@@ -39,7 +39,27 @@ public partial class HistoryViewModel : ObservableObject
     [ObservableProperty]
     private bool isCurrentNarrationPaused;
 
+    [ObservableProperty]
+    private HistoryFilterType selectedFilter = HistoryFilterType.Day;
+
+    [ObservableProperty]
+    private DateTime selectedDate = DateTime.Today;
+
+    [ObservableProperty]
+    private string selectedFilterOption = "Ngày";
+
+    private List<NarrationHistory> _historyCache = new();
+    private Dictionary<int, POI> _poiLookupCache = new();
+
     public ObservableCollection<HistoryDayGroup> HistoryGroups { get; } = new();
+    public ObservableCollection<HistoryDateFilterItem> DateFilters { get; } = new();
+
+    public IReadOnlyList<string> FilterOptions { get; } = ["Ngày", "Tuần", "Tháng", "Thời gian"];
+
+    public bool IsDayFilterSelected => SelectedFilter == HistoryFilterType.Day;
+    public bool IsWeekFilterSelected => SelectedFilter == HistoryFilterType.Week;
+    public bool IsMonthFilterSelected => SelectedFilter == HistoryFilterType.Month;
+    public bool IsAllTimeFilterSelected => SelectedFilter == HistoryFilterType.AllTime;
 
     public HistoryViewModel(
         IAnalyticsRepository analyticsRepository,
@@ -56,6 +76,7 @@ public partial class HistoryViewModel : ObservableObject
         _narrationService.NarrationCompleted += OnNarrationChanged;
         _narrationService.NarrationStopped += OnNarrationChanged;
         SyncNarrationState();
+        BuildDateFilters();
     }
 
     public async Task InitializeAsync()
@@ -79,31 +100,9 @@ public partial class HistoryViewModel : ObservableObject
             var allPois = await _poiRepository.GetAllAsync();
             var poiLookup = allPois.ToDictionary(p => p.Id);
 
-            var groupedByPoi = histories
-                .GroupBy(h => h.POIId)
-                .Select(g =>
-                {
-                    var ordered = g.OrderByDescending(x => x.StartTime).ToList();
-                    var latest = ordered.First();
-                    var totalDuration = ordered.Sum(x => ResolveDurationSeconds(x));
-                    var playCount = ordered.Count;
-                    var poi = poiLookup.TryGetValue(latest.POIId, out var p) ? p : null;
-
-                    return BuildHistoryItem(latest, poi, playCount, totalDuration);
-                })
-                .OrderByDescending(x => x.PlayedAt)
-                .ToList();
-
-            TotalHistoryCount = histories.Count;
-            TotalHistoryCountText = $"{TotalHistoryCount} {AppLocalizer.Instance.Translate("history_places_count")}";
-            TotalDurationText = FormatTotalDuration(histories.Sum(ResolveDurationSeconds));
-
-            HistoryGroups.Clear();
-            foreach (var group in groupedByPoi.GroupBy(x => x.GroupDate))
-            {
-                var title = FormatGroupTitle(group.Key);
-                HistoryGroups.Add(new HistoryDayGroup(title, group.ToList()));
-            }
+            _historyCache = histories;
+            _poiLookupCache = poiLookup;
+            ApplyHistoryFilter(poiLookup);
         }
         finally
         {
@@ -113,11 +112,188 @@ public partial class HistoryViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void SetFilter(string? filter)
+    {
+        if (string.IsNullOrWhiteSpace(filter))
+            return;
+
+        SelectedFilter = filter.ToLowerInvariant() switch
+        {
+            "day" => HistoryFilterType.Day,
+            "week" => HistoryFilterType.Week,
+            "month" => HistoryFilterType.Month,
+            "alltime" => HistoryFilterType.AllTime,
+            _ => SelectedFilter
+        };
+    }
+
+    partial void OnSelectedFilterChanged(HistoryFilterType value)
+    {
+        var mappedOption = value switch
+        {
+            HistoryFilterType.Day => "Ngày",
+            HistoryFilterType.Week => "Tuần",
+            HistoryFilterType.Month => "Tháng",
+            HistoryFilterType.AllTime => "Thời gian",
+            _ => "Ngày"
+        };
+
+        if (!string.Equals(SelectedFilterOption, mappedOption, StringComparison.Ordinal))
+        {
+            SelectedFilterOption = mappedOption;
+        }
+
+        OnPropertyChanged(nameof(IsDayFilterSelected));
+        OnPropertyChanged(nameof(IsWeekFilterSelected));
+        OnPropertyChanged(nameof(IsMonthFilterSelected));
+        OnPropertyChanged(nameof(IsAllTimeFilterSelected));
+        BuildDateFilters();
+        ApplyHistoryFilter();
+    }
+
+    partial void OnSelectedFilterOptionChanged(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return;
+
+        var mappedFilter = value switch
+        {
+            "Ngày" => HistoryFilterType.Day,
+            "Tuần" => HistoryFilterType.Week,
+            "Tháng" => HistoryFilterType.Month,
+            "Thời gian" => HistoryFilterType.AllTime,
+            _ => SelectedFilter
+        };
+
+        if (mappedFilter != SelectedFilter)
+        {
+            SelectedFilter = mappedFilter;
+        }
+    }
+
+    partial void OnSelectedDateChanged(DateTime value)
+    {
+        BuildDateFilters();
+        ApplyHistoryFilter();
+    }
+
+    [RelayCommand]
+    private void SelectDateFilter(HistoryDateFilterItem? item)
+    {
+        if (item == null)
+            return;
+
+        if (item.IsOverview)
+        {
+            SelectedFilter = HistoryFilterType.AllTime;
+            return;
+        }
+
+        SelectedDate = item.Date;
+        SelectedFilter = HistoryFilterType.Day;
+    }
+
+    private void BuildDateFilters()
+    {
+        DateFilters.Clear();
+        DateFilters.Add(new HistoryDateFilterItem
+        {
+            IsOverview = true,
+            IsSelected = SelectedFilter == HistoryFilterType.AllTime,
+            LeadingIcon = "👥"
+        });
+
+        var today = DateTime.Today;
+        var dayNames = new[] { "CN", "T.2", "T.3", "T.4", "T.5", "T.6", "T.7" };
+
+        for (var i = 0; i < 7; i++)
+        {
+            var date = today.AddDays(-i);
+            DateFilters.Add(new HistoryDateFilterItem
+            {
+                Date = date,
+                HeaderText = i == 0 ? "Hôm nay," : dayNames[(int)date.DayOfWeek],
+                DateText = date.ToString("dd/MM"),
+                DayText = $"Day {i + 1}",
+                IsSelected = SelectedFilter == HistoryFilterType.Day && SelectedDate.Date == date.Date
+            });
+        }
+    }
+
+    private void ApplyHistoryFilter(Dictionary<int, POI>? poiLookup = null)
+    {
+        var lookup = poiLookup ?? _poiLookupCache;
+
+        var filteredHistories = _historyCache
+            .Where(IsInSelectedRange)
+            .ToList();
+
+        var groupedByPoi = filteredHistories
+                .GroupBy(h => h.POIId)
+                .Select(g =>
+                {
+                    var ordered = g.OrderByDescending(x => x.StartTime).ToList();
+                    var latest = ordered.First();
+                    var totalDuration = ordered.Sum(x => ResolveDurationSeconds(x));
+                    var playCount = ordered.Count;
+                var poi = lookup.TryGetValue(latest.POIId, out var p) ? p : null;
+
+                    return BuildHistoryItem(latest, poi, playCount, totalDuration);
+                })
+                .OrderByDescending(x => x.PlayedAt)
+                .ToList();
+
+        TotalHistoryCount = filteredHistories.Count;
+        TotalHistoryCountText = $"{TotalHistoryCount} {AppLocalizer.Instance.Translate("history_places_count")}";
+        TotalDurationText = FormatTotalDuration(filteredHistories.Sum(ResolveDurationSeconds));
+
+        HistoryGroups.Clear();
+        foreach (var group in groupedByPoi.GroupBy(x => x.GroupDate))
+        {
+            var title = FormatGroupTitle(group.Key);
+            HistoryGroups.Add(new HistoryDayGroup(title, group.ToList()));
+        }
+
+        BuildDateFilters();
+    }
+
+    private bool IsInSelectedRange(NarrationHistory history)
+    {
+        if (SelectedFilter == HistoryFilterType.AllTime)
+            return true;
+
+        var playedAt = history.StartTime.ToLocalTime();
+        var date = SelectedDate.Date;
+
+        return SelectedFilter switch
+        {
+            HistoryFilterType.Day => playedAt.Date == date,
+            HistoryFilterType.Week => playedAt >= StartOfWeek(date) && playedAt < StartOfWeek(date).AddDays(7),
+            HistoryFilterType.Month => playedAt.Year == date.Year && playedAt.Month == date.Month,
+            _ => true
+        };
+    }
+
+    private static DateTime StartOfWeek(DateTime date)
+    {
+        var diff = (7 + (date.DayOfWeek - DayOfWeek.Monday)) % 7;
+        return date.AddDays(-diff).Date;
+    }
+
+    [RelayCommand]
     private async Task RefreshAsync()
     {
         IsRefreshing = true;
         await LoadHistoryAsync();
     }
+
+public enum HistoryFilterType
+{
+    Day,
+    Week,
+    Month,
+    AllTime
+}
 
     [RelayCommand]
     private async Task ReplayAsync(HistoryEntryViewModel? item)
@@ -331,6 +507,18 @@ public sealed class HistoryDayGroup : ObservableCollection<HistoryEntryViewModel
     {
         Title = title;
     }
+}
+
+public sealed class HistoryDateFilterItem
+{
+    public DateTime Date { get; init; } = DateTime.Today;
+    public string HeaderText { get; init; } = string.Empty;
+    public string DateText { get; init; } = string.Empty;
+    public string DayText { get; init; } = string.Empty;
+    public string LeadingIcon { get; init; } = string.Empty;
+    public bool IsSelected { get; init; }
+    public bool IsOverview { get; init; }
+    public bool IsDateItem => !IsOverview;
 }
 
 public partial class HistoryEntryViewModel : ObservableObject
