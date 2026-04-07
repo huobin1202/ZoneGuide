@@ -50,3 +50,10 @@ html, body {
 ::-webkit-scrollbar-thumb:hover {
     background: #555;
 }
+
+.dashboard-kpi-icon-left {
+    font-size: 56px;
+    color: #2563eb;
+    min-width: 60px;
+    line-height: 1;
+}

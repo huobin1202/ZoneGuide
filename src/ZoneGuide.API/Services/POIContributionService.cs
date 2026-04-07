@@ -251,34 +251,68 @@ public class POIContributionService : IPOIContributionService
             CreatedAt = DateTime.UtcNow
         });
         
-        // If approved, create actual POI
+        // If approved, update original POI (edit flow) or create new POI (new contribution flow)
         if (dto.Decision == POIApprovalStatus.Approved)
         {
-            var poi = new POIEntity
+            POIEntity? poi = null;
+
+            if (contribution.OriginalPOIId.HasValue)
             {
-                UniqueCode = $"POI-{DateTime.UtcNow:yyyyMMddHHmmss}-{contribution.Id}",
-                Name = contribution.Name,
-                ShortDescription = contribution.ShortDescription,
-                FullDescription = contribution.FullDescription,
-                Latitude = contribution.Latitude,
-                Longitude = contribution.Longitude,
-                TriggerRadius = contribution.TriggerRadius,
-                ApproachRadius = contribution.ApproachRadius,
-                Priority = contribution.Priority,
-                AudioUrl = contribution.AudioUrl,
-                TTSScript = contribution.TTSScript,
-                ImageUrl = contribution.ImageUrl,
-                MapLink = contribution.MapLink,
-                Category = contribution.Category,
-                Language = contribution.Language,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-            
-            _context.POIs.Add(poi);
+                poi = await _context.POIs.FirstOrDefaultAsync(p => p.Id == contribution.OriginalPOIId.Value);
+            }
+
+            if (poi != null)
+            {
+                poi.Name = contribution.Name;
+                poi.ShortDescription = contribution.ShortDescription;
+                poi.FullDescription = contribution.FullDescription;
+                poi.Latitude = contribution.Latitude;
+                poi.Longitude = contribution.Longitude;
+                poi.TriggerRadius = contribution.TriggerRadius;
+                poi.ApproachRadius = contribution.ApproachRadius;
+                poi.Priority = contribution.Priority;
+                poi.AudioUrl = contribution.AudioUrl;
+                poi.TTSScript = contribution.TTSScript;
+                poi.ImageUrl = contribution.ImageUrl;
+                poi.MapLink = contribution.MapLink;
+                poi.Category = contribution.Category;
+                poi.Language = contribution.Language;
+                poi.UpdatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                poi = new POIEntity
+                {
+                    UniqueCode = $"POI-{DateTime.UtcNow:yyyyMMddHHmmss}-{contribution.Id}",
+                    Name = contribution.Name,
+                    ShortDescription = contribution.ShortDescription,
+                    FullDescription = contribution.FullDescription,
+                    Latitude = contribution.Latitude,
+                    Longitude = contribution.Longitude,
+                    TriggerRadius = contribution.TriggerRadius,
+                    ApproachRadius = contribution.ApproachRadius,
+                    Priority = contribution.Priority,
+                    AudioUrl = contribution.AudioUrl,
+                    TTSScript = contribution.TTSScript,
+                    ImageUrl = contribution.ImageUrl,
+                    MapLink = contribution.MapLink,
+                    Category = contribution.Category,
+                    Language = contribution.Language,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                _context.POIs.Add(poi);
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Persist link so subsequent contributor edits can target the same POI.
+            contribution.OriginalPOIId = poi.Id;
+            contribution.UpdatedAt = DateTime.UtcNow;
         }
-        
+
         await _context.SaveChangesAsync();
         
         return await GetContributionDtoAsync(dto.ContributionId);

@@ -1,7 +1,6 @@
 @page "/"
 @inject IApiService ApiService
 
-<MudText Typo="Typo.h4" Class="mb-6">Bảng điều khiển</MudText>
 
 @if (_loading)
 {
@@ -12,26 +11,46 @@ else if (_dashboard != null)
     <MudGrid>
         <MudItem xs="12" sm="6" md="3">
             <MudPaper Class="pa-4" Elevation="1">
-                <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Tổng số địa điểm</MudText>
-                <MudText Typo="Typo.h4">@_dashboard.TotalPOIs</MudText>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.LocationOn" Class="dashboard-kpi-icon-left" />
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Tổng số địa điểm</MudText>
+                        <MudText Typo="Typo.h4">@_dashboard.TotalPOIs</MudText>
+                    </MudStack>
+                </MudStack>
             </MudPaper>
         </MudItem>
         <MudItem xs="12" sm="6" md="3">
             <MudPaper Class="pa-4" Elevation="1">
-                <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Tổng số chuyến tham quan</MudText>
-                <MudText Typo="Typo.h4">@_dashboard.TotalTours</MudText>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Route" Class="dashboard-kpi-icon-left" />
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Tổng số chuyến tham quan</MudText>
+                        <MudText Typo="Typo.h4">@_dashboard.TotalTours</MudText>
+                    </MudStack>
+                </MudStack>
             </MudPaper>
         </MudItem>
         <MudItem xs="12" sm="6" md="3">
             <MudPaper Class="pa-4" Elevation="1">
-                <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Tổng lượt nghe</MudText>
-                <MudText Typo="Typo.h4">@_dashboard.TotalListens</MudText>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Headset" Class="dashboard-kpi-icon-left" />
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Tổng lượt nghe</MudText>
+                        <MudText Typo="Typo.h4">@_dashboard.TotalListens</MudText>
+                    </MudStack>
+                </MudStack>
             </MudPaper>
         </MudItem>
         <MudItem xs="12" sm="6" md="3">
             <MudPaper Class="pa-4" Elevation="1">
-                <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Người dùng duy nhất</MudText>
-                <MudText Typo="Typo.h4">@_dashboard.UniqueUsers</MudText>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Groups" Class="dashboard-kpi-icon-left" />
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Người dùng duy nhất</MudText>
+                        <MudText Typo="Typo.h4">@_dashboard.UniqueUsers</MudText>
+                    </MudStack>
+                </MudStack>
             </MudPaper>
         </MudItem>
     </MudGrid>

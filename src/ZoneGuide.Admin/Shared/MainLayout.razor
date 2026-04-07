@@ -8,11 +8,11 @@
 
 @if (_initialized)
 {
-<MudLayout>
-    <MudAppBar Elevation="1">
+<MudLayout Class="layout-tall-appbar">
+    <MudAppBar Elevation="1" Class="topbar-tall">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
             OnClick="@ToggleDrawer" />
-        <MudText Typo="Typo.h5" Class="ml-3">ZoneGuide @(_isAdmin ? "Admin" : "Contributor")</MudText>
+        <MudText Typo="Typo.h5" Class="ml-3">ZoneGuide</MudText>
         <MudSpacer />
 
         @if (_currentUser != null)
@@ -30,7 +30,7 @@
                 </MudAvatar>
                 <MudStack Spacing="0">
                     <MudText Typo="Typo.subtitle2" Class="text-white">@_currentUser.DisplayName</MudText>
-                    <MudText Typo="Typo.caption" Class="text-white mud-text-secondary">@GetRoleDisplayName()</MudText>
+                    <MudText Typo="Typo.caption" Class="text-white" Style="color:#fff !important;">@GetRoleDisplayName()</MudText>
                 </MudStack>
             </MudStack>
         }
@@ -42,7 +42,7 @@
         }
     </MudAppBar>
 
-    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2" Class="main-sidebar">
         <div class="drawer-layout">
             <MudNavMenu>
                 @if (_isAdmin)
@@ -136,11 +136,47 @@ else
 }
 
 <style>
+    .layout-tall-appbar {
+        --mud-appbar-height: 78px;
+    }
+
+    .topbar-tall {
+        min-height: 78px !important;
+    }
+
+    .topbar-tall .mud-toolbar {
+        min-height: 78px !important;
+    }
+
     .drawer-layout {
         height: 100%;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+    }
+
+    .main-sidebar .mud-nav-link {
+        border: 1px solid transparent;
+        border-radius: 10px;
+        margin: 2px 8px;
+        transition: all .18s ease;
+    }
+
+    .main-sidebar .mud-nav-link.active {
+        border-color: #2b7cd3;
+        box-shadow: inset 0 0 0 1px rgba(43, 124, 211, 0.25);
+        background: rgba(43, 124, 211, 0.08);
+    }
+
+    .main-sidebar .mud-nav-link.active,
+    .main-sidebar .mud-nav-link.active .mud-nav-link-text {
+        color: #2b7cd3 !important;
+        font-weight: 600;
+    }
+
+    .main-sidebar .mud-nav-link.active .mud-nav-link-icon,
+    .main-sidebar .mud-nav-link.active .mud-icon-root {
+        color: #2b7cd3 !important;
     }
 </style>
 
