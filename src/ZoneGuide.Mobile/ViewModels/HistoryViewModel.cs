@@ -200,7 +200,7 @@ public partial class HistoryViewModel : ObservableObject
         {
             IsOverview = true,
             IsSelected = SelectedFilter == HistoryFilterType.AllTime,
-            LeadingIcon = "👥"
+            LeadingIcon = "◍"
         });
 
         var today = DateTime.Today;

@@ -421,21 +421,22 @@ public class NarrationService : INarrationService, IDisposable
                 await Task.Delay(50, cancellationToken);
             }
 
-            while (!completionTcs.Task.IsCompleted &&
-                   (_audioService.IsPlaying || _audioService.IsPaused) &&
-                   !cancellationToken.IsCancellationRequested)
-            {
-                await Task.Delay(100, cancellationToken);
-            }
-
             if (cancellationToken.IsCancellationRequested)
             {
                 throw new OperationCanceledException(cancellationToken);
             }
 
-            if (!completionTcs.Task.IsCompleted)
+            if (!_audioService.IsPlaying && !_audioService.IsPaused && !completionTcs.Task.IsCompleted)
             {
-                completionTcs.TrySetResult(true);
+                throw new InvalidOperationException("Audio did not start playback.");
+            }
+
+            var cancellationTask = Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            var finishedTask = await Task.WhenAny(completionTcs.Task, cancellationTask);
+
+            if (finishedTask == cancellationTask)
+            {
+                throw new OperationCanceledException(cancellationToken);
             }
 
             await completionTcs.Task;
@@ -582,6 +583,13 @@ public class NarrationService : INarrationService, IDisposable
         var preferredLanguage = NormalizeLanguage(_settingsService.Settings.PreferredLanguage);
         item.Language = preferredLanguage;
 
+        var localAudioPath = ResolveAvailableOfflineAudioPath(item);
+        if (!string.IsNullOrWhiteSpace(localAudioPath))
+        {
+            item.AudioPath = localAudioPath;
+            item.POI.AudioFilePath = localAudioPath;
+        }
+
         try
         {
             var translation = await _poiTranslationRepository.GetByPOIIdAndLanguageAsync(item.POI.Id, preferredLanguage);
@@ -589,11 +597,12 @@ public class NarrationService : INarrationService, IDisposable
                 return;
 
             // Khi có bản dịch, ưu tiên dữ liệu audio/text theo ngôn ngữ đã chọn.
-            item.AudioPath = null;
-
-            item.AudioUrl = string.IsNullOrWhiteSpace(translation.AudioUrl)
-                ? item.AudioUrl
-                : translation.AudioUrl;
+            if (string.IsNullOrWhiteSpace(item.AudioPath))
+            {
+                item.AudioUrl = string.IsNullOrWhiteSpace(translation.AudioUrl)
+                    ? item.AudioUrl
+                    : translation.AudioUrl;
+            }
 
             item.TTSText = !string.IsNullOrWhiteSpace(translation.TTSScript)
                 ? translation.TTSScript
@@ -616,6 +625,38 @@ public class NarrationService : INarrationService, IDisposable
         {
             System.Diagnostics.Debug.WriteLine($"[NarrationService] ApplyPreferredLanguageContentAsync failed: {ex.Message}");
         }
+    }
+
+    private static string? ResolveAvailableOfflineAudioPath(NarrationQueueItem item)
+    {
+        var candidates = new List<string?>
+        {
+            item.AudioPath,
+            item.POI.AudioFilePath
+        };
+
+        if (item.POI.Id > 0)
+        {
+            if (item.POI.TourId.HasValue && item.POI.TourId.Value > 0)
+            {
+                candidates.Add(Path.Combine(
+                    FileSystem.AppDataDirectory,
+                    "offline",
+                    item.POI.TourId.Value.ToString(),
+                    $"audio_{item.POI.Id}.mp3"));
+            }
+
+            candidates.Add(Path.Combine(
+                FileSystem.AppDataDirectory,
+                "offline",
+                "general",
+                $"audio_{item.POI.Id}.mp3"));
+        }
+
+        return candidates
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(path => path!)
+            .FirstOrDefault(File.Exists);
     }
 
     private static string NormalizeLanguage(string? code)

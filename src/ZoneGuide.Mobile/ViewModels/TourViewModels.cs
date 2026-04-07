@@ -131,7 +131,7 @@ public partial class TourDetailViewModel : ObservableObject
     private Color offlineCardBackground = Colors.Gray;
 
     [ObservableProperty]
-    private string distanceDisplay = "0m";
+    private string distanceDisplay = "0 km";
 
     [ObservableProperty]
     private string highlightsText = string.Empty;
@@ -183,6 +183,20 @@ public partial class TourDetailViewModel : ObservableObject
             IsOfflineAvailable = await _syncService.IsTourOfflineAvailableAsync(TourId);
 
             var pois = await _poiRepository.GetByTourIdAsync(TourId);
+
+            if (Tour.POICount > 1 && pois.Count < Tour.POICount)
+            {
+                try
+                {
+                    await _syncService.SyncFromServerAsync();
+                    pois = await _poiRepository.GetByTourIdAsync(TourId);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[TourDetailVM] Refresh POIs for tour {TourId} failed: {ex.Message}");
+                }
+            }
+
             POIs.Clear();
             foreach (var poi in pois)
             {
@@ -207,8 +221,8 @@ public partial class TourDetailViewModel : ObservableObject
             : Tour?.POICount ?? 0;
 
         DistanceDisplay = Tour == null
-            ? DistanceUnitService.FormatFromMeters(0)
-            : DistanceUnitService.FormatFromMeters(Tour.EstimatedDistanceMeters);
+            ? DistanceUnitService.FormatAsKilometers(0)
+            : DistanceUnitService.FormatAsKilometers(Tour.EstimatedDistanceMeters);
 
         HighlightsText = BuildHighlightsText();
 

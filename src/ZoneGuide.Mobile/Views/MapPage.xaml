@@ -80,6 +80,24 @@
                     SemanticProperties.Hint="Định vị vị trí hiện tại" />
         </VerticalStackLayout>
 
+        <Button x:Name="TourRecenterButton"
+                Text="➤"
+                WidthRequest="48"
+                HeightRequest="48"
+                CornerRadius="24"
+                Padding="0"
+                FontSize="22"
+                HorizontalOptions="Start"
+                VerticalOptions="Start"
+                Margin="0"
+                BackgroundColor="White"
+                BorderColor="#1664D6"
+                BorderWidth="2"
+                TextColor="#1664D6"
+                IsVisible="False"
+                Command="{Binding CenterOnUserCommand}"
+                SemanticProperties.Hint="Chỉ hướng vị trí hiện tại khi nằm ngoài vùng bản đồ đang hiển thị" />
+
         <Border x:Name="SelectedPoiOverlay"
                 BackgroundColor="White"
                 Stroke="#E5E7EB"
@@ -89,14 +107,6 @@
                 Padding="10,8"
                 VerticalOptions="End"
                 IsVisible="{Binding IsSelectedPoiPlayerVisible}">
-            <Border.Triggers>
-                <DataTrigger TargetType="Border"
-                             Binding="{Binding IsTourPoiListVisible}"
-                             Value="True">
-                    <Setter Property="Margin"
-                            Value="16,0,16,342" />
-                </DataTrigger>
-            </Border.Triggers>
             <Border.GestureRecognizers>
                 <TapGestureRecognizer Command="{Binding ViewPOIDetailCommand}" />
             </Border.GestureRecognizers>
@@ -117,6 +127,28 @@
                                 </MultiBinding>
                             </Image.Source>
                         </Image>
+                    </Border>
+
+                    <Border IsVisible="{Binding IsTourModeActive}"
+                            BackgroundColor="#99111827"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 8"
+                            HorizontalOptions="End"
+                            VerticalOptions="End"
+                            Margin="0,0,4,4"
+                            Padding="6,2">
+                        <HorizontalStackLayout Spacing="3">
+                            <Label Text="➤"
+                                   FontSize="9"
+                                   Rotation="-45"
+                                   TextColor="White"
+                                   VerticalTextAlignment="Center" />
+                            <Label Text="{Binding SelectedPoiDistanceDisplay}"
+                                   FontSize="11"
+                                   FontAttributes="Bold"
+                                   TextColor="White"
+                                   VerticalTextAlignment="Center" />
+                        </HorizontalStackLayout>
                     </Border>
 
                     <Border BackgroundColor="#E91E63"
@@ -203,17 +235,24 @@
                 StrokeThickness="1"
                 StrokeShape="RoundRectangle 24,24,0,0"
                 Margin="0"
-                HeightRequest="326"
+                HeightRequest="296"
                 Padding="0,8,0,12">
                 <Grid RowDefinitions="Auto,Auto,*"
                     RowSpacing="10">
-                    <Border Grid.Row="0"
-                            HorizontalOptions="Center"
-                            WidthRequest="52"
-                            HeightRequest="6"
-                            BackgroundColor="#D1D5DB"
-                            StrokeThickness="0"
-                            StrokeShape="RoundRectangle 3" />
+                    <Grid Grid.Row="0"
+                          HeightRequest="28">
+                        <Grid.GestureRecognizers>
+                            <PanGestureRecognizer PanUpdated="OnTourSheetPanUpdated" />
+                        </Grid.GestureRecognizers>
+
+                        <Border HorizontalOptions="Center"
+                                VerticalOptions="Center"
+                                WidthRequest="90"
+                                HeightRequest="10"
+                                BackgroundColor="#D1D5DB"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 5" />
+                    </Grid>
 
                           <Grid Grid.Row="1"
                                   Padding="16,0,16,0"
@@ -232,21 +271,26 @@
                                 StrokeShape="RoundRectangle 12"
                                 Padding="9,5"
                                 VerticalOptions="Center">
-                            <HorizontalStackLayout Spacing="5">
+                            <HorizontalStackLayout Spacing="5"
+                                                   HorizontalOptions="Center"
+                                                   VerticalOptions="Center">
                                 <Label Text="⌖"
-                                       FontSize="13" />
+                                       FontSize="13"
+                                       VerticalTextAlignment="Center" />
                                 <Label Text="{Binding ActiveTourPoiCount}"
                                        FontSize="13"
-                                       FontAttributes="Bold" />
+                                       FontAttributes="Bold"
+                                       VerticalTextAlignment="Center" />
                             </HorizontalStackLayout>
                         </Border>
                     </Grid>
 
-                    <CollectionView Grid.Row="2"
+                    <CollectionView x:Name="TourPoiCollectionView"
+                                    Grid.Row="2"
                                     ItemsSource="{Binding POIs}"
                                     SelectionMode="None"
                                     Margin="10,0,0,0"
-                                    HeightRequest="248">
+                                    HeightRequest="214">
                         <CollectionView.ItemsLayout>
                             <LinearItemsLayout Orientation="Horizontal"
                                                ItemSpacing="12" />
@@ -262,7 +306,7 @@
                                         StrokeThickness="1"
                                         StrokeShape="RoundRectangle 18">
                                     <Border.GestureRecognizers>
-                                        <TapGestureRecognizer Command="{Binding Source={x:Reference MapPageRoot}, Path=BindingContext.ShowTourGroupMarkersCommand}" />
+                                        <TapGestureRecognizer Command="{Binding Source={x:Reference MapPageRoot}, Path=BindingContext.ShowStartTourCommand}" />
                                     </Border.GestureRecognizers>
 
                                     <VerticalStackLayout Spacing="10"
@@ -300,6 +344,7 @@
                         <CollectionView.ItemTemplate>
                             <DataTemplate x:DataType="models:POI">
                                 <Border WidthRequest="176"
+                                        HeightRequest="202"
                                         Padding="7"
                                         BackgroundColor="White"
                                         Stroke="#E5E7EB"
@@ -327,7 +372,7 @@
                                                               CommandParameter="{Binding .}" />
                                     </Border.GestureRecognizers>
 
-                                    <Grid RowDefinitions="116,Auto"
+                                    <Grid RowDefinitions="104,*"
                                         RowSpacing="7">
                                         <Grid Grid.Row="0">
                                             <Border Padding="0"

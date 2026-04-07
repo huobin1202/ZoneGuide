@@ -21,16 +21,7 @@
                        FontAttributes="Bold"
                        TextColor="{StaticResource Gray950}"
                        VerticalOptions="End" />
-                <Label Grid.Column="1"
-                       Text="⚙"
-                       FontSize="22"
-                       TextColor="{StaticResource Gray950}"
-                       VerticalOptions="End" />
-                <Label Grid.Column="2"
-                       Text="⌖"
-                       FontSize="22"
-                       TextColor="{StaticResource Gray950}"
-                       VerticalOptions="End" />
+
             </Grid>
 
             <CollectionView ItemsSource="{Binding DateFilters}"
@@ -65,8 +56,17 @@
                                 <Label Text="{Binding LeadingIcon}"
                                        IsVisible="{Binding IsOverview}"
                                        FontSize="28"
+                                       Margin="0,-6,0,0"
                                        HorizontalOptions="Center"
                                        VerticalOptions="Center" />
+                                <Label Text="Overview"
+                                       IsVisible="{Binding IsOverview}"
+                                       FontSize="11"
+                                       FontAttributes="Bold"
+                                       TextColor="{StaticResource Gray900}"
+                                       HorizontalOptions="Center"
+                                       VerticalOptions="End"
+                                       Margin="0,0,0,2" />
                                 <VerticalStackLayout IsVisible="{Binding IsDateItem}"
                                                      Spacing="2"
                                                      HorizontalOptions="Center"

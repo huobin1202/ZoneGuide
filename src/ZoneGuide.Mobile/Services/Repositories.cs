@@ -152,7 +152,7 @@ public class POIRepository : IPOIRepository
                 shortDescription: missing,
                 fullDescription: missing,
                 ttsScript: missing,
-                audioFilePath: null,
+                audioFilePath: poi.AudioFilePath,
                 audioUrl: null,
                 language: preferredLanguage);
         }
@@ -181,7 +181,7 @@ public class POIRepository : IPOIRepository
             shortDescription: resolvedShortDescription,
             fullDescription: resolvedFullDescription,
             ttsScript: resolvedNarration,
-            audioFilePath: null,
+            audioFilePath: poi.AudioFilePath,
             audioUrl: string.IsNullOrWhiteSpace(translation.AudioUrl) ? poi.AudioUrl : translation.AudioUrl,
             language: preferredLanguage);
     }

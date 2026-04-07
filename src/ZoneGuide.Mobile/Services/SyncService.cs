@@ -245,11 +245,25 @@ public class SyncService : ISyncService
                 string? savedAudioPath = null;
                 string? savedImagePath = null;
 
+                POI? localPoi = null;
+                if (int.TryParse(poi.Id, out var poiIdForLookup))
+                {
+                    localPoi = await _poiRepository.GetByIdAsync(poiIdForLookup);
+                }
+
+                var resolvedAudioUrl = !string.IsNullOrWhiteSpace(poi.AudioUrl)
+                    ? poi.AudioUrl
+                    : localPoi?.AudioUrl;
+
+                var resolvedImageUrl = !string.IsNullOrWhiteSpace(poi.ImageUrl)
+                    ? poi.ImageUrl
+                    : localPoi?.ImageUrl;
+
                 // Tải audio
-                if (!string.IsNullOrEmpty(poi.AudioUrl))
+                if (!string.IsNullOrWhiteSpace(resolvedAudioUrl))
                 {
                     downloadableAssetCount++;
-                    var audioData = await _apiService.DownloadAudioAsync(poi.AudioUrl);
+                    var audioData = await _apiService.DownloadAudioAsync(resolvedAudioUrl);
                     if (audioData != null)
                     {
                         var audioPath = Path.Combine(offlineDir, $"audio_{poi.Id}.mp3");
@@ -260,10 +274,10 @@ public class SyncService : ISyncService
                 }
 
                 // Tải ảnh
-                if (!string.IsNullOrEmpty(poi.ImageUrl))
+                if (!string.IsNullOrWhiteSpace(resolvedImageUrl))
                 {
                     downloadableAssetCount++;
-                    var imageData = await _apiService.DownloadImageAsync(poi.ImageUrl);
+                    var imageData = await _apiService.DownloadImageAsync(resolvedImageUrl);
                     if (imageData != null)
                     {
                         var imagePath = Path.Combine(offlineDir, $"image_{poi.Id}.jpg");
@@ -275,7 +289,7 @@ public class SyncService : ISyncService
 
                 if (int.TryParse(poi.Id, out var poiId))
                 {
-                    var localPoi = await _poiRepository.GetByIdAsync(poiId);
+                    localPoi ??= await _poiRepository.GetByIdAsync(poiId);
                     if (localPoi != null)
                     {
                         if (!string.IsNullOrWhiteSpace(savedAudioPath))

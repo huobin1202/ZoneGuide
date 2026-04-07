@@ -9,7 +9,7 @@ namespace ZoneGuide.Mobile.Views;
 
 public partial class TourDetailPage : ContentPage
 {
-    private const double SheetExpandedHeight = 326;
+    private const double SheetExpandedHeight = 306;
     private const double SheetCollapsedHeight = 128;
     private const uint SheetSnapAnimationMs = 460;
 
@@ -156,7 +156,15 @@ public partial class TourDetailPage : ContentPage
         if (_viewModel.Tour == null)
             return;
 
-        await Shell.Current.GoToAsync($"//map?tourId={_viewModel.Tour.Id}");
+        await Shell.Current.GoToAsync($"//map?tourId={_viewModel.Tour.Id}&startTour=true");
+    }
+
+    private async void OnSearchTapped(object? sender, EventArgs e)
+    {
+        if (_viewModel.Tour == null)
+            return;
+
+        await Shell.Current.GoToAsync($"//map?tourId={_viewModel.Tour.Id}&startTour=true&openSearch=true");
     }
 
     private async void OnDirectionsTapped(object? sender, EventArgs e)
