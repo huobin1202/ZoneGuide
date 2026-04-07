@@ -190,7 +190,9 @@
                                         <div class="poi-main">
                                             <div class="d-flex justify-space-between align-start gap-2 mb-1">
                                                 <div class="poi-title-wrap" title="@poi.Name">
-                                                    <MudText Typo="Typo.subtitle1" Class="poi-name-ellipsis"><b>@poi.Name</b></MudText>
+                                                    <MudTooltip Text="@GetPoiDescriptionOrFallback(poi)">
+                                                        <MudText Typo="Typo.subtitle1" Class="poi-name-ellipsis"><b>@poi.Name</b></MudText>
+                                                    </MudTooltip>
                                                 </div>
                                                 <div class="d-flex gap-1 poi-card-actions">
                                                     <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" title="Chỉnh sửa" OnClick="@(() => OpenEditMode(poi))" />
@@ -209,9 +211,11 @@
                                                 <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" />
                                                 <span class="poi-address-ellipsis" title="@DisplayAddressOrFallback(poi.Address)">@DisplayAddressOrFallback(poi.Address)</span>
                                             </MudText>
-                                            <MudText Typo="Typo.body2" Color="Color.Default" Class="clamp-2">
-                                                @(poi.TTSScript ?? poi.FullDescription ?? poi.ShortDescription ?? "Chưa có nội dung thuyết minh (TTS)")
-                                            </MudText>
+                                            <MudTooltip Text="@GetPoiDescriptionOrFallback(poi)">
+                                                <MudText Typo="Typo.body2" Color="Color.Default" Class="clamp-2">
+                                                    @(poi.TTSScript ?? poi.FullDescription ?? poi.ShortDescription ?? "Chưa có nội dung thuyết minh")
+                                                </MudText>
+                                            </MudTooltip>
                                         </div>
                                     </div>
                                 </MudCard>
@@ -1238,6 +1242,14 @@
 
     private static string DisplayAddressOrFallback(string? address)
         => string.IsNullOrWhiteSpace(address) ? "Không có địa chỉ" : address.Trim();
+
+    private static string GetPoiDescriptionOrFallback(POIDto poi)
+    {
+        var description = poi.TTSScript ?? poi.FullDescription ?? poi.ShortDescription;
+        return string.IsNullOrWhiteSpace(description)
+            ? "Chưa có nội dung thuyết minh"
+            : description.Trim();
+    }
 
     private static string? NormalizePoiAddress(string? address)
     {

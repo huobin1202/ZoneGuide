@@ -177,7 +177,8 @@ public class POIRepository : IPOIRepository
 
         return ClonePoiWithResolvedContent(
             poi,
-            name: string.IsNullOrWhiteSpace(translation.Name) ? poi.Name : translation.Name,
+            // Preserve original place name across all languages.
+            name: poi.Name,
             shortDescription: resolvedShortDescription,
             fullDescription: resolvedFullDescription,
             ttsScript: resolvedNarration,
