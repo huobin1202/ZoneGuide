@@ -40,13 +40,13 @@ public partial class HistoryViewModel : ObservableObject
     private bool isCurrentNarrationPaused;
 
     [ObservableProperty]
-    private HistoryFilterType selectedFilter = HistoryFilterType.Day;
+    private HistoryFilterType selectedFilter = HistoryFilterType.AllTime;
 
     [ObservableProperty]
     private DateTime selectedDate = DateTime.Today;
 
     [ObservableProperty]
-    private string selectedFilterOption = "Ngày";
+    private string selectedFilterOption = "Thời gian";
 
     private List<NarrationHistory> _historyCache = new();
     private Dictionary<int, POI> _poiLookupCache = new();
@@ -204,18 +204,22 @@ public partial class HistoryViewModel : ObservableObject
         });
 
         var today = DateTime.Today;
-        var dayNames = new[] { "CN", "T.2", "T.3", "T.4", "T.5", "T.6", "T.7" };
+        var startOfWeek = StartOfWeek(today);
+        var dayNames = new[] { "T.2", "T.3", "T.4", "T.5", "T.6", "T.7", "CN" };
 
         for (var i = 0; i < 7; i++)
         {
-            var date = today.AddDays(-i);
+            var date = startOfWeek.AddDays(i);
+            var dayIndex = date.DayOfWeek == DayOfWeek.Sunday ? 6 : ((int)date.DayOfWeek - 1);
+            var weekdayLabel = dayNames[dayIndex];
+
             DateFilters.Add(new HistoryDateFilterItem
             {
                 Date = date,
-                HeaderText = i == 0 ? "Hôm nay," : dayNames[(int)date.DayOfWeek],
+                HeaderText = weekdayLabel,
                 DateText = date.ToString("dd/MM"),
-                DayText = $"Day {i + 1}",
-                IsSelected = SelectedFilter == HistoryFilterType.Day && SelectedDate.Date == date.Date
+                DayText = date.DayOfWeek == today.DayOfWeek ? "Hôm nay" : string.Empty,
+                IsSelected = SelectedFilter == HistoryFilterType.Day && SelectedDate.DayOfWeek == date.DayOfWeek
             });
         }
     }
@@ -267,7 +271,7 @@ public partial class HistoryViewModel : ObservableObject
 
         return SelectedFilter switch
         {
-            HistoryFilterType.Day => playedAt.Date == date,
+            HistoryFilterType.Day => playedAt.DayOfWeek == date.DayOfWeek,
             HistoryFilterType.Week => playedAt >= StartOfWeek(date) && playedAt < StartOfWeek(date).AddDays(7),
             HistoryFilterType.Month => playedAt.Year == date.Year && playedAt.Month == date.Month,
             _ => true

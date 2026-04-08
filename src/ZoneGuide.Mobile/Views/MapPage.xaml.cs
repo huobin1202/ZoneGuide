@@ -32,6 +32,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
     private bool _isSearchSheetOpen;
     private int? _focusPoiIdRequestedOnNavigation;
     private bool _openSearchRequestedOnNavigation;
+    private bool _startNavigationToPoiRequestedOnNavigation;
     private bool _isTourSheetPanning;
     private double _tourSheetPanStartHeight;
     private const double OffscreenIndicatorSize = 48;
@@ -93,8 +94,13 @@ public partial class MapPage : ContentPage, IQueryAttributable
                     }
 
                     UpdateSelectedPoiOverlayMargin();
+                    UpdateMapZoomControlsMargin();
                     UpdateTourRecenterButtonVisibility();
                 });
+            }
+            else if (e.PropertyName == nameof(MapViewModel.IsSelectedPoiPlayerVisible))
+            {
+                MainThread.BeginInvokeOnMainThread(() => UpdateMapZoomControlsMargin());
             }
             else if (e.PropertyName == nameof(MapViewModel.IsTourModeActive) ||
                      e.PropertyName == nameof(MapViewModel.UserLocation))
@@ -163,13 +169,23 @@ public partial class MapPage : ContentPage, IQueryAttributable
             UpdateTourRoute();
             UpdateMapRegion();
             UpdateTourRecenterButtonVisibility();
+            UpdateMapZoomControlsMargin();
 
             if (_focusPoiIdRequestedOnNavigation.HasValue)
             {
-                await _viewModel.FocusPOIByIdAsync(_focusPoiIdRequestedOnNavigation.Value);
+                if (_startNavigationToPoiRequestedOnNavigation)
+                {
+                    await _viewModel.PrepareInAppNavigationToPoiAsync(_focusPoiIdRequestedOnNavigation.Value);
+                }
+                else
+                {
+                    await _viewModel.FocusPOIByIdAsync(_focusPoiIdRequestedOnNavigation.Value);
+                }
+
                 UpdateMapPins();
                 UpdateMapRegion();
                 _focusPoiIdRequestedOnNavigation = null;
+                _startNavigationToPoiRequestedOnNavigation = false;
             }
 
             if (!_tourOverlayRequestedOnNavigation)
@@ -187,6 +203,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
             UpdateTourRoute();
             UpdateMapRegion();
             UpdateTourRecenterButtonVisibility();
+            UpdateMapZoomControlsMargin();
 
             ResetSearchSheetLayout();
 
@@ -211,6 +228,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
             var tourId = TryGetIntQueryValue(query, "tourId");
             var startTour = TryGetBoolQueryValue(query, "startTour");
             _openSearchRequestedOnNavigation = TryGetBoolQueryValue(query, "openSearch");
+            _startNavigationToPoiRequestedOnNavigation = TryGetBoolQueryValue(query, "navigate");
             var hasTourOverlayContext = startTour && tourId.HasValue;
 
             _tourOverlayRequestedOnNavigation = hasTourOverlayContext;
@@ -227,10 +245,19 @@ public partial class MapPage : ContentPage, IQueryAttributable
                 {
                     _ = MainThread.InvokeOnMainThreadAsync(async () =>
                     {
-                        await _viewModel.FocusPOIByIdAsync(_focusPoiIdRequestedOnNavigation.Value);
+                        if (_startNavigationToPoiRequestedOnNavigation)
+                        {
+                            await _viewModel.PrepareInAppNavigationToPoiAsync(_focusPoiIdRequestedOnNavigation.Value);
+                        }
+                        else
+                        {
+                            await _viewModel.FocusPOIByIdAsync(_focusPoiIdRequestedOnNavigation.Value);
+                        }
+
                         UpdateMapPins();
                         UpdateMapRegion();
                         _focusPoiIdRequestedOnNavigation = null;
+                        _startNavigationToPoiRequestedOnNavigation = false;
                     });
                 }
 
@@ -243,8 +270,17 @@ public partial class MapPage : ContentPage, IQueryAttributable
 
                 if (_focusPoiIdRequestedOnNavigation.HasValue)
                 {
-                    await _viewModel.FocusPOIByIdAsync(_focusPoiIdRequestedOnNavigation.Value);
+                    if (_startNavigationToPoiRequestedOnNavigation)
+                    {
+                        await _viewModel.PrepareInAppNavigationToPoiAsync(_focusPoiIdRequestedOnNavigation.Value);
+                    }
+                    else
+                    {
+                        await _viewModel.FocusPOIByIdAsync(_focusPoiIdRequestedOnNavigation.Value);
+                    }
+
                     _focusPoiIdRequestedOnNavigation = null;
+                    _startNavigationToPoiRequestedOnNavigation = false;
                 }
 
                 UpdateMapPins();
@@ -574,6 +610,56 @@ public partial class MapPage : ContentPage, IQueryAttributable
 
         var current = SelectedPoiOverlay.Margin;
         SelectedPoiOverlay.Margin = new Thickness(current.Left, current.Top, current.Right, bottom);
+        UpdateMapZoomControlsMargin(currentSheetHeight);
+    }
+
+    private void UpdateMapZoomControlsMargin(double? currentSheetHeight = null)
+    {
+        if (MapZoomControls == null)
+            return;
+
+        var bottom = 16d;
+
+        if (_viewModel.IsSelectedPoiPlayerVisible && SelectedPoiOverlay != null)
+        {
+            var overlayHeight = SelectedPoiOverlay.Height > 0 ? SelectedPoiOverlay.Height : 98;
+            var overlayBottom = SelectedPoiOverlay.Margin.Bottom;
+            bottom = Math.Max(bottom, overlayBottom + overlayHeight + 12);
+        }
+
+        if (_viewModel.IsTourPoiListVisible && TourPoiBottomSheet != null)
+        {
+            var sheetHeight = currentSheetHeight
+                ?? (TourPoiBottomSheet.HeightRequest > 0 ? TourPoiBottomSheet.HeightRequest : TourSheetCollapsedHeight);
+            bottom = Math.Max(bottom, sheetHeight + 12);
+        }
+
+        var current = MapZoomControls.Margin;
+        MapZoomControls.Margin = new Thickness(current.Left, current.Top, current.Right, bottom);
+    }
+
+    private void OnZoomInClicked(object? sender, EventArgs e)
+    {
+        ZoomMap(0.6);
+    }
+
+    private void OnZoomOutClicked(object? sender, EventArgs e)
+    {
+        ZoomMap(1.6);
+    }
+
+    private void ZoomMap(double factor)
+    {
+        if (MainMap == null)
+            return;
+
+        var visible = MainMap.VisibleRegion ?? _viewModel.MapSpan;
+        if (visible == null)
+            return;
+
+        var nextLat = Math.Clamp(visible.LatitudeDegrees * factor, 0.0006, 120);
+        var nextLon = Math.Clamp(visible.LongitudeDegrees * factor, 0.0006, 120);
+        _viewModel.MapSpan = new MapSpan(visible.Center, nextLat, nextLon);
     }
 
 #if ANDROID
@@ -592,6 +678,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
         if (_nativeMap.UiSettings != null)
         {
             _nativeMap.UiSettings.MyLocationButtonEnabled = false;
+                    _nativeMap.UiSettings.ZoomControlsEnabled = false;
         }
     }
 
@@ -1069,6 +1156,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
         _isSearchSheetOpen = false;
         SearchSheetBackdrop.IsVisible = false;
         SearchSheetBackdrop.Opacity = 0;
+        MapSearchSheet.IsVisible = false;
         MapSearchSheet.TranslationY = GetSearchSheetClosedTranslationY();
     }
 
@@ -1090,6 +1178,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
             return;
 
         _isSearchSheetOpen = true;
+        MapSearchSheet.IsVisible = true;
         SearchSheetBackdrop.IsVisible = true;
         SearchSheetBackdrop.Opacity = 0;
         MapSearchSheet.TranslationY = GetSearchSheetClosedTranslationY();
@@ -1111,6 +1200,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
             MapSearchSheet.TranslateToAsync(0, GetSearchSheetClosedTranslationY(), 180, Easing.CubicIn));
 
         SearchSheetBackdrop.IsVisible = false;
+        MapSearchSheet.IsVisible = false;
     }
 
     private async void OnOpenSearchSheetTapped(object? sender, TappedEventArgs e)

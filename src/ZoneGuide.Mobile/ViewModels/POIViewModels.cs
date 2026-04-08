@@ -644,9 +644,25 @@ public partial class POIDetailViewModel : ObservableObject
         if (CurrentPoi == null)
             return;
 
-        var location = new Location(CurrentPoi.Latitude, CurrentPoi.Longitude);
-        var options = new MapLaunchOptions { NavigationMode = NavigationMode.Walking };
-        await Microsoft.Maui.ApplicationModel.Map.Default.OpenAsync(location, options);
+        var action = await Shell.Current.DisplayActionSheet(
+            "Chọn cách chỉ đường",
+            "Hủy",
+            null,
+            "Chỉ đường trong app",
+            "Google Maps");
+
+        if (string.Equals(action, "Chỉ đường trong app", StringComparison.Ordinal))
+        {
+            await Shell.Current.GoToAsync($"//map?poiId={CurrentPoi.Id}&navigate=true");
+            return;
+        }
+
+        if (string.Equals(action, "Google Maps", StringComparison.Ordinal))
+        {
+            var destination = $"{CurrentPoi.Latitude.ToString(CultureInfo.InvariantCulture)},{CurrentPoi.Longitude.ToString(CultureInfo.InvariantCulture)}";
+            var url = $"https://www.google.com/maps/dir/?api=1&destination={destination}&travelmode=walking";
+            await Microsoft.Maui.ApplicationModel.Launcher.Default.OpenAsync(url);
+        }
     }
 
     [RelayCommand]

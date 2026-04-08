@@ -458,6 +458,7 @@
         </BoxView>
 
     <Border x:Name="MapSearchSheet"
+        IsVisible="False"
         VerticalOptions="Fill"
         Margin="0"
         Padding="12,8,12,12"
@@ -582,6 +583,44 @@
                     </CollectionView.ItemTemplate>
                 </CollectionView>
             </Grid>
+        </Border>
+
+        <Border x:Name="MapZoomControls"
+                HorizontalOptions="End"
+                VerticalOptions="End"
+                Margin="0,0,16,16"
+                BackgroundColor="#F8FAFC"
+                Stroke="#D1D5DB"
+                StrokeThickness="1"
+                StrokeShape="RoundRectangle 16"
+                Padding="4">
+            <VerticalStackLayout Spacing="2">
+                <Button Text="+"
+                        WidthRequest="44"
+                        HeightRequest="44"
+                        CornerRadius="12"
+                        Padding="0"
+                        FontSize="24"
+                        FontAttributes="Bold"
+                        BackgroundColor="Transparent"
+                        TextColor="#111827"
+                        Clicked="OnZoomInClicked" />
+
+                <BoxView HeightRequest="1"
+                         Margin="4,0"
+                         Color="#E5E7EB" />
+
+                <Button Text="−"
+                        WidthRequest="44"
+                        HeightRequest="44"
+                        CornerRadius="12"
+                        Padding="0"
+                        FontSize="24"
+                        FontAttributes="Bold"
+                        BackgroundColor="Transparent"
+                        TextColor="#111827"
+                        Clicked="OnZoomOutClicked" />
+            </VerticalStackLayout>
         </Border>
 
         <ActivityIndicator IsRunning="{Binding IsLoading}"

@@ -8,6 +8,7 @@ using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Maps;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 
 namespace ZoneGuide.Mobile.ViewModels;
@@ -29,6 +30,9 @@ public partial class MapViewModel : ObservableObject
     private static readonly TimeSpan AutoNarrationDebounce = TimeSpan.FromSeconds(1.2);
     private static readonly TimeSpan AutoNarrationSamePoiCooldown = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan AutoOpenPoiDetailCooldown = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan InAppNavigationRouteUpdateInterval = TimeSpan.FromSeconds(4);
+    private const double InAppNavigationMinRebuildDistanceMeters = 20;
+    private const double InAppNavigationArrivedDistanceMeters = 18;
     private static readonly HttpClient RouteHttpClient = new() { Timeout = TimeSpan.FromSeconds(6) };
 
     private readonly ILocationService _locationService;
@@ -50,6 +54,10 @@ public partial class MapViewModel : ObservableObject
     private DateTime _lastAutoOpenedAtUtc = DateTime.MinValue;
     private int? _lastAutoNarrationPoiId;
     private DateTime _lastAutoNarrationAtUtc = DateTime.MinValue;
+    private int? _activeInAppNavigationPoiId;
+    private Location? _lastInAppNavigationOrigin;
+    private DateTime _lastInAppNavigationRouteUpdatedAtUtc = DateTime.MinValue;
+    private bool _isUpdatingInAppNavigationRoute;
     private readonly Dictionary<int, DateTime> _autoNarrationDebounceByPoi = new();
     private CancellationTokenSource? _routeBuildCts;
 
@@ -595,6 +603,8 @@ public partial class MapViewModel : ObservableObject
     [RelayCommand]
     private void PerformSearch()
     {
+        _activeInAppNavigationPoiId = null;
+        _lastInAppNavigationOrigin = null;
         ClearTourRoute();
         IsTourModeActive = false;
         ActiveTourName = string.Empty;
@@ -615,13 +625,14 @@ public partial class MapViewModel : ObservableObject
             return;
         }
 
-        var query = SearchQuery?.ToLowerInvariant();
-        var results = _allPOIs.Where(p => 
-            (string.IsNullOrWhiteSpace(query) || p.Name.ToLowerInvariant().Contains(query) || 
-            (p.TTSScript != null && p.TTSScript.ToLowerInvariant().Contains(query)) ||
-            (p.FullDescription != null && p.FullDescription.ToLowerInvariant().Contains(query)) ||
-            (p.ShortDescription != null && p.ShortDescription.ToLowerInvariant().Contains(query))) &&
-            (string.IsNullOrWhiteSpace(SelectedCategory) || IsAllCategorySelection(SelectedCategory) || p.Category == SelectedCategory))
+        var normalizedQuery = NormalizeSearchText(SearchQuery);
+
+        var results = _allPOIs
+            .Where(p =>
+                MatchesSearchQuery(p, normalizedQuery) &&
+                (string.IsNullOrWhiteSpace(SelectedCategory) || IsAllCategorySelection(SelectedCategory) || IsCategoryMatch(p.Category, SelectedCategory)))
+            .OrderBy(p => GetSearchRank(p, normalizedQuery))
+            .ThenBy(p => p.Name)
             .ToList();
 
         PopulatePins(results);
@@ -728,6 +739,93 @@ public partial class MapViewModel : ObservableObject
         return true;
     }
 
+    public async Task<bool> PrepareInAppNavigationToPoiAsync(int poiId)
+    {
+        var focused = await FocusPOIByIdAsync(poiId);
+        if (!focused)
+            return false;
+
+        if (SelectedPOI == null)
+            return false;
+
+        var currentUserLocation = await ResolveCurrentUserLocationAsync();
+        await SetInAppNavigationRouteAsync(currentUserLocation, SelectedPOI);
+        _activeInAppNavigationPoiId = SelectedPOI.Id;
+        _lastInAppNavigationOrigin = currentUserLocation;
+        _lastInAppNavigationRouteUpdatedAtUtc = DateTime.UtcNow;
+
+        if (currentUserLocation != null)
+        {
+            ApplyMapSpanForTourAndUser([SelectedPOI]);
+        }
+        else
+        {
+            MapSpan = MapSpan.FromCenterAndRadius(
+                new Location(SelectedPOI.Latitude, SelectedPOI.Longitude),
+                Distance.FromKilometers(0.8));
+        }
+
+        return true;
+    }
+
+    private async Task<Location?> ResolveCurrentUserLocationAsync()
+    {
+        var location = _locationService.CurrentLocation ?? await _locationService.GetCurrentLocationAsync();
+        if (location == null || !IsValidLocation(location))
+            return UserLocation;
+
+        var candidate = new Location(location.Latitude, location.Longitude);
+        if (!IsLocationOutlier(candidate))
+        {
+            UserLocation = candidate;
+            _hasReliableUserLocation = true;
+        }
+
+        await _geofenceService.ProcessLocationUpdateAsync(location);
+        return UserLocation;
+    }
+
+    private async Task SetInAppNavigationRouteAsync(Location? from, POI toPoi)
+    {
+        if (from == null)
+        {
+            ReplaceTourRoutePoints([]);
+            return;
+        }
+
+        var destination = new Location(toPoi.Latitude, toPoi.Longitude);
+        var fallbackRoute = new List<Location> { from, destination };
+        ReplaceTourRoutePoints(fallbackRoute);
+
+        _routeBuildCts?.Cancel();
+        _routeBuildCts?.Dispose();
+        _routeBuildCts = new CancellationTokenSource();
+
+        _ = BuildAndApplyNavigationRouteAsync(from, destination, _routeBuildCts.Token);
+        await Task.CompletedTask;
+    }
+
+    private async Task BuildAndApplyNavigationRouteAsync(Location from, Location to, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var roadSegment = await GetRoadSegmentAsync(from, to, cancellationToken);
+            if (cancellationToken.IsCancellationRequested || roadSegment.Count < 2)
+                return;
+
+            var simplified = DownsampleRoutePoints(roadSegment, MaxRenderedRoutePoints);
+            ReplaceTourRoutePoints(simplified);
+        }
+        catch (OperationCanceledException)
+        {
+            // Ignore cancellation when user changes target quickly.
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MapVM] BuildAndApplyNavigationRouteAsync failed: {ex.Message}");
+        }
+    }
+
     [RelayCommand]
     private async Task PlaySelectedPOI()
     {
@@ -811,6 +909,8 @@ public partial class MapViewModel : ObservableObject
     [RelayCommand]
     private void ShowAllMarkers()
     {
+        _activeInAppNavigationPoiId = null;
+        _lastInAppNavigationOrigin = null;
         SelectedPOI = null;
         ClearTourRoute();
         IsTourModeActive = false;
@@ -878,6 +978,8 @@ public partial class MapViewModel : ObservableObject
     [RelayCommand]
     private async Task StopTourAsync()
     {
+        _activeInAppNavigationPoiId = null;
+        _lastInAppNavigationOrigin = null;
         SelectedPOI = null;
         ClearTourRoute();
         _currentTourPois.Clear();
@@ -1413,6 +1515,58 @@ public partial class MapViewModel : ObservableObject
     partial void OnUserLocationChanged(Location? value)
     {
         UpdateSelectedPoiDistanceDisplay();
+        _ = UpdateInAppNavigationRouteRealtimeAsync(value);
+    }
+
+    private async Task UpdateInAppNavigationRouteRealtimeAsync(Location? currentUserLocation)
+    {
+        if (currentUserLocation == null || !_activeInAppNavigationPoiId.HasValue)
+            return;
+
+        if (_isUpdatingInAppNavigationRoute)
+            return;
+
+        var selectedPoi = SelectedPOI;
+        if (selectedPoi == null || selectedPoi.Id != _activeInAppNavigationPoiId.Value)
+            return;
+
+        var distanceMeters = CalculateDistanceKm(
+            currentUserLocation.Latitude,
+            currentUserLocation.Longitude,
+            selectedPoi.Latitude,
+            selectedPoi.Longitude) * 1000d;
+
+        if (distanceMeters <= InAppNavigationArrivedDistanceMeters)
+            return;
+
+        if (_lastInAppNavigationOrigin != null)
+        {
+            var movedMeters = CalculateDistanceKm(
+                _lastInAppNavigationOrigin.Latitude,
+                _lastInAppNavigationOrigin.Longitude,
+                currentUserLocation.Latitude,
+                currentUserLocation.Longitude) * 1000d;
+
+            if (movedMeters < InAppNavigationMinRebuildDistanceMeters)
+                return;
+        }
+
+        var now = DateTime.UtcNow;
+        if (now - _lastInAppNavigationRouteUpdatedAtUtc < InAppNavigationRouteUpdateInterval)
+            return;
+
+        _isUpdatingInAppNavigationRoute = true;
+
+        try
+        {
+            await SetInAppNavigationRouteAsync(currentUserLocation, selectedPoi);
+            _lastInAppNavigationOrigin = currentUserLocation;
+            _lastInAppNavigationRouteUpdatedAtUtc = now;
+        }
+        finally
+        {
+            _isUpdatingInAppNavigationRoute = false;
+        }
     }
 
     private void OnNarrationStateChanged(object? sender, NarrationQueueItem item)
@@ -1479,5 +1633,150 @@ public partial class MapViewModel : ObservableObject
 
         return normalized is "tất cả" or "tat ca" or "all" or "全部" or "すべて" or "모두" or "tous"
                || normalized == localizedAll;
+    }
+
+    private static bool IsCategoryMatch(string? poiCategory, string? selectedCategory)
+    {
+        return NormalizeCategoryKey(poiCategory) == NormalizeCategoryKey(selectedCategory);
+    }
+
+    private static bool MatchesSearchQuery(POI poi, string normalizedQuery)
+    {
+        if (string.IsNullOrWhiteSpace(normalizedQuery))
+            return true;
+
+        var terms = BuildSearchTerms(normalizedQuery);
+        if (terms.Count == 0)
+            return true;
+
+        var normalizedName = NormalizeSearchText(poi.Name);
+        if (ContainsAllTerms(normalizedName, terms))
+            return true;
+
+        var normalizedShort = NormalizeSearchText(poi.ShortDescription);
+        if (ContainsAllTerms(normalizedShort, terms))
+            return true;
+
+        var normalizedFull = NormalizeSearchText(poi.FullDescription);
+        if (ContainsAllTerms(normalizedFull, terms))
+            return true;
+
+        var normalizedTts = NormalizeSearchText(poi.TTSScript);
+        return ContainsAllTerms(normalizedTts, terms);
+    }
+
+    private static int GetSearchRank(POI poi, string normalizedQuery)
+    {
+        if (string.IsNullOrWhiteSpace(normalizedQuery))
+            return 99;
+
+        var terms = BuildSearchTerms(normalizedQuery);
+        if (terms.Count == 0)
+            return 99;
+
+        var normalizedName = NormalizeSearchText(poi.Name);
+        if (string.Equals(normalizedName, normalizedQuery, StringComparison.Ordinal))
+            return 0;
+
+        if (terms.Count == 1 && normalizedName.StartsWith(normalizedQuery, StringComparison.Ordinal))
+            return 1;
+
+        if (ContainsAllTerms(normalizedName, terms))
+            return 2;
+
+        var normalizedShort = NormalizeSearchText(poi.ShortDescription);
+        if (ContainsAllTerms(normalizedShort, terms))
+            return 3;
+
+        var normalizedFull = NormalizeSearchText(poi.FullDescription);
+        if (ContainsAllTerms(normalizedFull, terms))
+            return 4;
+
+        var normalizedTts = NormalizeSearchText(poi.TTSScript);
+        if (ContainsAllTerms(normalizedTts, terms))
+            return 5;
+
+        return 99;
+    }
+
+    private static string NormalizeSearchText(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        var decomposed = value
+            .Trim()
+            .ToLowerInvariant()
+            .Normalize(NormalizationForm.FormD);
+
+        var accentFreeBuilder = new StringBuilder(decomposed.Length);
+        foreach (var c in decomposed)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+                accentFreeBuilder.Append(c);
+        }
+
+        var accentFree = accentFreeBuilder
+            .ToString()
+            .Normalize(NormalizationForm.FormC)
+            .Replace('đ', 'd');
+
+        var chars = accentFree
+            .Select(c => char.IsLetterOrDigit(c) || char.IsWhiteSpace(c) ? c : ' ')
+            .ToArray();
+
+        return string.Join(' ', new string(chars)
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+    }
+
+    private static List<string> BuildSearchTerms(string normalizedQuery)
+    {
+        var rawTerms = normalizedQuery
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+
+        if (rawTerms.Count == 0)
+            return rawTerms;
+
+        var hasLongTerm = rawTerms.Any(t => t.Length >= 2);
+        if (!hasLongTerm)
+            return [rawTerms[0]];
+
+        return rawTerms.Where(t => t.Length >= 2).Distinct(StringComparer.Ordinal).ToList();
+    }
+
+    private static bool ContainsAllTerms(string haystack, IReadOnlyCollection<string> terms)
+    {
+        if (terms.Count == 0)
+            return true;
+
+        if (string.IsNullOrWhiteSpace(haystack))
+            return false;
+
+        foreach (var term in terms)
+        {
+            if (!haystack.Contains(term, StringComparison.Ordinal))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static string NormalizeCategoryKey(string? category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+            return "other";
+
+        return category.Trim().ToLowerInvariant() switch
+        {
+            "all" or "tất cả" => "all",
+            "tourism" or "du lịch" => "tourism",
+            "service" or "services" or "dịch vụ" => "service",
+            "food" or "food & drink" or "ăn uống" => "food",
+            "entertainment" or "giải trí" => "entertainment",
+            "shopping" or "mua sắm" => "shopping",
+            "other" or "khác" => "other",
+            _ => category.Trim().ToLowerInvariant()
+        };
     }
 }

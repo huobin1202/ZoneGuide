@@ -401,12 +401,55 @@ public class SyncService : ISyncService
             TTSScript = dto.TTSScript,
             ImageUrl = dto.ImageUrl,
             MapLink = dto.MapLink,
+            Category = ResolveCategory(dto),
             Language = dto.Language ?? "vi-VN",
             TourId = dto.TourId,
             OrderInTour = dto.OrderInTour,
             CooldownSeconds = dto.CooldownSeconds,
             IsActive = dto.IsActive,
             UpdatedAt = DateTime.UtcNow
+        };
+    }
+
+    private static string ResolveCategory(POIDto dto)
+    {
+        // Nếu server đã gửi category (kể cả "Khác"/"other") thì tôn trọng dữ liệu đó.
+        if (!string.IsNullOrWhiteSpace(dto.Category))
+            return NormalizeCategory(dto.Category);
+
+        var combined = $"{dto.UniqueCode} {dto.Name} {dto.ShortDescription}".ToLowerInvariant();
+
+        if (combined.Contains("ẩm thực") || combined.Contains("food") || combined.Contains("ăn uống") || combined.Contains("restaurant") || combined.Contains("vĩnh khánh"))
+            return "food";
+
+        if (combined.Contains("dịch vụ") || combined.Contains("service") || combined.Contains("hospital") || combined.Contains("hotel") || combined.Contains("spa"))
+            return "service";
+
+        if (combined.Contains("giải trí") || combined.Contains("entertainment") || combined.Contains("cinema") || combined.Contains("công viên") || combined.Contains("park"))
+            return "entertainment";
+
+        if (combined.Contains("mua sắm") || combined.Contains("shopping") || combined.Contains("mall") || combined.Contains("chợ") || combined.Contains("market"))
+            return "shopping";
+
+        if (combined.Contains("di tích") || combined.Contains("bảo tàng") || combined.Contains("đình") || combined.Contains("chùa") || combined.Contains("nhà rồng") || combined.Contains("cầu mống"))
+            return "tourism";
+
+        return "other";
+    }
+
+    private static string NormalizeCategory(string? category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+            return "other";
+
+        return category.Trim().ToLowerInvariant() switch
+        {
+            "tourism" or "du lịch" => "tourism",
+            "service" or "services" or "dịch vụ" => "service",
+            "food" or "food & drink" or "ăn uống" => "food",
+            "entertainment" or "giải trí" => "entertainment",
+            "shopping" or "mua sắm" => "shopping",
+            _ => "other"
         };
     }
 
