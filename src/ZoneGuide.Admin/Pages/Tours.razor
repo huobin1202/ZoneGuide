@@ -10,7 +10,7 @@
         <MudButton Variant="Variant.Filled" Color="Color.Primary"
                    StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateDialog"
                    Style="min-width:160px;">
-            Tạo chuyến đi mới
+            Tạo chuyến đi
         </MudButton>
     </MudStack>
 
@@ -37,45 +37,60 @@ else
         {
             <MudItem xs="12" sm="6" md="4" lg="3" xl="3">
                 <MudPaper Outlined="true" Class="tour-card">
-                    @if (HasImage(tour))
-                    {
-                        <img src="@tour.ImageUrl" alt="@tour.Name" class="tour-card-image" />
-                    }
-                    else
-                    {
-                        <div class="tour-card-image tour-card-image-placeholder"></div>
-                    }
+                    <div class="tour-card-media">
+                        @{ var galleryImages = GetTourGalleryImages(tour).ToList(); }
 
-                    <div class="tour-card-body">
-                        <MudText Typo="Typo.h6" Class="tour-name-ellipsis" title="@tour.Name">@tour.Name</MudText>
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">@TruncateText(tour.Description, 110)</MudText>
+                        @if (galleryImages.Any())
+                        {
+                            <div class="tour-gallery @(galleryImages.Count == 1 ? "tour-gallery-single" : string.Empty)">
+                                @foreach (var imageUrl in galleryImages)
+                                {
+                                    <img src="@imageUrl" alt="@tour.Name" class="tour-card-image" />
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="tour-card-image tour-card-image-placeholder"></div>
+                        }
 
-                        <MudChip T="string" Size="Size.Small" Color="@(tour.IsActive ? Color.Success : Color.Default)" Class="mb-2">
-                            @(tour.IsActive ? "Dang bat" : "Da tat")
-                        </MudChip>
+                        <div class="tour-image-actions" aria-label="Thao tac tour">
+                            <MudIconButton Icon="@Icons.Material.Outlined.Edit"
+                                           Size="Size.Small"
+                                           Class="tour-image-action-btn"
+                                           OnClick="@(() => OpenEditDialog(tour))" />
+                            <MudIconButton Icon="@(tour.IsActive ? Icons.Material.Outlined.Visibility : Icons.Material.Outlined.VisibilityOff)"
+                                           Size="Size.Small"
+                                           Class="tour-image-action-btn"
+                                           OnClick="@(() => ToggleTourStatus(tour))" />
+                        </div>
 
-                        <MudStack Row="true" Spacing="2" Class="mb-2">
-                            <MudText Typo="Typo.caption" Class="d-flex align-center mud-text-secondary">
+                        <div class="tour-meta-overlay" aria-label="Thong tin tour">
+                            <span class="tour-meta-item">
                                 <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
                                 @FormatDuration(tour.EstimatedDurationMinutes)
-                            </MudText>
-                            <MudText Typo="Typo.caption" Class="d-flex align-center mud-text-secondary">
+                            </span>
+                            <span class="tour-meta-item">
                                 <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1" />
                                 @tour.POIIds.Count diem
-                            </MudText>
-                        </MudStack>
+                            </span>
+                        </div>
+                    </div>
 
-                        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="tour-edit-btn"
-                                       StartIcon="@Icons.Material.Filled.Edit" OnClick="@(() => OpenEditDialog(tour))">
-                                Chinh sua
-                            </MudButton>
+                    <div class="tour-card-body">
+                        <div class="tour-status-row">
+                            <MudText Typo="Typo.subtitle2" Class="tour-name-ellipsis" title="@tour.Name">@tour.Name</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="@(tour.IsActive ? Color.Success : Color.Default)">
+                                @(tour.IsActive ? "Dang bat" : "Da tat")
+                            </MudChip>
+                        </div>
 
-                            <MudIconButton Icon="@(tour.IsActive ? Icons.Material.Filled.ToggleOff : Icons.Material.Filled.ToggleOn)"
-                                           Color="@(tour.IsActive ? Color.Success : Color.Warning)"
-                                           Variant="Variant.Outlined"
-                                           OnClick="@(() => ToggleTourStatus(tour))" />
-                        </MudStack>
+                        <MudText Typo="Typo.body2" Class="tour-location-row">
+                            <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Class="mr-1 text-warning" />
+                            @GetTourAddress(tour)
+                        </MudText>
+
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">@TruncateText(tour.Description, 110)</MudText>
                     </div>
                 </MudPaper>
             </MudItem>
@@ -103,15 +118,66 @@ else
     .tour-card {
         border-radius: 16px;
         overflow: hidden;
-        max-width: 320px;
+        max-width: 420px;
         margin: 0 auto;
     }
 
     .tour-card-image {
         width: 100%;
-        height: 136px;
+        height: 118px;
         object-fit: cover;
         display: block;
+    }
+
+    .tour-card-media {
+        position: relative;
+    }
+
+    .tour-gallery {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0;
+    }
+
+    .tour-gallery-single {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .tour-image-actions {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        display: inline-flex;
+        gap: 6px;
+    }
+
+    .tour-image-action-btn {
+        border: 1px solid #d7dde8;
+        background: rgba(248, 249, 252, 0.95);
+        border-radius: 999px;
+    }
+
+    .tour-meta-overlay {
+        position: absolute;
+        right: 8px;
+        bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 10px;
+        border-radius: 10px;
+        background: rgba(88, 88, 88, 0.86);
+        color: #fff;
+        backdrop-filter: blur(2px);
+        max-width: calc(100% - 20px);
+    }
+
+    .tour-meta-item {
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.75rem;
+        line-height: 1.2;
+        white-space: nowrap;
     }
 
     .tour-card-image-placeholder {
@@ -119,7 +185,9 @@ else
     }
 
     .tour-card-body {
-        padding: 14px 14px 12px;
+        margin-top: 10px;
+        padding: 12px 14px 14px;
+        background: #eef1f6;
     }
 
     .tour-name-ellipsis {
@@ -136,8 +204,24 @@ else
         overflow: hidden;
     }
 
-    .tour-edit-btn {
-        flex: 1;
+    .tour-status-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .tour-location-row {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        color: #db8400;
+        margin-bottom: 4px;
+    }
+
+    .tour-location-row .mud-icon-root {
+        color: #f59e0b;
     }
 
     .tour-create-card {
@@ -271,6 +355,37 @@ else
                 Snackbar.Add("Khong the cap nhat trang thai Tour", Severity.Error);
             }
         }
+    }
+
+    private static IEnumerable<string> GetTourGalleryImages(TourDto tour)
+    {
+        var poiImages = (tour.POIs ?? new List<POIDto>())
+            .Select(p => p.ImageUrl)
+            .Where(url => !string.IsNullOrWhiteSpace(url))
+            .Select(url => url!)
+            .Distinct()
+            .Take(3)
+            .ToList();
+
+        if (poiImages.Any())
+        {
+            return poiImages;
+        }
+
+        return HasImage(tour)
+            ? new List<string> { tour.ImageUrl! }
+            : Enumerable.Empty<string>();
+    }
+
+    private static string GetTourAddress(TourDto tour)
+    {
+        var address = tour.POIs?
+            .Select(p => p.Address)
+            .FirstOrDefault(a => !string.IsNullOrWhiteSpace(a));
+
+        return string.IsNullOrWhiteSpace(address)
+            ? "Khong co dia chi"
+            : address!;
     }
 
     private string TruncateText(string? text, int maxLength)

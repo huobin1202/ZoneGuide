@@ -53,6 +53,7 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+_build_out/
 
 # Test results
 [Tt]est[Rr]esult*/
