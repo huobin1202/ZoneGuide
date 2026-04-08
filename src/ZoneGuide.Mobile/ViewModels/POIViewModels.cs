@@ -16,7 +16,6 @@ namespace ZoneGuide.Mobile.ViewModels;
 public partial class POIListViewModel : ObservableObject
 {
     private readonly IPOIRepository _poiRepository;
-    private readonly ITourRepository _tourRepository;
     private readonly IGeofenceService _geofenceService;
     private readonly INarrationService _narrationService;
     private readonly ISyncService _syncService;
@@ -58,13 +57,11 @@ public partial class POIListViewModel : ObservableObject
 
     public POIListViewModel(
         IPOIRepository poiRepository,
-        ITourRepository tourRepository,
         IGeofenceService geofenceService,
         INarrationService narrationService,
         ISyncService syncService)
     {
         _poiRepository = poiRepository;
-        _tourRepository = tourRepository;
         _geofenceService = geofenceService;
         _narrationService = narrationService;
         _syncService = syncService;
@@ -94,7 +91,6 @@ public partial class POIListViewModel : ObservableObject
             System.Diagnostics.Debug.WriteLine($"[POIListVM] Server sync failed (non-fatal): {ex.Message}");
         }
 
-        await SeedDataService.SeedIfEmptyAsync(_poiRepository, _tourRepository);
         await LoadPOIsAsync();
     }
 

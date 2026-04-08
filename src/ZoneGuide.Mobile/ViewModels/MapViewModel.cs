@@ -209,13 +209,10 @@ public partial class MapViewModel : ObservableObject
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[MapVM] Server sync failed (non-fatal): {ex.Message}");
-                // Nếu không kết nối được server → dùng dữ liệu local/seed
+                // Nếu không kết nối được server → dùng dữ liệu local
             }
 
-            // === Bước 2: Nếu DB vẫn trống (server không có data hoặc offline) → seed mẫu ===
-            await SeedDataService.SeedIfEmptyAsync(_poiRepository, _tourRepository);
-
-            // === Bước 3: Tải POIs từ SQLite local ===
+            // === Bước 2: Tải POIs từ SQLite local ===
             await LoadPOIsAsync();
 
             await ApplyTourRequestAsync();
