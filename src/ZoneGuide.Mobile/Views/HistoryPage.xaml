@@ -221,16 +221,14 @@
                                             </DataTrigger>
                                         </Button.Triggers>
                                     </Button>
-                                    <Button Text="🗑️"
-                                            WidthRequest="48"
-                                            HeightRequest="48"
-                                            CornerRadius="24"
-                                            FontSize="18"
-                                            Padding="0"
-                                            BackgroundColor="#FFECEE"
-                                            TextColor="#F04438"
-                                            Command="{Binding BindingContext.DeleteCommand, Source={x:Reference HistoryRoot}}"
-                                            CommandParameter="{Binding .}" />
+                                    <ImageButton Source="trash_red.svg"
+                                                 WidthRequest="48"
+                                                 HeightRequest="48"
+                                                 CornerRadius="24"
+                                                 Padding="12"
+                                                 BackgroundColor="#FFECEE"
+                                                 Command="{Binding BindingContext.DeleteCommand, Source={x:Reference HistoryRoot}}"
+                                                 CommandParameter="{Binding .}" />
                                 </VerticalStackLayout>
                             </Grid>
                         </Frame>

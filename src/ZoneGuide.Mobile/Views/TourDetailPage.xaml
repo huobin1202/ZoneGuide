@@ -204,7 +204,7 @@
                                             Text="{Binding OfflineActionText}"
                                             Padding="14,8"
                                             BackgroundColor="White"
-                                            TextColor="{StaticResource Primary}"
+                                            TextColor="#111827"
                                             FontSize="12"
                                             CornerRadius="16"
                                             Command="{Binding ToggleOfflineCommand}" />

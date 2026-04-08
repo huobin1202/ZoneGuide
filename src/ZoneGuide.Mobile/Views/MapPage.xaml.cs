@@ -40,7 +40,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
     private const double OffscreenSafeViewportRatio = 0.85;
 #if ANDROID
     private GoogleMap? _nativeMap;
-    private readonly Dictionary<Marker, POI> _nativePoiMarkers = new();
+    private readonly Dictionary<string, POI> _nativePoiMarkers = new(StringComparer.Ordinal);
     private readonly Dictionary<string, BitmapDescriptor> _markerIconCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly HttpClient MarkerImageHttpClient = new() { Timeout = TimeSpan.FromSeconds(4) };
     private Marker? _nativeUserMarker;
@@ -347,7 +347,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
 
                 var polyline = new Microsoft.Maui.Controls.Maps.Polyline
                 {
-                    StrokeColor = Microsoft.Maui.Graphics.Color.FromArgb("#4F2DD9"),
+                    StrokeColor = Microsoft.Maui.Graphics.Color.FromArgb("#16A34A"),
                     StrokeWidth = 6
                 };
 
@@ -440,9 +440,9 @@ public partial class MapPage : ContentPage, IQueryAttributable
                     }
 
                     var marker = _nativeMap.AddMarker(markerOptions);
-                    if (marker != null)
+                    if (marker != null && !string.IsNullOrWhiteSpace(marker.Id))
                     {
-                        _nativePoiMarkers[marker] = poi;
+                        _nativePoiMarkers[marker.Id] = poi;
                     }
                 }
 
@@ -684,7 +684,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
 
     private void OnNativeMarkerClick(object? sender, GoogleMap.MarkerClickEventArgs e)
     {
-        if (_nativePoiMarkers.TryGetValue(e.Marker, out var poi))
+        if (!string.IsNullOrWhiteSpace(e.Marker?.Id) && _nativePoiMarkers.TryGetValue(e.Marker.Id, out var poi))
         {
             _viewModel.SelectPOICommand.Execute(poi);
             e.Handled = true;

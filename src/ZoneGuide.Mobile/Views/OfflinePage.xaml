@@ -197,16 +197,27 @@
                                         <VerticalStackLayout Grid.Column="2"
                                                              Spacing="10"
                                                              VerticalOptions="Center">
-                                            <Button Text="{Binding ActionButtonText}"
+                                            <Button Text="↓"
                                                     WidthRequest="46"
                                                     HeightRequest="46"
                                                     CornerRadius="23"
                                                     Padding="0"
                                                     FontSize="18"
-                                                    BackgroundColor="{Binding ActionButtonBackground}"
-                                                    TextColor="{Binding ActionButtonTextColor}"
+                                                    BackgroundColor="#16A34A"
+                                                    TextColor="White"
+                                                    IsVisible="{Binding IsDownloaded, Converter={StaticResource InverseBoolConverter}}"
                                                     Command="{Binding BindingContext.ToggleDownloadCommand, Source={x:Reference OfflineRoot}}"
                                                     CommandParameter="{Binding .}" />
+
+                                            <ImageButton Source="trash_red.svg"
+                                                         WidthRequest="46"
+                                                         HeightRequest="46"
+                                                         CornerRadius="23"
+                                                         Padding="12"
+                                                         BackgroundColor="#FFECEE"
+                                                         IsVisible="{Binding IsDownloaded}"
+                                                         Command="{Binding BindingContext.ToggleDownloadCommand, Source={x:Reference OfflineRoot}}"
+                                                         CommandParameter="{Binding .}" />
 
                                             <Button Text="{Binding RetryButtonText}"
                                                     WidthRequest="40"
