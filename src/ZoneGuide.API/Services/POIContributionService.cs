@@ -22,6 +22,7 @@ public interface IPOIContributionService
     
     // Statistics
     Task<ContributionStatsDto> GetContributionStatsAsync(int? contributorId = null);
+    Task<ContributorDashboardDto> GetContributorDashboardAsync(int contributorId, int topCount = 5);
 }
 
 public class POIContributionService : IPOIContributionService
@@ -366,6 +367,65 @@ public class POIContributionService : IPOIContributionService
             .FirstOrDefaultAsync();
         
         return stats ?? new ContributionStatsDto();
+    }
+
+    public async Task<ContributorDashboardDto> GetContributorDashboardAsync(int contributorId, int topCount = 5)
+    {
+        var poiIds = await _context.POIContributions
+            .Where(c => c.ContributorId == contributorId
+                        && c.Status == POIApprovalStatus.Approved
+                        && c.OriginalPOIId.HasValue)
+            .Select(c => c.OriginalPOIId!.Value)
+            .Distinct()
+            .ToListAsync();
+
+        if (!poiIds.Any())
+        {
+            return new ContributorDashboardDto();
+        }
+
+        var poiInfo = await _context.POIs
+            .Where(p => poiIds.Contains(p.Id))
+            .Select(p => new { p.Id, p.UniqueCode, p.Name })
+            .ToListAsync();
+
+        var poiKeys = poiInfo
+            .SelectMany(p => new[] { p.Id.ToString(), p.UniqueCode })
+            .Where(key => !string.IsNullOrWhiteSpace(key))
+            .Distinct()
+            .ToList();
+
+        var poiNames = poiInfo
+            .Select(p => p.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct()
+            .ToList();
+
+        var narrationQuery = _context.NarrationHistories
+            .Where(n => poiKeys.Contains(n.POIId) || poiNames.Contains(n.POIName));
+
+        var totalListens = await narrationQuery.CountAsync();
+
+        var topPOIs = await narrationQuery
+            .GroupBy(n => new { n.POIId, n.POIName })
+            .Select(g => new TopPOIDto
+            {
+                POIId = g.Key.POIId,
+                Name = g.Key.POIName,
+                ListenCount = g.Count(),
+                AvgDurationSeconds = g.Average(x => x.DurationSeconds),
+                CompletionRate = g.Count() > 0 ? (double)g.Count(x => x.Completed) / g.Count() : 0
+            })
+            .OrderByDescending(x => x.ListenCount)
+            .Take(topCount)
+            .ToListAsync();
+
+        return new ContributorDashboardDto
+        {
+            TotalPOIsCreated = poiIds.Count,
+            TotalListens = totalListens,
+            TopPOIs = topPOIs
+        };
     }
     
     #endregion

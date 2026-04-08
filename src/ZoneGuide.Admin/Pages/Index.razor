@@ -1,5 +1,7 @@
 @page "/"
 @inject IApiService ApiService
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject NavigationManager Navigation
 
 
 @if (_loading)
@@ -145,9 +147,29 @@ else
     private DashboardAnalyticsDto? _dashboard;
     private bool _loading = true;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        try
+        {
+            var currentUser = await LocalStorage.GetItemAsync<UserDto>("user");
+            if (currentUser?.Role == "Contributor")
+            {
+                Navigation.NavigateTo("/contributor-dashboard");
+                return;
+            }
+        }
+        catch
+        {
+            // Ignore local storage errors and continue loading admin dashboard.
+        }
+
         await LoadDashboard();
+        StateHasChanged();
     }
 
     private async Task LoadDashboard()
