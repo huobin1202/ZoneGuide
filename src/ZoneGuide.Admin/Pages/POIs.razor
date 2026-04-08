@@ -185,39 +185,52 @@
                             @foreach (var poi in FilteredPOIs)
                             {
                                 <MudCard id="@($"poi-card-{poi.Id}")" Class="@($"mb-3 poi-card {GetPoiCardClass(poi)}")" @onclick="@(() => CenterOnPOI(poi))">
-                                    <div class="poi-card-body">
+                                    <div class="poi-card-media-wrap">
                                         <img class="poi-thumb-img" src="@(string.IsNullOrEmpty(poi.ImageUrl) ? "/images/placeholder.png" : poi.ImageUrl)" alt="Ảnh địa điểm" />
-                                        <div class="poi-main">
-                                            <div class="d-flex justify-space-between align-start gap-2 mb-1">
-                                                <div class="poi-title-wrap" title="@poi.Name">
-                                                    <MudTooltip Text="@GetPoiDescriptionOrFallback(poi)">
-                                                        <MudText Typo="Typo.subtitle1" Class="poi-name-ellipsis"><b>@poi.Name</b></MudText>
-                                                    </MudTooltip>
-                                                </div>
-                                                <div class="d-flex gap-1 poi-card-actions">
-                                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" title="Chỉnh sửa" OnClick="@(() => OpenEditMode(poi))" />
-                                                    <MudIconButton Icon="@(poi.IsActive ? Icons.Material.Filled.ToggleOff : Icons.Material.Filled.ToggleOn)"
+                                        <div class="poi-card-top-row">
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Class="poi-category-chip">
+                                                @(poi.Category ?? "Khác")
+                                            </MudChip>
+                                            <div class="d-flex gap-1 poi-card-actions">
+                                                <span @onclick:stopPropagation="true">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                                                    Size="Size.Small"
-                                                                   Color="@(poi.IsActive ? Color.Success : Color.Warning)"
+                                                                   Class="poi-card-action-btn"
+                                                                   title="Chỉnh sửa"
+                                                                   OnClick="@(() => OpenEditMode(poi))" />
+                                                </span>
+                                                <span @onclick:stopPropagation="true">
+                                                    <MudIconButton Icon="@(poi.IsActive ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                                                   Size="Size.Small"
+                                                                   Class="poi-card-action-btn"
                                                                    title="@(poi.IsActive ? "Chuyển sang đã tắt" : "Chuyển sang đang bật")"
                                                                    OnClick="@(() => TogglePoiStatus(poi))" />
-                                                </div>
+                                                </span>
                                             </div>
-                                            <div class="d-flex gap-2 mb-1 flex-wrap">
-                                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="ma-0">@(poi.Category ?? "Khác")</MudChip>
-                                                <MudChip T="string" Size="Size.Small" Color="@(poi.IsActive ? Color.Success : Color.Default)" Class="ma-0">@(poi.IsActive ? "Đang bật" : "Đã tắt")</MudChip>
-                                            </div>
-                                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-1 d-flex align-center gap-1">
-                                                <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" />
-                                                <span class="poi-address-ellipsis" title="@DisplayAddressOrFallback(poi.Address)">@DisplayAddressOrFallback(poi.Address)</span>
-                                            </MudText>
-                                            <MudTooltip Text="@GetPoiDescriptionOrFallback(poi)">
-                                                <MudText Typo="Typo.body2" Color="Color.Default" Class="clamp-2">
-                                                    @(poi.TTSScript ?? poi.FullDescription ?? poi.ShortDescription ?? "Chưa có nội dung thuyết minh")
-                                                </MudText>
-                                            </MudTooltip>
                                         </div>
                                     </div>
+                                    <MudCardContent Class="poi-card-content">
+                                        <div class="d-flex justify-space-between align-start gap-2 mb-1">
+                                            <MudText Typo="Typo.subtitle1" Class="poi-name-ellipsis" title="@poi.Name">
+                                                <b>@poi.Name</b>
+                                            </MudText>
+                                            <MudChip T="string"
+                                                     Size="Size.Small"
+                                                     Variant="Variant.Filled"
+                                                     Color="@(poi.IsActive ? Color.Success : Color.Default)">
+                                                @(poi.IsActive ? "Đang bật" : "Đã tắt")
+                                            </MudChip>
+                                        </div>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-1 d-flex align-center gap-1">
+                                            <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" />
+                                            <span class="poi-address-ellipsis" title="@DisplayAddressOrFallback(poi.Address)">@DisplayAddressOrFallback(poi.Address)</span>
+                                        </MudText>
+                                        <MudTooltip Text="@GetPoiDescriptionOrFallback(poi)">
+                                            <MudText Typo="Typo.body2" Color="Color.Default" Class="clamp-2">
+                                                @(poi.TTSScript ?? poi.FullDescription ?? poi.ShortDescription ?? "Chưa có nội dung thuyết minh")
+                                            </MudText>
+                                        </MudTooltip>
+                                    </MudCardContent>
                                 </MudCard>
                             }
                             
@@ -402,32 +415,60 @@
     }
     .poi-card {
         border: 1px solid #e7ebf0;
-        border-radius: 12px;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+        border-radius: 18px;
+        box-shadow: 0 10px 24px rgba(0,0,0,0.06);
+        overflow: hidden;
+        transition: transform 0.16s ease, box-shadow 0.16s ease;
+    }
+    .poi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 30px rgba(37,99,235,0.16);
     }
     .poi-card.poi-card-selected {
         border-color: #2563eb;
         box-shadow: 0 0 0 3px rgba(37,99,235,0.16), 0 14px 30px rgba(37,99,235,0.12);
         background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
     }
-    .poi-card-body { display: flex; gap: 12px; padding: 12px; align-items: flex-start; }
-    .poi-thumb-img {
-        width: 88px;
-        height: 88px;
-        object-fit: cover;
-        border-radius: 12px;
-        background: #f0f2f5;
-        flex-shrink: 0;
+    .poi-card-media-wrap {
+        position: relative;
     }
-    .poi-main { flex: 1; min-width: 0; }
-    .poi-title-wrap { flex: 1; min-width: 0; }
+    .poi-thumb-img {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        background: #f0f2f5;
+        display: block;
+    }
+    .poi-card-top-row {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .poi-card-content {
+        padding-top: 12px;
+    }
+    .poi-category-chip {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(2px);
+        border: 1px solid rgba(255,255,255,0.85);
+        font-weight: 600;
+    }
+    .poi-card-actions { flex-shrink: 0; }
+    .poi-card-action-btn {
+        background: rgba(255,255,255,0.92);
+        border-radius: 999px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
     .poi-name-ellipsis {
         display: block;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
-    .poi-card-actions { flex-shrink: 0; }
     .poi-address-ellipsis {
         display: inline-block;
         min-width: 0;

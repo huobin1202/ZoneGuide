@@ -129,50 +129,22 @@
 
                     @if (_recentContributions.Any())
                     {
-                        <MudGrid>
-                            @foreach (var contribution in _recentContributions)
-                            {
-                                <MudItem xs="12" sm="6">
-                                    <MudCard Class="contrib-card">
-                                        <MudCardMedia Image="@(string.IsNullOrWhiteSpace(contribution.ImageUrl) ? "/images/placeholder.png" : contribution.ImageUrl)"
-                                                      Height="170"
-                                                      Class="contrib-card-media" />
-                                        <div class="contrib-card-top-row">
-                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Class="contrib-category-chip">
-                                                @GetCategoryLabel(contribution.Category)
-                                            </MudChip>
-                                            <MudStack Row="true" Spacing="0">
-                                                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Primary" OnClick="@(() => Navigation.NavigateTo("/my-contributions"))" />
-                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Secondary" OnClick="@(() => Navigation.NavigateTo("/contributor-pois"))" />
-                                            </MudStack>
-                                        </div>
-
-                                        <MudCardContent>
-                                            <div class="d-flex justify-space-between align-center mb-2">
-                                                <MudText Typo="Typo.h6" Class="contrib-card-title">@contribution.Name</MudText>
-                                                <MudChip T="string" Color="@GetStatusColor(contribution.Status)" Size="Size.Small">
-                                                    @GetStatusText(contribution.Status)
-                                                </MudChip>
-                                            </div>
-
-                                            <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">
-                                                <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Class="mr-1" />
-                                                @GetLocationText(contribution)
-                                            </MudText>
-
-                                            <MudText Typo="Typo.body2" Class="contrib-card-description">
-                                                @GetShortDescription(contribution)
-                                            </MudText>
-
-                                            <MudDivider Class="my-2" />
-                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                                                Cập nhật: @contribution.UpdatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
-                                            </MudText>
-                                        </MudCardContent>
-                                    </MudCard>
-                                </MudItem>
-                            }
-                        </MudGrid>
+                        <MudTable Items="@_recentContributions" Dense="true" Hover="true">
+                            <HeaderContent>
+                                <MudTh>Tên địa điểm</MudTh>
+                                <MudTh>Trạng thái</MudTh>
+                                <MudTh>Cập nhật</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Tên địa điểm">@context.Name</MudTd>
+                                <MudTd DataLabel="Trạng thái">
+                                    <MudChip T="string" Color="@GetStatusColor(context.Status)" Size="Size.Small">
+                                        @GetStatusText(context.Status)
+                                    </MudChip>
+                                </MudTd>
+                                <MudTd DataLabel="Cập nhật">@context.UpdatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                            </RowTemplate>
+                        </MudTable>
                     }
                     else
                     {
@@ -280,35 +252,6 @@
             : $"{ts.Seconds}s";
     }
 
-    private static string GetCategoryLabel(string? category)
-        => string.IsNullOrWhiteSpace(category) ? "Địa điểm" : category;
-
-    private static string GetShortDescription(POIContributionDto contribution)
-    {
-        var text = contribution.ShortDescription;
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            text = contribution.TTSScript;
-        }
-
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return "Chưa có mô tả cho địa điểm này.";
-        }
-
-        return text.Length > 95 ? text[..95] + "..." : text;
-    }
-
-    private static string GetLocationText(POIContributionDto contribution)
-    {
-        if (contribution.Latitude.HasValue && contribution.Longitude.HasValue)
-        {
-            return $"{contribution.Latitude.Value:F5}, {contribution.Longitude.Value:F5}";
-        }
-
-        return "Chưa có tọa độ";
-    }
-
     private static Color GetStatusColor(string status) => status switch
     {
         "Draft" => Color.Default,
@@ -329,49 +272,3 @@
         _ => status
     };
 }
-
-<style>
-    .contrib-card {
-        position: relative;
-        border: 2px solid #4a90e2;
-        border-radius: 18px;
-        overflow: hidden;
-        transition: transform .18s ease, box-shadow .18s ease;
-    }
-
-    .contrib-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 22px rgba(74, 144, 226, 0.2);
-    }
-
-    .contrib-card-media {
-        filter: saturate(1.04);
-    }
-
-    .contrib-card-top-row {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        right: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-
-    .contrib-category-chip {
-        background: rgba(255, 255, 255, 0.85);
-        backdrop-filter: blur(3px);
-    }
-
-    .contrib-card-title {
-        max-width: 65%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .contrib-card-description {
-        color: #5f6c85;
-        min-height: 48px;
-    }
-</style>
