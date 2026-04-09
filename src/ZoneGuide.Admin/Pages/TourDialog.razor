@@ -9,7 +9,6 @@
                 <aside class="tour-pane tour-pane-left">
                     <div class="tour-pane-header">
                         <div>
-                            <MudText Typo="Typo.h5" Class="tour-title">Quản lý Tour</MudText>
                             <MudText Typo="Typo.caption" Class="tour-muted">@($"{ActiveSelectedPOIs.Count}/{_selectedPOIs.Count} điểm đang hoạt động")</MudText>
                         </div>
                     </div>
@@ -33,6 +32,12 @@
                                 <div class="tour-location-card @(selected ? "is-selected" : string.Empty) @(!poi.IsActive ? "is-inactive" : string.Empty)">
                                     <button type="button" class="tour-location-main" @onclick="@(() => TogglePOIAsync(poi))">
                                         <span class="tour-order-badge @(selected ? "is-active" : "is-idle")">@(selected ? (selectedIndex + 1).ToString(CultureInfo.InvariantCulture) : "+")</span>
+                                        <span class="tour-location-thumb-wrap">
+                                            <img src="@(string.IsNullOrWhiteSpace(poi.ImageUrl) ? "/images/placeholder.png" : poi.ImageUrl)"
+                                                 alt="@poi.Name"
+                                                 class="tour-location-thumb"
+                                                 onerror="this.onerror=null;this.src='/images/placeholder.png';" />
+                                        </span>
                                         <span class="tour-location-copy">
                                             <span class="tour-location-name" title="@poi.Name">@poi.Name</span>
                                             <span class="tour-location-subtitle">
@@ -82,7 +87,6 @@
 
                 <aside class="tour-pane tour-pane-right">
                     <MudText Typo="Typo.h5" Class="tour-title">Thông Tin Tour</MudText>
-                    <MudText Typo="Typo.body2" Class="tour-muted tour-panel-description">Điền thông tin để tạo tour du lịch</MudText>
 
                     <MudStack Spacing="3" Class="mt-5">
                         <MudTextField @bind-Value="_model.Name" Label="Tên Tour" Required="true" RequiredError="Tên tour là bắt buộc" Variant="Variant.Outlined" />
@@ -307,6 +311,26 @@
         display: flex;
         flex-direction: column;
         gap: 3px;
+    }
+
+    .tour-location-thumb-wrap {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        overflow: hidden;
+        flex-shrink: 0;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .tour-location-thumb {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
     }
 
     .tour-location-name {
@@ -575,10 +599,10 @@
 
         if (!string.IsNullOrWhiteSpace(poi.Category))
         {
-            return $"{poi.Category} • {poi.Latitude:F4}, {poi.Longitude:F4}";
+            return poi.Category;
         }
 
-        return $"{poi.Latitude:F4}, {poi.Longitude:F4}";
+        return "Chưa có mô tả";
     }
 
     private async Task TogglePOIAsync(POIDto poi)
