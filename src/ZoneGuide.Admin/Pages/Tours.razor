@@ -9,6 +9,7 @@
 
         <MudButton Variant="Variant.Filled" Color="Color.Primary"
                    StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateDialog"
+                   Disabled="@(_isTourDialogOpening || _loading)"
                    Style="min-width:160px;">
             Tạo chuyến đi
         </MudButton>
@@ -58,6 +59,7 @@ else
                             <MudIconButton Icon="@Icons.Material.Outlined.Edit"
                                            Size="Size.Small"
                                            Class="tour-image-action-btn"
+                                           Disabled="@_isTourDialogOpening"
                                            OnClick="@(() => OpenEditDialog(tour))" />
                             <MudIconButton Icon="@(tour.IsActive ? Icons.Material.Outlined.Visibility : Icons.Material.Outlined.VisibilityOff)"
                                            Size="Size.Small"
@@ -97,7 +99,7 @@ else
         }
 
         <MudItem xs="12" sm="6" md="4" lg="3" xl="3">
-            <MudPaper Outlined="true" Class="tour-create-card" @onclick="OpenCreateDialog">
+            <MudPaper Outlined="true" Class="@($"tour-create-card {(_isTourDialogOpening ? "is-disabled" : string.Empty)}")" @onclick="OpenCreateDialog">
                 <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="fill-height" Spacing="2">
                     <MudIcon Icon="@Icons.Material.Filled.Add" Size="Size.Large" Color="Color.Default" />
                     <MudText Typo="Typo.h6" Class="mud-text-secondary">Them Tour moi</MudText>
@@ -235,6 +237,12 @@ else
         margin: 0 auto;
     }
 
+    .tour-create-card.is-disabled {
+        opacity: 0.6;
+        pointer-events: none;
+        cursor: default;
+    }
+
     .fill-height {
         min-height: 282px;
     }
@@ -245,6 +253,10 @@ else
     private string _searchString = "";
     private string _selectedStatus = "Tat ca";
     private bool _loading = true;
+    private bool _isTourDialogOpening;
+    private List<POIDto>? _cachedDialogPois;
+    private DateTime _cachedDialogPoisAtUtc;
+    private static readonly TimeSpan DialogPoiCacheTtl = TimeSpan.FromMinutes(2);
 
     private IEnumerable<TourDto> FilteredTours => _tours
         .Where(t => string.IsNullOrWhiteSpace(_searchString) ||
@@ -262,6 +274,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         await LoadTours();
+        _ = WarmupDialogPoisAsync();
     }
 
     private async Task LoadTours()
@@ -273,43 +286,94 @@ else
 
     private async Task OpenCreateDialog()
     {
-        var pois = await ApiService.GetPOIsAsync();
-        var parameters = new DialogParameters
+        if (_isTourDialogOpening)
         {
-            { "Tour", null },
-            { "IsEdit", false },
-            { "AvailablePOIs", pois }
-        };
+            return;
+        }
 
-        var dialog = await DialogService.ShowAsync<TourDialog>("Create New Tour", parameters,
-            new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true });
-        var result = await dialog.Result;
-
-        if (!result.Canceled)
+        _isTourDialogOpening = true;
+        try
         {
-            await LoadTours();
-            Snackbar.Add("Tour created successfully", Severity.Success);
+            var pois = await GetDialogPoisAsync();
+            var parameters = new DialogParameters
+            {
+                { "Tour", null },
+                { "IsEdit", false },
+                { "AvailablePOIs", pois }
+            };
+
+            var dialog = await DialogService.ShowAsync<TourDialog>("Create New Tour", parameters,
+                new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true });
+            var result = await dialog.Result;
+
+            if (!result.Canceled)
+            {
+                await LoadTours();
+                Snackbar.Add("Tour created successfully", Severity.Success);
+            }
+        }
+        finally
+        {
+            _isTourDialogOpening = false;
         }
     }
 
     private async Task OpenEditDialog(TourDto tour)
     {
-        var pois = await ApiService.GetPOIsAsync();
-        var parameters = new DialogParameters
+        if (_isTourDialogOpening)
         {
-            { "Tour", tour },
-            { "IsEdit", true },
-            { "AvailablePOIs", pois }
-        };
+            return;
+        }
 
-        var dialog = await DialogService.ShowAsync<TourDialog>("Edit Tour", parameters,
-            new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true });
-        var result = await dialog.Result;
-
-        if (!result.Canceled)
+        _isTourDialogOpening = true;
+        try
         {
-            await LoadTours();
-            Snackbar.Add("Tour updated successfully", Severity.Success);
+            var pois = await GetDialogPoisAsync();
+            var parameters = new DialogParameters
+            {
+                { "Tour", tour },
+                { "IsEdit", true },
+                { "AvailablePOIs", pois }
+            };
+
+            var dialog = await DialogService.ShowAsync<TourDialog>("Edit Tour", parameters,
+                new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true });
+            var result = await dialog.Result;
+
+            if (!result.Canceled)
+            {
+                await LoadTours();
+                Snackbar.Add("Tour updated successfully", Severity.Success);
+            }
+        }
+        finally
+        {
+            _isTourDialogOpening = false;
+        }
+    }
+
+    private async Task<List<POIDto>> GetDialogPoisAsync()
+    {
+        var now = DateTime.UtcNow;
+        if (_cachedDialogPois != null && now - _cachedDialogPoisAtUtc <= DialogPoiCacheTtl)
+        {
+            return _cachedDialogPois;
+        }
+
+        _cachedDialogPois = await ApiService.GetPOIsAsync();
+        _cachedDialogPoisAtUtc = now;
+        return _cachedDialogPois;
+    }
+
+    private async Task WarmupDialogPoisAsync()
+    {
+        try
+        {
+            await GetDialogPoisAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Warmup dialog POIs failed: {ex.Message}");
         }
     }
 
