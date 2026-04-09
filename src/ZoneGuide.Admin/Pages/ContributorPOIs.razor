@@ -51,7 +51,7 @@
                             
                             <MudText Typo="Typo.caption" Class="mb-1 mt-3 d-block">Danh mục</MudText>
                             <div class="d-flex gap-2" style="overflow-x: auto; padding-bottom: 4px;">
-                                @foreach(var cat in new[] { ("Du lịch", Icons.Material.Filled.Museum), ("Dịch vụ", Icons.Material.Filled.MiscellaneousServices), ("Ăn uống", Icons.Material.Filled.LocalDining), ("Giải trí", Icons.Material.Filled.EmojiEvents), ("Mua sắm", Icons.Material.Filled.LocalMall), ("Khác", Icons.Material.Filled.Place) })
+                                @foreach(var cat in new[] { ("Hải sản & ốc", Icons.Material.Filled.SetMeal), ("Ăn vặt", Icons.Material.Filled.Fastfood), ("Lẩu & nướng", Icons.Material.Filled.OutdoorGrill), ("Nhậu", Icons.Material.Filled.LocalBar), ("Ăn no", Icons.Material.Filled.Restaurant) })
                                 {
                                     var isSelected = _editModel.Category == cat.Item1;
                                     <div @onclick="() => _editModel.Category = cat.Item1" 
@@ -161,12 +161,11 @@
                             <div class="d-flex gap-2 mt-2">
                                 <MudSelect T="string" Label="Danh mục" @bind-Value="_selectedCategory" Variant="Variant.Outlined" Margin="Margin.Dense" Class="filter-select">
                                     <MudSelectItem Value="@( "Tất cả")" />
-                                    <MudSelectItem Value="@( "Du lịch")" />
-                                    <MudSelectItem Value="@( "Dịch vụ")" />
-                                    <MudSelectItem Value="@( "Ăn uống")" />
-                                    <MudSelectItem Value="@( "Giải trí")" />
-                                    <MudSelectItem Value="@( "Mua sắm")" />
-                                    <MudSelectItem Value="@( "Khác")" />
+                                    <MudSelectItem Value="@( "Hải sản & ốc")" />
+                                    <MudSelectItem Value="@( "Ăn vặt")" />
+                                    <MudSelectItem Value="@( "Lẩu & nướng")" />
+                                    <MudSelectItem Value="@( "Nhậu")" />
+                                    <MudSelectItem Value="@( "Ăn no")" />
                                 </MudSelect>
                                 <MudSelect T="string" Label="Trạng thái" @bind-Value="_selectedStatus" Variant="Variant.Outlined" Margin="Margin.Dense" Class="filter-select">
                                     <MudSelectItem Value="@( "Tất cả")" />
@@ -260,7 +259,7 @@
                         
                         <MudText Typo="Typo.caption" Class="mb-1 mt-3 d-block">Danh mục</MudText>
                         <div class="d-flex gap-2" style="overflow-x: auto; padding-bottom: 4px;">
-                            @foreach(var cat in new[] { ("Du lịch", Icons.Material.Filled.Museum), ("Dịch vụ", Icons.Material.Filled.MiscellaneousServices), ("Ăn uống", Icons.Material.Filled.LocalDining), ("Giải trí", Icons.Material.Filled.EmojiEvents), ("Mua sắm", Icons.Material.Filled.LocalMall), ("Khác", Icons.Material.Filled.Place) })
+                            @foreach(var cat in new[] { ("Hải sản & ốc", Icons.Material.Filled.SetMeal), ("Ăn vặt", Icons.Material.Filled.Fastfood), ("Lẩu & nướng", Icons.Material.Filled.OutdoorGrill), ("Nhậu", Icons.Material.Filled.LocalBar), ("Ăn no", Icons.Material.Filled.Restaurant) })
                             {
                                 var isSelected = _newContrib.Category == cat.Item1;
                                 <div @onclick="() => _newContrib.Category = cat.Item1" 
@@ -505,7 +504,7 @@
     private MudForm _createForm = null!;
     private MudForm _editForm = null!;
     private bool _isValid;
-    private CreatePOIContributionDto _newContrib = new() { Category = "Khác" };
+    private CreatePOIContributionDto _newContrib = new() { Category = "Ăn no" };
     private POIContributionDto? _editModel;
 
     private sealed class AddressSuggestion
@@ -548,7 +547,7 @@
                     || (p.TTSScript?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false)
                     || (p.Category?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false))
         .Where(p => _selectedCategory == "Tất cả"
-                    || string.Equals(p.Category ?? "Khác", _selectedCategory, StringComparison.OrdinalIgnoreCase))
+                    || string.Equals(p.Category ?? "Ăn no", _selectedCategory, StringComparison.OrdinalIgnoreCase))
         .Where(p => _selectedStatus == "Tất cả"
                     || string.Equals(p.Status, _selectedStatus, StringComparison.OrdinalIgnoreCase));
 
@@ -863,7 +862,7 @@
 
     private void CancelCreate()
     {
-        _newContrib = new CreatePOIContributionDto { Category = "Khác" };
+        _newContrib = new CreatePOIContributionDto { Category = "Ăn no" };
         _isValid = false;
         ResetContributionAddressState();
         JS.InvokeVoidAsync("removeTempMarkerFromPOIMap");
@@ -879,7 +878,7 @@
             {
                 Snackbar.Add("Thêm đóng góp thành công", Severity.Success);
                 _activeTabIndex = 0;
-                _newContrib = new CreatePOIContributionDto { Category = "Khác" };
+                _newContrib = new CreatePOIContributionDto { Category = "Ăn no" };
                 ResetContributionAddressState();
                 await JS.InvokeVoidAsync("removeTempMarkerFromPOIMap");
                 await LoadData();

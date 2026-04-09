@@ -549,11 +549,18 @@ public partial class OfflineViewModel : ObservableObject
     private static string NormalizeCategory(string? category) =>
         category?.Trim().ToLowerInvariant() switch
         {
+            "hải sản & ốc" or "hai san & oc" or "seafood & snails" or "seafood" => "tourism",
+            "ăn vặt" or "an vat" or "snacks" or "snack" => "service",
+            "lẩu & nướng" or "lau & nuong" or "hotpot & grill" or "hotpot" or "grill" => "food",
+            "nhậu" or "nhau" or "drinking" or "pub" => "entertainment",
+            "ăn no" or "an no" or "hearty meals" or "main meal" => "shopping",
+
+            // Backward compatibility for old category labels
             "du lịch" or "tourism" => "tourism",
             "dịch vụ" or "service" or "services" => "service",
             "ăn uống" or "food" or "food & drink" => "food",
             "giải trí" or "entertainment" => "entertainment",
-            "mua sắm" or "shopping" => "shopping",
+            "mua sắm" or "shopping" or "khác" or "other" => "shopping",
             _ => "other"
         };
 }

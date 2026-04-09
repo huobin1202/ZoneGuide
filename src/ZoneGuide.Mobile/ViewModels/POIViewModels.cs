@@ -348,7 +348,6 @@ public partial class POIListViewModel : ObservableObject
         Categories.Add(AppLocalizer.Instance.Translate("category_food"));
         Categories.Add(AppLocalizer.Instance.Translate("category_entertainment"));
         Categories.Add(AppLocalizer.Instance.Translate("category_shopping"));
-        Categories.Add(AppLocalizer.Instance.Translate("category_other"));
 
         SelectedCategory = Categories
             .FirstOrDefault(c => NormalizeCategoryKey(c) == currentCategoryKey)
@@ -385,12 +384,18 @@ public partial class POIListViewModel : ObservableObject
         return category.Trim().ToLowerInvariant() switch
         {
             "all" or "tất cả" => "all",
+            "hải sản & ốc" or "hai san & oc" or "seafood & snails" or "seafood" => "tourism",
+            "ăn vặt" or "an vat" or "snacks" or "snack" => "service",
+            "lẩu & nướng" or "lau & nuong" or "hotpot & grill" or "hotpot" or "grill" => "food",
+            "nhậu" or "nhau" or "drinking" or "pub" => "entertainment",
+            "ăn no" or "an no" or "hearty meals" or "main meal" => "shopping",
+
+            // Backward compatibility for old category labels
             "tourism" or "du lịch" => "tourism",
             "service" or "services" or "dịch vụ" => "service",
             "food" or "food & drink" or "ăn uống" => "food",
             "entertainment" or "giải trí" => "entertainment",
-            "shopping" or "mua sắm" => "shopping",
-            "other" or "khác" => "other",
+            "shopping" or "mua sắm" or "other" or "khác" => "shopping",
             _ => category.Trim().ToLowerInvariant()
         };
     }

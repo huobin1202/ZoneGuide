@@ -51,7 +51,7 @@
                             
                             <MudText Typo="Typo.caption" Class="mb-1 mt-3 d-block">Danh mục</MudText>
                             <div class="d-flex gap-2" style="overflow-x: auto; padding-bottom: 4px;">
-                                @foreach(var cat in new[] { ("Du lịch", Icons.Material.Filled.Museum), ("Dịch vụ", Icons.Material.Filled.MiscellaneousServices), ("Ăn uống", Icons.Material.Filled.LocalDining), ("Giải trí", Icons.Material.Filled.EmojiEvents), ("Mua sắm", Icons.Material.Filled.LocalMall), ("Khác", Icons.Material.Filled.Place) })
+                                @foreach(var cat in new[] { ("Hải sản & ốc", Icons.Material.Filled.SetMeal), ("Ăn vặt", Icons.Material.Filled.Fastfood), ("Lẩu & nướng", Icons.Material.Filled.OutdoorGrill), ("Nhậu", Icons.Material.Filled.LocalBar), ("Ăn no", Icons.Material.Filled.Restaurant) })
                                 {
                                     var isSelected = _newPoi.Category == cat.Item1;
                                     <div @onclick="() => _newPoi.Category = cat.Item1" 
@@ -158,12 +158,11 @@
                         <div class="d-flex gap-2 mb-2">
                             <MudSelect T="string" Label="Danh mục" @bind-Value="_selectedCategory" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Class="filter-select">
                                 <MudSelectItem Value="@( "Tất cả")" />
-                                <MudSelectItem Value="@( "Du lịch")" />
-                                <MudSelectItem Value="@( "Dịch vụ")" />
-                                <MudSelectItem Value="@( "Ăn uống")" />
-                                <MudSelectItem Value="@( "Giải trí")" />
-                                <MudSelectItem Value="@( "Mua sắm")" />
-                                <MudSelectItem Value="@( "Khác")" />
+                                <MudSelectItem Value="@( "Hải sản & ốc")" />
+                                <MudSelectItem Value="@( "Ăn vặt")" />
+                                <MudSelectItem Value="@( "Lẩu & nướng")" />
+                                <MudSelectItem Value="@( "Nhậu")" />
+                                <MudSelectItem Value="@( "Ăn no")" />
                             </MudSelect>
                             <MudSelect T="string" Label="Trạng thái" @bind-Value="_selectedStatus" Variant="Variant.Outlined" Margin="Margin.Dense" Class="filter-select">
                                 <MudSelectItem Value="@( "Tất cả")" />
@@ -189,7 +188,7 @@
                                         <img class="poi-thumb-img" src="@(string.IsNullOrEmpty(poi.ImageUrl) ? "/images/placeholder.png" : poi.ImageUrl)" alt="Ảnh địa điểm" />
                                         <div class="poi-card-top-row">
                                             <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Class="poi-category-chip">
-                                                @(poi.Category ?? "Khác")
+                                                @(poi.Category ?? "Ăn no")
                                             </MudChip>
                                             <div class="d-flex gap-1 poi-card-actions">
                                                 <span @onclick:stopPropagation="true">
@@ -278,7 +277,7 @@
                         
                         <MudText Typo="Typo.caption" Class="mb-1 mt-3 d-block">Danh mục</MudText>
                         <div class="d-flex gap-2" style="overflow-x: auto; padding-bottom: 4px;">
-                            @foreach(var cat in new[] { ("Du lịch", Icons.Material.Filled.Museum), ("Dịch vụ", Icons.Material.Filled.MiscellaneousServices), ("Ăn uống", Icons.Material.Filled.LocalDining), ("Giải trí", Icons.Material.Filled.EmojiEvents), ("Mua sắm", Icons.Material.Filled.LocalMall), ("Khác", Icons.Material.Filled.Place) })
+                            @foreach(var cat in new[] { ("Hải sản & ốc", Icons.Material.Filled.SetMeal), ("Ăn vặt", Icons.Material.Filled.Fastfood), ("Lẩu & nướng", Icons.Material.Filled.OutdoorGrill), ("Nhậu", Icons.Material.Filled.LocalBar), ("Ăn no", Icons.Material.Filled.Restaurant) })
                             {
                                 var isSelected = _newPoi.Category == cat.Item1;
                                 <div @onclick="() => _newPoi.Category = cat.Item1" 
@@ -593,7 +592,7 @@
 
     private static POIDto CreateDefaultPoi() => new()
     {
-        Category = "Khác",
+        Category = "Ăn no",
         Language = "vi-VN",
         IsActive = true,
         TriggerRadius = 50,

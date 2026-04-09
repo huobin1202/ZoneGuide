@@ -152,12 +152,11 @@ public partial class MapViewModel : ObservableObject
     public List<string> Categories { get; } = new()
     {
         "Tất cả",
-        "Du lịch",
-        "Dịch vụ",
-        "Ăn uống",
-        "Giải trí",
-        "Mua sắm",
-        "Khác"
+        "Hải sản & ốc",
+        "Ăn vặt",
+        "Lẩu & nướng",
+        "Nhậu",
+        "Ăn no"
     };
 
     public MapViewModel(
