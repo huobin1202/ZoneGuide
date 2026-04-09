@@ -58,46 +58,63 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
         });
 
         // Use standard Leaflet colors from local offline files
-        var foodIcon = new CustomIcon({iconUrl: '/images/markers/food-dish-svgrepo-com.svg'});
-        var entertainmentIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-yellow.png'});
-        var travelIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-green.png'});
-        var servicesIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-blue.png'});
-        var shoppingIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-orange.png'});
-        var otherIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-gray.png'});
+        var seafoodIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-blue.png'});
+        var snackIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-yellow.png'});
+        var hotpotGrillIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-violet.png'});
+        var drinkingIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-orange.png'});
+        var fullMealIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-green.png'});
+        var defaultFoodIcon = new CustomIcon({iconUrl: '/images/markers/food-dish-svgrepo-com.svg'});
         var contributionIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-red.png'});
+
+        function normalizeCategoryKey(category) {
+            return (category || '')
+                .toString()
+                .trim()
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/đ/g, 'd')
+                .replace(/&/g, ' va ')
+                .replace(/[^a-z0-9]+/g, ' ')
+                .trim();
+        }
 
         function getCustomIcon(category, isContribution) {
             if (isContribution) {
                 return contributionIcon;
             }
 
-            switch((category || '').toLowerCase()) {
+            var key = normalizeCategoryKey(category);
+            switch(key) {
+                // New category taxonomy
+                case 'hai san va oc':
+                    return seafoodIcon;
+                case 'an vat':
+                    return snackIcon;
+                case 'lau va nuong':
+                    return hotpotGrillIcon;
+                case 'nhau':
+                    return drinkingIcon;
+                case 'an no':
+                    return fullMealIcon;
+
+                // Backward-compatible aliases
                 case 'food':
-                case 'ăn uống':
                 case 'an uong':
-                    return foodIcon;
+                    return fullMealIcon;
                 case 'entertainment':
-                case 'giải trí':
-                case 'giai tri':
-                    return entertainmentIcon;
+                    return drinkingIcon;
                 case 'travel':
-                case 'du lịch':
-                case 'du lich':
-                    return travelIcon;
+                    return seafoodIcon;
                 case 'services':
-                case 'dịch vụ':
-                case 'dich vu':
-                    return servicesIcon;
+                    return hotpotGrillIcon;
                 case 'shopping':
-                case 'mua sắm':
-                case 'mua sam':
-                    return shoppingIcon;
+                    return snackIcon;
                 case 'other':
-                case 'khác':
                 case 'khac':
-                    return otherIcon;
+                    return defaultFoodIcon;
                 default:
-                    return otherIcon; // Mặc định cho các loại khác hoặc không xác định
+                    return defaultFoodIcon; // Mặc định cho các loại khác hoặc không xác định
             }
         }
 
