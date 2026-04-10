@@ -706,7 +706,7 @@ function renderFallbackRoute(points) {
     }
 }
 
-async function fetchDrivingRoute(points) {
+async function fetchWalkingRoute(points) {
     if (!points || points.length < 2) {
         return null;
     }
@@ -714,7 +714,7 @@ async function fetchDrivingRoute(points) {
     var coordinates = points
         .map(function (point) { return point.lng + ',' + point.lat; })
         .join(';');
-    var url = 'https://router.project-osrm.org/route/v1/driving/' + coordinates + '?overview=full&geometries=geojson&steps=false';
+    var url = 'https://router.project-osrm.org/route/v1/walking/' + coordinates + '?overview=full&geometries=geojson&steps=false';
 
     try {
         var response = await fetch(url);
@@ -743,7 +743,7 @@ window.renderTourPlannerMap = async function (elementId, points) {
     var straightDistanceKm = calculateStraightDistanceKm(points);
     var defaultResult = {
         distanceKm: straightDistanceKm,
-        durationMinutes: points.length >= 2 ? Math.round((straightDistanceKm / 35) * 60) : 0,
+        durationMinutes: points.length >= 2 ? Math.round((straightDistanceKm / 4.8) * 60) : 0,
         straightDistanceKm: straightDistanceKm,
         usedRouting: false
     };
@@ -768,7 +768,7 @@ window.renderTourPlannerMap = async function (elementId, points) {
         return defaultResult;
     }
 
-    var route = await fetchDrivingRoute(points);
+    var route = await fetchWalkingRoute(points);
     if (route && route.geometry && route.geometry.coordinates) {
         var latLngs = route.geometry.coordinates.map(function (coordinate) {
             return [coordinate[1], coordinate[0]];
