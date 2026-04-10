@@ -131,14 +131,33 @@
                         <div>
                             <MudText Typo="Typo.subtitle2" Class="tour-field-label">Thời gian</MudText>
                             <div class="tour-time-grid">
-                                <MudTextField Value="@EstimatedHoursText" Label="Giờ" Variant="Variant.Outlined" ReadOnly="true" />
-                                <MudTextField Value="@EstimatedMinutesText" Label="Phút" Variant="Variant.Outlined" ReadOnly="true" />
+                                <MudNumericField T="int"
+                                                 Value="@EstimatedHoursValue"
+                                                 ValueChanged="OnEstimatedHoursChanged"
+                                                 Label="Giờ"
+                                                 Min="0"
+                                                 Max="999"
+                                                 Variant="Variant.Outlined" />
+                                <MudNumericField T="int"
+                                                 Value="@EstimatedMinutesValue"
+                                                 ValueChanged="OnEstimatedMinutesChanged"
+                                                 Label="Phút"
+                                                 Min="0"
+                                                 Max="59"
+                                                 Variant="Variant.Outlined" />
                             </div>
                         </div>
 
                         <div>
                             <MudText Typo="Typo.subtitle2" Class="tour-field-label">Quãng đường</MudText>
-                            <MudTextField Value="@DistanceValueText" Label="Km" Variant="Variant.Outlined" ReadOnly="true" />
+                            <MudNumericField T="double"
+                                             @bind-Value="_model.DistanceKm"
+                                             Label="Km"
+                                             Min="0"
+                                             Max="9999"
+                                             Step="0.1"
+                                             Culture="@CultureInfo.InvariantCulture"
+                                             Variant="Variant.Outlined" />
                             <MudText Typo="Typo.caption" Class="tour-route-note">
                                 @if (_selectedPOIs.Count >= 2)
                                 {
@@ -515,7 +534,7 @@
     [Parameter] public bool IsEdit { get; set; }
     [Parameter] public List<POIDto> AvailablePOIs { get; set; } = new();
 
-    private const double FallbackAverageSpeedKmPerHour = 35d;
+    private const double FallbackAverageSpeedKmPerHour = 4.8d;
     private readonly string _mapElementId = $"tour-route-map-{Guid.NewGuid():N}";
     private MudForm _form = null!;
     private bool _isValid;
@@ -543,6 +562,8 @@
     private string DistanceValueText => _model.DistanceKm.ToString("0.0", CultureInfo.InvariantCulture);
     private string EstimatedHoursText => (_model.EstimatedDurationMinutes / 60).ToString(CultureInfo.InvariantCulture);
     private string EstimatedMinutesText => (_model.EstimatedDurationMinutes % 60).ToString(CultureInfo.InvariantCulture);
+    private int EstimatedHoursValue => Math.Max(0, _model.EstimatedDurationMinutes / 60);
+    private int EstimatedMinutesValue => Math.Max(0, _model.EstimatedDurationMinutes % 60);
 
     protected override void OnInitialized()
     {
@@ -777,6 +798,22 @@
     }
 
     private static string FormatDistance(double distanceKm) => distanceKm.ToString("0.0", CultureInfo.InvariantCulture);
+
+    private Task OnEstimatedHoursChanged(int value)
+    {
+        var safeHours = Math.Max(0, value);
+        var minutes = Math.Clamp(EstimatedMinutesValue, 0, 59);
+        _model.EstimatedDurationMinutes = (safeHours * 60) + minutes;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private Task OnEstimatedMinutesChanged(int value)
+    {
+        var safeMinutes = Math.Clamp(value, 0, 59);
+        var hours = Math.Max(0, EstimatedHoursValue);
+        _model.EstimatedDurationMinutes = (hours * 60) + safeMinutes;
+        return InvokeAsync(StateHasChanged);
+    }
 
     private static int EstimateDurationFromDistance(double distanceKm)
     {
