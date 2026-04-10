@@ -597,11 +597,11 @@ public partial class OfflinePackItemViewModel : ObservableObject
     public ObservableCollection<OfflineTrackItemViewModel> Tracks { get; } = new();
     public long TotalBytes { get; set; }
     public string ActionButtonText => IsDownloaded ? "🗑" : "↓";
-    public Color ActionButtonBackground => IsDownloaded ? Color.FromArgb("#FDECEC") : Color.FromArgb("#16A34A");
+    public Color ActionButtonBackground => IsDownloaded ? Color.FromArgb("#FDECEC") : Color.FromArgb("#6D28D9");
     public Color ActionButtonTextColor => IsDownloaded ? Color.FromArgb("#EF4444") : Colors.White;
     public string RetryButtonText => "⟳";
     public string ExpandButtonText => IsExpanded ? "^" : "v";
-    public Color BorderColor => IsDownloaded ? Color.FromArgb("#BBF7D0") : Color.FromArgb("#E5E7EB");
+    public Color BorderColor => IsDownloaded ? Color.FromArgb("#E9D5FF") : Color.FromArgb("#E5E7EB");
     public bool ShowDownloadedStatus => IsDownloaded && !string.IsNullOrWhiteSpace(DownloadedStatusText);
     public bool ShowRetryButton => IsDownloaded;
 

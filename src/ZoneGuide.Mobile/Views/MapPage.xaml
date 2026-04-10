@@ -91,9 +91,9 @@
                 VerticalOptions="Start"
                 Margin="0"
                 BackgroundColor="White"
-                BorderColor="#1664D6"
+                BorderColor="#7C3AED"
                 BorderWidth="2"
-                TextColor="#1664D6"
+                TextColor="#7C3AED"
                 IsVisible="False"
                 Command="{Binding CenterOnUserCommand}"
                 SemanticProperties.Hint="Chỉ hướng vị trí hiện tại khi nằm ngoài vùng bản đồ đang hiển thị" />
@@ -315,7 +315,7 @@
                                         <Border WidthRequest="56"
                                                 HeightRequest="56"
                                                 Padding="0"
-                                                BackgroundColor="#1664D6"
+                                                BackgroundColor="#7C3AED"
                                                 StrokeThickness="0"
                                                 StrokeShape="RoundRectangle 28">
                                             <Label Text="🗺"
@@ -524,12 +524,12 @@
                                             <VisualState Name="Selected">
                                                 <VisualState.Setters>
                                                     <Setter Property="BackgroundColor"
-                                                            Value="#DDF4E4" />
+                                                            Value="#F3E8FF" />
                                                     <Setter Property="Stroke"
-                                                            Value="#34C759" />
+                                                            Value="#A855F7" />
                                                     <Setter TargetName="MapChipLabel"
                                                             Property="Label.TextColor"
-                                                            Value="#198754" />
+                                                            Value="#6D28D9" />
                                                 </VisualState.Setters>
                                             </VisualState>
                                         </VisualStateGroup>

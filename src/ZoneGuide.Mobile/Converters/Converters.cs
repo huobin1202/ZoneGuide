@@ -69,8 +69,8 @@ public class TrackingColorConverter : IValueConverter
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is bool isTracking)
-            return isTracking ? Color.FromArgb("#4CAF50") : Color.FromArgb("#22C55E");
-        return Color.FromArgb("#22C55E");
+            return isTracking ? Color.FromArgb("#6D28D9") : Color.FromArgb("#7C3AED");
+        return Color.FromArgb("#7C3AED");
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

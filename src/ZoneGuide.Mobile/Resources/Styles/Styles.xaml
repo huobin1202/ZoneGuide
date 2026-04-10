@@ -9,7 +9,7 @@
     <converters:IsNotNullConverter x:Key="IsNotNullConverter" />
     <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
     <converters:BoolToColorConverter x:Key="BoolToColorConverter" 
-                                      TrueColor="{StaticResource Success}"
+                                      TrueColor="{StaticResource Primary}"
                                       FalseColor="{StaticResource Gray400}" />
     <converters:TrackingColorConverter x:Key="TrackingColorConverter" />
     <converters:TrackingIconConverter x:Key="TrackingIconConverter" />

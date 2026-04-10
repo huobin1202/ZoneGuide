@@ -11,7 +11,7 @@
 
     <Grid RowDefinitions="Auto,*">
         <Border Grid.Row="0"
-                BackgroundColor="#16A34A"
+                BackgroundColor="#6D28D9"
                 StrokeThickness="0"
                 StrokeShape="RoundRectangle 0,0,28,28"
                 Padding="20,28,20,20">
@@ -25,7 +25,7 @@
                                TextColor="White" />
                         <Label Text="{local:Translate offline_subtitle}"
                                FontSize="14"
-                               TextColor="#D1FAE5" />
+                               TextColor="#E9D5FF" />
                     </VerticalStackLayout>
 
                     <Button Grid.Column="1"
@@ -141,7 +141,7 @@
 
                                             <Border IsVisible="{Binding IsDownloaded}"
                                                     BackgroundColor="White"
-                                                    Stroke="#22C55E"
+                                                    Stroke="#7C3AED"
                                                     StrokeThickness="2"
                                                     StrokeShape="RoundRectangle 14"
                                                     WidthRequest="28"
@@ -152,7 +152,7 @@
                                                 <Label Text="✓"
                                                        HorizontalOptions="Center"
                                                        VerticalOptions="Center"
-                                                       TextColor="#16A34A"
+                                                       TextColor="#6D28D9"
                                                        FontAttributes="Bold" />
                                             </Border>
                                         </Grid>
@@ -190,7 +190,7 @@
 
                                             <Label Text="{Binding DownloadedStatusText}"
                                                    FontSize="12"
-                                                   TextColor="#16A34A"
+                                                   TextColor="#6D28D9"
                                                    IsVisible="{Binding ShowDownloadedStatus}" />
                                         </VerticalStackLayout>
 
@@ -203,7 +203,7 @@
                                                     CornerRadius="23"
                                                     Padding="0"
                                                     FontSize="18"
-                                                    BackgroundColor="#16A34A"
+                                                    BackgroundColor="#6D28D9"
                                                     TextColor="White"
                                                     IsVisible="{Binding IsDownloaded, Converter={StaticResource InverseBoolConverter}}"
                                                     Command="{Binding BindingContext.ToggleDownloadCommand, Source={x:Reference OfflineRoot}}"
@@ -282,7 +282,7 @@
                                                             <Label Grid.Column="2"
                                                                    Text="{Binding TrackStatusIcon}"
                                                                    FontSize="16"
-                                                                   TextColor="#22C55E"
+                                                                   TextColor="#7C3AED"
                                                                    VerticalTextAlignment="Center" />
                                                         </Grid>
                                                     </Border>

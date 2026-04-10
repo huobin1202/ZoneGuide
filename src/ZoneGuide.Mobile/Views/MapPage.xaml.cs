@@ -347,7 +347,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
 
                 var polyline = new Microsoft.Maui.Controls.Maps.Polyline
                 {
-                    StrokeColor = Microsoft.Maui.Graphics.Color.FromArgb("#16A34A"),
+                    StrokeColor = Microsoft.Maui.Graphics.Color.FromArgb("#7C3AED"),
                     StrokeWidth = 6
                 };
 
