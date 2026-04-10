@@ -51,7 +51,7 @@
                             
                             <MudText Typo="Typo.caption" Class="mb-1 mt-3 d-block">Danh mục</MudText>
                             <div class="d-flex gap-2" style="overflow-x: auto; padding-bottom: 4px;">
-                                @foreach(var cat in new[] { ("Hải sản & ốc", Icons.Material.Filled.SetMeal), ("Ăn vặt", Icons.Material.Filled.Fastfood), ("Lẩu & nướng", Icons.Material.Filled.OutdoorGrill), ("Nhậu", Icons.Material.Filled.LocalBar), ("Ăn no", Icons.Material.Filled.Restaurant) })
+                                @foreach(var cat in new[] { ("Hải sản & ốc", Icons.Material.Filled.SetMeal), ("Ăn vặt", Icons.Material.Filled.Fastfood), ("Lẩu & nướng", Icons.Material.Filled.OutdoorGrill), ("Nhậu", Icons.Material.Filled.LocalBar), ("Giải khát", Icons.Material.Filled.LocalCafe), ("Ăn no", Icons.Material.Filled.Restaurant) })
                                 {
                                     var isSelected = _editModel.Category == cat.Item1;
                                     <div @onclick="() => _editModel.Category = cat.Item1" 
@@ -165,6 +165,7 @@
                                     <MudSelectItem Value="@( "Ăn vặt")" />
                                     <MudSelectItem Value="@( "Lẩu & nướng")" />
                                     <MudSelectItem Value="@( "Nhậu")" />
+                                    <MudSelectItem Value="@( "Giải khát")" />
                                     <MudSelectItem Value="@( "Ăn no")" />
                                 </MudSelect>
                                 <MudSelect T="string" Label="Trạng thái" @bind-Value="_selectedStatus" Variant="Variant.Outlined" Margin="Margin.Dense" Class="filter-select">
@@ -259,7 +260,7 @@
                         
                         <MudText Typo="Typo.caption" Class="mb-1 mt-3 d-block">Danh mục</MudText>
                         <div class="d-flex gap-2" style="overflow-x: auto; padding-bottom: 4px;">
-                            @foreach(var cat in new[] { ("Hải sản & ốc", Icons.Material.Filled.SetMeal), ("Ăn vặt", Icons.Material.Filled.Fastfood), ("Lẩu & nướng", Icons.Material.Filled.OutdoorGrill), ("Nhậu", Icons.Material.Filled.LocalBar), ("Ăn no", Icons.Material.Filled.Restaurant) })
+                            @foreach(var cat in new[] { ("Hải sản & ốc", Icons.Material.Filled.SetMeal), ("Ăn vặt", Icons.Material.Filled.Fastfood), ("Lẩu & nướng", Icons.Material.Filled.OutdoorGrill), ("Nhậu", Icons.Material.Filled.LocalBar), ("Giải khát", Icons.Material.Filled.LocalCafe), ("Ăn no", Icons.Material.Filled.Restaurant) })
                             {
                                 var isSelected = _newContrib.Category == cat.Item1;
                                 <div @onclick="() => _newContrib.Category = cat.Item1" 

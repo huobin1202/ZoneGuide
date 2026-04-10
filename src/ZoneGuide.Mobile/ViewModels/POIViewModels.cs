@@ -347,6 +347,7 @@ public partial class POIListViewModel : ObservableObject
         Categories.Add(AppLocalizer.Instance.Translate("category_service"));
         Categories.Add(AppLocalizer.Instance.Translate("category_food"));
         Categories.Add(AppLocalizer.Instance.Translate("category_entertainment"));
+        Categories.Add(AppLocalizer.Instance.Translate("category_drinks"));
         Categories.Add(AppLocalizer.Instance.Translate("category_shopping"));
 
         SelectedCategory = Categories
@@ -388,6 +389,7 @@ public partial class POIListViewModel : ObservableObject
             "ăn vặt" or "an vat" or "snacks" or "snack" => "service",
             "lẩu & nướng" or "lau & nuong" or "hotpot & grill" or "hotpot" or "grill" => "food",
             "nhậu" or "nhau" or "drinking" or "pub" => "entertainment",
+            "giải khát" or "giai khat" or "beverage" or "beverages" or "drinks" => "drinks",
             "ăn no" or "an no" or "hearty meals" or "main meal" => "shopping",
 
             // Backward compatibility for old category labels

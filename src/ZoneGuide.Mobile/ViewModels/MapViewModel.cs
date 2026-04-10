@@ -170,6 +170,7 @@ public partial class MapViewModel : ObservableObject
         "Ăn vặt",
         "Lẩu & nướng",
         "Nhậu",
+        "Giải khát",
         "Ăn no"
     };
 
@@ -1770,6 +1771,7 @@ public partial class MapViewModel : ObservableObject
             "service" or "services" or "dịch vụ" => "service",
             "food" or "food & drink" or "ăn uống" => "food",
             "entertainment" or "giải trí" => "entertainment",
+            "drinks" or "giải khát" => "drinks",
             "shopping" or "mua sắm" => "shopping",
             "other" or "khác" => "other",
             _ => category.Trim().ToLowerInvariant()

@@ -529,6 +529,7 @@ public class CategoryChipIconConverter : IValueConverter
             "dịch vụ" or "dich vu" or "service" or "services" => "⚙",
             "ăn uống" or "an uong" or "food" => "⌂",
             "giải trí" or "giai tri" or "entertainment" => "♪",
+            "giải khát" or "giai khat" or "drinks" or "beverage" or "beverages" => "☕",
             "mua sắm" or "mua sam" or "shopping" => "◍",
             "khác" or "khac" or "other" => "○",
             _ => "●"
