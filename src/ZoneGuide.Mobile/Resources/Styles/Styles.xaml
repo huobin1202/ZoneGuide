@@ -9,7 +9,7 @@
     <converters:IsNotNullConverter x:Key="IsNotNullConverter" />
     <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
     <converters:BoolToColorConverter x:Key="BoolToColorConverter" 
-                                      TrueColor="{StaticResource Success}"
+                                      TrueColor="{StaticResource Primary}"
                                       FalseColor="{StaticResource Gray400}" />
     <converters:TrackingColorConverter x:Key="TrackingColorConverter" />
     <converters:TrackingIconConverter x:Key="TrackingIconConverter" />
@@ -21,6 +21,8 @@
     <converters:OfflineStatusTextConverter x:Key="OfflineStatusTextConverter" />
     <converters:OfflineButtonTextConverter x:Key="OfflineButtonTextConverter" />
     <converters:FlexibleImageSourceConverter x:Key="FlexibleImageSourceConverter" />
+    <converters:PreferredPoiImageSourceConverter x:Key="PreferredPoiImageSourceConverter" />
+    <converters:PoiDistanceFromLocationConverter x:Key="PoiDistanceFromLocationConverter" />
     <converters:LocalizedCategoryConverter x:Key="LocalizedCategoryConverter" />
     <converters:PoiMatchConverter x:Key="PoiMatchConverter" />
     <converters:StopResumeGlyphConverter x:Key="StopResumeGlyphConverter" />
@@ -94,7 +96,7 @@
         <Setter Property="Shell.ForegroundColor" Value="White" />
         <Setter Property="Shell.TitleColor" Value="White" />
         <Setter Property="Shell.TabBarBackgroundColor" Value="White" />
-        <Setter Property="Shell.TabBarTitleColor" Value="#FF512BD4" />
+        <Setter Property="Shell.TabBarTitleColor" Value="{StaticResource Primary}" />
         <Setter Property="Shell.TabBarForegroundColor" Value="{StaticResource Primary}" />
         <Setter Property="Shell.TabBarUnselectedColor" Value="{StaticResource Gray400}" />
     </Style>

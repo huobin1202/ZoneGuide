@@ -57,8 +57,5 @@
   </ItemGroup>
 
   <!-- Android specific permissions -->
-  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
-    <AndroidManifestOverlay Include="Platforms\Android\AndroidManifest.xml" />
-  </ItemGroup>
 
 </Project>

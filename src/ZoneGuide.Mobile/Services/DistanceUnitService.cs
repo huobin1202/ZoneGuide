@@ -5,7 +5,7 @@ namespace ZoneGuide.Mobile.Services;
 /// </summary>
 public static class DistanceUnitService
 {
-    private static string _preferredUnit = "m";
+    private static string _preferredUnit = "km";
 
     public static string PreferredUnit => _preferredUnit;
 
@@ -16,21 +16,29 @@ public static class DistanceUnitService
 
     public static string NormalizeUnit(string? unit)
     {
-        return string.Equals(unit, "km", StringComparison.OrdinalIgnoreCase) ? "km" : "m";
+        return string.Equals(unit, "m", StringComparison.OrdinalIgnoreCase) ? "m" : "km";
     }
 
-    public static string FormatFromMeters(double meters)
+    public static string FormatFromMeters(double meters, string? unitOverride = null)
     {
         var safeMeters = Math.Max(0, meters);
+        var unit = string.IsNullOrWhiteSpace(unitOverride)
+            ? _preferredUnit
+            : NormalizeUnit(unitOverride);
 
-        if (string.Equals(_preferredUnit, "km", StringComparison.OrdinalIgnoreCase))
-        {
-            var km = safeMeters / 1000d;
-            return km >= 10
-                ? $"{km:0} km"
-                : $"{km:0.#} km";
-        }
+        if (string.Equals(unit, "m", StringComparison.OrdinalIgnoreCase))
+            return $"{Math.Round(safeMeters):0} m";
 
-        return $"{Math.Round(safeMeters):0} m";
+        var km = safeMeters / 1000d;
+
+        if (km < 1)
+            return $"{km:0.##} km";
+
+        return $"{km:0.#} km";
+    }
+
+    public static string FormatAsKilometers(double meters)
+    {
+        return FormatFromMeters(meters, "km");
     }
 }

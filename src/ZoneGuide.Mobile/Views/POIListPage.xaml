@@ -68,12 +68,12 @@
                                     <VisualState Name="Selected">
                                         <VisualState.Setters>
                                             <Setter Property="BackgroundColor"
-                                                    Value="#DDF4E4" />
+                                                    Value="#F3E8FF" />
                                             <Setter Property="Stroke"
-                                                    Value="#34C759" />
+                                                    Value="#A855F7" />
                                             <Setter TargetName="ChipLabel"
                                                     Property="Label.TextColor"
-                                                    Value="#198754" />
+                                                    Value="#6D28D9" />
                                         </VisualState.Setters>
                                     </VisualState>
                                 </VisualStateGroup>

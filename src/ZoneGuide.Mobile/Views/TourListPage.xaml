@@ -115,7 +115,7 @@
                                             <Label Text="🚶"
                                                    FontSize="16"
                                                    VerticalTextAlignment="Center" />
-                                            <Label Text="{Binding EstimatedDistanceMeters, Converter={StaticResource PreferredDistanceConverter}}"
+                                            <Label Text="{Binding EstimatedDistanceMeters, Converter={StaticResource PreferredDistanceConverter}, ConverterParameter=km}"
                                                    FontSize="16"
                                                    FontAttributes="Bold"
                                                    VerticalTextAlignment="Center" />

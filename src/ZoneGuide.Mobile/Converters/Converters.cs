@@ -69,8 +69,8 @@ public class TrackingColorConverter : IValueConverter
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is bool isTracking)
-            return isTracking ? Color.FromArgb("#4CAF50") : Color.FromArgb("#512BD4");
-        return Color.FromArgb("#512BD4");
+            return isTracking ? Color.FromArgb("#6D28D9") : Color.FromArgb("#7C3AED");
+        return Color.FromArgb("#7C3AED");
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -306,6 +306,160 @@ public class FlexibleImageSourceConverter : IValueConverter
     }
 }
 
+/// <summary>
+/// Ưu tiên ảnh local (ImagePath) trước ảnh online (ImageUrl) cho POI.
+/// values[0] = ImagePath, values[1] = ImageUrl
+/// </summary>
+public class PreferredPoiImageSourceConverter : IMultiValueConverter
+{
+    public object Convert(object[] values, Type targetType, object? parameter, CultureInfo culture)
+    {
+        var imagePath = values.Length > 0 ? values[0] as string : null;
+        var imageUrl = values.Length > 1 ? values[1] as string : null;
+
+        return ResolveImageSource(imagePath)
+               ?? ResolveImageSource(imageUrl)
+               ?? "location.svg";
+    }
+
+    public object[] ConvertBack(object value, Type[] targetTypes, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+
+    private static ImageSource? ResolveImageSource(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return null;
+
+        var candidate = raw.Trim();
+
+        try
+        {
+            if (candidate.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
+            {
+                var commaIndex = candidate.IndexOf(',');
+                if (commaIndex > 0)
+                {
+                    var base64 = candidate[(commaIndex + 1)..];
+                    var bytes = System.Convert.FromBase64String(base64);
+                    return ImageSource.FromStream(() => new MemoryStream(bytes));
+                }
+            }
+
+            if (File.Exists(candidate))
+                return ImageSource.FromFile(candidate);
+
+            if (Uri.TryCreate(candidate, UriKind.Absolute, out var uri))
+            {
+                if (uri.IsFile && File.Exists(uri.LocalPath))
+                    return ImageSource.FromFile(uri.LocalPath);
+
+                return ImageSource.FromUri(uri);
+            }
+
+            var localPath = Path.Combine(
+                Microsoft.Maui.Storage.FileSystem.AppDataDirectory,
+                candidate.Replace("/", Path.DirectorySeparatorChar.ToString()));
+            if (File.Exists(localPath))
+                return ImageSource.FromFile(localPath);
+
+            var normalized = ApiService.NormalizeMediaUrl(candidate);
+
+            if (File.Exists(normalized))
+                return ImageSource.FromFile(normalized);
+
+            if (Uri.TryCreate(normalized, UriKind.Absolute, out var normalizedUri))
+            {
+                if (normalizedUri.IsFile && File.Exists(normalizedUri.LocalPath))
+                    return ImageSource.FromFile(normalizedUri.LocalPath);
+
+                return ImageSource.FromUri(normalizedUri);
+            }
+        }
+        catch
+        {
+            return null;
+        }
+
+        return null;
+    }
+}
+
+/// <summary>
+/// Tính khoảng cách từ vị trí người dùng hiện tại tới POI.
+/// values[0] = UserLocation, values[1] = POI.Latitude, values[2] = POI.Longitude
+/// </summary>
+public class PoiDistanceFromLocationConverter : IMultiValueConverter
+{
+    public object Convert(object[] values, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (values.Length < 3)
+            return "--";
+
+        if (values[0] is not Microsoft.Maui.Devices.Sensors.Location userLocation)
+            return "--";
+
+        var poiLatitude = TryConvertToDouble(values[1]);
+        var poiLongitude = TryConvertToDouble(values[2]);
+
+        if (!poiLatitude.HasValue || !poiLongitude.HasValue)
+            return "--";
+
+        var meters = CalculateDistanceMeters(
+            userLocation.Latitude,
+            userLocation.Longitude,
+            poiLatitude.Value,
+            poiLongitude.Value);
+
+        if (double.IsNaN(meters) || double.IsInfinity(meters) || meters < 0)
+            return "--";
+
+        return DistanceUnitService.FormatAsKilometers(meters);
+    }
+
+    public object[] ConvertBack(object value, Type[] targetTypes, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+
+    private static double CalculateDistanceMeters(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double earthRadiusMeters = 6371000d;
+
+        var dLat = DegreesToRadians(lat2 - lat1);
+        var dLon = DegreesToRadians(lon2 - lon1);
+        var radLat1 = DegreesToRadians(lat1);
+        var radLat2 = DegreesToRadians(lat2);
+
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(radLat1) * Math.Cos(radLat2) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        return earthRadiusMeters * c;
+    }
+
+    private static double DegreesToRadians(double value)
+    {
+        return value * Math.PI / 180d;
+    }
+
+    private static double? TryConvertToDouble(object? value)
+    {
+        return value switch
+        {
+            double doubleValue => doubleValue,
+            float floatValue => floatValue,
+            int intValue => intValue,
+            long longValue => longValue,
+            decimal decimalValue => (double)decimalValue,
+            string text when double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) => parsed,
+            _ => null
+        };
+    }
+}
+
 public class LocalizedCategoryConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -338,9 +492,14 @@ public class PreferredDistanceConverter : IValueConverter
             _ => 0d
         };
 
-        var formatted = DistanceUnitService.FormatFromMeters(meters);
+        var formatInKilometersOnly = parameter is string p &&
+                                     string.Equals(p, "km", StringComparison.OrdinalIgnoreCase);
 
-        if (parameter is string p && string.Equals(p, "prefix", StringComparison.OrdinalIgnoreCase))
+        var formatted = formatInKilometersOnly
+            ? DistanceUnitService.FormatAsKilometers(meters)
+            : DistanceUnitService.FormatFromMeters(meters);
+
+        if (parameter is string p2 && string.Equals(p2, "prefix", StringComparison.OrdinalIgnoreCase))
         {
             return $"Cách {formatted}";
         }

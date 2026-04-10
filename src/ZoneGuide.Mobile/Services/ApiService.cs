@@ -132,6 +132,42 @@ public class ApiService
         return $"{serverRoot}{trimmed}";
     }
 
+    private static bool TryDecodeDataUri(string? raw, out byte[] bytes)
+    {
+        bytes = Array.Empty<byte>();
+
+        if (string.IsNullOrWhiteSpace(raw))
+            return false;
+
+        var value = raw.Trim();
+        if (!value.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var commaIndex = value.IndexOf(',');
+        if (commaIndex <= 0 || commaIndex >= value.Length - 1)
+            return false;
+
+        var metadata = value[..commaIndex];
+        var payload = value[(commaIndex + 1)..];
+
+        try
+        {
+            if (metadata.Contains(";base64", StringComparison.OrdinalIgnoreCase))
+            {
+                payload = payload.Trim().Replace(" ", "+", StringComparison.Ordinal);
+                bytes = Convert.FromBase64String(payload);
+                return bytes.Length > 0;
+            }
+
+            bytes = System.Text.Encoding.UTF8.GetBytes(Uri.UnescapeDataString(payload));
+            return bytes.Length > 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private static bool IsLoopbackHost(string host)
     {
         return string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
@@ -508,6 +544,9 @@ public class ApiService
 
     public async Task<byte[]?> DownloadAudioAsync(string url)
     {
+        if (TryDecodeDataUri(url, out var inlineAudio))
+            return inlineAudio;
+
         foreach (var baseUrl in GetOrderedBaseUrls())
         {
             try
@@ -534,6 +573,9 @@ public class ApiService
 
     public async Task<byte[]?> DownloadImageAsync(string url)
     {
+        if (TryDecodeDataUri(url, out var inlineImage))
+            return inlineImage;
+
         foreach (var baseUrl in GetOrderedBaseUrls())
         {
             try

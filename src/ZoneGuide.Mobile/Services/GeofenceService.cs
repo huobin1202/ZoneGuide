@@ -10,7 +10,7 @@ namespace ZoneGuide.Mobile.Services;
 public class GeofenceService : IGeofenceService
 {
     private const int MinEffectiveCooldownSeconds = 1;
-    private const int MaxEffectiveCooldownSeconds = 3;
+    private const int MaxEffectiveCooldownSeconds = 3600;
     private const double MaxActivationRadiusMeters = 5000;
     private const double DefaultTriggerRadiusMeters = 60;
     private const double DefaultApproachRadiusMeters = 120;
