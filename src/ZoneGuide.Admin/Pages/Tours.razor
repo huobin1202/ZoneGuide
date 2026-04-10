@@ -87,11 +87,6 @@ else
                             </MudChip>
                         </div>
 
-                        <MudText Typo="Typo.body2" Class="tour-location-row">
-                            <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Class="mr-1 text-warning" />
-                            @GetTourAddress(tour)
-                        </MudText>
-
                         <MudText Typo="Typo.body2" Class="mud-text-secondary">@TruncateText(tour.Description, 110)</MudText>
                     </div>
                 </MudPaper>
@@ -120,8 +115,8 @@ else
     .tour-card {
         border-radius: 16px;
         overflow: hidden;
-        max-width: 420px;
-        margin: 0 auto;
+        width: 100%;
+        min-height: 282px;
     }
 
     .tour-card-image {
@@ -214,18 +209,6 @@ else
         margin-bottom: 8px;
     }
 
-    .tour-location-row {
-        display: flex;
-        align-items: center;
-        gap: 2px;
-        color: #db8400;
-        margin-bottom: 4px;
-    }
-
-    .tour-location-row .mud-icon-root {
-        color: #f59e0b;
-    }
-
     .tour-create-card {
         height: 100%;
         min-height: 282px;
@@ -233,8 +216,7 @@ else
         border-width: 2px;
         cursor: pointer;
         border-color: #d8dceb;
-        max-width: 320px;
-        margin: 0 auto;
+        width: 100%;
     }
 
     .tour-create-card.is-disabled {
@@ -439,17 +421,6 @@ else
         return HasImage(tour)
             ? new List<string> { tour.ImageUrl! }
             : Enumerable.Empty<string>();
-    }
-
-    private static string GetTourAddress(TourDto tour)
-    {
-        var address = tour.POIs?
-            .Select(p => p.Address)
-            .FirstOrDefault(a => !string.IsNullOrWhiteSpace(a));
-
-        return string.IsNullOrWhiteSpace(address)
-            ? "Khong co dia chi"
-            : address!;
     }
 
     private string TruncateText(string? text, int maxLength)
