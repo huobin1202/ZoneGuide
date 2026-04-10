@@ -50,6 +50,19 @@ public interface ITourRepository
 }
 
 /// <summary>
+/// Interface cho Tour Translation Repository
+/// </summary>
+public interface ITourTranslationRepository
+{
+    Task<List<TourTranslation>> GetByTourIdAsync(int tourId);
+    Task<TourTranslation?> GetByTourIdAndLanguageAsync(int tourId, string languageCode);
+    Task<int> InsertAsync(TourTranslation translation);
+    Task<int> UpdateAsync(TourTranslation translation);
+    Task<int> DeleteAsync(int id);
+    Task<int> InsertOrUpdateAsync(TourTranslation translation);
+}
+
+/// <summary>
 /// Interface cho Analytics Repository
 /// </summary>
 public interface IAnalyticsRepository

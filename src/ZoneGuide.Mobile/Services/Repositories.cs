@@ -152,7 +152,7 @@ public class POIRepository : IPOIRepository
                 shortDescription: missing,
                 fullDescription: missing,
                 ttsScript: missing,
-                audioFilePath: null,
+                audioFilePath: poi.AudioFilePath,
                 audioUrl: null,
                 language: preferredLanguage);
         }
@@ -177,11 +177,12 @@ public class POIRepository : IPOIRepository
 
         return ClonePoiWithResolvedContent(
             poi,
-            name: string.IsNullOrWhiteSpace(translation.Name) ? poi.Name : translation.Name,
+            // Preserve original place name across all languages.
+            name: poi.Name,
             shortDescription: resolvedShortDescription,
             fullDescription: resolvedFullDescription,
             ttsScript: resolvedNarration,
-            audioFilePath: null,
+            audioFilePath: poi.AudioFilePath,
             audioUrl: string.IsNullOrWhiteSpace(translation.AudioUrl) ? poi.AudioUrl : translation.AudioUrl,
             language: preferredLanguage);
     }
@@ -390,39 +391,170 @@ public class POITranslationRepository : IPOITranslationRepository
 }
 
 /// <summary>
+/// Repository cho Tour Translation - luu tru SQLite
+/// </summary>
+public class TourTranslationRepository : ITourTranslationRepository
+{
+    private readonly DatabaseService _database;
+
+    public TourTranslationRepository(DatabaseService database)
+    {
+        _database = database;
+    }
+
+    public async Task<List<TourTranslation>> GetByTourIdAsync(int tourId)
+    {
+        var db = await _database.GetConnectionAsync();
+        return await db.Table<TourTranslation>()
+            .Where(t => t.TourId == tourId)
+            .ToListAsync();
+    }
+
+    public async Task<TourTranslation?> GetByTourIdAndLanguageAsync(int tourId, string languageCode)
+    {
+        var db = await _database.GetConnectionAsync();
+        var normalized = NormalizeLanguage(languageCode);
+        var primary = GetPrimaryLanguage(normalized);
+
+        var all = await db.Table<TourTranslation>()
+            .Where(t => t.TourId == tourId)
+            .ToListAsync();
+
+        var exact = all.FirstOrDefault(t =>
+            string.Equals(NormalizeLanguage(t.LanguageCode), normalized, StringComparison.OrdinalIgnoreCase));
+
+        if (exact != null)
+            return exact;
+
+        return all.FirstOrDefault(t =>
+            string.Equals(GetPrimaryLanguage(NormalizeLanguage(t.LanguageCode)), primary, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public async Task<int> InsertAsync(TourTranslation translation)
+    {
+        var db = await _database.GetConnectionAsync();
+        translation.LanguageCode = NormalizeLanguage(translation.LanguageCode);
+        translation.CreatedAt = DateTime.UtcNow;
+        translation.UpdatedAt = DateTime.UtcNow;
+        return await db.InsertAsync(translation);
+    }
+
+    public async Task<int> UpdateAsync(TourTranslation translation)
+    {
+        var db = await _database.GetConnectionAsync();
+        translation.LanguageCode = NormalizeLanguage(translation.LanguageCode);
+        translation.UpdatedAt = DateTime.UtcNow;
+        return await db.UpdateAsync(translation);
+    }
+
+    public async Task<int> DeleteAsync(int id)
+    {
+        var db = await _database.GetConnectionAsync();
+        return await db.DeleteAsync<TourTranslation>(id);
+    }
+
+    public async Task<int> InsertOrUpdateAsync(TourTranslation translation)
+    {
+        var db = await _database.GetConnectionAsync();
+        translation.LanguageCode = NormalizeLanguage(translation.LanguageCode);
+
+        var candidates = await db.Table<TourTranslation>()
+            .Where(t => t.TourId == translation.TourId)
+            .ToListAsync();
+
+        var existing = candidates.FirstOrDefault(t =>
+            string.Equals(NormalizeLanguage(t.LanguageCode), translation.LanguageCode, StringComparison.OrdinalIgnoreCase));
+
+        if (existing != null)
+        {
+            translation.Id = existing.Id;
+            translation.CreatedAt = existing.CreatedAt;
+            translation.UpdatedAt = DateTime.UtcNow;
+            return await db.UpdateAsync(translation);
+        }
+
+        translation.CreatedAt = DateTime.UtcNow;
+        translation.UpdatedAt = DateTime.UtcNow;
+        return await db.InsertAsync(translation);
+    }
+
+    private static string NormalizeLanguage(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            return "vi-VN";
+
+        var value = code.Trim().Replace('_', '-');
+        return value.ToLowerInvariant() switch
+        {
+            var c when c.StartsWith("vi") => "vi-VN",
+            var c when c.StartsWith("en") => "en-US",
+            var c when c.StartsWith("zh") => "zh-CN",
+            var c when c.StartsWith("ja") => "ja-JP",
+            var c when c.StartsWith("ko") => "ko-KR",
+            var c when c.StartsWith("fr") => "fr-FR",
+            _ => value
+        };
+    }
+
+    private static string GetPrimaryLanguage(string code)
+    {
+        var normalized = NormalizeLanguage(code);
+        var idx = normalized.IndexOf('-');
+        return idx > 0 ? normalized[..idx] : normalized;
+    }
+}
+
+/// <summary>
 /// Repository cho Tour
 /// </summary>
 public class TourRepository : ITourRepository
 {
     private readonly DatabaseService _database;
+    private readonly ITourTranslationRepository _tourTranslationRepository;
+    private readonly ISettingsService _settingsService;
 
-    public TourRepository(DatabaseService database)
+    public TourRepository(
+        DatabaseService database,
+        ITourTranslationRepository tourTranslationRepository,
+        ISettingsService settingsService)
     {
         _database = database;
+        _tourTranslationRepository = tourTranslationRepository;
+        _settingsService = settingsService;
     }
 
     public async Task<List<Tour>> GetAllAsync()
     {
         var db = await _database.GetConnectionAsync();
-        return await db.Table<Tour>().ToListAsync();
+        var tours = await db.Table<Tour>().ToListAsync();
+        return await ApplyPreferredLanguageAsync(tours);
     }
 
     public async Task<Tour?> GetByIdAsync(int id)
     {
         var db = await _database.GetConnectionAsync();
-        return await db.Table<Tour>().FirstOrDefaultAsync(t => t.Id == id);
+        var tour = await db.Table<Tour>().FirstOrDefaultAsync(t => t.Id == id);
+        if (tour == null)
+            return null;
+
+        return await ApplyPreferredLanguageAsync(tour);
     }
 
     public async Task<Tour?> GetByCodeAsync(string code)
     {
         var db = await _database.GetConnectionAsync();
-        return await db.Table<Tour>().FirstOrDefaultAsync(t => t.UniqueCode == code);
+        var tour = await db.Table<Tour>().FirstOrDefaultAsync(t => t.UniqueCode == code);
+        if (tour == null)
+            return null;
+
+        return await ApplyPreferredLanguageAsync(tour);
     }
 
     public async Task<List<Tour>> GetActiveAsync()
     {
         var db = await _database.GetConnectionAsync();
-        return await db.Table<Tour>().Where(t => t.IsActive).ToListAsync();
+        var tours = await db.Table<Tour>().Where(t => t.IsActive).ToListAsync();
+        return await ApplyPreferredLanguageAsync(tours);
     }
 
     public async Task<List<Tour>> SearchAsync(string keyword)
@@ -462,6 +594,106 @@ public class TourRepository : ITourRepository
             return await UpdateAsync(tour);
         }
         return await InsertAsync(tour);
+    }
+
+    private async Task<List<Tour>> ApplyPreferredLanguageAsync(List<Tour> tours)
+    {
+        if (tours.Count == 0)
+            return tours;
+
+        var result = new List<Tour>(tours.Count);
+        foreach (var tour in tours)
+        {
+            result.Add(await ApplyPreferredLanguageAsync(tour));
+        }
+
+        return result;
+    }
+
+    private async Task<Tour> ApplyPreferredLanguageAsync(Tour tour)
+    {
+        var preferredLanguage = NormalizeLanguage(_settingsService.Settings.PreferredLanguage);
+        var sourceLanguage = NormalizeLanguage(tour.Language);
+
+        var translation = await _tourTranslationRepository.GetByTourIdAndLanguageAsync(tour.Id, preferredLanguage);
+        if (translation == null)
+        {
+            if (string.Equals(GetPrimaryLanguage(preferredLanguage), "vi", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(GetPrimaryLanguage(preferredLanguage), GetPrimaryLanguage(sourceLanguage), StringComparison.OrdinalIgnoreCase))
+            {
+                return tour;
+            }
+
+            return CloneTourWithDescription(
+                tour,
+                GetMissingTranslationMessage(preferredLanguage),
+                preferredLanguage);
+        }
+
+        var description = string.IsNullOrWhiteSpace(translation.Description)
+            ? GetMissingTranslationMessage(preferredLanguage)
+            : translation.Description;
+
+        return CloneTourWithDescription(tour, description, preferredLanguage);
+    }
+
+    private static Tour CloneTourWithDescription(Tour source, string description, string language)
+    {
+        return new Tour
+        {
+            Id = source.Id,
+            UniqueCode = source.UniqueCode,
+            Name = source.Name,
+            Description = description,
+            EstimatedDurationMinutes = source.EstimatedDurationMinutes,
+            EstimatedDistanceMeters = source.EstimatedDistanceMeters,
+            POICount = source.POICount,
+            ThumbnailUrl = source.ThumbnailUrl,
+            Language = language,
+            DifficultyLevel = source.DifficultyLevel,
+            WheelchairAccessible = source.WheelchairAccessible,
+            CreatedAt = source.CreatedAt,
+            UpdatedAt = source.UpdatedAt,
+            IsActive = source.IsActive
+        };
+    }
+
+    private static string NormalizeLanguage(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            return "vi-VN";
+
+        var value = code.Trim().Replace('_', '-');
+        return value.ToLowerInvariant() switch
+        {
+            var c when c.StartsWith("vi") => "vi-VN",
+            var c when c.StartsWith("en") => "en-US",
+            var c when c.StartsWith("zh") => "zh-CN",
+            var c when c.StartsWith("ja") => "ja-JP",
+            var c when c.StartsWith("ko") => "ko-KR",
+            var c when c.StartsWith("fr") => "fr-FR",
+            _ => value
+        };
+    }
+
+    private static string GetPrimaryLanguage(string code)
+    {
+        var normalized = NormalizeLanguage(code);
+        var idx = normalized.IndexOf('-');
+        return idx > 0 ? normalized[..idx] : normalized;
+    }
+
+    private static string GetMissingTranslationMessage(string languageCode)
+    {
+        return NormalizeLanguage(languageCode) switch
+        {
+            "en-US" => "Translation for this tour has not been created in the selected language.",
+            "zh-CN" => "该路线尚未创建所选语言的翻译。",
+            "ja-JP" => "このツアーの選択言語の翻訳はまだ作成されていません。",
+            "ko-KR" => "이 투어의 선택한 언어 번역이 아직 생성되지 않았습니다.",
+            "fr-FR" => "La traduction de ce circuit dans la langue sélectionnée n'a pas encore été créée.",
+            _ => "Chua tao ban dich mo ta tour theo ngon ngu da chon."
+        };
     }
 }
 

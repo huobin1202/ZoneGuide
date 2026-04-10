@@ -3,21 +3,22 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject HttpClient Http
+@inject IJSRuntime JS
 @using ZoneGuide.Shared.Models
 
 @if (_initialized)
 {
-<MudLayout>
-    <MudAppBar Elevation="1">
+<MudLayout Class="layout-tall-appbar">
+    <MudAppBar Elevation="1" Class="topbar-tall">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
             OnClick="@ToggleDrawer" />
-        <MudText Typo="Typo.h5" Class="ml-3">ZoneGuide @(_isAdmin ? "Admin" : "Contributor")</MudText>
+        <MudText Typo="Typo.h5" Class="ml-3">ZoneGuide</MudText>
         <MudSpacer />
 
         @if (_currentUser != null)
         {
-            <MudAvatar Size="Size.Medium" Class="mr-3 cursor-pointer" Color="Color.Primary" Style="background-color: #22ffd6 !important;"
-            onclick="@(() => Navigation.NavigateTo("/profile"))">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="cursor-pointer" @onclick="@(() => Navigation.NavigateTo("/profile"))">
+                <MudAvatar Size="Size.Medium" Color="Color.Primary" Style="background-color: #22ffd6 !important;">
                     @if (!string.IsNullOrEmpty(_currentUser.AvatarUrl))
                     {
                         <MudImage Src="@_currentUser.AvatarUrl" />
@@ -27,7 +28,11 @@
                         @(_currentUser.DisplayName?.FirstOrDefault())
                     }
                 </MudAvatar>
-            <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" OnClick="Logout" />
+                <MudStack Spacing="0">
+                    <MudText Typo="Typo.subtitle2" Class="text-white">@_currentUser.DisplayName</MudText>
+                    <MudText Typo="Typo.caption" Class="text-white" Style="color:#fff !important;">@GetRoleDisplayName()</MudText>
+                </MudStack>
+            </MudStack>
         }
         else
         {
@@ -37,77 +42,83 @@
         }
     </MudAppBar>
 
-    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
-        <MudNavMenu>
-            @if (_isAdmin)
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2" Class="main-sidebar">
+        <div class="drawer-layout">
+            <MudNavMenu>
+                @if (_isAdmin)
+                {
+                    <!-- Admin Menu -->
+                    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
+                        Bảng điều khiển
+                    </MudNavLink>
+                    <MudNavLink Href="/pois" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.LocationOn">
+                        Quản lý địa điểm
+                    </MudNavLink>
+                    <MudNavLink Href="/tours" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Route">
+                        Quản lý chuyến du lịch
+                    </MudNavLink>
+                    <MudNavLink Href="/poi-translations" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Translate">
+                        Audio / Bản dịch
+                    </MudNavLink>
+                    <MudDivider Class="my-2" />
+                    <MudText Typo="Typo.caption" Class="px-4 mud-text-secondary">Quản lý</MudText>
+                    <MudNavLink Href="/contributions" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.RateReview">
+                        Duyệt đóng góp
+                    </MudNavLink>
+                    <MudNavLink Href="/users" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.People">
+                        Quản lý người dùng
+                    </MudNavLink>
+                    <MudDivider Class="my-2" />
+                    <MudNavLink Href="/analytics" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Analytics">
+                        Analytics
+                    </MudNavLink>
+                    <MudNavLink Href="/heatmap" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Whatshot">
+                        Heatmap du khách
+                    </MudNavLink>
+                    <MudNavLink Href="/activity-log" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.History">
+                        Nhật ký hoạt động
+                    </MudNavLink>
+                }
+                else if (_isContributor)
+                {
+                    <!-- Contributor Menu -->
+                    <MudNavLink Href="/contributor-dashboard" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Dashboard">
+                        Dashboard contributor
+                    </MudNavLink>
+                    <MudDivider Class="my-2" />
+                    <MudText Typo="Typo.caption" Class="px-4 mud-text-secondary">Quản lý</MudText>
+                    <MudNavLink Href="/contributor-pois" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Map">
+                        Quản lý POI
+                    </MudNavLink>
+                    <MudNavLink Href="/my-contributions" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.EditLocation">
+                        Đóng góp của tôi
+                    </MudNavLink>
+                }
+                else
+                {
+                    <!-- Not logged in -->
+                    <MudNavLink Href="/login" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Login">
+                        Đăng nhập
+                    </MudNavLink>
+                    <MudNavLink Href="/register" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PersonAdd">
+                        Đăng ký Contributor
+                    </MudNavLink>
+                }
+            </MudNavMenu>
+
+            @if (_currentUser != null)
             {
-                <!-- Admin Menu -->
-                <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
-                    Dashboard
-                </MudNavLink>
-                <MudNavLink Href="/pois" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.LocationOn">
-                    Quản lý địa điểm
-                </MudNavLink>
-                <MudNavLink Href="/tours" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Route">
-                    Quản lý chuyến du lịch
-                </MudNavLink>
-                <MudNavLink Href="/poi-translations" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Translate">
-                    Audio / Bản dịch POI
-                </MudNavLink>
-                <MudDivider Class="my-2" />
-                <MudText Typo="Typo.caption" Class="px-4 mud-text-secondary">Quản lý</MudText>
-                <MudNavLink Href="/contributions" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.RateReview">
-                    Duyệt đóng góp
-                </MudNavLink>
-                <MudNavLink Href="/users" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.People">
-                    Quản lý người dùng
-                </MudNavLink>
-                <MudDivider Class="my-2" />
-                <MudNavLink Href="/analytics" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Analytics">
-                    Analytics
-                </MudNavLink>
-                <MudNavLink Href="/heatmap" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Whatshot">
-                    Heatmap du khách
-                </MudNavLink>
-                <MudNavLink Href="/activity-log" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.History">
-                    Nhật ký hoạt động
-                </MudNavLink>
-                <MudDivider Class="my-2" />
-                <MudNavLink Href="/profile" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Person">
-                    Profile
-                </MudNavLink>
+                <MudNavMenu>
+                    <MudDivider Class="my-2" />
+                    <MudNavLink Href="/profile" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Person">
+                        Profile
+                    </MudNavLink>
+                    <MudNavLink Icon="@Icons.Material.Filled.Logout" OnClick="@(_ => ConfirmLogout())">
+                        Đăng xuất
+                    </MudNavLink>
+                </MudNavMenu>
             }
-            else if (_isContributor)
-            {
-                <!-- Contributor Menu -->
-                <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
-                    Trang chủ
-                </MudNavLink>
-                <MudDivider Class="my-2" />
-                <MudText Typo="Typo.caption" Class="px-4 mud-text-secondary">Quản lý</MudText>
-                <MudNavLink Href="/contributor-pois" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Map">
-                    Quản lý POI
-                </MudNavLink>
-                <MudNavLink Href="/my-contributions" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.EditLocation">
-                    Đóng góp của tôi
-                </MudNavLink>
-                <MudDivider Class="my-2" />
-                <MudText Typo="Typo.caption" Class="px-4 mud-text-secondary">Tài khoản</MudText>
-                <MudNavLink Href="/profile" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Person">
-                    Thông tin cá nhân
-                </MudNavLink>
-            }
-            else
-            {
-                <!-- Not logged in -->
-                <MudNavLink Href="/login" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Login">
-                    Đăng nhập
-                </MudNavLink>
-                <MudNavLink Href="/register" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PersonAdd">
-                    Đăng ký Contributor
-                </MudNavLink>
-            }
-        </MudNavMenu>
+        </div>
     </MudDrawer>
 
     <MudMainContent>
@@ -123,6 +134,51 @@ else
         <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
     </MudContainer>
 }
+
+<style>
+    .layout-tall-appbar {
+        --mud-appbar-height: 78px;
+    }
+
+    .topbar-tall {
+        min-height: 78px !important;
+    }
+
+    .topbar-tall .mud-toolbar {
+        min-height: 78px !important;
+    }
+
+    .drawer-layout {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .main-sidebar .mud-nav-link {
+        border: 1px solid transparent;
+        border-radius: 10px;
+        margin: 2px 8px;
+        transition: all .18s ease;
+    }
+
+    .main-sidebar .mud-nav-link.active {
+        border-color: #2b7cd3;
+        box-shadow: inset 0 0 0 1px rgba(43, 124, 211, 0.25);
+        background: rgba(43, 124, 211, 0.08);
+    }
+
+    .main-sidebar .mud-nav-link.active,
+    .main-sidebar .mud-nav-link.active .mud-nav-link-text {
+        color: #2b7cd3 !important;
+        font-weight: 600;
+    }
+
+    .main-sidebar .mud-nav-link.active .mud-nav-link-icon,
+    .main-sidebar .mud-nav-link.active .mud-icon-root {
+        color: #2b7cd3 !important;
+    }
+</style>
 
 @code {
     private bool _drawerOpen = true;
@@ -170,6 +226,27 @@ else
         _currentUser = null;
         Snackbar.Add("Đã đăng xuất", Severity.Info);
         Navigation.NavigateTo("/login");
+    }
+
+    private async Task ConfirmLogout()
+    {
+        var shouldLogout = await JS.InvokeAsync<bool>("confirm", "Bạn có chắc chắn muốn đăng xuất không?");
+        if (!shouldLogout)
+        {
+            return;
+        }
+
+        await Logout();
+    }
+
+    private string GetRoleDisplayName()
+    {
+        return _currentUser?.Role switch
+        {
+            "Admin" => "Quản trị viên",
+            "Contributor" => "Cộng tác viên",
+            _ => "Người dùng"
+        };
     }
 
 }

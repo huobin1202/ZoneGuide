@@ -21,6 +21,9 @@ public interface IApiService
     Task<List<TourDto>> GetToursAsync();
     Task<TourDto?> GetTourAsync(string id);
     Task<TourWithPOIsDto?> GetTourWithDetailsAsync(string id);
+    Task<List<TourTranslationDto>> GetTourTranslationsAsync(string tourId);
+    Task<TourTranslationDto?> UpsertTourTranslationAsync(string tourId, string languageCode, TourTranslationDto dto);
+    Task<bool> DeleteTourTranslationAsync(string tourId, string languageCode);
     Task<TourDto?> CreateTourAsync(CreateTourDto dto);
     Task<TourDto?> UpdateTourAsync(string id, UpdateTourDto dto);
     Task<bool> DeleteTourAsync(string id);
@@ -212,6 +215,49 @@ public class ApiService : IApiService
         catch
         {
             return null;
+        }
+    }
+
+    public async Task<List<TourTranslationDto>> GetTourTranslationsAsync(string tourId)
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<List<TourTranslationDto>>($"api/tours/{tourId}/translations") ?? new();
+        }
+        catch
+        {
+            return new();
+        }
+    }
+
+    public async Task<TourTranslationDto?> UpsertTourTranslationAsync(string tourId, string languageCode, TourTranslationDto dto)
+    {
+        try
+        {
+            var response = await _httpClient.PutAsJsonAsync($"api/tours/{tourId}/translations/{Uri.EscapeDataString(languageCode)}", dto);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<TourTranslationDto>();
+            }
+
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<bool> DeleteTourTranslationAsync(string tourId, string languageCode)
+    {
+        try
+        {
+            var response = await _httpClient.DeleteAsync($"api/tours/{tourId}/translations/{Uri.EscapeDataString(languageCode)}");
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
         }
     }
 

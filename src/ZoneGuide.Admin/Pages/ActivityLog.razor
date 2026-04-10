@@ -2,10 +2,7 @@
 @using ZoneGuide.Shared.Models
 @inject ZoneGuide.Admin.Services.IApiService ApiService
 
-<MudText Typo="Typo.h4" Class="mb-4">
-    <MudIcon Icon="@Icons.Material.Filled.History" Class="mr-2" />
-    Nhật ký hoạt động
-</MudText>
+
 
 <MudPaper Class="pa-4 mb-4">
     <MudGrid>
@@ -63,7 +60,7 @@ else
                 <MudText Typo="Typo.body2">@context.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</MudText>
             </MudTd>
             <MudTd>
-                <MudChip T="string" Size="Size.Small" Color="Color.Info">@context.UserName</MudChip>
+                <MudChip T="string" Size="Size.Small" Color="Color.Info">@GetActorDisplayName(context)</MudChip>
             </MudTd>
             <MudTd>
                 @{
@@ -94,6 +91,9 @@ else
 }
 
 @code {
+    [SupplyParameterFromQuery(Name = "entityType")]
+    public string? EntityTypeQuery { get; set; }
+
     private List<ActivityLogDto> _logs = new();
     private bool _isLoading;
     private int _totalCount;
@@ -106,6 +106,11 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        if (!string.IsNullOrWhiteSpace(EntityTypeQuery))
+        {
+            _entityTypeFilter = EntityTypeQuery;
+        }
+
         await LoadLogs();
     }
 
@@ -162,6 +167,23 @@ else
         "Delete" => "Xóa",
         _ => action
     };
+
+    private string GetActorDisplayName(ActivityLogDto log)
+    {
+        if (string.IsNullOrWhiteSpace(log.UserName))
+        {
+            return string.IsNullOrWhiteSpace(log.UserEmail) ? "-" : log.UserEmail;
+        }
+
+        if (log.UserName.Equals("Admin", StringComparison.OrdinalIgnoreCase)
+            || log.UserName.Equals("Contributor", StringComparison.OrdinalIgnoreCase)
+            || log.UserName.Equals("User", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.IsNullOrWhiteSpace(log.UserEmail) ? log.UserName : log.UserEmail;
+        }
+
+        return log.UserName;
+    }
 
     private class ActivityLogResponse
     {

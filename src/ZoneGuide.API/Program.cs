@@ -92,7 +92,7 @@ builder.Services.AddScoped<IPOIContributionService, POIContributionService>();
 builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
 
 // AutoMapper
-builder.Services.AddAutoMapper(typeof(Program));
+builder.Services.AddAutoMapper(cfg => cfg.AddMaps(typeof(Program).Assembly));
 
 // CORS
 builder.Services.AddCors(options =>

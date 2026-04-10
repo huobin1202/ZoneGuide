@@ -1,6 +1,7 @@
 using ZoneGuide.API.Services;
 using ZoneGuide.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ZoneGuide.API.Controllers;
 
@@ -100,6 +101,98 @@ public class ToursController : ControllerBase
     }
 
     /// <summary>
+    /// Get all translations for a tour
+    /// </summary>
+    [HttpGet("{id}/translations")]
+    public async Task<ActionResult<List<TourTranslationDto>>> GetTranslations(string id)
+    {
+        try
+        {
+            var tour = await _tourService.GetByIdAsync(id);
+            if (tour == null)
+            {
+                return NotFound($"Tour with ID '{id}' not found");
+            }
+
+            var translations = await _tourService.GetTranslationsAsync(id);
+            return Ok(translations);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting translations for Tour {Id}", id);
+            return StatusCode(500, "An error occurred while retrieving Tour translations");
+        }
+    }
+
+    /// <summary>
+    /// Create or update a translation for a tour
+    /// </summary>
+    [HttpPut("{id}/translations/{languageCode}")]
+    public async Task<ActionResult<TourTranslationDto>> UpsertTranslation(string id, string languageCode, [FromBody] TourTranslationDto dto)
+    {
+        try
+        {
+            var (actorEmail, actorName) = GetActorIdentity();
+            var translation = await _tourService.UpsertTranslationAsync(id, languageCode, dto);
+            if (translation == null)
+            {
+                return NotFound($"Tour with ID '{id}' not found or translation input is invalid");
+            }
+
+            await _activityLogService.LogAsync(
+                "Update",
+                "TourTranslation",
+                $"{id}:{translation.LanguageCode}",
+                null,
+                $"Cập nhật bản dịch {translation.LanguageCode} cho Tour ID: {id}",
+                null,
+                actorEmail,
+                actorName);
+
+            return Ok(translation);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error upserting translation for Tour {Id} language {LanguageCode}", id, languageCode);
+            return StatusCode(500, "An error occurred while saving Tour translation");
+        }
+    }
+
+    /// <summary>
+    /// Delete a translation for a tour
+    /// </summary>
+    [HttpDelete("{id}/translations/{languageCode}")]
+    public async Task<ActionResult> DeleteTranslation(string id, string languageCode)
+    {
+        try
+        {
+            var (actorEmail, actorName) = GetActorIdentity();
+            var success = await _tourService.DeleteTranslationAsync(id, languageCode);
+            if (!success)
+            {
+                return NotFound($"Translation '{languageCode}' for Tour '{id}' not found");
+            }
+
+            await _activityLogService.LogAsync(
+                "Delete",
+                "TourTranslation",
+                $"{id}:{languageCode}",
+                null,
+                $"Xóa bản dịch {languageCode} của Tour ID: {id}",
+                null,
+                actorEmail,
+                actorName);
+
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting translation for Tour {Id} language {LanguageCode}", id, languageCode);
+            return StatusCode(500, "An error occurred while deleting Tour translation");
+        }
+    }
+
+    /// <summary>
     /// Create a new tour
     /// </summary>
     [HttpPost]
@@ -107,8 +200,9 @@ public class ToursController : ControllerBase
     {
         try
         {
+            var (actorEmail, actorName) = GetActorIdentity();
             var tour = await _tourService.CreateAsync(dto);
-            await _activityLogService.LogAsync("Create", "Tour", tour.Id, tour.Name, $"Tạo Tour mới: {tour.Name}", null, "admin", "Admin");
+            await _activityLogService.LogAsync("Create", "Tour", tour.Id, tour.Name, $"Tạo Tour mới: {tour.Name}", null, actorEmail, actorName);
             return CreatedAtAction(nameof(GetById), new { id = tour.Id }, tour);
         }
         catch (Exception ex)
@@ -126,12 +220,13 @@ public class ToursController : ControllerBase
     {
         try
         {
+            var (actorEmail, actorName) = GetActorIdentity();
             var tour = await _tourService.UpdateAsync(id, dto);
             if (tour == null)
             {
                 return NotFound($"Tour with ID '{id}' not found");
             }
-            await _activityLogService.LogAsync("Update", "Tour", id, tour.Name, $"Cập nhật Tour: {tour.Name}", null, "admin", "Admin");
+            await _activityLogService.LogAsync("Update", "Tour", id, tour.Name, $"Cập nhật Tour: {tour.Name}", null, actorEmail, actorName);
             return Ok(tour);
         }
         catch (Exception ex)
@@ -149,12 +244,13 @@ public class ToursController : ControllerBase
     {
         try
         {
+            var (actorEmail, actorName) = GetActorIdentity();
             var success = await _tourService.DeleteAsync(id);
             if (!success)
             {
                 return NotFound($"Tour with ID '{id}' not found");
             }
-            await _activityLogService.LogAsync("Delete", "Tour", id, null, $"Xóa Tour ID: {id}", null, "admin", "Admin");
+            await _activityLogService.LogAsync("Delete", "Tour", id, null, $"Xóa Tour ID: {id}", null, actorEmail, actorName);
             return NoContent();
         }
         catch (Exception ex)
@@ -184,5 +280,15 @@ public class ToursController : ControllerBase
             _logger.LogError(ex, "Error reordering POIs in tour {Id}", id);
             return StatusCode(500, "An error occurred while reordering POIs");
         }
+    }
+
+    private (string Email, string Name) GetActorIdentity()
+    {
+        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+        var name = User.FindFirst(ClaimTypes.Name)?.Value;
+
+        return (
+            string.IsNullOrWhiteSpace(email) ? "system" : email,
+            string.IsNullOrWhiteSpace(name) ? "Hệ thống" : name);
     }
 }

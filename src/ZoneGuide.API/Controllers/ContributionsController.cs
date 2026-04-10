@@ -135,6 +135,20 @@ public class ContributionsController : ControllerBase
         var stats = await _contributionService.GetContributionStatsAsync(userId.Value);
         return Ok(stats);
     }
+
+    /// <summary>
+    /// Lấy dữ liệu dashboard contributor
+    /// </summary>
+    [HttpGet("my/dashboard")]
+    [Authorize(Roles = "Contributor,Admin")]
+    public async Task<ActionResult<ContributorDashboardDto>> GetMyDashboard([FromQuery] int topCount = 5)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var dashboard = await _contributionService.GetContributorDashboardAsync(userId.Value, topCount);
+        return Ok(dashboard);
+    }
     
     #endregion
     

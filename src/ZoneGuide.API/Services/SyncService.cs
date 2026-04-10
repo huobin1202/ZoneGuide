@@ -93,6 +93,7 @@ public class SyncService : ISyncService
         if (request.IncludeTours)
         {
             var tourQuery = _context.Tours
+                .Include(t => t.Translations)
                 .Include(t => t.POIIds)
                 .ThenInclude(tp => tp.POI)
                 .Where(t => t.IsActive);
@@ -277,6 +278,17 @@ public class SyncService : ISyncService
             DifficultyLevel = entity.DifficultyLevel,
             WheelchairAccessible = entity.WheelchairAccessible,
             IsActive = entity.IsActive,
+            Translations = entity.Translations
+                .OrderBy(t => t.LanguageCode)
+                .Select(t => new TourTranslationDto
+                {
+                    Id = t.Id,
+                    TourId = t.TourId,
+                    LanguageCode = t.LanguageCode,
+                    Description = t.Description,
+                    IsOutdated = t.IsOutdated
+                })
+                .ToList(),
             POIIds = activePoiIds
         };
     }

@@ -17,6 +17,7 @@ public class SyncService : ISyncService
     private readonly IPOIRepository _poiRepository;
     private readonly IPOITranslationRepository _poiTranslationRepository;
     private readonly ITourRepository _tourRepository;
+    private readonly ITourTranslationRepository _tourTranslationRepository;
     private readonly IAnalyticsRepository _analyticsRepository;
     private readonly ISettingsService _settingsService;
     private readonly INarrationService _narrationService;
@@ -31,6 +32,7 @@ public class SyncService : ISyncService
         IPOIRepository poiRepository,
         IPOITranslationRepository poiTranslationRepository,
         ITourRepository tourRepository,
+        ITourTranslationRepository tourTranslationRepository,
         IAnalyticsRepository analyticsRepository,
         ISettingsService settingsService,
         INarrationService narrationService)
@@ -39,6 +41,7 @@ public class SyncService : ISyncService
         _poiRepository = poiRepository;
         _poiTranslationRepository = poiTranslationRepository;
         _tourRepository = tourRepository;
+        _tourTranslationRepository = tourTranslationRepository;
         _analyticsRepository = analyticsRepository;
         _settingsService = settingsService;
         _narrationService = narrationService;
@@ -131,6 +134,7 @@ public class SyncService : ISyncService
             {
                 var tour = MapToTour(tourDto);
                 await _tourRepository.InsertOrUpdateAsync(tour);
+                await SyncTourTranslationsAsync(tourDto, tour.Id);
             }
 
             SyncProgress?.Invoke(this, 1.0);
@@ -245,11 +249,25 @@ public class SyncService : ISyncService
                 string? savedAudioPath = null;
                 string? savedImagePath = null;
 
+                POI? localPoi = null;
+                if (int.TryParse(poi.Id, out var poiIdForLookup))
+                {
+                    localPoi = await _poiRepository.GetByIdAsync(poiIdForLookup);
+                }
+
+                var resolvedAudioUrl = !string.IsNullOrWhiteSpace(poi.AudioUrl)
+                    ? poi.AudioUrl
+                    : localPoi?.AudioUrl;
+
+                var resolvedImageUrl = !string.IsNullOrWhiteSpace(poi.ImageUrl)
+                    ? poi.ImageUrl
+                    : localPoi?.ImageUrl;
+
                 // Tải audio
-                if (!string.IsNullOrEmpty(poi.AudioUrl))
+                if (!string.IsNullOrWhiteSpace(resolvedAudioUrl))
                 {
                     downloadableAssetCount++;
-                    var audioData = await _apiService.DownloadAudioAsync(poi.AudioUrl);
+                    var audioData = await _apiService.DownloadAudioAsync(resolvedAudioUrl);
                     if (audioData != null)
                     {
                         var audioPath = Path.Combine(offlineDir, $"audio_{poi.Id}.mp3");
@@ -260,10 +278,10 @@ public class SyncService : ISyncService
                 }
 
                 // Tải ảnh
-                if (!string.IsNullOrEmpty(poi.ImageUrl))
+                if (!string.IsNullOrWhiteSpace(resolvedImageUrl))
                 {
                     downloadableAssetCount++;
-                    var imageData = await _apiService.DownloadImageAsync(poi.ImageUrl);
+                    var imageData = await _apiService.DownloadImageAsync(resolvedImageUrl);
                     if (imageData != null)
                     {
                         var imagePath = Path.Combine(offlineDir, $"image_{poi.Id}.jpg");
@@ -275,7 +293,7 @@ public class SyncService : ISyncService
 
                 if (int.TryParse(poi.Id, out var poiId))
                 {
-                    var localPoi = await _poiRepository.GetByIdAsync(poiId);
+                    localPoi ??= await _poiRepository.GetByIdAsync(poiId);
                     if (localPoi != null)
                     {
                         if (!string.IsNullOrWhiteSpace(savedAudioPath))
@@ -387,12 +405,55 @@ public class SyncService : ISyncService
             TTSScript = dto.TTSScript,
             ImageUrl = dto.ImageUrl,
             MapLink = dto.MapLink,
+            Category = ResolveCategory(dto),
             Language = dto.Language ?? "vi-VN",
             TourId = dto.TourId,
             OrderInTour = dto.OrderInTour,
             CooldownSeconds = dto.CooldownSeconds,
             IsActive = dto.IsActive,
             UpdatedAt = DateTime.UtcNow
+        };
+    }
+
+    private static string ResolveCategory(POIDto dto)
+    {
+        // Nếu server đã gửi category (kể cả "Khác"/"other") thì tôn trọng dữ liệu đó.
+        if (!string.IsNullOrWhiteSpace(dto.Category))
+            return NormalizeCategory(dto.Category);
+
+        var combined = $"{dto.UniqueCode} {dto.Name} {dto.ShortDescription}".ToLowerInvariant();
+
+        if (combined.Contains("ẩm thực") || combined.Contains("food") || combined.Contains("ăn uống") || combined.Contains("restaurant") || combined.Contains("vĩnh khánh"))
+            return "food";
+
+        if (combined.Contains("dịch vụ") || combined.Contains("service") || combined.Contains("hospital") || combined.Contains("hotel") || combined.Contains("spa"))
+            return "service";
+
+        if (combined.Contains("giải trí") || combined.Contains("entertainment") || combined.Contains("cinema") || combined.Contains("công viên") || combined.Contains("park"))
+            return "entertainment";
+
+        if (combined.Contains("mua sắm") || combined.Contains("shopping") || combined.Contains("mall") || combined.Contains("chợ") || combined.Contains("market"))
+            return "shopping";
+
+        if (combined.Contains("di tích") || combined.Contains("bảo tàng") || combined.Contains("đình") || combined.Contains("chùa") || combined.Contains("nhà rồng") || combined.Contains("cầu mống"))
+            return "tourism";
+
+        return "other";
+    }
+
+    private static string NormalizeCategory(string? category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+            return "other";
+
+        return category.Trim().ToLowerInvariant() switch
+        {
+            "tourism" or "du lịch" => "tourism",
+            "service" or "services" or "dịch vụ" => "service",
+            "food" or "food & drink" or "ăn uống" => "food",
+            "entertainment" or "giải trí" => "entertainment",
+            "shopping" or "mua sắm" => "shopping",
+            _ => "other"
         };
     }
 
@@ -477,6 +538,44 @@ public class SyncService : ISyncService
             var c when c.StartsWith("fr") => "fr-FR",
             _ => value
         };
+    }
+
+    private async Task SyncTourTranslationsAsync(TourDto tourDto, int tourId)
+    {
+        if (tourId <= 0)
+            return;
+
+        var incoming = tourDto.Translations ?? new List<TourTranslationDto>();
+        var existing = await _tourTranslationRepository.GetByTourIdAsync(tourId);
+
+        var incomingKeys = incoming
+            .Select(t => NormalizeLanguage(t.LanguageCode))
+            .Where(code => !string.IsNullOrWhiteSpace(code))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var old in existing)
+        {
+            if (!incomingKeys.Contains(NormalizeLanguage(old.LanguageCode)))
+            {
+                await _tourTranslationRepository.DeleteAsync(old.Id);
+            }
+        }
+
+        foreach (var translation in incoming)
+        {
+            if (string.IsNullOrWhiteSpace(translation.LanguageCode))
+                continue;
+
+            var entry = new TourTranslation
+            {
+                TourId = tourId,
+                LanguageCode = NormalizeLanguage(translation.LanguageCode),
+                Description = translation.Description ?? string.Empty,
+                IsOutdated = translation.IsOutdated
+            };
+
+            await _tourTranslationRepository.InsertOrUpdateAsync(entry);
+        }
     }
 
     private async Task EnsureSyncStateLoadedAsync()

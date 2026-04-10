@@ -156,8 +156,21 @@ public class TourDto
     public int DifficultyLevel { get; set; }
     public bool WheelchairAccessible { get; set; }
     public bool IsActive { get; set; }
+    public List<TourTranslationDto>? Translations { get; set; }
     public List<string> POIIds { get; set; } = new();
     public List<POIDto>? POIs { get; set; }
+}
+
+/// <summary>
+/// DTO cho Tour Translation
+/// </summary>
+public class TourTranslationDto
+{
+    public int Id { get; set; }
+    public int TourId { get; set; }
+    public string LanguageCode { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public bool IsOutdated { get; set; }
 }
 
 /// <summary>

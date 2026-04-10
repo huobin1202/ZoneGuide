@@ -1,0 +1,274 @@
+@page "/contributor-dashboard"
+@using ZoneGuide.Shared.Models
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+
+<PageTitle>ZoneGuide - Contributor Dashboard</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+    <MudPaper Class="pa-4 mb-4">
+        <MudText Typo="Typo.h4" Class="mb-1">
+            <MudIcon Icon="@Icons.Material.Filled.Dashboard" Class="mr-2" />
+            Dashboard Contributor
+        </MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            Xin chào, @_currentUser?.DisplayName! Theo dõi tiến độ đóng góp và xử lý nhanh các mục cần cập nhật.
+        </MudText>
+    </MudPaper>
+
+    @if (_loading)
+    {
+        <div class="d-flex justify-center pa-8">
+            <MudProgressCircular Indeterminate="true" />
+        </div>
+    }
+    else
+    {
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Class="pa-4 text-center" Elevation="1">
+                    <MudIcon Icon="@Icons.Material.Filled.Map" Color="Color.Primary" Style="font-size: 40px;" />
+                    <MudText Typo="Typo.h5">@_dashboard.TotalPOIsCreated</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Tổng POI đã tạo</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Class="pa-4 text-center" Elevation="1">
+                    <MudIcon Icon="@Icons.Material.Filled.Headset" Color="Color.Info" Style="font-size: 40px;" />
+                    <MudText Typo="Typo.h5">@_dashboard.TotalListens</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Tổng lượt nghe</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Class="pa-4 text-center" Elevation="1">
+                    <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Warning" Style="font-size: 40px;" />
+                    <MudText Typo="Typo.h5">@_dashboard.TopPOIs.Count</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Top POI của tôi</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <MudGrid Class="mt-4">
+            <MudItem xs="12">
+                <MudPaper Class="pa-4" Elevation="1">
+                    <MudText Typo="Typo.h6" Class="mb-3">Top POI của tôi</MudText>
+
+                    @if (_dashboard.TopPOIs.Any())
+                    {
+                        <MudTable Items="@_dashboard.TopPOIs" Dense="true" Hover="true">
+                            <HeaderContent>
+                                <MudTh>POI</MudTh>
+                                <MudTh>Lượt nghe</MudTh>
+                                <MudTh>Thời lượng TB</MudTh>
+                                <MudTh>Tỷ lệ hoàn thành</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="POI">@context.Name</MudTd>
+                                <MudTd DataLabel="Lượt nghe">@context.ListenCount</MudTd>
+                                <MudTd DataLabel="Thời lượng TB">@FormatDuration(context.AvgDurationSeconds)</MudTd>
+                                <MudTd DataLabel="Tỷ lệ hoàn thành">@context.CompletionRate.ToString("P1")</MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Info">Chưa có dữ liệu nghe cho POI của bạn.</MudAlert>
+                    }
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <MudGrid Class="mt-4">
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Class="pa-4 text-center" Elevation="1">
+                    <MudIcon Icon="@Icons.Material.Filled.Drafts" Color="Color.Default" Style="font-size: 40px;" />
+                    <MudText Typo="Typo.h5">@_stats.DraftCount</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Bản nháp</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Class="pa-4 text-center" Elevation="1">
+                    <MudIcon Icon="@Icons.Material.Filled.HourglassTop" Color="Color.Warning" Style="font-size: 40px;" />
+                    <MudText Typo="Typo.h5">@_stats.PendingCount</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Chờ duyệt</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Class="pa-4 text-center" Elevation="1">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Style="font-size: 40px;" />
+                    <MudText Typo="Typo.h5">@_stats.ApprovedCount</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Đã duyệt</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Class="pa-4 text-center" Elevation="1">
+                    <MudIcon Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Style="font-size: 40px;" />
+                    <MudText Typo="Typo.h5">@_stats.NeedsRevisionCount</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Cần sửa</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Class="pa-4 text-center" Elevation="1">
+                    <MudIcon Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Style="font-size: 40px;" />
+                    <MudText Typo="Typo.h5">@_stats.RejectedCount</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Từ chối</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <MudGrid Class="mt-4">
+            <MudItem xs="12" md="8">
+                <MudPaper Class="pa-4" Elevation="1">
+                    <div class="d-flex justify-space-between align-center mb-3">
+                        <MudText Typo="Typo.h6">Đóng góp gần đây</MudText>
+                        <MudButton Variant="Variant.Text" Color="Color.Primary" Href="/my-contributions">Xem tất cả</MudButton>
+                    </div>
+
+                    @if (_recentContributions.Any())
+                    {
+                        <MudTable Items="@_recentContributions" Dense="true" Hover="true">
+                            <HeaderContent>
+                                <MudTh>Tên địa điểm</MudTh>
+                                <MudTh>Trạng thái</MudTh>
+                                <MudTh>Cập nhật</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Tên địa điểm">@context.Name</MudTd>
+                                <MudTd DataLabel="Trạng thái">
+                                    <MudChip T="string" Color="@GetStatusColor(context.Status)" Size="Size.Small">
+                                        @GetStatusText(context.Status)
+                                    </MudChip>
+                                </MudTd>
+                                <MudTd DataLabel="Cập nhật">@context.UpdatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Info">Bạn chưa có đóng góp nào.</MudAlert>
+                    }
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="4">
+                <MudPaper Class="pa-4" Elevation="1">
+                    <MudText Typo="Typo.h6" Class="mb-3">Hành động nhanh</MudText>
+                    <MudStack Spacing="2">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Href="/contributor-pois">
+                            Tạo đóng góp mới
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.EditLocation" Href="/my-contributions">
+                            Quản lý đóng góp của tôi
+                        </MudButton>
+                        <MudAlert Severity="Severity.Normal" Dense="true">
+                            Mẹo: ưu tiên xử lý các mục ở trạng thái "Cần sửa" để tăng tỷ lệ duyệt.
+                        </MudAlert>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    private UserDto? _currentUser;
+    private ContributionStatsDto _stats = new();
+    private ContributorDashboardDto _dashboard = new();
+    private List<POIContributionDto> _recentContributions = new();
+    private bool _loading = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        await CheckAuthAsync();
+        if (_currentUser == null)
+        {
+            return;
+        }
+
+        await LoadDashboardAsync();
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task CheckAuthAsync()
+    {
+        try
+        {
+            _currentUser = await LocalStorage.GetItemAsync<UserDto>("user");
+        }
+        catch
+        {
+            _currentUser = null;
+        }
+
+        if (_currentUser == null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        if (_currentUser.Role != "Contributor" && _currentUser.Role != "Admin")
+        {
+            Snackbar.Add("Bạn không có quyền truy cập trang này", Severity.Error);
+            Navigation.NavigateTo("/");
+        }
+    }
+
+    private async Task LoadDashboardAsync()
+    {
+        try
+        {
+            _dashboard = await Http.GetFromJsonAsync<ContributorDashboardDto>("api/contributions/my/dashboard?topCount=5") ?? new ContributorDashboardDto();
+            _stats = await Http.GetFromJsonAsync<ContributionStatsDto>("api/contributions/my/stats") ?? new ContributionStatsDto();
+
+            var contributions = await Http.GetFromJsonAsync<List<POIContributionDto>>("api/contributions/my") ?? new List<POIContributionDto>();
+            _recentContributions = contributions
+                .OrderByDescending(x => x.UpdatedAt)
+                .Take(6)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Không thể tải dashboard contributor: {ex.Message}", Severity.Error);
+            _dashboard = new ContributorDashboardDto();
+            _stats = new ContributionStatsDto();
+            _recentContributions = new List<POIContributionDto>();
+        }
+    }
+
+    private static string FormatDuration(double seconds)
+    {
+        var ts = TimeSpan.FromSeconds(seconds);
+        return ts.TotalMinutes >= 1
+            ? $"{(int)ts.TotalMinutes}m {ts.Seconds}s"
+            : $"{ts.Seconds}s";
+    }
+
+    private static Color GetStatusColor(string status) => status switch
+    {
+        "Draft" => Color.Default,
+        "Pending" => Color.Warning,
+        "Approved" => Color.Success,
+        "Rejected" => Color.Error,
+        "NeedsRevision" => Color.Info,
+        _ => Color.Default
+    };
+
+    private static string GetStatusText(string status) => status switch
+    {
+        "Draft" => "Bản nháp",
+        "Pending" => "Chờ duyệt",
+        "Approved" => "Đã duyệt",
+        "Rejected" => "Từ chối",
+        "NeedsRevision" => "Cần sửa",
+        _ => status
+    };
+}

@@ -199,6 +199,8 @@ public class AuthService : IAuthService
         var user = await _context.Users.FindAsync(userId);
         if (user == null) return null;
         
+        if (!string.IsNullOrWhiteSpace(dto.Email))
+            user.Email = dto.Email;
         if (!string.IsNullOrEmpty(dto.DisplayName))
             user.DisplayName = dto.DisplayName;
         if (dto.PhoneNumber != null)

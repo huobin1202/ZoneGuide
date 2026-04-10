@@ -16,7 +16,6 @@ namespace ZoneGuide.Mobile.ViewModels;
 public partial class POIListViewModel : ObservableObject
 {
     private readonly IPOIRepository _poiRepository;
-    private readonly ITourRepository _tourRepository;
     private readonly IGeofenceService _geofenceService;
     private readonly INarrationService _narrationService;
     private readonly ISyncService _syncService;
@@ -58,13 +57,11 @@ public partial class POIListViewModel : ObservableObject
 
     public POIListViewModel(
         IPOIRepository poiRepository,
-        ITourRepository tourRepository,
         IGeofenceService geofenceService,
         INarrationService narrationService,
         ISyncService syncService)
     {
         _poiRepository = poiRepository;
-        _tourRepository = tourRepository;
         _geofenceService = geofenceService;
         _narrationService = narrationService;
         _syncService = syncService;
@@ -94,7 +91,6 @@ public partial class POIListViewModel : ObservableObject
             System.Diagnostics.Debug.WriteLine($"[POIListVM] Server sync failed (non-fatal): {ex.Message}");
         }
 
-        await SeedDataService.SeedIfEmptyAsync(_poiRepository, _tourRepository);
         await LoadPOIsAsync();
     }
 
@@ -352,7 +348,6 @@ public partial class POIListViewModel : ObservableObject
         Categories.Add(AppLocalizer.Instance.Translate("category_food"));
         Categories.Add(AppLocalizer.Instance.Translate("category_entertainment"));
         Categories.Add(AppLocalizer.Instance.Translate("category_shopping"));
-        Categories.Add(AppLocalizer.Instance.Translate("category_other"));
 
         SelectedCategory = Categories
             .FirstOrDefault(c => NormalizeCategoryKey(c) == currentCategoryKey)
@@ -389,12 +384,18 @@ public partial class POIListViewModel : ObservableObject
         return category.Trim().ToLowerInvariant() switch
         {
             "all" or "tất cả" => "all",
+            "hải sản & ốc" or "hai san & oc" or "seafood & snails" or "seafood" => "tourism",
+            "ăn vặt" or "an vat" or "snacks" or "snack" => "service",
+            "lẩu & nướng" or "lau & nuong" or "hotpot & grill" or "hotpot" or "grill" => "food",
+            "nhậu" or "nhau" or "drinking" or "pub" => "entertainment",
+            "ăn no" or "an no" or "hearty meals" or "main meal" => "shopping",
+
+            // Backward compatibility for old category labels
             "tourism" or "du lịch" => "tourism",
             "service" or "services" or "dịch vụ" => "service",
             "food" or "food & drink" or "ăn uống" => "food",
             "entertainment" or "giải trí" => "entertainment",
-            "shopping" or "mua sắm" => "shopping",
-            "other" or "khác" => "other",
+            "shopping" or "mua sắm" or "other" or "khác" => "shopping",
             _ => category.Trim().ToLowerInvariant()
         };
     }
@@ -644,9 +645,25 @@ public partial class POIDetailViewModel : ObservableObject
         if (CurrentPoi == null)
             return;
 
-        var location = new Location(CurrentPoi.Latitude, CurrentPoi.Longitude);
-        var options = new MapLaunchOptions { NavigationMode = NavigationMode.Walking };
-        await Microsoft.Maui.ApplicationModel.Map.Default.OpenAsync(location, options);
+        var action = await Shell.Current.DisplayActionSheet(
+            "Chọn cách chỉ đường",
+            "Hủy",
+            null,
+            "Chỉ đường trong app",
+            "Google Maps");
+
+        if (string.Equals(action, "Chỉ đường trong app", StringComparison.Ordinal))
+        {
+            await Shell.Current.GoToAsync($"//map?poiId={CurrentPoi.Id}&navigate=true");
+            return;
+        }
+
+        if (string.Equals(action, "Google Maps", StringComparison.Ordinal))
+        {
+            var destination = $"{CurrentPoi.Latitude.ToString(CultureInfo.InvariantCulture)},{CurrentPoi.Longitude.ToString(CultureInfo.InvariantCulture)}";
+            var url = $"https://www.google.com/maps/dir/?api=1&destination={destination}&travelmode=walking";
+            await Microsoft.Maui.ApplicationModel.Launcher.Default.OpenAsync(url);
+        }
     }
 
     [RelayCommand]

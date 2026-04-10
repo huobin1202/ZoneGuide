@@ -9,15 +9,22 @@
 <PageTitle>ZoneGuide</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <MudText Typo="Typo.h4" Class="mb-4">
-        <MudIcon Icon="@Icons.Material.Filled.RateReview" Class="mr-2" />
-        Duyệt đóng góp POI
-    </MudText>
+  
+
+    <MudTextField @bind-Value="_searchKeyword"
+                  Label="Tìm kiếm theo tên điểm, mô tả, người đóng góp, danh mục"
+                  Variant="Variant.Outlined"
+                  Adornment="Adornment.Start"
+                  AdornmentIcon="@Icons.Material.Filled.Search"
+                  Clearable="true"
+                  Immediate="true"
+                  Class="mb-4" />
     
     <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
         <MudTabPanel Text="Tất cả">
                 <ContributionTable 
                     Contributions="@allContributions" 
+                    SearchKeyword="@_searchKeyword"
                     IsLoading="@isLoading"
                     OnReview="OnReviewContribution"
                     OnViewHistory="OnViewHistory"
@@ -28,6 +35,7 @@
         <MudTabPanel Text="Chờ duyệt" BadgeData="@pendingCount" BadgeColor="Color.Warning">
             <ContributionTable 
                 Contributions="@pendingContributions" 
+                SearchKeyword="@_searchKeyword"
                 IsLoading="@isLoading"
                 OnReview="OnReviewContribution"
                 OnViewHistory="OnViewHistory"
@@ -38,6 +46,7 @@
         <MudTabPanel Text="Đã duyệt" BadgeData="@approvedCount" BadgeColor="Color.Success">
             <ContributionTable 
                 Contributions="@approvedContributions" 
+                SearchKeyword="@_searchKeyword"
                 IsLoading="@isLoading"
                 OnViewHistory="OnViewHistory"
                 OnShowLocation="OnShowLocation"
@@ -47,6 +56,7 @@
         <MudTabPanel Text="Từ chối" BadgeData="@rejectedCount" BadgeColor="Color.Error">
             <ContributionTable 
                 Contributions="@rejectedContributions" 
+                SearchKeyword="@_searchKeyword"
                 IsLoading="@isLoading"
                 OnViewHistory="OnViewHistory"
                 OnShowLocation="OnShowLocation"
@@ -56,6 +66,7 @@
         <MudTabPanel Text="Cần sửa" BadgeData="@needsRevisionCount" BadgeColor="Color.Info">
             <ContributionTable 
                 Contributions="@needsRevisionContributions" 
+                SearchKeyword="@_searchKeyword"
                 IsLoading="@isLoading"
                 OnViewHistory="OnViewHistory"
                 OnShowLocation="OnShowLocation"
@@ -77,6 +88,7 @@
     private int approvedCount => approvedContributions.Count;
     private int rejectedCount => rejectedContributions.Count;
     private int needsRevisionCount => needsRevisionContributions.Count;
+    private string _searchKeyword = string.Empty;
     
     private bool isLoading = true;
     

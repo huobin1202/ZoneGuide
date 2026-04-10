@@ -131,7 +131,7 @@ public partial class TourDetailViewModel : ObservableObject
     private Color offlineCardBackground = Colors.Gray;
 
     [ObservableProperty]
-    private string distanceDisplay = "0m";
+    private string distanceDisplay = "0 km";
 
     [ObservableProperty]
     private string highlightsText = string.Empty;
@@ -183,6 +183,20 @@ public partial class TourDetailViewModel : ObservableObject
             IsOfflineAvailable = await _syncService.IsTourOfflineAvailableAsync(TourId);
 
             var pois = await _poiRepository.GetByTourIdAsync(TourId);
+
+            if (Tour.POICount > 1 && pois.Count < Tour.POICount)
+            {
+                try
+                {
+                    await _syncService.SyncFromServerAsync();
+                    pois = await _poiRepository.GetByTourIdAsync(TourId);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[TourDetailVM] Refresh POIs for tour {TourId} failed: {ex.Message}");
+                }
+            }
+
             POIs.Clear();
             foreach (var poi in pois)
             {
@@ -207,14 +221,14 @@ public partial class TourDetailViewModel : ObservableObject
             : Tour?.POICount ?? 0;
 
         DistanceDisplay = Tour == null
-            ? DistanceUnitService.FormatFromMeters(0)
-            : DistanceUnitService.FormatFromMeters(Tour.EstimatedDistanceMeters);
+            ? DistanceUnitService.FormatAsKilometers(0)
+            : DistanceUnitService.FormatAsKilometers(Tour.EstimatedDistanceMeters);
 
         HighlightsText = BuildHighlightsText();
 
         if (IsDownloading)
         {
-            OfflineCardBackground = Color.FromArgb("#F59E0B");
+            OfflineCardBackground = Color.FromArgb("#374151");
             OfflineStatusText = _localizer.Translate("tour_detail_downloading", "Downloading content for offline use");
             OfflineActionText = _localizer.Translate("tour_detail_downloading_short", "Downloading");
             return;
@@ -222,13 +236,13 @@ public partial class TourDetailViewModel : ObservableObject
 
         if (IsOfflineAvailable)
         {
-            OfflineCardBackground = Color.FromArgb("#10B981");
+            OfflineCardBackground = Color.FromArgb("#111827");
             OfflineStatusText = _localizer.Translate("tour_detail_offline_ready", "Saved on this device and ready without internet");
             OfflineActionText = _localizer.Translate("tour_detail_remove_offline", "Remove");
             return;
         }
 
-        OfflineCardBackground = Color.FromArgb("#6366F1");
+        OfflineCardBackground = Color.FromArgb("#111827");
         OfflineStatusText = _localizer.Translate("tour_detail_offline_prompt", "Download images and stops for use when connection is limited");
         OfflineActionText = _localizer.Translate("tour_detail_download_offline", "Download");
     }

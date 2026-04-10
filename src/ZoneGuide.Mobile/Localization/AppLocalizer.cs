@@ -57,16 +57,22 @@ public sealed class AppLocalizer : INotifyPropertyChanged
     public string TranslateCategory(string? category)
     {
         if (string.IsNullOrWhiteSpace(category))
-            return Translate("category_other");
+            return Translate("category_shopping");
 
         return category.Trim().ToLowerInvariant() switch
         {
+            "hải sản & ốc" or "hai san & oc" or "seafood & snails" or "seafood" => Translate("category_tourism"),
+            "ăn vặt" or "an vat" or "snacks" or "snack" => Translate("category_service"),
+            "lẩu & nướng" or "lau & nuong" or "hotpot & grill" or "hotpot" or "grill" => Translate("category_food"),
+            "nhậu" or "nhau" or "drinking" or "pub" => Translate("category_entertainment"),
+            "ăn no" or "an no" or "hearty meals" or "main meal" => Translate("category_shopping"),
+
+            // Backward compatibility for old category names
             "du lịch" or "tourism" => Translate("category_tourism"),
             "dịch vụ" or "service" or "services" => Translate("category_service"),
             "ăn uống" or "food" or "food & drink" => Translate("category_food"),
             "giải trí" or "entertainment" => Translate("category_entertainment"),
-            "mua sắm" or "shopping" => Translate("category_shopping"),
-            "khác" or "other" => Translate("category_other"),
+            "mua sắm" or "shopping" or "khác" or "other" => Translate("category_shopping"),
             _ => category
         };
     }
@@ -254,12 +260,12 @@ public sealed class AppLocalizer : INotifyPropertyChanged
         ["language_japanese"] = "日本語",
         ["language_korean"] = "한국어",
         ["language_french"] = "Français",
-        ["category_tourism"] = "Du lịch",
-        ["category_service"] = "Dịch vụ",
-        ["category_food"] = "Ăn uống",
-        ["category_entertainment"] = "Giải trí",
-        ["category_shopping"] = "Mua sắm",
-        ["category_other"] = "Khác",
+    ["category_tourism"] = "Hải sản & ốc",
+    ["category_service"] = "Ăn vặt",
+    ["category_food"] = "Lẩu & nướng",
+    ["category_entertainment"] = "Nhậu",
+    ["category_shopping"] = "Ăn no",
+    ["category_other"] = "Ăn no",
         ["status_just_now"] = "Vừa xong",
         ["status_minutes_ago"] = "phút trước",
         ["status_hours_ago"] = "giờ trước",
@@ -413,12 +419,12 @@ public sealed class AppLocalizer : INotifyPropertyChanged
         ["language_japanese"] = "Japanese",
         ["language_korean"] = "Korean",
         ["language_french"] = "French",
-        ["category_tourism"] = "Tourism",
-        ["category_service"] = "Services",
-        ["category_food"] = "Food",
-        ["category_entertainment"] = "Entertainment",
-        ["category_shopping"] = "Shopping",
-        ["category_other"] = "Other",
+    ["category_tourism"] = "Seafood & snails",
+    ["category_service"] = "Snacks",
+    ["category_food"] = "Hotpot & grill",
+    ["category_entertainment"] = "Drinking",
+    ["category_shopping"] = "Hearty meals",
+    ["category_other"] = "Hearty meals",
         ["status_just_now"] = "Just now",
         ["status_minutes_ago"] = "minutes ago",
         ["status_hours_ago"] = "hours ago",
@@ -498,12 +504,12 @@ public sealed class AppLocalizer : INotifyPropertyChanged
         ["language_japanese"] = "日语",
         ["language_korean"] = "韩语",
         ["language_french"] = "法语",
-        ["category_tourism"] = "旅游",
-        ["category_service"] = "服务",
-        ["category_food"] = "美食",
-        ["category_entertainment"] = "娱乐",
-        ["category_shopping"] = "购物",
-        ["category_other"] = "其他"
+    ["category_tourism"] = "海鲜与螺类",
+    ["category_service"] = "小吃",
+    ["category_food"] = "火锅与烧烤",
+    ["category_entertainment"] = "饮酒",
+    ["category_shopping"] = "饱腹正餐",
+    ["category_other"] = "饱腹正餐"
     };
 
     private static Dictionary<string, string> BuildJapanese() => new(StringComparer.OrdinalIgnoreCase)
@@ -574,12 +580,12 @@ public sealed class AppLocalizer : INotifyPropertyChanged
         ["language_japanese"] = "日本語",
         ["language_korean"] = "韓国語",
         ["language_french"] = "フランス語",
-        ["category_tourism"] = "観光",
-        ["category_service"] = "サービス",
-        ["category_food"] = "グルメ",
-        ["category_entertainment"] = "エンタメ",
-        ["category_shopping"] = "ショッピング",
-        ["category_other"] = "その他"
+    ["category_tourism"] = "海鮮・巻貝",
+    ["category_service"] = "軽食",
+    ["category_food"] = "鍋・焼き物",
+    ["category_entertainment"] = "飲み",
+    ["category_shopping"] = "しっかりご飯",
+    ["category_other"] = "しっかりご飯"
     };
 
     private static Dictionary<string, string> BuildKorean() => new(StringComparer.OrdinalIgnoreCase)
@@ -650,12 +656,12 @@ public sealed class AppLocalizer : INotifyPropertyChanged
         ["language_japanese"] = "일본어",
         ["language_korean"] = "한국어",
         ["language_french"] = "프랑스어",
-        ["category_tourism"] = "관광",
-        ["category_service"] = "서비스",
-        ["category_food"] = "음식",
-        ["category_entertainment"] = "엔터테인먼트",
-        ["category_shopping"] = "쇼핑",
-        ["category_other"] = "기타"
+    ["category_tourism"] = "해산물 & 소라",
+    ["category_service"] = "간식",
+    ["category_food"] = "전골 & 구이",
+    ["category_entertainment"] = "술자리",
+    ["category_shopping"] = "든든한 식사",
+    ["category_other"] = "든든한 식사"
     };
 
     private static Dictionary<string, string> BuildFrench() => new(StringComparer.OrdinalIgnoreCase)
@@ -726,12 +732,12 @@ public sealed class AppLocalizer : INotifyPropertyChanged
         ["language_japanese"] = "Japonais",
         ["language_korean"] = "Coréen",
         ["language_french"] = "Français",
-        ["category_tourism"] = "Tourisme",
-        ["category_service"] = "Services",
-        ["category_food"] = "Restauration",
-        ["category_entertainment"] = "Divertissement",
-        ["category_shopping"] = "Shopping",
-        ["category_other"] = "Autre"
+    ["category_tourism"] = "Fruits de mer & escargots",
+    ["category_service"] = "Snacks",
+    ["category_food"] = "Fondue & grillades",
+    ["category_entertainment"] = "Apéro",
+    ["category_shopping"] = "Repas copieux",
+    ["category_other"] = "Repas copieux"
     };
 }
 

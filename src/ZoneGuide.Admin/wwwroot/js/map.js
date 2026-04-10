@@ -11,7 +11,7 @@ var pickerMap = null;
 var pickerMarker = null;
 var dotNetRef = null;
 
-window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetReference, readOnlyMode, focusPoiId) {
+window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetReference, readOnlyMode, focusPoiId, compactPopupMode) {
     // Destroy existing map if any
     if (poiMap) {
         poiMap.remove();
@@ -22,6 +22,7 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
     searchResultMarker = null;
     dotNetRef = dotNetReference || null;
     var isReadOnlyMode = readOnlyMode === true;
+    var isCompactPopupMode = compactPopupMode === true;
 
     // Initialize map
     poiMap = L.map(elementId, {
@@ -57,46 +58,63 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
         });
 
         // Use standard Leaflet colors from local offline files
-        var foodIcon = new CustomIcon({iconUrl: '/images/markers/food-dish-svgrepo-com.svg'});
-        var entertainmentIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-yellow.png'});
-        var travelIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-green.png'});
-        var servicesIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-blue.png'});
-        var shoppingIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-orange.png'});
-        var otherIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-gray.png'});
+        var seafoodIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-blue.png'});
+        var snackIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-yellow.png'});
+        var hotpotGrillIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-violet.png'});
+        var drinkingIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-orange.png'});
+        var fullMealIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-green.png'});
+        var defaultFoodIcon = new CustomIcon({iconUrl: '/images/markers/food-dish-svgrepo-com.svg'});
         var contributionIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-red.png'});
+
+        function normalizeCategoryKey(category) {
+            return (category || '')
+                .toString()
+                .trim()
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/đ/g, 'd')
+                .replace(/&/g, ' va ')
+                .replace(/[^a-z0-9]+/g, ' ')
+                .trim();
+        }
 
         function getCustomIcon(category, isContribution) {
             if (isContribution) {
                 return contributionIcon;
             }
 
-            switch((category || '').toLowerCase()) {
+            var key = normalizeCategoryKey(category);
+            switch(key) {
+                // New category taxonomy
+                case 'hai san va oc':
+                    return seafoodIcon;
+                case 'an vat':
+                    return snackIcon;
+                case 'lau va nuong':
+                    return hotpotGrillIcon;
+                case 'nhau':
+                    return drinkingIcon;
+                case 'an no':
+                    return fullMealIcon;
+
+                // Backward-compatible aliases
                 case 'food':
-                case 'ăn uống':
                 case 'an uong':
-                    return foodIcon;
+                    return fullMealIcon;
                 case 'entertainment':
-                case 'giải trí':
-                case 'giai tri':
-                    return entertainmentIcon;
+                    return drinkingIcon;
                 case 'travel':
-                case 'du lịch':
-                case 'du lich':
-                    return travelIcon;
+                    return seafoodIcon;
                 case 'services':
-                case 'dịch vụ':
-                case 'dich vu':
-                    return servicesIcon;
+                    return hotpotGrillIcon;
                 case 'shopping':
-                case 'mua sắm':
-                case 'mua sam':
-                    return shoppingIcon;
+                    return snackIcon;
                 case 'other':
-                case 'khác':
                 case 'khac':
-                    return otherIcon;
+                    return defaultFoodIcon;
                 default:
-                    return otherIcon; // Mặc định cho các loại khác hoặc không xác định
+                    return defaultFoodIcon; // Mặc định cho các loại khác hoặc không xác định
             }
         }
 
@@ -117,6 +135,13 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
                 ? '<div style="position:absolute;top:0;right:10px;display:flex;gap:8px;align-items:center;z-index:4;padding:6px 8px;border-radius:999px;background:rgba(255,255,255,0.98);box-shadow:0 8px 20px rgba(15,23,42,0.18);">' + actionButtons + '</div>'
                 : '';
 
+            var popupDetailHtml = isCompactPopupMode
+                ? ''
+                : '<p style="margin: 0 0 8px 0; font-size: 13px; color: #555; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">' +
+                    (poi.description ? poi.description : 'Chưa có nội dung thuyết minh (TTS)') + '</p>' +
+                  '<p style="margin: 0; font-size: 12px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' +
+                    '📍 ' + (poi.address ? poi.address : (poi.lat.toFixed(6) + ', ' + poi.lng.toFixed(6))) + '</p>';
+
             var marker = L.marker([poi.lat, poi.lng], { icon: getCustomIcon(poi.category, poi.isContribution) })
                 .addTo(poiMap)
                 .bindPopup(
@@ -132,10 +157,7 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
                             '🏛 ' + poi.category + 
                         '</span>' +
                     '</div>' +
-                    '<p style="margin: 0 0 8px 0; font-size: 13px; color: #555; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">' + 
-                    (poi.description ? poi.description : 'Chưa có nội dung thuyết minh (TTS)') + '</p>' +
-                    '<p style="margin: 0; font-size: 12px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' +
-                    '📍 ' + (poi.address ? poi.address : (poi.lat.toFixed(6) + ', ' + poi.lng.toFixed(6))) + '</p>' +
+                    popupDetailHtml +
                     '</div></div>', {
                         className: 'custom-poi-popup',
                         minWidth: 250,

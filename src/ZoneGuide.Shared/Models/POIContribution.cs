@@ -317,4 +317,14 @@ public class ContributionStatsDto
     public int NeedsRevisionCount { get; set; }
 }
 
+/// <summary>
+/// Dashboard contributor
+/// </summary>
+public class ContributorDashboardDto
+{
+    public int TotalPOIsCreated { get; set; }
+    public int TotalListens { get; set; }
+    public List<TopPOIDto> TopPOIs { get; set; } = new();
+}
+
 #endregion

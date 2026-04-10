@@ -10,7 +10,7 @@
 
     <ContentPage.Resources>
         <ResourceDictionary>
-            <Color x:Key="Primary">#512BD4</Color>
+            <Color x:Key="Primary">#7C3AED</Color>
             <Color x:Key="Gray500">#6E6E6E</Color>
             <Color x:Key="Gray900">#212121</Color>
             <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
@@ -56,7 +56,7 @@
                                HorizontalTextAlignment="Center" />
                         <Label Text="Chọn ngôn ngữ trước khi bắt đầu.&#10;Bạn luôn có thể đổi lại trong Cài đặt."
                                FontSize="15"
-                               TextColor="#DAD6FF"
+                               TextColor="#EDE9FE"
                                HorizontalTextAlignment="Center" />
                     </VerticalStackLayout>
                 </VerticalStackLayout>
