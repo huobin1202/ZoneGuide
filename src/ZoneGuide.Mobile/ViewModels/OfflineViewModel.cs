@@ -531,6 +531,7 @@ public partial class OfflineViewModel : ObservableObject
             "service" => Color.FromArgb("#DBEAFE"),
             "food" => Color.FromArgb("#FEF3C7"),
             "entertainment" => Color.FromArgb("#DCFCE7"),
+            "drinks" => Color.FromArgb("#FFE4E6"),
             "shopping" => Color.FromArgb("#EDE9FE"),
             _ => Color.FromArgb("#E0F2FE")
         };
@@ -542,6 +543,7 @@ public partial class OfflineViewModel : ObservableObject
             "service" => Color.FromArgb("#2563EB"),
             "food" => Color.FromArgb("#D97706"),
             "entertainment" => Color.FromArgb("#16A34A"),
+            "drinks" => Color.FromArgb("#E11D48"),
             "shopping" => Color.FromArgb("#9333EA"),
             _ => Color.FromArgb("#0F766E")
         };
@@ -553,6 +555,7 @@ public partial class OfflineViewModel : ObservableObject
             "ăn vặt" or "an vat" or "snacks" or "snack" => "service",
             "lẩu & nướng" or "lau & nuong" or "hotpot & grill" or "hotpot" or "grill" => "food",
             "nhậu" or "nhau" or "drinking" or "pub" => "entertainment",
+            "giải khát" or "giai khat" or "beverage" or "beverages" or "drinks" => "drinks",
             "ăn no" or "an no" or "hearty meals" or "main meal" => "shopping",
 
             // Backward compatibility for old category labels

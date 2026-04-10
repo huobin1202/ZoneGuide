@@ -65,6 +65,7 @@ public sealed class AppLocalizer : INotifyPropertyChanged
             "ăn vặt" or "an vat" or "snacks" or "snack" => Translate("category_service"),
             "lẩu & nướng" or "lau & nuong" or "hotpot & grill" or "hotpot" or "grill" => Translate("category_food"),
             "nhậu" or "nhau" or "drinking" or "pub" => Translate("category_entertainment"),
+            "giải khát" or "giai khat" or "beverage" or "beverages" or "drinks" => Translate("category_drinks"),
             "ăn no" or "an no" or "hearty meals" or "main meal" => Translate("category_shopping"),
 
             // Backward compatibility for old category names
@@ -264,6 +265,7 @@ public sealed class AppLocalizer : INotifyPropertyChanged
     ["category_service"] = "Ăn vặt",
     ["category_food"] = "Lẩu & nướng",
     ["category_entertainment"] = "Nhậu",
+    ["category_drinks"] = "Giải khát",
     ["category_shopping"] = "Ăn no",
     ["category_other"] = "Ăn no",
         ["status_just_now"] = "Vừa xong",
@@ -423,6 +425,7 @@ public sealed class AppLocalizer : INotifyPropertyChanged
     ["category_service"] = "Snacks",
     ["category_food"] = "Hotpot & grill",
     ["category_entertainment"] = "Drinking",
+    ["category_drinks"] = "Beverages",
     ["category_shopping"] = "Hearty meals",
     ["category_other"] = "Hearty meals",
         ["status_just_now"] = "Just now",
@@ -508,6 +511,7 @@ public sealed class AppLocalizer : INotifyPropertyChanged
     ["category_service"] = "小吃",
     ["category_food"] = "火锅与烧烤",
     ["category_entertainment"] = "饮酒",
+    ["category_drinks"] = "饮品",
     ["category_shopping"] = "饱腹正餐",
     ["category_other"] = "饱腹正餐"
     };
@@ -584,6 +588,7 @@ public sealed class AppLocalizer : INotifyPropertyChanged
     ["category_service"] = "軽食",
     ["category_food"] = "鍋・焼き物",
     ["category_entertainment"] = "飲み",
+    ["category_drinks"] = "ドリンク",
     ["category_shopping"] = "しっかりご飯",
     ["category_other"] = "しっかりご飯"
     };
@@ -660,6 +665,7 @@ public sealed class AppLocalizer : INotifyPropertyChanged
     ["category_service"] = "간식",
     ["category_food"] = "전골 & 구이",
     ["category_entertainment"] = "술자리",
+    ["category_drinks"] = "음료",
     ["category_shopping"] = "든든한 식사",
     ["category_other"] = "든든한 식사"
     };
@@ -736,6 +742,7 @@ public sealed class AppLocalizer : INotifyPropertyChanged
     ["category_service"] = "Snacks",
     ["category_food"] = "Fondue & grillades",
     ["category_entertainment"] = "Apéro",
+    ["category_drinks"] = "Boissons",
     ["category_shopping"] = "Repas copieux",
     ["category_other"] = "Repas copieux"
     };

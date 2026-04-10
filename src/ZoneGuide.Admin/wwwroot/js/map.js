@@ -62,6 +62,7 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
         var snackIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-yellow.png'});
         var hotpotGrillIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-violet.png'});
         var drinkingIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-orange.png'});
+        var drinksIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-yellow.png'});
         var fullMealIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-green.png'});
         var defaultFoodIcon = new CustomIcon({iconUrl: '/images/markers/food-dish-svgrepo-com.svg'});
         var contributionIcon = new CustomIcon({iconUrl: '/images/markers/marker-icon-2x-red.png'});
@@ -95,6 +96,12 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
                     return hotpotGrillIcon;
                 case 'nhau':
                     return drinkingIcon;
+                case 'giai khat':
+                case 'drink':
+                case 'drinks':
+                case 'beverage':
+                case 'beverages':
+                    return drinksIcon;
                 case 'an no':
                     return fullMealIcon;
 
