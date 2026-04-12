@@ -48,6 +48,7 @@ public partial class LanguageSelectionViewModel : ObservableObject
         }
 
         SelectedLanguage = option;
+        AppLocalizer.Instance.SetLanguage(option.Code);
     }
 
     [RelayCommand]

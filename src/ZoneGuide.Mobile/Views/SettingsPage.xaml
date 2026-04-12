@@ -125,7 +125,7 @@
                                 </Grid>
                                 <Slider Grid.Row="1"
                                         Minimum="10"
-                                   Maximum="5000"
+                                        Maximum="200"
                                         Value="{Binding TriggerRadius}" />
                             </Grid>
 
@@ -141,7 +141,7 @@
                                 </Grid>
                                 <Slider Grid.Row="1"
                                         Minimum="50"
-                                   Maximum="5000"
+                                        Maximum="200"
                                         Value="{Binding ApproachRadius}" />
                             </Grid>
 
@@ -161,15 +161,6 @@
                                         Value="{Binding CooldownSeconds}" />
                             </Grid>
 
-                            <Grid RowDefinitions="Auto,Auto"
-                                  RowSpacing="6">
-                                <Label Text="Đơn vị khoảng cách"
-                                       FontSize="14"
-                                       TextColor="{StaticResource Gray500}" />
-                                <Picker Grid.Row="1"
-                                        SelectedIndex="{Binding DistanceUnitIndex}"
-                                        ItemsSource="{Binding DistanceUnitOptions}" />
-                            </Grid>
                         </VerticalStackLayout>
                     </Frame>
                 </VerticalStackLayout>
@@ -195,27 +186,6 @@
                                        VerticalOptions="Center" />
                                 <Switch Grid.Column="1"
                                         IsToggled="{Binding NotifyOnApproach}" />
-                            </Grid>
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="{local:Translate settings_background_tracking}"
-                                       FontSize="14"
-                                       VerticalOptions="Center" />
-                                <Switch Grid.Column="1"
-                                        IsToggled="{Binding BackgroundTracking}" />
-                            </Grid>
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="{local:Translate settings_battery_saver}"
-                                       FontSize="14"
-                                       VerticalOptions="Center" />
-                                <Switch Grid.Column="1"
-                                        IsToggled="{Binding BatterySaverMode}" />
-                            </Grid>
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="{local:Translate settings_offline_mode}"
-                                       FontSize="14"
-                                       VerticalOptions="Center" />
-                                <Switch Grid.Column="1"
-                                        IsToggled="{Binding OfflineMode}" />
                             </Grid>
                         </VerticalStackLayout>
                     </Frame>

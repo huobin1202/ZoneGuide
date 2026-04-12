@@ -64,60 +64,63 @@
                         
 
                         <Grid Grid.Row="2"
-                              Grid.ColumnSpan="5"
-                              ColumnDefinitions="Auto,Auto,Auto"
-                              ColumnSpacing="12">
-                            <Button Text="▶ Start tour"
-                                    HeightRequest="64"
-                                    CornerRadius="32"
-                                    Padding="26,0"
-                                    FontSize="18"
-                                    FontAttributes="Bold"
-                                    HorizontalOptions="Start"
-                                    BackgroundColor="#1F2937"
-                                    TextColor="White"
-                                    Command="{Binding StartTourCommand}" />
-
-                            <Button Grid.Column="1"
-                                    Text="{Binding TourAudioButtonText}"
-                                    HeightRequest="64"
-                                    CornerRadius="32"
-                                    Padding="22,0"
-                                    FontSize="18"
-                                    FontAttributes="Bold"
-                                    HorizontalOptions="Start"
-                                    BackgroundColor="#F9FAFB"
-                                    TextColor="#111827"
-                                    BorderColor="#E5E7EB"
-                                    BorderWidth="1"
-                                    Command="{Binding ToggleTourAudioCommand}" />
-
-                            <Border Grid.Column="2"
-                                    WidthRequest="156"
-                                    HeightRequest="64"
-                                    BackgroundColor="#F9FAFB"
-                                    Stroke="#E5E7EB"
-                                    StrokeThickness="1"
-                                    StrokeShape="RoundRectangle 32">
-                                <Border.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnMapButtonTapped" />
-                                </Border.GestureRecognizers>
-                                <HorizontalStackLayout Spacing="10"
-                                                       HorizontalOptions="Center"
-                                                       VerticalOptions="Center">
-                                    <Label Text="🗺"
-                                           FontSize="24"
-                                           VerticalTextAlignment="Center"
-                                           TextColor="#111827" />
-                                    <Label Text="Map"
-                                           FontSize="18"
-                                           FontAttributes="Bold"
-                                           VerticalTextAlignment="Center"
-                                           TextColor="#111827" />
-                                </HorizontalStackLayout>
-                            </Border>
-                        </Grid>
+                              Grid.ColumnSpan="5" />
                     </Grid>
+                </Grid>
+
+                <Grid Padding="16,0,16,0"
+                      Margin="0,-32,0,8"
+                      ColumnDefinitions="*,*,*"
+                      ColumnSpacing="12">
+                    <Button Grid.Column="0"
+                            Text="{local:Translate tour_detail_start}"
+                            HeightRequest="58"
+                            CornerRadius="29"
+                            Padding="18,0"
+                            FontSize="16"
+                            FontAttributes="Bold"
+                            HorizontalOptions="Fill"
+                            BackgroundColor="#1F2937"
+                            TextColor="White"
+                            Command="{Binding StartTourCommand}" />
+
+                    <Button Grid.Column="1"
+                            Text="{Binding TourAudioButtonText}"
+                            HeightRequest="58"
+                            CornerRadius="29"
+                            Padding="14,0"
+                            FontSize="16"
+                            FontAttributes="Bold"
+                            HorizontalOptions="Fill"
+                            BackgroundColor="#F9FAFB"
+                            TextColor="#111827"
+                            BorderColor="#E5E7EB"
+                            BorderWidth="1"
+                            Command="{Binding ToggleTourAudioCommand}" />
+
+                    <Border Grid.Column="2"
+                            HeightRequest="58"
+                            BackgroundColor="#F9FAFB"
+                            Stroke="#E5E7EB"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 29">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnMapButtonTapped" />
+                        </Border.GestureRecognizers>
+                        <HorizontalStackLayout Spacing="8"
+                                               HorizontalOptions="Center"
+                                               VerticalOptions="Center">
+                            <Label Text="🗺"
+                                   FontSize="20"
+                                   VerticalTextAlignment="Center"
+                                   TextColor="#111827" />
+                            <Label Text="{local:Translate map_title}"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   VerticalTextAlignment="Center"
+                                   TextColor="#111827" />
+                        </HorizontalStackLayout>
+                    </Border>
                 </Grid>
 
                 <Border BackgroundColor="#F3F4F6"
@@ -174,7 +177,7 @@
                                     <Label Text="◷"
                                            FontSize="17"
                                            TextColor="#111827" />
-                                    <Label Text="{Binding Tour.EstimatedDurationMinutes, StringFormat='{}{0} min'}"
+                                    <Label Text="{Binding EstimatedDurationText}"
                                            FontSize="16"
                                            FontAttributes="Bold"
                                            TextColor="#111827" />
@@ -195,38 +198,6 @@
                                 </HorizontalStackLayout>
                             </Border>
                         </HorizontalStackLayout>
-
-                        <Frame Padding="16"
-                               CornerRadius="18"
-                               HasShadow="False"
-                               BackgroundColor="{Binding OfflineCardBackground}">
-                            <VerticalStackLayout Spacing="12">
-                                <Grid ColumnDefinitions="*,Auto"
-                                      ColumnSpacing="12">
-                                    <VerticalStackLayout Spacing="2">
-                                        <Label Text="{local:Translate tour_detail_offline}"
-                                               FontSize="16"
-                                               FontAttributes="Bold"
-                                               TextColor="White" />
-                                        <Label Text="{Binding OfflineStatusText}"
-                                               FontSize="12"
-                                               TextColor="#F3F4F6" />
-                                    </VerticalStackLayout>
-                                    <Button Grid.Column="1"
-                                            Text="{Binding OfflineActionText}"
-                                            Padding="14,8"
-                                            BackgroundColor="White"
-                                            TextColor="#111827"
-                                            FontSize="12"
-                                            CornerRadius="16"
-                                            Command="{Binding ToggleOfflineCommand}" />
-                                </Grid>
-                                <ProgressBar Progress="{Binding DownloadProgress}"
-                                             ProgressColor="White"
-                                             BackgroundColor="#4DFFFFFF"
-                                             IsVisible="{Binding IsDownloading}" />
-                            </VerticalStackLayout>
-                        </Frame>
 
                         <Label Text="{Binding Tour.Description}"
                                FontSize="34"
@@ -260,7 +231,7 @@
                                            VerticalOptions="Center"
                                            TextColor="{StaticResource Primary}" />
                                     <Label Grid.Column="1"
-                                           Text="Mở bản đồ để xem route chi tiết và thứ tự POI"
+                                           Text="{local:Translate tour_detail_open_map_hint}"
                                            FontSize="13"
                                            TextColor="#374151"
                                            VerticalOptions="Center" />
@@ -389,7 +360,7 @@
                                                TextColor="#111827"
                                                MaxLines="1"
                                                LineBreakMode="TailTruncation" />
-                                        <Label Text="Nhấn để xem chi tiết POI"
+                                        <Label Text="{local:Translate tour_detail_poi_hint}"
                                                FontSize="11"
                                                TextColor="#6B7280" />
                                     </VerticalStackLayout>

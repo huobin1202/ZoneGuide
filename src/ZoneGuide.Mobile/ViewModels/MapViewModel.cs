@@ -7,6 +7,7 @@ using ZoneGuide.Shared.Models;
 using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Maps;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -163,16 +164,7 @@ public partial class MapViewModel : ObservableObject
     public ObservableCollection<Pin> MapPins { get; } = new();
     public ObservableCollection<Location> TourRoutePoints { get; } = new();
 
-    public List<string> Categories { get; } = new()
-    {
-        "Tất cả",
-        "Hải sản & ốc",
-        "Ăn vặt",
-        "Lẩu & nướng",
-        "Nhậu",
-        "Giải khát",
-        "Ăn no"
-    };
+    public ObservableCollection<string> Categories { get; } = new();
 
     public MapViewModel(
         ILocationService locationService,
@@ -195,9 +187,40 @@ public partial class MapViewModel : ObservableObject
         _narrationService.NarrationCompleted += OnNarrationStateChanged;
         _narrationService.NarrationStopped += OnNarrationStateChanged;
 
+        RefreshLocalizedCategories();
+        AppLocalizer.Instance.PropertyChanged += OnLocalizerPropertyChanged;
+
         SelectedCategory = Categories.FirstOrDefault();
 
         UpdateSelectedPoiNarrationState();
+    }
+
+    private void OnLocalizerPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(e.PropertyName))
+            return;
+
+        var previousKey = string.IsNullOrWhiteSpace(SelectedCategory)
+            ? "all"
+            : NormalizeCategoryKey(SelectedCategory);
+
+        RefreshLocalizedCategories();
+
+        SelectedCategory = Categories
+            .FirstOrDefault(c => NormalizeCategoryKey(c) == previousKey)
+            ?? Categories.FirstOrDefault();
+    }
+
+    private void RefreshLocalizedCategories()
+    {
+        Categories.Clear();
+        Categories.Add(AppLocalizer.Instance.Translate("pois_filter_all", "All"));
+        Categories.Add(AppLocalizer.Instance.Translate("category_tourism"));
+        Categories.Add(AppLocalizer.Instance.Translate("category_service"));
+        Categories.Add(AppLocalizer.Instance.Translate("category_food"));
+        Categories.Add(AppLocalizer.Instance.Translate("category_entertainment"));
+        Categories.Add(AppLocalizer.Instance.Translate("category_drinks"));
+        Categories.Add(AppLocalizer.Instance.Translate("category_shopping"));
     }
 
     public async Task InitializeAsync()
@@ -387,7 +410,7 @@ public partial class MapViewModel : ObservableObject
 
         ActiveTourName = !string.IsNullOrWhiteSpace(tour?.Name)
             ? tour!.Name
-            : "Tour";
+            : AppLocalizer.Instance.Translate("map_tour_fallback");
         ActiveTourPoiCount = tourPois.Count;
 
         PopulatePins(tourPois);
@@ -675,7 +698,7 @@ public partial class MapViewModel : ObservableObject
         }
         else
         {
-            ErrorMessage = "Không thể lấy vị trí hiện tại. Vui lòng kiểm tra quyền truy cập vị trí.";
+            ErrorMessage = AppLocalizer.Instance.Translate("map_error_location");
             if (_allPOIs.Count > 0)
             {
                 ApplyMapSpanForPoiCollection(_allPOIs);
@@ -1589,7 +1612,7 @@ public partial class MapViewModel : ObservableObject
 
         if (UserLocation == null)
         {
-            SelectedPoiDistanceDisplay = "Đang định vị";
+            SelectedPoiDistanceDisplay = AppLocalizer.Instance.Translate("map_locating");
             return;
         }
 
@@ -1599,7 +1622,7 @@ public partial class MapViewModel : ObservableObject
             SelectedPOI.Latitude,
             SelectedPOI.Longitude);
 
-        SelectedPoiDistanceDisplay = DistanceUnitService.FormatAsKilometers(km * 1000d);
+        SelectedPoiDistanceDisplay = DistanceUnitService.FormatFromMeters(km * 1000d);
     }
 
     public POI? FindNearestPOI()
@@ -1742,7 +1765,26 @@ public partial class MapViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(category))
             return "other";
 
-        return category.Trim().ToLowerInvariant() switch
+        var normalized = category.Trim().ToLowerInvariant();
+        var localizedAll = AppLocalizer.Instance.Translate("pois_filter_all", "All").Trim().ToLowerInvariant();
+        if (normalized == localizedAll)
+            return "all";
+
+        var localizedTourism = AppLocalizer.Instance.Translate("category_tourism").Trim().ToLowerInvariant();
+        var localizedService = AppLocalizer.Instance.Translate("category_service").Trim().ToLowerInvariant();
+        var localizedFood = AppLocalizer.Instance.Translate("category_food").Trim().ToLowerInvariant();
+        var localizedEntertainment = AppLocalizer.Instance.Translate("category_entertainment").Trim().ToLowerInvariant();
+        var localizedDrinks = AppLocalizer.Instance.Translate("category_drinks").Trim().ToLowerInvariant();
+        var localizedShopping = AppLocalizer.Instance.Translate("category_shopping").Trim().ToLowerInvariant();
+
+        if (normalized == localizedTourism) return "tourism";
+        if (normalized == localizedService) return "service";
+        if (normalized == localizedFood) return "food";
+        if (normalized == localizedEntertainment) return "entertainment";
+        if (normalized == localizedDrinks) return "drinks";
+        if (normalized == localizedShopping) return "shopping";
+
+        return normalized switch
         {
             "all" or "tất cả" => "all",
             "tourism" or "du lịch" => "tourism",

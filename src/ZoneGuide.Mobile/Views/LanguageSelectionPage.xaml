@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
              xmlns:converters="clr-namespace:ZoneGuide.Mobile.Converters"
+             xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
              x:Class="ZoneGuide.Mobile.Views.LanguageSelectionPage"
              x:Name="PageRoot"
              x:DataType="vm:LanguageSelectionViewModel"
@@ -49,12 +50,12 @@
                     </Border>
 
                     <VerticalStackLayout Spacing="10">
-                        <Label Text="Chào mừng đến với&#10;ZoneGuide"
+                        <Label Text="{local:Translate language_selection_welcome_title}"
                                FontSize="30"
                                FontAttributes="Bold"
                                TextColor="White"
                                HorizontalTextAlignment="Center" />
-                        <Label Text="Chọn ngôn ngữ trước khi bắt đầu.&#10;Bạn luôn có thể đổi lại trong Cài đặt."
+                        <Label Text="{local:Translate language_selection_welcome_subtitle}"
                                FontSize="15"
                                TextColor="#EDE9FE"
                                HorizontalTextAlignment="Center" />
@@ -87,7 +88,7 @@
                                        HorizontalTextAlignment="Center"
                                        VerticalTextAlignment="Center" />
                             </Border>
-                            <Label Text="Chọn ngôn ngữ của bạn"
+                            <Label Text="{local:Translate language_selection_step_title}"
                                    FontSize="20"
                                    FontAttributes="Bold" />
                         </HorizontalStackLayout>
@@ -171,7 +172,7 @@
                     </CollectionView>
 
                     <Button Grid.Row="2"
-                            Text="Bắt đầu khám phá"
+                            Text="{local:Translate language_selection_start_button}"
                             Margin="0,20,0,12"
                             HeightRequest="56"
                             CornerRadius="24"
@@ -180,7 +181,7 @@
                             IsEnabled="{Binding IsSaving, Converter={StaticResource InverseBoolConverter}}" />
 
                     <Label Grid.Row="3"
-                           Text="Bạn có thể thay đổi lại ngôn ngữ trong Cài đặt"
+                           Text="{local:Translate language_selection_change_hint}"
                            FontSize="12"
                            TextColor="{StaticResource Gray500}"
                            HorizontalTextAlignment="Center"

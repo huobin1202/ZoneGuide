@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ZoneGuide.Mobile.Localization;
 using ZoneGuide.Shared.Interfaces;
 using ZoneGuide.Shared.Models;
 using System.Collections.ObjectModel;
@@ -42,7 +43,7 @@ public partial class MainViewModel : ObservableObject
     private double narrationProgress;
 
     [ObservableProperty]
-    private string statusMessage = "Sẵn sàng";
+    private string statusMessage = AppLocalizer.Instance.Translate("main_status_ready");
 
     public ObservableCollection<POI> NearbyPOIs { get; } = new();
 
@@ -90,11 +91,11 @@ public partial class MainViewModel : ObservableObject
         if (started)
         {
             IsTracking = true;
-            StatusMessage = "Đang theo dõi vị trí...";
+            StatusMessage = AppLocalizer.Instance.Translate("main_status_tracking");
         }
         else
         {
-            StatusMessage = "Không thể bắt đầu theo dõi vị trí";
+            StatusMessage = AppLocalizer.Instance.Translate("main_status_tracking_failed");
         }
     }
 
@@ -103,7 +104,7 @@ public partial class MainViewModel : ObservableObject
     {
         await _locationService.StopTrackingAsync();
         IsTracking = false;
-        StatusMessage = "Đã dừng theo dõi";
+        StatusMessage = AppLocalizer.Instance.Translate("main_status_tracking_stopped");
     }
 
     [RelayCommand]
@@ -191,7 +192,9 @@ public partial class MainViewModel : ObservableObject
             case GeofenceEventType.Enter:
                 if (settings.AutoPlayOnEnter)
                 {
-                    StatusMessage = $"Đã vào vùng: {evt.POI.Name}";
+                    StatusMessage = string.Format(
+                        AppLocalizer.Instance.Translate("main_status_enter_region"),
+                        evt.POI.Name);
                     var item = CreateNarrationItem(evt.POI, evt.EventType, evt.Distance);
                     await _narrationService.PlayImmediatelyAsync(item);
                 }
@@ -200,13 +203,17 @@ public partial class MainViewModel : ObservableObject
             case GeofenceEventType.Approach:
                 if (settings.NotifyOnApproach)
                 {
-                    StatusMessage = $"Đang đến gần: {evt.POI.Name}";
+                    StatusMessage = string.Format(
+                        AppLocalizer.Instance.Translate("main_status_approach_region"),
+                        evt.POI.Name);
                     // Có thể thêm notification ở đây
                 }
                 break;
 
             case GeofenceEventType.Exit:
-                StatusMessage = $"Đã rời khỏi: {evt.POI.Name}";
+                StatusMessage = string.Format(
+                    AppLocalizer.Instance.Translate("main_status_exit_region"),
+                    evt.POI.Name);
                 break;
         }
     }
@@ -217,7 +224,9 @@ public partial class MainViewModel : ObservableObject
         {
             IsPlaying = true;
             CurrentNarration = item;
-            StatusMessage = $"Đang phát: {item.POI.Name}";
+            StatusMessage = string.Format(
+                AppLocalizer.Instance.Translate("main_status_now_playing"),
+                item.POI.Name);
         });
     }
 
@@ -230,7 +239,7 @@ public partial class MainViewModel : ObservableObject
             IsPlaying = false;
             CurrentNarration = null;
             NarrationProgress = 0;
-            StatusMessage = "Hoàn thành phát";
+            StatusMessage = AppLocalizer.Instance.Translate("main_status_play_completed");
         });
     }
 
@@ -243,7 +252,7 @@ public partial class MainViewModel : ObservableObject
             IsPlaying = false;
             CurrentNarration = null;
             NarrationProgress = 0;
-            StatusMessage = "Đã dừng phát";
+            StatusMessage = AppLocalizer.Instance.Translate("main_status_play_stopped");
         });
     }
 

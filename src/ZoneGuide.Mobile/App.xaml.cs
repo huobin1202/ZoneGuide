@@ -56,7 +56,6 @@ public partial class App : Application
         {
             await _settingsService.LoadAsync();
             AppLocalizer.Instance.SetLanguage(_settingsService.Settings.PreferredLanguage);
-            DistanceUnitService.SetPreferredUnit(_settingsService.Settings.DistanceUnit);
 
             var rootPage = ResolveRootPage(_settingsService.Settings.HasCompletedLanguageSelection);
 
@@ -103,7 +102,7 @@ public partial class App : Application
                     },
                     new Label
                     {
-                        Text = "Dang mo ung dung...",
+                        Text = AppLocalizer.Instance.Translate("app_loading"),
                         HorizontalTextAlignment = TextAlignment.Center
                     }
                 }
@@ -125,7 +124,7 @@ public partial class App : Application
                 {
                     new Label
                     {
-                        Text = "Khong the khoi tao ung dung.",
+                        Text = AppLocalizer.Instance.Translate("app_init_failed"),
                         HorizontalTextAlignment = TextAlignment.Center,
                         FontAttributes = FontAttributes.Bold
                     },

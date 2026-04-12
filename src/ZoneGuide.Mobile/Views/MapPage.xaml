@@ -325,7 +325,7 @@
                                                    VerticalTextAlignment="Center" />
                                         </Border>
 
-                                        <Label Text="Show Start"
+                                        <Label Text="{local:Translate map_show_start}"
                                                FontSize="13"
                                                FontAttributes="Bold"
                                                HorizontalTextAlignment="Center"

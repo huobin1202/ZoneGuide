@@ -32,7 +32,7 @@ public partial class OfflineViewModel : ObservableObject
     private OfflineFilterType selectedFilter = OfflineFilterType.All;
 
     [ObservableProperty]
-    private string downloadedSummaryText = "0/0 pack";
+    private string downloadedSummaryText = string.Empty;
 
     [ObservableProperty]
     private string storageSummaryText = "0 B";
@@ -62,6 +62,8 @@ public partial class OfflineViewModel : ObservableObject
         _apiService = apiService;
         _syncService = syncService;
         _audioManager = audioManager;
+
+        AppLocalizer.Instance.PropertyChanged += OnLocalizerPropertyChanged;
     }
 
     public async Task InitializeAsync()
@@ -287,6 +289,7 @@ public partial class OfflineViewModel : ObservableObject
         {
             POIId = poi.Id,
             Title = poi.Name,
+            CategoryKey = NormalizeCategory(poi.Category),
             CategoryText = _localizer.TranslateCategory(poi.Category),
             CategoryBackground = GetCategoryBackground(poi.Category),
             CategoryTextColor = GetCategoryForeground(poi.Category),
@@ -307,7 +310,9 @@ public partial class OfflineViewModel : ObservableObject
         {
             item.Tracks.Add(new OfflineTrackItemViewModel
             {
-                Language = _localizer.TranslateLanguageName(track.LanguageCode),
+                LanguageCode = track.LanguageCode,
+                Language = GetNativeLanguageName(track.LanguageCode),
+                FlagEmoji = GetLanguageFlag(track.LanguageCode),
                 DurationText = FormatDuration(track.DurationSeconds),
                 IsDownloaded = IsTrackDownloaded(poi.Id, track)
             });
@@ -322,10 +327,88 @@ public partial class OfflineViewModel : ObservableObject
         var totalCount = AllItems.Count;
         var totalBytes = AllItems.Where(x => x.IsDownloaded).Sum(x => x.TotalBytes);
 
-        DownloadedSummaryText = $"{downloadedCount}/{totalCount} pack";
+        DownloadedSummaryText = $"{downloadedCount}/{totalCount} {_localizer.Translate("offline_pack_unit", "pack")}";
         StorageSummaryText = FormatBytes(totalBytes);
         HasDownloadedItems = downloadedCount > 0;
         HasPendingItems = downloadedCount < totalCount;
+    }
+
+    private void OnLocalizerPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(e.PropertyName))
+            return;
+
+        RelocalizeItems();
+        RefreshSummary();
+        ApplyFilter();
+    }
+
+    private void RelocalizeItems()
+    {
+        foreach (var item in AllItems)
+        {
+            if (!string.IsNullOrWhiteSpace(item.CategoryKey))
+            {
+                item.CategoryText = TranslateCategoryKey(item.CategoryKey);
+            }
+
+            item.TrackCountText = $"{item.Tracks.Count} {_localizer.Translate("offline_audio_unit", "audio")}";
+
+            if (!string.IsNullOrWhiteSpace(item.DownloadedAtText))
+            {
+                item.DownloadedStatusText = string.Format(
+                    _localizer.Translate("offline_downloaded_at", "Downloaded {0}"),
+                    item.DownloadedAtText);
+            }
+
+            foreach (var track in item.Tracks)
+            {
+                if (!string.IsNullOrWhiteSpace(track.LanguageCode))
+                {
+                    track.Language = GetNativeLanguageName(track.LanguageCode);
+                    track.FlagEmoji = GetLanguageFlag(track.LanguageCode);
+                }
+            }
+        }
+    }
+
+    private string TranslateCategoryKey(string key) => key switch
+    {
+        "tourism" => _localizer.Translate("category_tourism"),
+        "service" => _localizer.Translate("category_service"),
+        "food" => _localizer.Translate("category_food"),
+        "entertainment" => _localizer.Translate("category_entertainment"),
+        "drinks" => _localizer.Translate("category_drinks"),
+        "shopping" => _localizer.Translate("category_shopping"),
+        _ => _localizer.Translate("category_other")
+    };
+
+    private static string GetNativeLanguageName(string? code)
+    {
+        return code?.Trim().ToLowerInvariant() switch
+        {
+            "vi-vn" => "Tiếng Việt",
+            "en-us" => "English",
+            "zh-cn" => "中文",
+            "ja-jp" => "日本語",
+            "ko-kr" => "한국어",
+            "fr-fr" => "Français",
+            _ => code ?? string.Empty
+        };
+    }
+
+    private static string GetLanguageFlag(string? code)
+    {
+        return code?.Trim().ToLowerInvariant() switch
+        {
+            "vi-vn" => "🇻🇳",
+            "en-us" => "🇺🇸",
+            "zh-cn" => "🇨🇳",
+            "ja-jp" => "🇯🇵",
+            "ko-kr" => "🇰🇷",
+            "fr-fr" => "🇫🇷",
+            _ => string.Empty
+        };
     }
 
     private void ApplyFilter()
@@ -850,6 +933,7 @@ public partial class OfflinePackItemViewModel : ObservableObject
 {
     public int POIId { get; set; }
     public string Title { get; set; } = string.Empty;
+    public string CategoryKey { get; set; } = string.Empty;
     public string CategoryText { get; set; } = string.Empty;
     public Color CategoryBackground { get; set; } = Colors.LightGray;
     public Color CategoryTextColor { get; set; } = Colors.Black;
@@ -903,7 +987,14 @@ public partial class OfflinePackItemViewModel : ObservableObject
 
 public partial class OfflineTrackItemViewModel : ObservableObject
 {
-    public string Language { get; set; } = string.Empty;
+    public string LanguageCode { get; set; } = string.Empty;
+    [ObservableProperty]
+    private string language = string.Empty;
+
+    [ObservableProperty]
+    private string flagEmoji = string.Empty;
+
+    public string LanguageDisplay => string.IsNullOrWhiteSpace(FlagEmoji) ? Language : $"{FlagEmoji} {Language}";
     public string DurationText { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -912,6 +1003,8 @@ public partial class OfflineTrackItemViewModel : ObservableObject
     public string TrackStatusIcon => IsDownloaded ? "○" : "◌";
 
     partial void OnIsDownloadedChanged(bool value) => OnPropertyChanged(nameof(TrackStatusIcon));
+    partial void OnLanguageChanged(string value) => OnPropertyChanged(nameof(LanguageDisplay));
+    partial void OnFlagEmojiChanged(string value) => OnPropertyChanged(nameof(LanguageDisplay));
 }
 
 public sealed class OfflinePackManifest

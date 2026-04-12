@@ -415,7 +415,7 @@ public class PoiDistanceFromLocationConverter : IMultiValueConverter
         if (double.IsNaN(meters) || double.IsInfinity(meters) || meters < 0)
             return "--";
 
-        return DistanceUnitService.FormatAsKilometers(meters);
+        return DistanceUnitService.FormatFromMeters(meters);
     }
 
     public object[] ConvertBack(object value, Type[] targetTypes, object? parameter, CultureInfo culture)
@@ -492,12 +492,7 @@ public class PreferredDistanceConverter : IValueConverter
             _ => 0d
         };
 
-        var formatInKilometersOnly = parameter is string p &&
-                                     string.Equals(p, "km", StringComparison.OrdinalIgnoreCase);
-
-        var formatted = formatInKilometersOnly
-            ? DistanceUnitService.FormatAsKilometers(meters)
-            : DistanceUnitService.FormatFromMeters(meters);
+        var formatted = DistanceUnitService.FormatFromMeters(meters);
 
         if (parameter is string p2 && string.Equals(p2, "prefix", StringComparison.OrdinalIgnoreCase))
         {

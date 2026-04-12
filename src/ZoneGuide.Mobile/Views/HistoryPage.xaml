@@ -59,7 +59,7 @@
                                        Margin="0,-6,0,0"
                                        HorizontalOptions="Center"
                                        VerticalOptions="Center" />
-                                <Label Text="Overview"
+                                <Label Text="{local:Translate history_overview}"
                                        IsVisible="{Binding IsOverview}"
                                        FontSize="11"
                                        FontAttributes="Bold"

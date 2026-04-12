@@ -156,6 +156,9 @@ public partial class TourDetailViewModel : ObservableObject
     [ObservableProperty]
     private string tourAudioButtonText = string.Empty;
 
+    [ObservableProperty]
+    private string estimatedDurationText = string.Empty;
+
     public ObservableCollection<POI> POIs { get; } = new();
 
     public TourDetailViewModel(
@@ -258,9 +261,13 @@ public partial class TourDetailViewModel : ObservableObject
             ? POIs.Count
             : Tour?.POICount ?? 0;
 
+        EstimatedDurationText = Tour == null
+            ? string.Empty
+            : $"{Tour.EstimatedDurationMinutes} {AppLocalizer.Instance.Translate("duration_minute_short")}";
+
         DistanceDisplay = Tour == null
-            ? DistanceUnitService.FormatAsKilometers(0)
-            : DistanceUnitService.FormatAsKilometers(Tour.EstimatedDistanceMeters);
+            ? DistanceUnitService.FormatFromMeters(0)
+            : DistanceUnitService.FormatFromMeters(Tour.EstimatedDistanceMeters);
 
         HighlightsText = BuildHighlightsText();
         TourAudioButtonText = BuildTourAudioButtonText();

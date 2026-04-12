@@ -37,7 +37,7 @@
         </Grid>
 
         <Button Grid.Row="0"
-                Text="🔊 Phát"
+                Text="{local:Translate poi_detail_play_button}"
                 HeightRequest="54"
                 WidthRequest="170"
                 CornerRadius="27"
@@ -108,7 +108,7 @@
                                    VerticalOptions="Center"
                                    TextColor="{StaticResource Primary}" />
                             <Label Grid.Column="1"
-                                   Text="Chạm để mở bản đồ và xem đúng vị trí điểm"
+                                   Text="{local:Translate poi_detail_open_map_hint}"
                                    FontSize="13"
                                    TextColor="#374151"
                                    VerticalOptions="Center" />
