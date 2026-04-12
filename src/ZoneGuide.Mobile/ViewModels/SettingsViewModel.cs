@@ -293,31 +293,6 @@ public partial class SettingsViewModel : ObservableObject
         await _ttsService.SpeakAsync(sample, PreferredLanguage);
     }
 
-    [RelayCommand]
-    private async Task ClearCacheAsync()
-    {
-        var confirm = await Shell.Current.DisplayAlert(
-            AppLocalizer.Instance.Translate("settings_clear_cache_confirm_title"),
-            AppLocalizer.Instance.Translate("settings_clear_cache_confirm_message"),
-            AppLocalizer.Instance.Translate("alert_delete"),
-            AppLocalizer.Instance.Translate("alert_cancel"));
-
-        if (confirm)
-        {
-            // Xóa thư mục offline
-            var offlineDir = Path.Combine(FileSystem.AppDataDirectory, "offline");
-            if (Directory.Exists(offlineDir))
-            {
-                Directory.Delete(offlineDir, true);
-            }
-
-            await Shell.Current.DisplayAlert(
-                AppLocalizer.Instance.Translate("settings_save_success_title"),
-                AppLocalizer.Instance.Translate("settings_clear_cache_success_message"),
-                AppLocalizer.Instance.Translate("alert_ok"));
-        }
-    }
-
     partial void OnPreferredLanguageChanged(string value)
     {
         _ = LoadVoicesAsync();

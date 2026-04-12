@@ -241,19 +241,6 @@
                     </Frame>
                 </VerticalStackLayout>
 
-                <Frame Padding="16"
-                       CornerRadius="18"
-                       BackgroundColor="White">
-                    <VerticalStackLayout Spacing="12">
-                     <Label Text="{local:Translate settings_other}"
-                               FontSize="18"
-                               FontAttributes="Bold" />
-                     <Button Text="{local:Translate settings_clear_cache}"
-                                BackgroundColor="{StaticResource Gray500}"
-                                Command="{Binding ClearCacheCommand}" />
-                    </VerticalStackLayout>
-                </Frame>
-
               <Button Text="{local:Translate settings_save}"
                         HeightRequest="56"
                         CornerRadius="24"
