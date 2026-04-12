@@ -25,7 +25,9 @@ public class DatabaseService
 
         // Tạo các bảng
         await _database.CreateTableAsync<POI>();
+        await EnsurePoiColumnsAsync(_database);
         await _database.CreateTableAsync<POITranslation>();
+        await EnsurePoiTranslationColumnsAsync(_database);
         await _database.CreateTableAsync<Tour>();
         await EnsureTourColumnsAsync(_database);
         await _database.CreateTableAsync<TourTranslation>();
@@ -70,6 +72,36 @@ public class DatabaseService
         if (!columns.Any(c => string.Equals(c.Name, nameof(Tour.AudioFilePath), StringComparison.OrdinalIgnoreCase)))
         {
             await database.ExecuteAsync($"ALTER TABLE {nameof(Tour)} ADD COLUMN {nameof(Tour.AudioFilePath)} TEXT");
+        }
+    }
+
+    private static async Task EnsurePoiColumnsAsync(SQLiteAsyncConnection database)
+    {
+        var columns = await database.GetTableInfoAsync(nameof(POI));
+
+        if (!columns.Any(c => string.Equals(c.Name, nameof(POI.AudioDurationSeconds), StringComparison.OrdinalIgnoreCase)))
+        {
+            await database.ExecuteAsync($"ALTER TABLE {nameof(POI)} ADD COLUMN {nameof(POI.AudioDurationSeconds)} INTEGER");
+        }
+
+        if (!columns.Any(c => string.Equals(c.Name, nameof(POI.AudioFileSizeBytes), StringComparison.OrdinalIgnoreCase)))
+        {
+            await database.ExecuteAsync($"ALTER TABLE {nameof(POI)} ADD COLUMN {nameof(POI.AudioFileSizeBytes)} INTEGER");
+        }
+    }
+
+    private static async Task EnsurePoiTranslationColumnsAsync(SQLiteAsyncConnection database)
+    {
+        var columns = await database.GetTableInfoAsync(nameof(POITranslation));
+
+        if (!columns.Any(c => string.Equals(c.Name, nameof(POITranslation.AudioDurationSeconds), StringComparison.OrdinalIgnoreCase)))
+        {
+            await database.ExecuteAsync($"ALTER TABLE {nameof(POITranslation)} ADD COLUMN {nameof(POITranslation.AudioDurationSeconds)} INTEGER");
+        }
+
+        if (!columns.Any(c => string.Equals(c.Name, nameof(POITranslation.AudioFileSizeBytes), StringComparison.OrdinalIgnoreCase)))
+        {
+            await database.ExecuteAsync($"ALTER TABLE {nameof(POITranslation)} ADD COLUMN {nameof(POITranslation.AudioFileSizeBytes)} INTEGER");
         }
     }
 

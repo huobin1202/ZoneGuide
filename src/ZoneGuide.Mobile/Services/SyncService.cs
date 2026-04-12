@@ -116,7 +116,12 @@ public class SyncService : ISyncService
             // Cập nhật POIs
             foreach (var poiDto in syncData.POIs)
             {
-                var poi = MapToPOI(poiDto);
+                var poiId = int.TryParse(poiDto.Id, out var parsedPoiId) ? parsedPoiId : 0;
+                var existingPoi = poiId > 0
+                    ? await _poiRepository.GetByIdRawAsync(poiId)
+                    : null;
+
+                var poi = MapToPOI(poiDto, existingPoi);
                 await _poiRepository.InsertOrUpdateAsync(poi);
                 await SyncPoiTranslationsAsync(poiDto, poi.Id);
             }
@@ -132,7 +137,12 @@ public class SyncService : ISyncService
             // Cập nhật Tours
             foreach (var tourDto in syncData.Tours)
             {
-                var tour = MapToTour(tourDto);
+                var tourId = int.TryParse(tourDto.Id, out var parsedTourId) ? parsedTourId : 0;
+                var existingTour = tourId > 0
+                    ? await _tourRepository.GetByIdAsync(tourId)
+                    : null;
+
+                var tour = MapToTour(tourDto, existingTour);
                 await _tourRepository.InsertOrUpdateAsync(tour);
                 await SyncTourTranslationsAsync(tourDto, tour.Id);
             }
@@ -417,7 +427,7 @@ public class SyncService : ISyncService
         return Task.FromResult(hasFiles);
     }
 
-    private static POI MapToPOI(POIDto dto)
+    private static POI MapToPOI(POIDto dto, POI? existing = null)
     {
         return new POI
         {
@@ -429,14 +439,19 @@ public class SyncService : ISyncService
             TriggerRadius = dto.TriggerRadius,
             ApproachRadius = dto.ApproachRadius,
             Priority = dto.Priority,
+            AudioFilePath = existing?.AudioFilePath,
             AudioUrl = dto.AudioUrl,
+            AudioDurationSeconds = existing?.AudioDurationSeconds,
+            AudioFileSizeBytes = existing?.AudioFileSizeBytes,
             TTSScript = dto.TTSScript,
+            ImagePath = existing?.ImagePath,
             ImageUrl = dto.ImageUrl,
             MapLink = dto.MapLink,
             Category = ResolveCategory(dto),
             Language = dto.Language ?? "vi-VN",
             TourId = dto.TourId,
             OrderInTour = dto.OrderInTour,
+            CreatedAt = existing?.CreatedAt ?? DateTime.UtcNow,
             CooldownSeconds = dto.CooldownSeconds,
             IsActive = dto.IsActive,
             UpdatedAt = DateTime.UtcNow
@@ -485,7 +500,7 @@ public class SyncService : ISyncService
         };
     }
 
-    private static Tour MapToTour(TourDto dto)
+    private static Tour MapToTour(TourDto dto, Tour? existing = null)
     {
         var thumbnailUrl = !string.IsNullOrWhiteSpace(dto.ThumbnailUrl)
             ? dto.ThumbnailUrl
@@ -497,6 +512,7 @@ public class SyncService : ISyncService
             UniqueCode = dto.UniqueCode,
             Name = dto.Name,
             Description = dto.Description ?? string.Empty,
+            AudioFilePath = existing?.AudioFilePath,
             AudioUrl = dto.AudioUrl,
             EstimatedDurationMinutes = dto.EstimatedDurationMinutes,
             EstimatedDistanceMeters = dto.DistanceKm * 1000, // Convert km to meters
@@ -504,6 +520,7 @@ public class SyncService : ISyncService
             ThumbnailUrl = thumbnailUrl,
             Language = dto.Language,
             WheelchairAccessible = dto.WheelchairAccessible,
+            CreatedAt = existing?.CreatedAt ?? DateTime.UtcNow,
             IsActive = dto.IsActive,
             UpdatedAt = DateTime.UtcNow
         };
@@ -535,13 +552,21 @@ public class SyncService : ISyncService
             if (string.IsNullOrWhiteSpace(translation.LanguageCode))
                 continue;
 
+            var normalizedLanguage = NormalizeLanguage(translation.LanguageCode);
+            var existingEntry = existing.FirstOrDefault(t =>
+                string.Equals(NormalizeLanguage(t.LanguageCode), normalizedLanguage, StringComparison.OrdinalIgnoreCase));
+
             var entry = new POITranslation
             {
+                Id = existingEntry?.Id ?? 0,
                 POIId = poiId,
-                LanguageCode = NormalizeLanguage(translation.LanguageCode),
+                LanguageCode = normalizedLanguage,
                 Name = translation.Name ?? string.Empty,
                 TTSScript = translation.TTSScript,
-                AudioUrl = translation.AudioUrl
+                AudioUrl = translation.AudioUrl,
+                AudioDurationSeconds = existingEntry?.AudioDurationSeconds,
+                AudioFileSizeBytes = existingEntry?.AudioFileSizeBytes,
+                CreatedAt = existingEntry?.CreatedAt ?? DateTime.UtcNow
             };
 
             await _poiTranslationRepository.InsertOrUpdateAsync(entry);

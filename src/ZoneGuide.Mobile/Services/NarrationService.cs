@@ -621,6 +621,7 @@ public class NarrationService : INarrationService, IDisposable
 
     private static string? ResolveAvailableOfflineAudioPath(NarrationQueueItem item)
     {
+        var preferredLanguage = NormalizeLanguage(item.Language);
         var candidates = new List<string?>
         {
             item.AudioPath,
@@ -634,9 +635,29 @@ public class NarrationService : INarrationService, IDisposable
                 candidates.Add(Path.Combine(
                     FileSystem.AppDataDirectory,
                     "offline",
+                    "packs",
+                    item.POI.Id.ToString(),
+                    $"audio_{preferredLanguage.Replace('-', '_')}.mp3"));
+
+                candidates.Add(Path.Combine(
+                    FileSystem.AppDataDirectory,
+                    "offline",
+                    item.POI.TourId.Value.ToString(),
+                    $"audio_{preferredLanguage.Replace('-', '_')}.mp3"));
+
+                candidates.Add(Path.Combine(
+                    FileSystem.AppDataDirectory,
+                    "offline",
                     item.POI.TourId.Value.ToString(),
                     $"audio_{item.POI.Id}.mp3"));
             }
+
+            candidates.Add(Path.Combine(
+                FileSystem.AppDataDirectory,
+                "offline",
+                "packs",
+                item.POI.Id.ToString(),
+                $"audio_{preferredLanguage.Replace('-', '_')}.mp3"));
 
             candidates.Add(Path.Combine(
                 FileSystem.AppDataDirectory,

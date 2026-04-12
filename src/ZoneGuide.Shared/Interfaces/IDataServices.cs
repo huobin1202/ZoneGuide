@@ -9,9 +9,11 @@ public interface IPOIRepository
 {
     Task<List<POI>> GetAllAsync();
     Task<POI?> GetByIdAsync(int id);
+    Task<POI?> GetByIdRawAsync(int id);
     Task<POI?> GetByCodeAsync(string code);
     Task<List<POI>> GetByTourIdAsync(int tourId);
     Task<List<POI>> GetActiveAsync();
+    Task<List<POI>> GetActiveRawAsync();
     Task<List<POI>> SearchAsync(string keyword);
     Task<int> InsertAsync(POI poi);
     Task<int> UpdateAsync(POI poi);

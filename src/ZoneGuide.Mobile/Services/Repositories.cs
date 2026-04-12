@@ -39,6 +39,12 @@ public class POIRepository : IPOIRepository
         return await ApplyPreferredLanguageAsync(poi);
     }
 
+    public async Task<POI?> GetByIdRawAsync(int id)
+    {
+        var db = await _database.GetConnectionAsync();
+        return await db.Table<POI>().FirstOrDefaultAsync(p => p.Id == id);
+    }
+
     public async Task<POI?> GetByCodeAsync(string code)
     {
         var db = await _database.GetConnectionAsync();
@@ -65,6 +71,12 @@ public class POIRepository : IPOIRepository
         var db = await _database.GetConnectionAsync();
         var pois = await db.Table<POI>().Where(p => p.IsActive).ToListAsync();
         return await ApplyPreferredLanguageAsync(pois);
+    }
+
+    public async Task<List<POI>> GetActiveRawAsync()
+    {
+        var db = await _database.GetConnectionAsync();
+        return await db.Table<POI>().Where(p => p.IsActive).ToListAsync();
     }
 
     public async Task<List<POI>> SearchAsync(string keyword)
@@ -189,6 +201,8 @@ public class POIRepository : IPOIRepository
             Priority = source.Priority,
             AudioFilePath = audioFilePath,
             AudioUrl = audioUrl,
+            AudioDurationSeconds = source.AudioDurationSeconds,
+            AudioFileSizeBytes = source.AudioFileSizeBytes,
             TTSScript = ttsScript,
             ImagePath = source.ImagePath,
             ImageUrl = source.ImageUrl,

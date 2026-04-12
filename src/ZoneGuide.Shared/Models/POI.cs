@@ -54,6 +54,16 @@ public class POI
     /// URL audio online
     /// </summary>
     public string? AudioUrl { get; set; }
+
+    /// <summary>
+    /// Thời lượng audio (giây) nếu đã biết metadata
+    /// </summary>
+    public int? AudioDurationSeconds { get; set; }
+
+    /// <summary>
+    /// Kích thước file audio (bytes) nếu đã biết metadata
+    /// </summary>
+    public long? AudioFileSizeBytes { get; set; }
     
     /// <summary>
     /// Script TTS (nếu không có file audio)
