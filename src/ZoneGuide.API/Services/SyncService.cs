@@ -262,6 +262,7 @@ public class SyncService : ISyncService
             UniqueCode = entity.UniqueCode,
             Name = entity.Name,
             Description = entity.Description,
+            AudioUrl = entity.AudioUrl,
             EstimatedDurationMinutes = entity.EstimatedDurationMinutes,
             DistanceKm = entity.DistanceKm,
             POICount = activePoiIds.Count,
@@ -278,7 +279,9 @@ public class SyncService : ISyncService
                     TourId = t.TourId,
                     LanguageCode = t.LanguageCode,
                     Description = t.Description,
-                    IsOutdated = t.IsOutdated
+                    IsOutdated = t.IsOutdated,
+                    AudioUrl = t.AudioUrl,
+                    IsAudioOutdated = t.IsAudioOutdated
                 })
                 .ToList(),
             POIIds = activePoiIds

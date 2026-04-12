@@ -93,7 +93,9 @@ public class TourService : ITourService
                 TourId = t.TourId,
                 LanguageCode = t.LanguageCode,
                 Description = t.Description,
-                IsOutdated = t.IsOutdated
+                IsOutdated = t.IsOutdated,
+                AudioUrl = t.AudioUrl,
+                IsAudioOutdated = t.IsAudioOutdated
             })
             .ToListAsync();
     }
@@ -124,13 +126,16 @@ public class TourService : ITourService
                 TourId = intTourId,
                 LanguageCode = normalizedLanguageCode,
                 CreatedAt = DateTime.UtcNow,
-                IsOutdated = false
+                IsOutdated = false,
+                IsAudioOutdated = false
             };
             _context.TourTranslations.Add(existing);
         }
 
         existing.Description = dto.Description ?? string.Empty;
+        existing.AudioUrl = dto.AudioUrl;
         existing.IsOutdated = false;
+        existing.IsAudioOutdated = dto.IsAudioOutdated;
         existing.UpdatedAt = DateTime.UtcNow;
         tour.UpdatedAt = DateTime.UtcNow;
 
@@ -142,7 +147,9 @@ public class TourService : ITourService
             TourId = existing.TourId,
             LanguageCode = existing.LanguageCode,
             Description = existing.Description,
-            IsOutdated = existing.IsOutdated
+            IsOutdated = existing.IsOutdated,
+            AudioUrl = existing.AudioUrl,
+            IsAudioOutdated = existing.IsAudioOutdated
         };
     }
 
@@ -180,6 +187,7 @@ public class TourService : ITourService
             UniqueCode = Guid.NewGuid().ToString("N")[..8].ToUpper(),
             Name = dto.Name,
             Description = dto.Description,
+            AudioUrl = dto.AudioUrl,
             EstimatedDurationMinutes = dto.EstimatedDurationMinutes,
             DistanceKm = dto.DistanceKm,
             ImageUrl = dto.ImageUrl,
@@ -239,6 +247,7 @@ public class TourService : ITourService
 
         if (dto.Name != null) entity.Name = dto.Name;
         if (dto.Description != null) entity.Description = dto.Description;
+        if (dto.AudioUrl != null) entity.AudioUrl = dto.AudioUrl;
         if (dto.EstimatedDurationMinutes.HasValue) entity.EstimatedDurationMinutes = dto.EstimatedDurationMinutes.Value;
         if (dto.DistanceKm.HasValue) entity.DistanceKm = dto.DistanceKm.Value;
         if (dto.ImageUrl != null) entity.ImageUrl = dto.ImageUrl;
@@ -249,6 +258,7 @@ public class TourService : ITourService
             foreach (var translation in entity.Translations)
             {
                 translation.IsOutdated = true;
+                translation.IsAudioOutdated = !string.IsNullOrWhiteSpace(translation.AudioUrl);
                 translation.UpdatedAt = DateTime.UtcNow;
             }
         }
@@ -408,6 +418,7 @@ public class TourService : ITourService
             UniqueCode = entity.UniqueCode,
             Name = entity.Name,
             Description = entity.Description,
+            AudioUrl = entity.AudioUrl,
             EstimatedDurationMinutes = entity.EstimatedDurationMinutes,
             DistanceKm = entity.DistanceKm,
             ImageUrl = entity.ImageUrl,
@@ -423,7 +434,9 @@ public class TourService : ITourService
                     TourId = t.TourId,
                     LanguageCode = t.LanguageCode,
                     Description = t.Description,
-                    IsOutdated = t.IsOutdated
+                    IsOutdated = t.IsOutdated,
+                    AudioUrl = t.AudioUrl,
+                    IsAudioOutdated = t.IsAudioOutdated
                 })
                 .ToList(),
             POICount = activePoiIds.Count,

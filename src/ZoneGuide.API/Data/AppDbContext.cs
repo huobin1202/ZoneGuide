@@ -207,6 +207,7 @@ public class TourEntity
     public string UniqueCode { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string? AudioUrl { get; set; }
     public int EstimatedDurationMinutes { get; set; }
     public double DistanceKm { get; set; }
     public double EstimatedDistanceMeters { get; set; }
@@ -231,6 +232,8 @@ public class TourTranslationEntity
     public string LanguageCode { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public bool IsOutdated { get; set; }
+    public string? AudioUrl { get; set; }
+    public bool IsAudioOutdated { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

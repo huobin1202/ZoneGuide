@@ -116,7 +116,7 @@ else
                     <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mb-2 audio-actions-row">
                         <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.GraphicEq"
                                    OnClick="GenerateTtsForEditingAsync" Disabled="@(_generatingTts || !CanEditTranslatedContent)">
-                            @(_generatingTts ? "Đang tạo audio..." : "Generate audio (TTS)")
+                            @(_generatingTts ? "Đang tạo audio..." : "Generate audio")
                         </MudButton>
 
                         <div class="audio-upload-action">

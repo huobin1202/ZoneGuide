@@ -65,7 +65,7 @@
 
                         <Grid Grid.Row="2"
                               Grid.ColumnSpan="5"
-                              ColumnDefinitions="*,Auto"
+                              ColumnDefinitions="Auto,Auto,Auto"
                               ColumnSpacing="12">
                             <Button Text="▶ Start tour"
                                     HeightRequest="64"
@@ -78,32 +78,44 @@
                                     TextColor="White"
                                     Command="{Binding StartTourCommand}" />
 
-                            <HorizontalStackLayout Grid.Column="1"
-                                                   Spacing="10">
-                                <Border WidthRequest="156"
-                                        HeightRequest="64"
-                                        BackgroundColor="#F9FAFB"
-                                        Stroke="#E5E7EB"
-                                        StrokeThickness="1"
-                                        StrokeShape="RoundRectangle 32">
-                                    <Border.GestureRecognizers>
-                                        <TapGestureRecognizer Tapped="OnMapButtonTapped" />
-                                    </Border.GestureRecognizers>
-                                    <HorizontalStackLayout Spacing="10"
-                                                           HorizontalOptions="Center"
-                                                           VerticalOptions="Center">
-                                        <Label Text="🗺"
-                                               FontSize="24"
-                                               VerticalTextAlignment="Center"
-                                               TextColor="#111827" />
-                                        <Label Text="Map"
-                                               FontSize="18"
-                                               FontAttributes="Bold"
-                                               VerticalTextAlignment="Center"
-                                               TextColor="#111827" />
-                                    </HorizontalStackLayout>
-                                </Border>
-                            </HorizontalStackLayout>
+                            <Button Grid.Column="1"
+                                    Text="{Binding TourAudioButtonText}"
+                                    HeightRequest="64"
+                                    CornerRadius="32"
+                                    Padding="22,0"
+                                    FontSize="18"
+                                    FontAttributes="Bold"
+                                    HorizontalOptions="Start"
+                                    BackgroundColor="#F9FAFB"
+                                    TextColor="#111827"
+                                    BorderColor="#E5E7EB"
+                                    BorderWidth="1"
+                                    Command="{Binding ToggleTourAudioCommand}" />
+
+                            <Border Grid.Column="2"
+                                    WidthRequest="156"
+                                    HeightRequest="64"
+                                    BackgroundColor="#F9FAFB"
+                                    Stroke="#E5E7EB"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 32">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnMapButtonTapped" />
+                                </Border.GestureRecognizers>
+                                <HorizontalStackLayout Spacing="10"
+                                                       HorizontalOptions="Center"
+                                                       VerticalOptions="Center">
+                                    <Label Text="🗺"
+                                           FontSize="24"
+                                           VerticalTextAlignment="Center"
+                                           TextColor="#111827" />
+                                    <Label Text="Map"
+                                           FontSize="18"
+                                           FontAttributes="Bold"
+                                           VerticalTextAlignment="Center"
+                                           TextColor="#111827" />
+                                </HorizontalStackLayout>
+                            </Border>
                         </Grid>
                     </Grid>
                 </Grid>

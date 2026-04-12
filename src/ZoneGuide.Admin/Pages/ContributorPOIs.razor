@@ -180,7 +180,9 @@
                             {
                                 @foreach (var contrib in FilteredContributions)
                                 {
-                                    <MudCard Class="mb-3 poi-card" @onclick="() => FocusMapOnContribution(contrib)">
+                                    <MudCard id="@($"contrib-card-{contrib.Id}")"
+                                             Class="@($"mb-3 poi-card {GetContributionCardClass(contrib)}")"
+                                             @onclick="() => FocusMapOnContribution(contrib)">
                                         <div class="poi-card-media-wrap">
                                             <img class="poi-thumb-img" src="@(string.IsNullOrEmpty(contrib.ImageUrl) ? "/images/placeholder.png" : contrib.ImageUrl)" alt="Ảnh địa điểm" />
                                             <div class="poi-card-top-row">
@@ -399,6 +401,11 @@
         transform: translateY(-2px);
         box-shadow: 0 14px 30px rgba(37,99,235,0.16);
     }
+    .poi-card.poi-card-selected {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37,99,235,0.16), 0 14px 30px rgba(37,99,235,0.12);
+        background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    }
     .poi-card-media-wrap {
         position: relative;
     }
@@ -556,6 +563,7 @@
     private string _searchString = "";
     private string _selectedCategory = "Tất cả";
     private string _selectedStatus = "Tất cả";
+    private int? _highlightedContributionId;
     private DotNetObjectReference<ContributorPOIs>? _dotNetRef;
     private readonly Dictionary<int, string> _contributionAddressCache = new();
     private string _contributionAddressQuery = "";
@@ -769,11 +777,13 @@
 
     private async Task FocusMapOnContribution(POIContributionDto contrib)
     {
-         await JS.InvokeVoidAsync("addTempMarkerToPOIMap", contrib.Latitude, contrib.Longitude, false);
+        _highlightedContributionId = contrib.Id;
+        await JS.InvokeVoidAsync("addTempMarkerToPOIMap", contrib.Latitude, contrib.Longitude, false);
     }
 
     private async Task EditContribution(POIContributionDto contrib)
     {
+        _highlightedContributionId = contrib.Id;
         _editModel = new POIContributionDto
         {
             Id = contrib.Id,
@@ -839,6 +849,9 @@
         
         await FocusMapOnContribution(contrib);
     }
+
+    private string GetContributionCardClass(POIContributionDto contrib)
+        => _highlightedContributionId == contrib.Id ? "poi-card-selected" : string.Empty;
 
     [JSInvokable]
     public Task OnMapMarkerClicked(string poiId)

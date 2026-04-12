@@ -220,6 +220,7 @@ public class SyncService : ISyncService
         try
         {
             var tour = await _apiService.GetTourDetailsAsync(tourId);
+            var localTour = await _tourRepository.GetByIdAsync(tourId);
 
             var poisToDownload = tour?.POIs?.ToList() ?? new List<POIDto>();
             if (poisToDownload.Count == 0)
@@ -243,6 +244,28 @@ public class SyncService : ISyncService
 
             var downloadableAssetCount = 0;
             var downloadedAssetCount = 0;
+
+            var resolvedTourAudioUrl = !string.IsNullOrWhiteSpace(localTour?.AudioUrl)
+                ? localTour.AudioUrl
+                : tour?.AudioUrl;
+
+            if (!string.IsNullOrWhiteSpace(resolvedTourAudioUrl))
+            {
+                downloadableAssetCount++;
+                var tourAudioData = await _apiService.DownloadAudioAsync(resolvedTourAudioUrl);
+                if (tourAudioData != null)
+                {
+                    var tourAudioPath = Path.Combine(offlineDir, "tour_audio.mp3");
+                    await File.WriteAllBytesAsync(tourAudioPath, tourAudioData);
+                    downloadedAssetCount++;
+
+                    if (localTour != null)
+                    {
+                        localTour.AudioFilePath = tourAudioPath;
+                        await _tourRepository.UpdateAsync(localTour);
+                    }
+                }
+            }
 
             foreach (var poi in poisToDownload)
             {
@@ -341,6 +364,7 @@ public class SyncService : ISyncService
         try
         {
             var offlineDir = Path.Combine(FileSystem.AppDataDirectory, "offline", tourId.ToString());
+            var localTour = await _tourRepository.GetByIdAsync(tourId);
 
             if (_narrationService.CurrentItem?.POI.TourId == tourId)
             {
@@ -359,6 +383,12 @@ public class SyncService : ISyncService
                 }
 
                 await _poiRepository.UpdateAsync(poi);
+            }
+
+            if (localTour != null)
+            {
+                localTour.AudioFilePath = null;
+                await _tourRepository.UpdateAsync(localTour);
             }
 
             if (Directory.Exists(offlineDir))
@@ -467,6 +497,7 @@ public class SyncService : ISyncService
             UniqueCode = dto.UniqueCode,
             Name = dto.Name,
             Description = dto.Description ?? string.Empty,
+            AudioUrl = dto.AudioUrl,
             EstimatedDurationMinutes = dto.EstimatedDurationMinutes,
             EstimatedDistanceMeters = dto.DistanceKm * 1000, // Convert km to meters
             POICount = dto.POICount,
@@ -566,7 +597,9 @@ public class SyncService : ISyncService
                 TourId = tourId,
                 LanguageCode = NormalizeLanguage(translation.LanguageCode),
                 Description = translation.Description ?? string.Empty,
-                IsOutdated = translation.IsOutdated
+                IsOutdated = translation.IsOutdated,
+                AudioUrl = translation.AudioUrl,
+                IsAudioOutdated = translation.IsAudioOutdated
             };
 
             await _tourTranslationRepository.InsertOrUpdateAsync(entry);

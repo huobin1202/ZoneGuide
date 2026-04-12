@@ -595,6 +595,8 @@ public class TourRepository : ITourRepository
             return CloneTourWithDescription(
                 tour,
                 GetMissingTranslationMessage(preferredLanguage),
+                null,
+                tour.AudioFilePath,
                 preferredLanguage);
         }
 
@@ -602,10 +604,20 @@ public class TourRepository : ITourRepository
             ? GetMissingTranslationMessage(preferredLanguage)
             : translation.Description;
 
-        return CloneTourWithDescription(tour, description, preferredLanguage);
+        return CloneTourWithDescription(
+            tour,
+            description,
+            string.IsNullOrWhiteSpace(translation.AudioUrl) ? tour.AudioUrl : translation.AudioUrl,
+            tour.AudioFilePath,
+            preferredLanguage);
     }
 
-    private static Tour CloneTourWithDescription(Tour source, string description, string language)
+    private static Tour CloneTourWithDescription(
+        Tour source,
+        string description,
+        string? audioUrl,
+        string? audioFilePath,
+        string language)
     {
         return new Tour
         {
@@ -613,6 +625,8 @@ public class TourRepository : ITourRepository
             UniqueCode = source.UniqueCode,
             Name = source.Name,
             Description = description,
+            AudioFilePath = audioFilePath,
+            AudioUrl = audioUrl,
             EstimatedDurationMinutes = source.EstimatedDurationMinutes,
             EstimatedDistanceMeters = source.EstimatedDistanceMeters,
             POICount = source.POICount,

@@ -520,6 +520,9 @@ namespace ZoneGuide.API.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("AudioUrl")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
@@ -611,6 +614,12 @@ namespace ZoneGuide.API.Migrations
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AudioUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsAudioOutdated")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("IsOutdated")
                         .HasColumnType("bit");

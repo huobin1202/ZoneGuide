@@ -24,6 +24,16 @@ public class Tour
     /// Mô tả tour
     /// </summary>
     public string Description { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Đường dẫn file audio offline cho tour
+    /// </summary>
+    public string? AudioFilePath { get; set; }
+
+    /// <summary>
+    /// URL audio online cho tour
+    /// </summary>
+    public string? AudioUrl { get; set; }
     
     /// <summary>
     /// Thời gian ước tính (phút)
