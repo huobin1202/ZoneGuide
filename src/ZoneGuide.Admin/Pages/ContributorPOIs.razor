@@ -71,87 +71,6 @@
                                           Class="mt-3" />
 
                         
-                            @if (IsAudioTranslationView)
-                            {
-                                <MudPaper Elevation="0" Class="pa-3 mt-3" Style="background:#f8fbff;border:1px solid #dbe7f3;border-radius:12px;">
-                                    <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">Audio thuyết minh</MudText>
-                                    <MudTextField @bind-Value="_editModel.TTSScript" Label="Nội dung thuyết minh (TTS)"
-                                                  Lines="3" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                                    <div class="d-flex gap-2 mt-2 mb-2 flex-wrap">
-                                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
-                                                   StartIcon="@Icons.Material.Filled.Autorenew"
-                                                   Disabled="@_isGeneratingContributorTts"
-                                                   OnClick="GenerateContributorTtsAsync">
-                                            @(_isGeneratingContributorTts ? "Đang tạo giọng đọc..." : "Tạo giọng đọc")
-                                        </MudButton>
-                                    </div>
-                                    <MudTextField @bind-Value="_editModel.AudioUrl" Label="URL Audio thuyết minh"
-                                                  Variant="Variant.Outlined" Margin="Margin.Dense" />
-                                    @if (!string.IsNullOrEmpty(_editModel.AudioUrl))
-                                    {
-                                        <div class="mt-2">
-                                            <audio controls style="width:100%">
-                                                <source src="@_editModel.AudioUrl" />
-                                            </audio>
-                                        </div>
-                                    }
-                                </MudPaper>
-
-                                <MudPaper Elevation="0" Class="pa-3 mt-3" Style="background:#f8fbff;border:1px solid #dbe7f3;border-radius:12px;">
-                                    <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">Bản dịch & Audio theo ngôn ngữ</MudText>
-
-                                    <MudGrid Spacing="2">
-                                        <MudItem xs="12" sm="4">
-                                            <MudSelect T="string" Label="Ngôn ngữ" @bind-Value="_translationLang" Variant="Variant.Outlined" Margin="Margin.Dense">
-                                                @foreach (var lang in _supportedLangs)
-                                                {
-                                                    <MudSelectItem Value="@lang">@lang</MudSelectItem>
-                                                }
-                                            </MudSelect>
-                                        </MudItem>
-                                        <MudItem xs="12" sm="8">
-                                            <MudTextField @bind-Value="_translationName" Label="Tên bản dịch" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                                        </MudItem>
-                                    </MudGrid>
-
-                                    <MudTextField @bind-Value="_translationScript" Label="Nội dung thuyết minh bản dịch"
-                                                  Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                                    <MudTextField @bind-Value="_translationAudioUrl" Label="URL Audio bản dịch"
-                                                  Variant="Variant.Outlined" Margin="Margin.Dense" />
-
-                                    <div class="d-flex gap-2 mt-2 mb-2 flex-wrap">
-                                        <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Add"
-                                                   OnClick="AddOrUpdateTranslation">
-                                            Thêm/Cập nhật bản dịch
-                                        </MudButton>
-                                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
-                                                   StartIcon="@Icons.Material.Filled.Autorenew"
-                                                   Disabled="@_isGeneratingContributorTts"
-                                                   OnClick="GenerateTranslationTtsAsync">
-                                            Tạo audio bản dịch
-                                        </MudButton>
-                                    </div>
-
-                                    @if (CurrentTranslations.Any())
-                                    {
-                                        <div class="translation-list mt-2">
-                                            @foreach (var tr in CurrentTranslations.OrderBy(t => t.LanguageCode))
-                                            {
-                                                <div class="translation-item">
-                                                    <div class="translation-item-main">
-                                                        <MudChip T="string" Size="Size.Small" Color="Color.Info">@tr.LanguageCode</MudChip>
-                                                        <MudText Typo="Typo.body2" Class="ml-2">@(!string.IsNullOrWhiteSpace(tr.Name) ? tr.Name : "(Chưa có tên bản dịch)")</MudText>
-                                                    </div>
-                                                    <div class="translation-item-actions">
-                                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => LoadTranslationToEditor(tr))" />
-                                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => RemoveTranslation(tr.LanguageCode))" />
-                                                    </div>
-                                                </div>
-                                            }
-                                        </div>
-                                    }
-                                </MudPaper>
-                            }
 
                             <MudGrid Class="mt-1">
                                 <MudItem xs="12" sm="6">
@@ -203,6 +122,9 @@
                                 </div>
                             }
 
+                            <MudTextField @bind-Value="_editModel.ContributorNotes" Label="Ghi chú"
+                                          Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
+
                             <div class="d-flex justify-space-between gap-4 mt-6">
                                 <MudButton Variant="Variant.Text" OnClick="CancelEdit" FullWidth="true">Hủy</MudButton>
                                 <MudButton Variant="Variant.Filled" Color="Color.Primary" 
@@ -213,7 +135,7 @@
                     }
                     else
                     {
-                        <MudPaper Elevation="1" Class="pa-4 panel-card mb-3">
+                        <MudPaper Elevation="1" Class="pa-4 flex-grow-0 panel-card">
                             <div class="d-flex justify-space-between align-center mb-3">
                                 <div>
                                     <MudText Typo="Typo.h6">Địa điểm</MudText>
@@ -244,58 +166,62 @@
                             </div>
                         </MudPaper>
 
-                        @if (_loading)
-                        {
-                            <div class="d-flex justify-center pa-4"><MudProgressCircular Indeterminate="true" /></div>
-                        }
-                        else
-                        {
-                            @foreach (var contrib in FilteredContributions)
+                        <div style="flex-grow: 1; overflow-y: auto; background-color: #f7f9fa; height: calc(100vh - 290px);" class="pa-4">
+                            @if (_loading)
                             {
-                                <MudCard Class="mb-3 poi-card" @onclick="() => FocusMapOnContribution(contrib)">
-                                    <div class="poi-card-media-wrap">
-                                        <img class="poi-thumb-img" src="@(string.IsNullOrEmpty(contrib.ImageUrl) ? "/images/placeholder.png" : contrib.ImageUrl)" alt="Ảnh địa điểm" />
-                                        <div class="poi-card-top-row">
-                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Class="poi-category-chip">
-                                                @(contrib.Category ?? "Ăn no")
-                                            </MudChip>
-                                            @if (CanEditContribution(contrib))
-                                            {
-                                                <div class="d-flex gap-1 poi-card-actions" @onclick:stopPropagation="true">
-                                                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                                                                   Size="Size.Small"
-                                                                   Class="poi-card-action-btn"
-                                                                   title="Chỉnh sửa"
-                                                                   OnClick="() => EditContribution(contrib)" />
-                                                </div>
-                                            }
+                                <div class="d-flex justify-center my-4">
+                                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                                </div>
+                            }
+                            else
+                            {
+                                @foreach (var contrib in FilteredContributions)
+                                {
+                                    <MudCard Class="mb-3 poi-card" @onclick="() => FocusMapOnContribution(contrib)">
+                                        <div class="poi-card-media-wrap">
+                                            <img class="poi-thumb-img" src="@(string.IsNullOrEmpty(contrib.ImageUrl) ? "/images/placeholder.png" : contrib.ImageUrl)" alt="Ảnh địa điểm" />
+                                            <div class="poi-card-top-row">
+                                                <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Class="poi-category-chip">
+                                                    @(contrib.Category ?? "Ăn no")
+                                                </MudChip>
+                                                @if (CanEditContribution(contrib))
+                                                {
+                                                    <div class="d-flex gap-1 poi-card-actions" @onclick:stopPropagation="true">
+                                                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                                       Size="Size.Small"
+                                                                       Class="poi-card-action-btn"
+                                                                       title="Chỉnh sửa"
+                                                                       OnClick="() => EditContribution(contrib)" />
+                                                    </div>
+                                                }
+                                            </div>
                                         </div>
-                                    </div>
-                                    <MudCardContent Class="poi-card-content">
-                                        <div class="d-flex justify-space-between align-start gap-2 mb-1">
-                                            <MudText Typo="Typo.subtitle1" Class="poi-name-ellipsis" title="@contrib.Name">
-                                                <b>@contrib.Name</b>
+                                        <MudCardContent Class="poi-card-content">
+                                            <div class="d-flex justify-space-between align-start gap-2 mb-1">
+                                                <MudText Typo="Typo.subtitle1" Class="poi-name-ellipsis" title="@contrib.Name">
+                                                    <b>@contrib.Name</b>
+                                                </MudText>
+                                                <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@GetStatusColor(contrib.Status)">
+                                                    @GetStatusText(contrib.Status)
+                                                </MudChip>
+                                            </div>
+                                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-1 d-flex align-center gap-1">
+                                                <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" />
+                                                <span class="poi-address-ellipsis" title="@GetContributionAddressDisplay(contrib)">@GetContributionAddressDisplay(contrib)</span>
                                             </MudText>
-                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@GetStatusColor(contrib.Status)">
-                                                @GetStatusText(contrib.Status)
-                                            </MudChip>
-                                        </div>
-                                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-1 d-flex align-center gap-1">
-                                            <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" />
-                                            <span class="poi-address-ellipsis" title="@GetContributionAddressDisplay(contrib)">@GetContributionAddressDisplay(contrib)</span>
-                                        </MudText>
-                                        <MudText Typo="Typo.body2" Color="Color.Default" Class="clamp-2">
-                                            @(contrib.TTSScript ?? "Chưa có nội dung thuyết minh (TTS)")
-                                        </MudText>
-                                    </MudCardContent>
-                                </MudCard>
+                                            <MudText Typo="Typo.body2" Color="Color.Default" Class="clamp-2">
+                                                @(contrib.TTSScript ?? "Chưa có nội dung thuyết minh (TTS)")
+                                            </MudText>
+                                        </MudCardContent>
+                                    </MudCard>
+                                }
+                                
+                                @if (!FilteredContributions.Any())
+                                {
+                                    <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary" Class="mt-4">Chưa có đóng góp nào.</MudText>
+                                }
                             }
-                            
-                            @if (!FilteredContributions.Any())
-                            {
-                                <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary" Class="mt-4">Chưa có đóng góp nào.</MudText>
-                            }
-                        }
+                        </div>
                     }
                 </div>
             </MudTabPanel>
@@ -353,87 +279,6 @@
                                       Margin="Margin.Dense"
                                       Class="mt-3" />
 
-                        @if (IsAudioTranslationView)
-                        {
-                            <MudPaper Elevation="0" Class="pa-3 mt-3" Style="background:#f8fbff;border:1px solid #dbe7f3;border-radius:12px;">
-                                <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">Audio thuyết minh</MudText>
-                                <MudTextField @bind-Value="_newContrib.TTSScript" Label="Nội dung thuyết minh (TTS)"
-                                              Lines="3" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                                <div class="d-flex gap-2 mt-2 mb-2 flex-wrap">
-                                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
-                                               StartIcon="@Icons.Material.Filled.Autorenew"
-                                               Disabled="@_isGeneratingContributorTts"
-                                               OnClick="GenerateContributorTtsAsync">
-                                        @(_isGeneratingContributorTts ? "Đang tạo giọng đọc..." : "Tạo giọng đọc")
-                                    </MudButton>
-                                </div>
-                                <MudTextField @bind-Value="_newContrib.AudioUrl" Label="URL Audio thuyết minh"
-                                              Variant="Variant.Outlined" Margin="Margin.Dense" />
-                                @if (!string.IsNullOrEmpty(_newContrib.AudioUrl))
-                                {
-                                    <div class="mt-2">
-                                        <audio controls style="width:100%">
-                                            <source src="@_newContrib.AudioUrl" />
-                                        </audio>
-                                    </div>
-                                }
-                            </MudPaper>
-
-                            <MudPaper Elevation="0" Class="pa-3 mt-3" Style="background:#f8fbff;border:1px solid #dbe7f3;border-radius:12px;">
-                                <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">Bản dịch & Audio theo ngôn ngữ</MudText>
-
-                                <MudGrid Spacing="2">
-                                    <MudItem xs="12" sm="4">
-                                        <MudSelect T="string" Label="Ngôn ngữ" @bind-Value="_translationLang" Variant="Variant.Outlined" Margin="Margin.Dense">
-                                            @foreach (var lang in _supportedLangs)
-                                            {
-                                                <MudSelectItem Value="@lang">@lang</MudSelectItem>
-                                            }
-                                        </MudSelect>
-                                    </MudItem>
-                                    <MudItem xs="12" sm="8">
-                                        <MudTextField @bind-Value="_translationName" Label="Tên bản dịch" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                                    </MudItem>
-                                </MudGrid>
-
-                                <MudTextField @bind-Value="_translationScript" Label="Nội dung thuyết minh bản dịch"
-                                              Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                                <MudTextField @bind-Value="_translationAudioUrl" Label="URL Audio bản dịch"
-                                              Variant="Variant.Outlined" Margin="Margin.Dense" />
-
-                                <div class="d-flex gap-2 mt-2 mb-2 flex-wrap">
-                                    <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Add"
-                                               OnClick="AddOrUpdateTranslation">
-                                        Thêm/Cập nhật bản dịch
-                                    </MudButton>
-                                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
-                                               StartIcon="@Icons.Material.Filled.Autorenew"
-                                               Disabled="@_isGeneratingContributorTts"
-                                               OnClick="GenerateTranslationTtsAsync">
-                                        Tạo audio bản dịch
-                                    </MudButton>
-                                </div>
-
-                                @if (CurrentTranslations.Any())
-                                {
-                                    <div class="translation-list mt-2">
-                                        @foreach (var tr in CurrentTranslations.OrderBy(t => t.LanguageCode))
-                                        {
-                                            <div class="translation-item">
-                                                <div class="translation-item-main">
-                                                    <MudChip T="string" Size="Size.Small" Color="Color.Info">@tr.LanguageCode</MudChip>
-                                                    <MudText Typo="Typo.body2" Class="ml-2">@(!string.IsNullOrWhiteSpace(tr.Name) ? tr.Name : "(Chưa có tên bản dịch)")</MudText>
-                                                </div>
-                                                <div class="translation-item-actions">
-                                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => LoadTranslationToEditor(tr))" />
-                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => RemoveTranslation(tr.LanguageCode))" />
-                                                </div>
-                                            </div>
-                                        }
-                                    </div>
-                                }
-                            </MudPaper>
-                        }
 
                         <MudGrid Class="mt-1">
                             <MudItem xs="12" sm="6">
@@ -714,11 +559,6 @@
     private string _contributionAddressStatus = "";
     private AddressSuggestion? _selectedContributionAddressSuggestion;
     private string? _lastAutoFilledContributionName;
-    private bool _isGeneratingContributorTts;
-    private string _translationLang = "vi-VN";
-    private string _translationName = "";
-    private string _translationScript = "";
-    private string _translationAudioUrl = "";
 
     private MudForm _createForm = null!;
     private MudForm _editForm = null!;
@@ -727,11 +567,7 @@
     private POIContributionDto? _editModel;
     private readonly List<ContributionTranslationInput> _newContribTranslations = new();
     private readonly List<ContributionTranslationInput> _editContribTranslations = new();
-    private static readonly string[] _supportedLangs = { "vi-VN", "en-US", "ja-JP", "ko-KR", "zh-CN", "fr-FR" };
     private const string TranslationMetaPrefix = "[ZG_I18N]";
-    private static bool IsAudioTranslationView => false;
-
-    private List<ContributionTranslationInput> CurrentTranslations => _isEditMode ? _editContribTranslations : _newContribTranslations;
 
     private sealed class ContributionTranslationInput
     {
@@ -854,6 +690,17 @@
         try
         {
             var activePois = _allPoisForMap.Where(p => p.IsActive).ToList();
+            var manageablePoiIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var contrib in _myContributions)
+            {
+                if (contrib.OriginalPOIId.HasValue)
+                {
+                    manageablePoiIds.Add(contrib.OriginalPOIId.Value.ToString());
+                }
+
+                manageablePoiIds.Add(contrib.Id.ToString());
+            }
+
             double centerLat = activePois.Any() ? activePois.Average(p => p.Latitude) : 10.762622;
             double centerLng = activePois.Any() ? activePois.Average(p => p.Longitude) : 106.660172;
 
@@ -868,7 +715,9 @@
                 category = p.Category,
                 isActive = p.IsActive,
                 audioUrl = p.AudioUrl,
-                isDraft = false
+                isDraft = false,
+                isContribution = false,
+                canManage = manageablePoiIds.Contains(p.Id)
             }).ToList();
 
             // Thêm các đóng góp chưa duyệt (nháp) của chính user này vào bản đồ
@@ -886,7 +735,9 @@
                     category = draft.Category,
                     isActive = false,
                     audioUrl = (string?)null,
-                    isDraft = true
+                    isDraft = true,
+                    isContribution = true,
+                    canManage = true
                 });
             }
 
@@ -924,11 +775,47 @@
         };
         _contributionAddressQuery = _contributionAddressCache.TryGetValue(contrib.Id, out var address) ? address : "";
         _contributionAddressStatus = string.IsNullOrWhiteSpace(_contributionAddressQuery) ? "" : "Đã nạp địa chỉ hiện tại.";
-        _selectedContributionAddressSuggestion = null;
+
+        if (string.IsNullOrWhiteSpace(_contributionAddressQuery)
+            && contrib.Latitude.HasValue
+            && contrib.Longitude.HasValue)
+        {
+            try
+            {
+                var resolvedAddress = await JS.InvokeAsync<string>(
+                    "reverseGeocodeAddress",
+                    contrib.Latitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    contrib.Longitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+                _contributionAddressQuery = string.IsNullOrWhiteSpace(resolvedAddress) ? "Không có địa chỉ" : resolvedAddress;
+                _contributionAddressStatus = "Đã nạp địa chỉ hiện tại.";
+                _contributionAddressCache[contrib.Id] = _contributionAddressQuery;
+            }
+            catch
+            {
+                _contributionAddressQuery = "Không có địa chỉ";
+                _contributionAddressStatus = "Không thể tải địa chỉ hiện tại.";
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(_contributionAddressQuery))
+        {
+            _selectedContributionAddressSuggestion = new AddressSuggestion
+            {
+                DisplayName = _contributionAddressQuery,
+                Name = _editModel.Name,
+                Lat = (_editModel.Latitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                Lon = (_editModel.Longitude ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture)
+            };
+        }
+        else
+        {
+            _selectedContributionAddressSuggestion = null;
+        }
+
         _lastAutoFilledContributionName = null;
-    _editContribTranslations.Clear();
-    _editContribTranslations.AddRange(ExtractTranslations(contrib.ContributorNotes));
-    ResetTranslationEditor();
+        _editContribTranslations.Clear();
+        _editContribTranslations.AddRange(ExtractTranslations(contrib.ContributorNotes));
         _isEditMode = true;
         _activeTabIndex = 0; // Đảm bảo đang ở tab danh sách
         
@@ -971,7 +858,6 @@
         _isValid = false;
         ResetContributionAddressState();
         _editContribTranslations.Clear();
-        ResetTranslationEditor();
         JS.InvokeVoidAsync("removeTempMarkerFromPOIMap");
     }
 
@@ -1108,7 +994,6 @@
     {
         _newContrib = new CreatePOIContributionDto { Category = "Ăn no" };
         _newContribTranslations.Clear();
-        ResetTranslationEditor();
         _isValid = false;
         ResetContributionAddressState();
         JS.InvokeVoidAsync("removeTempMarkerFromPOIMap");
@@ -1127,7 +1012,6 @@
                 _activeTabIndex = 0;
                 _newContrib = new CreatePOIContributionDto { Category = "Ăn no" };
                 _newContribTranslations.Clear();
-                ResetTranslationEditor();
                 ResetContributionAddressState();
                 await JS.InvokeVoidAsync("removeTempMarkerFromPOIMap");
                 await LoadData();
@@ -1379,147 +1263,6 @@
                 _contributionAddressCache[contribution.Id] = "Không có địa chỉ";
             }
         }
-    }
-
-    private async Task GenerateContributorTtsAsync()
-    {
-        var activeScript = _isEditMode && _editModel != null ? _editModel.TTSScript : _newContrib.TTSScript;
-        if (string.IsNullOrWhiteSpace(activeScript))
-        {
-            Snackbar.Add("Vui lòng nhập nội dung thuyết minh trước.", Severity.Warning);
-            return;
-        }
-
-        _isGeneratingContributorTts = true;
-        try
-        {
-            var response = await ApiService.GenerateTtsAsync(activeScript, "vi-VN");
-            if (string.IsNullOrWhiteSpace(response))
-            {
-                Snackbar.Add("Không tạo được giọng đọc.", Severity.Warning);
-                return;
-            }
-
-            var audioUrl = response.StartsWith("data:audio", StringComparison.OrdinalIgnoreCase)
-                || response.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-                || response.StartsWith("/", StringComparison.OrdinalIgnoreCase)
-                ? response
-                : $"data:audio/mp3;base64,{response}";
-
-            if (_isEditMode && _editModel != null)
-            {
-                _editModel.AudioUrl = audioUrl;
-            }
-            else
-            {
-                _newContrib.AudioUrl = audioUrl;
-            }
-
-            Snackbar.Add("Đã tạo audio TTS thành công.", Severity.Success);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Lỗi tạo audio: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _isGeneratingContributorTts = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task GenerateTranslationTtsAsync()
-    {
-        if (string.IsNullOrWhiteSpace(_translationScript))
-        {
-            Snackbar.Add("Vui lòng nhập nội dung bản dịch trước.", Severity.Warning);
-            return;
-        }
-
-        _isGeneratingContributorTts = true;
-        try
-        {
-            var response = await ApiService.GenerateTtsAsync(_translationScript, _translationLang);
-            if (string.IsNullOrWhiteSpace(response))
-            {
-                Snackbar.Add("Không tạo được audio bản dịch.", Severity.Warning);
-                return;
-            }
-
-            _translationAudioUrl = response.StartsWith("data:audio", StringComparison.OrdinalIgnoreCase)
-                || response.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-                || response.StartsWith("/", StringComparison.OrdinalIgnoreCase)
-                ? response
-                : $"data:audio/mp3;base64,{response}";
-            Snackbar.Add("Đã tạo audio bản dịch.", Severity.Success);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Lỗi tạo audio bản dịch: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _isGeneratingContributorTts = false;
-            StateHasChanged();
-        }
-    }
-
-    private void AddOrUpdateTranslation()
-    {
-        if (string.IsNullOrWhiteSpace(_translationLang))
-        {
-            Snackbar.Add("Vui lòng chọn ngôn ngữ.", Severity.Warning);
-            return;
-        }
-
-        var list = CurrentTranslations;
-        var existing = list.FirstOrDefault(x => string.Equals(x.LanguageCode, _translationLang, StringComparison.OrdinalIgnoreCase));
-        if (existing == null)
-        {
-            list.Add(new ContributionTranslationInput
-            {
-                LanguageCode = _translationLang,
-                Name = (_translationName ?? string.Empty).Trim(),
-                TTSScript = (_translationScript ?? string.Empty).Trim(),
-                AudioUrl = string.IsNullOrWhiteSpace(_translationAudioUrl) ? null : _translationAudioUrl.Trim()
-            });
-        }
-        else
-        {
-            existing.Name = (_translationName ?? string.Empty).Trim();
-            existing.TTSScript = (_translationScript ?? string.Empty).Trim();
-            existing.AudioUrl = string.IsNullOrWhiteSpace(_translationAudioUrl) ? null : _translationAudioUrl.Trim();
-        }
-
-        ResetTranslationEditor();
-        Snackbar.Add("Đã lưu bản dịch.", Severity.Success);
-    }
-
-    private void LoadTranslationToEditor(ContributionTranslationInput item)
-    {
-        _translationLang = item.LanguageCode;
-        _translationName = item.Name;
-        _translationScript = item.TTSScript;
-        _translationAudioUrl = item.AudioUrl ?? string.Empty;
-    }
-
-    private void RemoveTranslation(string languageCode)
-    {
-        var list = CurrentTranslations;
-        var item = list.FirstOrDefault(x => string.Equals(x.LanguageCode, languageCode, StringComparison.OrdinalIgnoreCase));
-        if (item != null)
-        {
-            list.Remove(item);
-            Snackbar.Add($"Đã xóa bản dịch {languageCode}.", Severity.Info);
-        }
-    }
-
-    private void ResetTranslationEditor()
-    {
-        _translationLang = "vi-VN";
-        _translationName = string.Empty;
-        _translationScript = string.Empty;
-        _translationAudioUrl = string.Empty;
     }
 
     private static string AttachTranslationMeta(string? notes, List<ContributionTranslationInput> translations)

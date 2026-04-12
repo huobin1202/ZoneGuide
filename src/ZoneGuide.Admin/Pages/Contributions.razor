@@ -105,13 +105,17 @@
             await LoadContributions();
             StateHasChanged();
         }
-    }    private async Task LoadContributions()
+    }
+
+    private async Task LoadContributions()
     {
         isLoading = true;
         try
         {
             var response = await Http.GetFromJsonAsync<List<POIContributionDto>>("api/contributions");
-            allContributions = response ?? new();
+            allContributions = (response ?? new())
+                .Where(c => !string.Equals(c.Status, POIApprovalStatus.Draft.ToString(), StringComparison.OrdinalIgnoreCase))
+                .ToList();
         }
         catch (Exception ex)
         {

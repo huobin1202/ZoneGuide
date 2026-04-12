@@ -14,7 +14,7 @@
 else
 {
     <MudGrid Spacing="3">
-        <MudItem xs="12" md="3">
+        <MudItem xs="12" md="2">
             <MudPaper Class="pa-3" Outlined="true">
                 <MudText Typo="Typo.subtitle1" Class="mb-2">Địa điểm của tôi</MudText>
                 <MudTextField @bind-Value="_searchKeyword"
@@ -50,7 +50,7 @@ else
             </MudPaper>
         </MudItem>
 
-        <MudItem xs="12" md="5">
+    <MudItem xs="12" md="6">
             @if (_selectedContribution is null)
             {
                 <MudAlert Severity="Severity.Info">Chọn một địa điểm bên trái để quản lý audio / bản dịch.</MudAlert>
@@ -64,40 +64,64 @@ else
 
                 <MudPaper Class="pa-3" Outlined="true">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
-                        <MudText Typo="Typo.subtitle1">Bản dịch / Audio</MudText>
+                        <MudText Typo="Typo.subtitle1">Bản tạo audio / bản dịch</MudText>
                         <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh"
                                    OnClick="ReloadSelectedContributionAsync" Disabled="@(_selectedContribution is null || _saving)">
                             Làm mới
                         </MudButton>
                     </MudStack>
 
-                    <MudSelect T="string" Value="@_selectedLanguage" ValueChanged="OnSelectedLanguageChangedAsync" Label="Ngôn ngữ" Style="max-width: 280px;">
-                        @foreach (var option in LanguageOptions)
-                        {
-                            <MudSelectItem Value="@option.Code">@option.Label</MudSelectItem>
-                        }
-                    </MudSelect>
+                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End" Class="flex-wrap">
+                        <MudSelect T="string" Value="@_selectedLanguage" ValueChanged="OnSelectedLanguageChangedAsync" Label="" Style="min-width: 260px;">
+                            @foreach (var option in LanguageOptions)
+                            {
+                                <MudSelectItem Value="@option.Code">@option.Label</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudStack>
+
+                    @if (IsOriginalLanguageSelected)
+                    {
+                        <MudAlert Severity="Severity.Warning" Class="mt-2">
+                            Ngôn ngữ gốc đang được khóa để tránh sửa nhầm nội dung gốc.
+                        </MudAlert>
+                    }
+
+                    @if (CanEditTranslation && IsOriginalNarrationMissing)
+                    {
+                        <MudAlert Severity="Severity.Warning" Class="mt-2">
+                            Chưa có nội dung gốc, không thể nhập nội dung bản dịch.
+                        </MudAlert>
+                    }
+
+                    @if (_translatingContent)
+                    {
+                        <MudAlert Severity="Severity.Info" Class="mt-2">Đang tự động dịch nội dung theo ngôn ngữ đã chọn...</MudAlert>
+                    }
 
                     <MudText Typo="Typo.subtitle2" Class="mt-3 mb-2">Nội dung</MudText>
                     <MudGrid>
                         <MudItem xs="12" md="6">
-                            <MudTextField @bind-Value="EditingContent" Label="Nội dung bản dịch" Lines="6" Immediate="true" />
+                            <MudTextField @bind-Value="EditingContent" Label="Nội dung bản dịch" Lines="6" Immediate="true"
+                                          Class="@(_translatingContent ? "content-pulse" : string.Empty)"
+                                          Disabled="@(!CanEditTranslatedContent)" />
                         </MudItem>
                         <MudItem xs="12" md="6">
-                            <MudTextField Value="@OriginalNarrationContent" Label="Nội dung gốc" Lines="6" ReadOnly="true" Disabled="true" />
+                            <MudTextField Value="@OriginalNarrationContent" Label="Nội dung gốc" Lines="6" ReadOnly="true" Disabled="true"
+                                          Class="@(IsOriginalNarrationMissing ? "content-pulse" : string.Empty)" />
                         </MudItem>
                     </MudGrid>
 
                     <MudText Typo="Typo.subtitle2" Class="mt-3 mb-2">Audio</MudText>
-                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mb-2 flex-wrap">
+                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mb-2 audio-actions-row">
                         <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.GraphicEq"
-                                   OnClick="GenerateTtsForEditingAsync" Disabled="@(_generatingTts || string.IsNullOrWhiteSpace(EditingContent))">
+                                   OnClick="GenerateTtsForEditingAsync" Disabled="@(_generatingTts || !CanEditTranslatedContent)">
                             @(_generatingTts ? "Đang tạo audio..." : "Generate audio (TTS)")
                         </MudButton>
 
                         <div class="audio-upload-action">
-                            <InputFile id="contrib-audio-upload" class="audio-upload-input" OnChange="UploadAudioFromInput" accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm" disabled="@_uploadingAudio" />
-                            <MudButton HtmlTag="label" for="contrib-audio-upload" Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.UploadFile" Disabled="@_uploadingAudio">
+                            <InputFile id="contrib-audio-upload" class="audio-upload-input" OnChange="UploadAudioFromInput" accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm" disabled="@(!CanEditTranslatedContent || _uploadingAudio)" />
+                            <MudButton HtmlTag="label" for="contrib-audio-upload" Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.UploadFile" Disabled="@(!CanEditTranslatedContent || _uploadingAudio)">
                                 @(_uploadingAudio ? "Đang tải audio..." : "Upload audio")
                             </MudButton>
                         </div>
@@ -108,27 +132,27 @@ else
                         </MudButton>
                     </MudStack>
 
-                    <MudText Typo="Typo.caption" Class="mb-2">Audio status: @(HasEditingAudio ? "Đã có audio" : "Chưa có audio")</MudText>
+                    <MudText Typo="Typo.caption" Class="@($"mb-2 {AudioStatusCssClass}")">Audio status: @AudioStatusText</MudText>
 
                     @if (HasEditingAudio && _showAudioPreview)
                     {
                         <MudPaper Class="pa-2 mb-2" Outlined="true">
-                            <audio controls preload="metadata" style="width:100%">
-                                <source src="@ResolveAudioSource(_editingTranslation.AudioUrl)" />
+                            <audio @key="EditingAudioSource" controls preload="metadata" style="width:100%">
+                                <source src="@EditingAudioSource" />
                             </audio>
                         </MudPaper>
                     }
 
-                    <MudTextField @bind-Value="_editingTranslation.AudioUrl" Label="Audio URL / Base64" Lines="2" Class="mb-2" />
+                    <MudTextField @bind-Value="_editingTranslation.AudioUrl" Label="Audio URL / Base64" Lines="2" Class="mb-2" Disabled="@(!CanEditTranslatedContent)" />
                     <MudButton Variant="Variant.Text" Color="Color.Error" StartIcon="@Icons.Material.Filled.DeleteOutline"
-                               OnClick="ClearEditingAudio" Disabled="@(!HasEditingAudio)">
+                               OnClick="ClearEditingAudio" Disabled="@(!HasEditingAudio || !CanEditTranslatedContent)">
                         Xóa audio hiện tại
                     </MudButton>
 
                     <MudDivider Class="my-2" />
                     <MudStack Row="true" Spacing="2" Justify="Justify.FlexEnd" Class="flex-wrap">
                         <MudButton Variant="Variant.Outlined" OnClick="ResetEditingTranslation">Cancel</MudButton>
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" Disabled="@_saving" OnClick="SaveCurrentTranslationAsync">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" Disabled="@(_saving || !CanEditTranslatedContent)" OnClick="SaveCurrentTranslationAsync">
                             Save translation
                         </MudButton>
                     </MudStack>
@@ -156,7 +180,7 @@ else
                             <MudPaper Class="pa-2 mb-2" Outlined="true">
                                 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-1">
                                     <MudText Typo="Typo.body2">@GetLanguageLabel(audio.LanguageCode)</MudText>
-                                    <MudText Typo="Typo.caption" Class="audio-status-ready">@(!string.IsNullOrWhiteSpace(audio.AudioUrl) ? "Ready" : "Missing")</MudText>
+                                    <MudText Typo="Typo.caption" Class="@GetAudioStatusClass(audio)">@GetAudioStatusText(audio)</MudText>
                                 </MudStack>
                                 <audio controls preload="metadata" style="width:100%">
                                     <source src="@ResolveAudioSource(audio.AudioUrl)" />
@@ -190,10 +214,10 @@ else
                         <RowTemplate>
                             <MudTd>@context.LanguageCode</MudTd>
                             <MudTd>
-                                <MudText Typo="Typo.caption">@(string.IsNullOrWhiteSpace(context.TTSScript) ? "Thiếu nội dung" : "Đã có nội dung")</MudText>
+                                <MudText Typo="Typo.caption" Class="@GetContentStatusClass(context)">@GetContentStatusText(context)</MudText>
                             </MudTd>
                             <MudTd>
-                                <MudText Typo="Typo.caption">@(string.IsNullOrWhiteSpace(context.AudioUrl) ? "Thiếu audio" : "Đã có audio")</MudText>
+                                <MudText Typo="Typo.caption" Class="@GetAudioStatusClass(context)">@GetAudioStatusText(context)</MudText>
                             </MudTd>
                             <MudTd Class="text-right">
                                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="() => LoadTranslationToEditor(context)" />
@@ -249,12 +273,23 @@ else
     }
 
     .audio-created-scroll {
-        max-height: 260px;
-        overflow: auto;
+        max-height: calc(100vh - 360px);
+        overflow-y: auto;
     }
 
-    .audio-status-ready {
+    .status-green {
         color: #2e7d32;
+        font-weight: 700;
+    }
+
+    .status-yellow {
+        color: #ed6c02;
+        font-weight: 700;
+    }
+
+    .status-gray {
+        color: #607d8b;
+        font-weight: 700;
     }
 
     .audio-upload-action {
@@ -268,6 +303,37 @@ else
         opacity: 0;
         pointer-events: none;
     }
+
+    .audio-actions-row {
+        flex-wrap: nowrap;
+    }
+
+    .audio-actions-row > * {
+        flex: 0 0 auto;
+    }
+
+    @@media (max-width: 900px) {
+        .audio-actions-row {
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+    }
+
+    .content-pulse .mud-input-slot {
+        background: linear-gradient(90deg, rgba(25, 118, 210, 0.06) 0%, rgba(25, 118, 210, 0.18) 50%, rgba(25, 118, 210, 0.06) 100%);
+        background-size: 240% 100%;
+        animation: content-shimmer 1.6s ease-in-out infinite;
+    }
+
+    .content-pulse textarea,
+    .content-pulse input {
+        font-style: italic;
+    }
+
+    @@keyframes content-shimmer {
+        0% { background-position: 100% 0; }
+        100% { background-position: -100% 0; }
+    }
 </style>
 
 @code {
@@ -277,6 +343,7 @@ else
     private bool _saving;
     private bool _generatingTts;
     private bool _uploadingAudio;
+    private bool _translatingContent;
     private bool _showAudioPreview;
     private string _searchKeyword = string.Empty;
     private string _selectedLanguage = "vi-VN";
@@ -333,7 +400,18 @@ else
     }
 
     private string OriginalNarrationContent => _selectedContribution?.TTSScript ?? string.Empty;
+    private bool IsOriginalLanguageSelected => string.Equals(_selectedLanguage, "vi-VN", StringComparison.OrdinalIgnoreCase);
+    private bool CanEditTranslation => _selectedContribution is not null && !IsOriginalLanguageSelected;
+    private bool IsOriginalNarrationMissing => string.IsNullOrWhiteSpace(OriginalNarrationContent);
+    private bool CanEditTranslatedContent => CanEditTranslation && !IsOriginalNarrationMissing;
+    private string EditingAudioSource => ResolveAudioSource(_editingTranslation.AudioUrl);
     private bool HasEditingAudio => !string.IsNullOrWhiteSpace(_editingTranslation.AudioUrl);
+    private string AudioStatusText => _generatingTts || _uploadingAudio
+        ? "Generating"
+        : HasEditingAudio ? "Ready" : "No audio";
+    private string AudioStatusCssClass => _generatingTts || _uploadingAudio
+        ? "status-yellow"
+        : HasEditingAudio ? "status-green" : "status-gray";
 
     protected override async Task OnInitializedAsync()
     {
@@ -407,13 +485,13 @@ else
     private Task OnSelectedLanguageChangedAsync(string language)
     {
         _selectedLanguage = language;
-        return LoadEditorForLanguageAsync(language);
+        return LoadEditorForLanguageAsync(language, autoTranslateIfMissing: true);
     }
 
-    private Task LoadEditorForLanguageAsync(string languageCode)
+    private async Task LoadEditorForLanguageAsync(string languageCode, bool autoTranslateIfMissing = false)
     {
         if (_selectedContribution is null)
-            return Task.CompletedTask;
+            return;
 
         if (string.Equals(languageCode, "vi-VN", StringComparison.OrdinalIgnoreCase))
         {
@@ -440,7 +518,65 @@ else
         }
 
         _showAudioPreview = false;
-        return Task.CompletedTask;
+
+        if (autoTranslateIfMissing
+            && !string.Equals(languageCode, "vi-VN", StringComparison.OrdinalIgnoreCase)
+            && string.IsNullOrWhiteSpace(_editingTranslation.TTSScript)
+            && !string.IsNullOrWhiteSpace(OriginalNarrationContent))
+        {
+            await TranslateFromBaseContentAsync(showSuccessToast: false);
+        }
+    }
+
+    private async Task TranslateFromBaseContentAsync(bool showSuccessToast = true)
+    {
+        if (_selectedContribution is null)
+            return;
+
+        if (string.Equals(_selectedLanguage, "vi-VN", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        if (string.IsNullOrWhiteSpace(OriginalNarrationContent))
+        {
+            Snackbar.Add("Không có nội dung gốc để dịch tự động.", Severity.Warning);
+            return;
+        }
+
+        _translatingContent = true;
+        try
+        {
+            var result = await ApiService.TranslatePOIContentAsync(new TranslatePOIContentRequestDto
+            {
+                SourceLanguage = "vi-VN",
+                TargetLanguage = _selectedLanguage,
+                Name = _selectedContribution.Name,
+                TTSScript = OriginalNarrationContent
+            });
+
+            if (result is null)
+            {
+                Snackbar.Add("Không nhận được kết quả dịch.", Severity.Warning);
+                return;
+            }
+
+            _editingTranslation.Name = string.IsNullOrWhiteSpace(result.Name)
+                ? _selectedContribution.Name
+                : result.Name;
+            _editingTranslation.TTSScript = result.TTSScript ?? string.Empty;
+
+            if (showSuccessToast)
+            {
+                Snackbar.Add("Đã dịch tự động nội dung.", Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Dịch tự động thất bại: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _translatingContent = false;
+        }
     }
 
     private async Task GenerateTtsForEditingAsync()
@@ -630,6 +766,18 @@ else
     {
         return string.IsNullOrWhiteSpace(audioUrl) ? string.Empty : audioUrl;
     }
+
+    private static string GetAudioStatusClass(ContributionTranslationInput translation)
+        => string.IsNullOrWhiteSpace(translation.AudioUrl) ? "status-gray" : "status-green";
+
+    private static string GetAudioStatusText(ContributionTranslationInput translation)
+        => string.IsNullOrWhiteSpace(translation.AudioUrl) ? "Missing" : "Ready";
+
+    private static string GetContentStatusClass(ContributionTranslationInput translation)
+        => string.IsNullOrWhiteSpace(translation.TTSScript) ? "status-gray" : "status-green";
+
+    private static string GetContentStatusText(ContributionTranslationInput translation)
+        => string.IsNullOrWhiteSpace(translation.TTSScript) ? "Missing" : "Ready";
 
     private static string GetLanguageLabel(string code)
     {
