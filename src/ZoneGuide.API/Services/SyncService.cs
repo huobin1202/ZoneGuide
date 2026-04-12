@@ -220,8 +220,6 @@ public class SyncService : ISyncService
             UniqueCode = entity.UniqueCode,
             Address = entity.Address,
             Name = entity.Name,
-            ShortDescription = entity.ShortDescription,
-            FullDescription = entity.FullDescription,
             Latitude = entity.Latitude,
             Longitude = entity.Longitude,
             TriggerRadiusMeters = entity.TriggerRadius,
@@ -242,11 +240,7 @@ public class SyncService : ISyncService
             {
                 LanguageCode = t.LanguageCode,
                 Name = t.Name,
-                ShortDescription = t.ShortDescription ?? string.Empty,
-                FullDescription = t.FullDescription ?? string.Empty,
-                TTSScript = !string.IsNullOrWhiteSpace(t.TTSScript)
-                    ? t.TTSScript
-                    : (!string.IsNullOrWhiteSpace(t.FullDescription) ? t.FullDescription : t.ShortDescription),
+                TTSScript = t.TTSScript,
                 AudioUrl = t.AudioUrl,
                 IsOutdated = t.IsOutdated,
                 IsAudioOutdated = t.IsAudioOutdated
@@ -274,8 +268,6 @@ public class SyncService : ISyncService
             ImageUrl = entity.ImageUrl,
             ThumbnailUrl = entity.ThumbnailUrl,
             Language = entity.Language,
-            Difficulty = entity.Difficulty,
-            DifficultyLevel = entity.DifficultyLevel,
             WheelchairAccessible = entity.WheelchairAccessible,
             IsActive = entity.IsActive,
             Translations = entity.Translations

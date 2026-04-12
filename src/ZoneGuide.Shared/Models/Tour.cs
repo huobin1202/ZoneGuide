@@ -51,11 +51,6 @@ public class Tour
     public string Language { get; set; } = "vi-VN";
     
     /// <summary>
-    /// Độ khó (1-5)
-    /// </summary>
-    public int DifficultyLevel { get; set; } = 1;
-    
-    /// <summary>
     /// Có hỗ trợ xe lăn không
     /// </summary>
     public bool WheelchairAccessible { get; set; }

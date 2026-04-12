@@ -183,7 +183,6 @@ public class TourService : ITourService
             EstimatedDurationMinutes = dto.EstimatedDurationMinutes,
             DistanceKm = dto.DistanceKm,
             ImageUrl = dto.ImageUrl,
-            Difficulty = dto.Difficulty,
             POICount = dto.POIIds?.Count ?? 0,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
@@ -243,7 +242,6 @@ public class TourService : ITourService
         if (dto.EstimatedDurationMinutes.HasValue) entity.EstimatedDurationMinutes = dto.EstimatedDurationMinutes.Value;
         if (dto.DistanceKm.HasValue) entity.DistanceKm = dto.DistanceKm.Value;
         if (dto.ImageUrl != null) entity.ImageUrl = dto.ImageUrl;
-        if (dto.Difficulty != null) entity.Difficulty = dto.Difficulty;
         if (dto.IsActive.HasValue) entity.IsActive = dto.IsActive.Value;
 
         if (dto.Description != null)
@@ -415,8 +413,6 @@ public class TourService : ITourService
             ImageUrl = entity.ImageUrl,
             ThumbnailUrl = entity.ThumbnailUrl,
             Language = entity.Language,
-            Difficulty = entity.Difficulty,
-            DifficultyLevel = entity.DifficultyLevel,
             WheelchairAccessible = entity.WheelchairAccessible,
             IsActive = entity.IsActive,
             Translations = entity.Translations

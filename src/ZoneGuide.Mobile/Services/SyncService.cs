@@ -394,8 +394,6 @@ public class SyncService : ISyncService
             Id = int.TryParse(dto.Id, out var id) ? id : 0,
             UniqueCode = dto.UniqueCode,
             Name = dto.Name,
-            ShortDescription = dto.ShortDescription ?? string.Empty,
-            FullDescription = dto.FullDescription ?? string.Empty,
             Latitude = dto.Latitude,
             Longitude = dto.Longitude,
             TriggerRadius = dto.TriggerRadius,
@@ -421,7 +419,7 @@ public class SyncService : ISyncService
         if (!string.IsNullOrWhiteSpace(dto.Category))
             return NormalizeCategory(dto.Category);
 
-        var combined = $"{dto.UniqueCode} {dto.Name} {dto.ShortDescription}".ToLowerInvariant();
+        var combined = $"{dto.UniqueCode} {dto.Name} {dto.TTSScript}".ToLowerInvariant();
 
         if (combined.Contains("ẩm thực") || combined.Contains("food") || combined.Contains("ăn uống") || combined.Contains("restaurant") || combined.Contains("vĩnh khánh"))
             return "food";
@@ -474,7 +472,6 @@ public class SyncService : ISyncService
             POICount = dto.POICount,
             ThumbnailUrl = thumbnailUrl,
             Language = dto.Language,
-            DifficultyLevel = dto.DifficultyLevel,
             WheelchairAccessible = dto.WheelchairAccessible,
             IsActive = dto.IsActive,
             UpdatedAt = DateTime.UtcNow
@@ -512,8 +509,6 @@ public class SyncService : ISyncService
                 POIId = poiId,
                 LanguageCode = NormalizeLanguage(translation.LanguageCode),
                 Name = translation.Name ?? string.Empty,
-                ShortDescription = translation.ShortDescription ?? string.Empty,
-                FullDescription = translation.FullDescription ?? string.Empty,
                 TTSScript = translation.TTSScript,
                 AudioUrl = translation.AudioUrl
             };

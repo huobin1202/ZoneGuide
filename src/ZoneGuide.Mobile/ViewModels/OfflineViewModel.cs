@@ -283,7 +283,7 @@ public partial class OfflineViewModel : ObservableObject
 
         item.Tracks.Add(new OfflineTrackItemViewModel
         {
-            Title = !string.IsNullOrWhiteSpace(poi.ShortDescription) ? poi.ShortDescription : poi.Name,
+            Title = !string.IsNullOrWhiteSpace(poi.TTSScript) ? poi.TTSScript : poi.Name,
             Language = _localizer.TranslateLanguageName(poi.Language),
             DurationText = EstimateDurationText(poi),
             IsDownloaded = isDownloaded
@@ -485,7 +485,7 @@ public partial class OfflineViewModel : ObservableObject
 
     private static string EstimateDurationText(POI poi)
     {
-        var source = poi.TTSScript ?? poi.FullDescription ?? poi.ShortDescription ?? poi.Name;
+        var source = poi.TTSScript ?? poi.Name;
         var wordCount = source
             .Split([' ', '\r', '\n', '\t'], StringSplitOptions.RemoveEmptyEntries)
             .Length;

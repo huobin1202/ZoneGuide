@@ -347,7 +347,7 @@ public partial class MapViewModel : ObservableObject
             var pin = new Pin
             {
                 Label = poi.Name,
-                Address = poi.TTSScript ?? poi.FullDescription ?? poi.ShortDescription,
+                Address = poi.TTSScript,
                 Location = new Location(poi.Latitude, poi.Longitude),
                 Type = PinType.Place
             };
@@ -1472,12 +1472,6 @@ public partial class MapViewModel : ObservableObject
         if (!string.IsNullOrWhiteSpace(poi.TTSScript))
             return poi.TTSScript;
 
-        if (!string.IsNullOrWhiteSpace(poi.FullDescription))
-            return poi.FullDescription;
-
-        if (!string.IsNullOrWhiteSpace(poi.ShortDescription))
-            return poi.ShortDescription;
-
         return poi.Name;
     }
 
@@ -1650,14 +1644,6 @@ public partial class MapViewModel : ObservableObject
         if (ContainsAllTerms(normalizedName, terms))
             return true;
 
-        var normalizedShort = NormalizeSearchText(poi.ShortDescription);
-        if (ContainsAllTerms(normalizedShort, terms))
-            return true;
-
-        var normalizedFull = NormalizeSearchText(poi.FullDescription);
-        if (ContainsAllTerms(normalizedFull, terms))
-            return true;
-
         var normalizedTts = NormalizeSearchText(poi.TTSScript);
         return ContainsAllTerms(normalizedTts, terms);
     }
@@ -1681,17 +1667,9 @@ public partial class MapViewModel : ObservableObject
         if (ContainsAllTerms(normalizedName, terms))
             return 2;
 
-        var normalizedShort = NormalizeSearchText(poi.ShortDescription);
-        if (ContainsAllTerms(normalizedShort, terms))
-            return 3;
-
-        var normalizedFull = NormalizeSearchText(poi.FullDescription);
-        if (ContainsAllTerms(normalizedFull, terms))
-            return 4;
-
         var normalizedTts = NormalizeSearchText(poi.TTSScript);
         if (ContainsAllTerms(normalizedTts, terms))
-            return 5;
+            return 3;
 
         return 99;
     }

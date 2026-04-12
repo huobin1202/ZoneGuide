@@ -334,7 +334,7 @@ public enum HistoryFilterType
             POI = poi,
             AudioPath = poi.AudioFilePath,
             AudioUrl = poi.AudioUrl,
-            TTSText = poi.TTSScript ?? poi.FullDescription,
+            TTSText = poi.TTSScript,
             Language = string.IsNullOrWhiteSpace(item.LastLanguageCode)
                 ? _settingsService.Settings.PreferredLanguage
                 : item.LastLanguageCode,
@@ -420,7 +420,7 @@ public enum HistoryFilterType
             Id = history.Id,
             POIId = history.POIId,
             Title = !string.IsNullOrWhiteSpace(history.POIName) ? history.POIName : (poi?.Name ?? string.Empty),
-            Description = poi?.TTSScript ?? poi?.FullDescription ?? poi?.ShortDescription ?? AppLocalizer.Instance.Translate("history_subtitle"),
+            Description = poi?.TTSScript ?? AppLocalizer.Instance.Translate("history_subtitle"),
             Category = poi?.Category ?? AppLocalizer.Instance.Translate("category_other"),
             ImageUrl = POIListViewModel.ResolveImageSource(poi?.ImageUrl),
             PlayedAt = localTime,

@@ -83,7 +83,7 @@
                 address = p.Address,
                 lat = p.Latitude,
                 lng = p.Longitude,
-                description = p.TTSScript ?? p.FullDescription ?? p.ShortDescription,
+                description = p.TTSScript,
                 category = p.Category ?? "Khác",
                 imageUrl = p.ImageUrl,
                 triggerRadius = p.TriggerRadius > 0 ? p.TriggerRadius : p.TriggerRadiusMeters
@@ -98,7 +98,7 @@
             address = _addressDisplay,
             lat = Contribution.Latitude!.Value,
             lng = Contribution.Longitude!.Value,
-            description = Contribution.TTSScript ?? Contribution.FullDescription ?? Contribution.ShortDescription,
+            description = Contribution.TTSScript,
             category = Contribution.Category ?? "Đóng góp",
             imageUrl = Contribution.ImageUrl,
             triggerRadius = Contribution.TriggerRadius,

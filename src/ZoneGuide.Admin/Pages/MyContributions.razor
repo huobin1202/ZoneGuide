@@ -99,10 +99,10 @@
                             <MudTd DataLabel="ID">@context.Id</MudTd>
                             <MudTd DataLabel="Tên">
                                 <MudText Typo="Typo.body2"><strong>@context.Name</strong></MudText>
-                                @if (!string.IsNullOrEmpty(context.ShortDescription))
+                                @if (!string.IsNullOrEmpty(context.TTSScript))
                                 {
                                     <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                                        @(context.ShortDescription.Length > 50 ? context.ShortDescription.Substring(0, 50) + "..." : context.ShortDescription)
+                                        @(context.TTSScript!.Length > 50 ? context.TTSScript.Substring(0, 50) + "..." : context.TTSScript)
                                     </MudText>
                                 }
                             </MudTd>
@@ -250,12 +250,7 @@
  
     private async Task OpenEditDialog(POIContributionDto contribution)
     {
-        // Điều hướng tới trang Quản lý POI với cờ/id hoặc thông số để nó tự mở sửa.
-        // Tuy nhiên do chưa có hệ thống parameter query trọn vẹn ở màn hình ContributorPOIs
-        // để auto-open edit mode, cách tốt nhất là chuyển hướng sang trang Contributor POIs nói chung,
-        // hoặc lưu tạm ID cần sửa xuống LocalStorage rồi điều hướng qua đó xử lý tiếp.
-        
-        await LocalStorage.SetItemAsync("edit_poi_id", contribution.Id);
+        await LocalStorage.SetItemAsync("edit_poi_id", contribution.Id.ToString());
         Navigation.NavigateTo("/contributor-pois");
     }
     

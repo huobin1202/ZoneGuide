@@ -43,8 +43,6 @@ public class POIContributionService : IPOIContributionService
             ContributorId = contributorId,
             OriginalPOIId = dto.OriginalPOIId,
             Name = dto.Name,
-            ShortDescription = dto.ShortDescription ?? string.Empty,
-            FullDescription = dto.FullDescription ?? string.Empty,
             Latitude = dto.Latitude ?? 0,
             Longitude = dto.Longitude ?? 0,
             TriggerRadius = dto.TriggerRadius,
@@ -83,8 +81,6 @@ public class POIContributionService : IPOIContributionService
         }
         
         if (dto.Name != null) contribution.Name = dto.Name;
-        if (dto.ShortDescription != null) contribution.ShortDescription = dto.ShortDescription;
-        if (dto.FullDescription != null) contribution.FullDescription = dto.FullDescription;
         if (dto.Latitude.HasValue) contribution.Latitude = dto.Latitude.Value;
         if (dto.Longitude.HasValue) contribution.Longitude = dto.Longitude.Value;
         if (dto.TriggerRadius.HasValue) contribution.TriggerRadius = dto.TriggerRadius.Value;
@@ -265,8 +261,6 @@ public class POIContributionService : IPOIContributionService
             if (poi != null)
             {
                 poi.Name = contribution.Name;
-                poi.ShortDescription = contribution.ShortDescription;
-                poi.FullDescription = contribution.FullDescription;
                 poi.Latitude = contribution.Latitude;
                 poi.Longitude = contribution.Longitude;
                 poi.TriggerRadius = contribution.TriggerRadius;
@@ -286,8 +280,6 @@ public class POIContributionService : IPOIContributionService
                 {
                     UniqueCode = $"POI-{DateTime.UtcNow:yyyyMMddHHmmss}-{contribution.Id}",
                     Name = contribution.Name,
-                    ShortDescription = contribution.ShortDescription,
-                    FullDescription = contribution.FullDescription,
                     Latitude = contribution.Latitude,
                     Longitude = contribution.Longitude,
                     TriggerRadius = contribution.TriggerRadius,
@@ -449,8 +441,6 @@ public class POIContributionService : IPOIContributionService
         ContributorId = entity.ContributorId,
         ContributorName = entity.Contributor?.DisplayName ?? "Unknown",
         Name = entity.Name,
-        ShortDescription = entity.ShortDescription,
-        FullDescription = entity.FullDescription,
         Latitude = entity.Latitude,
         Longitude = entity.Longitude,
         TriggerRadius = entity.TriggerRadius,

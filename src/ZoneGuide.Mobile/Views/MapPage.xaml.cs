@@ -473,7 +473,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
                     var pin = new Pin
                     {
                         Label = label,
-                        Address = poi.TTSScript ?? poi.FullDescription ?? poi.ShortDescription ?? "",
+                        Address = poi.TTSScript ?? "",
                         Location = new Location(poi.Latitude, poi.Longitude),
                         Type = PinType.Place
                     };

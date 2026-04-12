@@ -277,10 +277,6 @@ namespace ZoneGuide.API.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("FullDescription")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("ImageUrl")
                         .HasColumnType("nvarchar(max)");
 
@@ -316,10 +312,6 @@ namespace ZoneGuide.API.Migrations
 
                     b.Property<int?>("ReviewerId")
                         .HasColumnType("int");
-
-                    b.Property<string>("ShortDescription")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -377,9 +369,6 @@ namespace ZoneGuide.API.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("FullDescription")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("ImagePath")
                         .HasColumnType("nvarchar(max)");
 
@@ -412,9 +401,6 @@ namespace ZoneGuide.API.Migrations
 
                     b.Property<int>("Priority")
                         .HasColumnType("int");
-
-                    b.Property<string>("ShortDescription")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("TTSScript")
                         .HasColumnType("nvarchar(max)");
@@ -492,10 +478,6 @@ namespace ZoneGuide.API.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("FullDescription")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<bool>("IsAudioOutdated")
                         .HasColumnType("bit");
 
@@ -512,10 +494,6 @@ namespace ZoneGuide.API.Migrations
 
                     b.Property<int>("POIId")
                         .HasColumnType("int");
-
-                    b.Property<string>("ShortDescription")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("TTSScript")
                         .HasColumnType("nvarchar(max)");
@@ -544,13 +522,6 @@ namespace ZoneGuide.API.Migrations
 
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Difficulty")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("DifficultyLevel")
-                        .HasColumnType("int");
 
                     b.Property<double>("DistanceKm")
                         .HasColumnType("float");

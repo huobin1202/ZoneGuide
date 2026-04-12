@@ -21,16 +21,6 @@ public class POI
     public string Name { get; set; } = string.Empty;
     
     /// <summary>
-    /// Mô tả ngắn
-    /// </summary>
-    public string ShortDescription { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// Mô tả đầy đủ
-    /// </summary>
-    public string FullDescription { get; set; } = string.Empty;
-    
-    /// <summary>
     /// Vĩ độ
     /// </summary>
     public double Latitude { get; set; }

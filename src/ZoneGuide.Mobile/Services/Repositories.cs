@@ -72,7 +72,6 @@ public class POIRepository : IPOIRepository
         var all = await GetAllAsync();
         return all.Where(p =>
             p.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
-            p.ShortDescription.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
             (p.TTSScript?.Contains(keyword, StringComparison.OrdinalIgnoreCase) ?? false)).ToList();
     }
 
@@ -149,38 +148,21 @@ public class POIRepository : IPOIRepository
             return ClonePoiWithResolvedContent(
                 poi,
                 name: poi.Name,
-                shortDescription: missing,
-                fullDescription: missing,
                 ttsScript: missing,
                 audioFilePath: poi.AudioFilePath,
                 audioUrl: null,
                 language: preferredLanguage);
         }
 
-        var translatedNarration = FirstNonEmpty(
-            translation.TTSScript,
-            translation.FullDescription,
-            translation.ShortDescription);
-
         var missingTranslationMessage = GetMissingTranslationMessage(preferredLanguage);
-        var resolvedNarration = string.IsNullOrWhiteSpace(translatedNarration)
+        var resolvedNarration = string.IsNullOrWhiteSpace(translation.TTSScript)
             ? missingTranslationMessage
-            : translatedNarration;
-
-        var resolvedShortDescription = string.IsNullOrWhiteSpace(translation.ShortDescription)
-            ? resolvedNarration
-            : translation.ShortDescription;
-
-        var resolvedFullDescription = string.IsNullOrWhiteSpace(translation.FullDescription)
-            ? resolvedNarration
-            : translation.FullDescription;
+            : translation.TTSScript;
 
         return ClonePoiWithResolvedContent(
             poi,
             // Preserve original place name across all languages.
             name: poi.Name,
-            shortDescription: resolvedShortDescription,
-            fullDescription: resolvedFullDescription,
             ttsScript: resolvedNarration,
             audioFilePath: poi.AudioFilePath,
             audioUrl: string.IsNullOrWhiteSpace(translation.AudioUrl) ? poi.AudioUrl : translation.AudioUrl,
@@ -190,8 +172,6 @@ public class POIRepository : IPOIRepository
     private static POI ClonePoiWithResolvedContent(
         POI source,
         string name,
-        string shortDescription,
-        string fullDescription,
         string? ttsScript,
         string? audioFilePath,
         string? audioUrl,
@@ -202,8 +182,6 @@ public class POIRepository : IPOIRepository
             Id = source.Id,
             UniqueCode = source.UniqueCode,
             Name = name,
-            ShortDescription = shortDescription,
-            FullDescription = fullDescription,
             Latitude = source.Latitude,
             Longitude = source.Longitude,
             TriggerRadius = source.TriggerRadius,
@@ -264,16 +242,6 @@ public class POIRepository : IPOIRepository
         };
     }
 
-    private static string FirstNonEmpty(params string?[] values)
-    {
-        foreach (var value in values)
-        {
-            if (!string.IsNullOrWhiteSpace(value))
-                return value;
-        }
-
-        return string.Empty;
-    }
 }
 
 /// <summary>
@@ -650,7 +618,6 @@ public class TourRepository : ITourRepository
             POICount = source.POICount,
             ThumbnailUrl = source.ThumbnailUrl,
             Language = language,
-            DifficultyLevel = source.DifficultyLevel,
             WheelchairAccessible = source.WheelchairAccessible,
             CreatedAt = source.CreatedAt,
             UpdatedAt = source.UpdatedAt,

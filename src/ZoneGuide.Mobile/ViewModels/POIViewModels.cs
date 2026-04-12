@@ -254,7 +254,7 @@ public partial class POIListViewModel : ObservableObject
             POI = poi,
             AudioPath = poi.AudioFilePath,
             AudioUrl = poi.AudioUrl,
-            TTSText = poi.TTSScript ?? poi.FullDescription,
+            TTSText = poi.TTSScript,
             Language = poi.Language,
             Priority = poi.Priority,
             TriggerType = GeofenceEventType.Enter,
@@ -686,7 +686,7 @@ public partial class POIDetailViewModel : ObservableObject
         await Share.RequestAsync(new ShareTextRequest
         {
             Title = CurrentPoi.Name,
-            Text = $"{CurrentPoi.Name}\n{CurrentPoi.TTSScript ?? CurrentPoi.FullDescription ?? CurrentPoi.ShortDescription}\n{CurrentPoi.MapLink}"
+            Text = $"{CurrentPoi.Name}\n{CurrentPoi.TTSScript}\n{CurrentPoi.MapLink}"
         });
     }
 

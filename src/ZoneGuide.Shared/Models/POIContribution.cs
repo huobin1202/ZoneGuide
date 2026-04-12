@@ -57,16 +57,6 @@ public class POIContribution
     public string Name { get; set; } = string.Empty;
     
     /// <summary>
-    /// Mô tả ngắn
-    /// </summary>
-    public string ShortDescription { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// Mô tả đầy đủ
-    /// </summary>
-    public string FullDescription { get; set; } = string.Empty;
-    
-    /// <summary>
     /// Vĩ độ
     /// </summary>
     public double? Latitude { get; set; }
@@ -207,8 +197,6 @@ public class POIApprovalHistory
 public class CreatePOIContributionDto
 {
     public string Name { get; set; } = string.Empty;
-    public string? ShortDescription { get; set; }
-    public string? FullDescription { get; set; }
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
     public double TriggerRadius { get; set; } = 50;
@@ -230,8 +218,6 @@ public class CreatePOIContributionDto
 public class UpdatePOIContributionDto
 {
     public string? Name { get; set; }
-    public string? ShortDescription { get; set; }
-    public string? FullDescription { get; set; }
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
     public double? TriggerRadius { get; set; }
@@ -255,8 +241,6 @@ public class POIContributionDto
     public int ContributorId { get; set; }
     public string ContributorName { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
-    public string? ShortDescription { get; set; }
-    public string? FullDescription { get; set; }
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
     public double TriggerRadius { get; set; }

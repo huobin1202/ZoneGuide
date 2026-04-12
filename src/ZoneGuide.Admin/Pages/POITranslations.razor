@@ -536,17 +536,9 @@ else
     private bool CanEditTranslatedContent => CanEditTranslation && !IsOriginalNarrationMissing;
     private bool IsOriginalNarrationMissing => IsPoiTabActive
         ? string.IsNullOrWhiteSpace(_selectedPoi?.TTSScript)
-          && string.IsNullOrWhiteSpace(_selectedPoi?.FullDescription)
-          && string.IsNullOrWhiteSpace(_selectedPoi?.ShortDescription)
         : string.IsNullOrWhiteSpace(_selectedTour?.Description);
     private string OriginalNarrationContent => IsPoiTabActive
-        ? (string.IsNullOrWhiteSpace(_selectedPoi?.TTSScript)
-            ? (!string.IsNullOrWhiteSpace(_selectedPoi?.FullDescription)
-                ? _selectedPoi!.FullDescription!
-                : (!string.IsNullOrWhiteSpace(_selectedPoi?.ShortDescription)
-                    ? _selectedPoi!.ShortDescription!
-                    : string.Empty))
-            : _selectedPoi!.TTSScript!)
+        ? (_selectedPoi?.TTSScript ?? string.Empty)
         : (_selectedTour?.Description ?? string.Empty);
     private string EditingAudioSource => ResolveAudioSource(_editingTranslation.AudioUrl);
     private bool HasEditingAudio => !string.IsNullOrWhiteSpace(EditingAudioSource);
@@ -857,8 +849,6 @@ else
                 POIId = int.TryParse(_selectedPoi.Id, out var poiId) ? poiId : 0,
                 LanguageCode = _selectedLanguage,
                 Name = string.Empty,
-                ShortDescription = string.Empty,
-                FullDescription = string.Empty,
                 TTSScript = string.Empty,
                 AudioUrl = null,
                 IsOutdated = false,
@@ -1215,7 +1205,7 @@ else
                     SourceLanguage = sourceLanguage,
                     TargetLanguage = targetLanguage,
                     Name = _selectedPoi.Name,
-                    TTSScript = _selectedPoi.TTSScript ?? _selectedPoi.FullDescription ?? _selectedPoi.ShortDescription
+                    TTSScript = _selectedPoi.TTSScript
                 });
 
                 if (translatedPoi is null)
@@ -1394,8 +1384,6 @@ else
             POIId = source.POIId,
             LanguageCode = source.LanguageCode,
             Name = source.Name,
-            ShortDescription = string.Empty,
-            FullDescription = string.Empty,
             TTSScript = source.TTSScript,
             AudioUrl = source.AudioUrl,
             IsOutdated = source.IsOutdated,

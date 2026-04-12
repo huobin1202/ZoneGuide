@@ -271,7 +271,7 @@ public partial class MainViewModel : ObservableObject
             POI = poi,
             AudioPath = File.Exists(offlineAudioPath) ? offlineAudioPath : poi.AudioFilePath,
             AudioUrl = poi.AudioUrl,
-            TTSText = poi.TTSScript ?? poi.FullDescription,
+            TTSText = poi.TTSScript,
             Language = settings.PreferredLanguage,
             Priority = poi.Priority,
             TriggerType = triggerType,

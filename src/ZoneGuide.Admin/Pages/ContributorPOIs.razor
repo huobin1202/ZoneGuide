@@ -11,7 +11,10 @@
 
 <MudGrid Spacing="0">
     <MudItem xs="12" md="4" Style="height: calc(100vh - 64px); display: flex; flex-direction: column; border-right: 1px solid var(--mud-palette-lines-default); background-color: #f7f9fa;">
-        <MudTabs Elevation="0" Rounded="false" ApplyEffectsToContainer="true" @bind-ActivePanelIndex="_activeTabIndex" Style="flex-grow: 1; display: flex; flex-direction: column; background-color: white;">
+    <MudTabs Elevation="0" Rounded="false" ApplyEffectsToContainer="true"
+         ActivePanelIndex="@_activeTabIndex"
+         ActivePanelIndexChanged="OnActiveTabChanged"
+         Style="flex-grow: 1; display: flex; flex-direction: column; background-color: white;">
             <MudTabPanel Text="@($"Danh sách  ({_myContributions.Count})")">
                 <div style="flex-grow: 1; overflow-y: auto; height: calc(100vh - 120px);" class="px-4 pb-4 pt-4">
                     @if (_isEditMode && _editModel != null)
@@ -651,6 +654,21 @@
                    StateHasChanged();
                 }
             }
+        }
+    }
+
+    private void OnActiveTabChanged(int tabIndex)
+    {
+        _activeTabIndex = tabIndex;
+
+        if (tabIndex == 1)
+        {
+            _isEditMode = false;
+            _editModel = null;
+            ResetContributionAddressState();
+            _newContrib.Latitude = null;
+            _newContrib.Longitude = null;
+            _ = JS.InvokeVoidAsync("removeTempMarkerFromPOIMap");
         }
     }
 

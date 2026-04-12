@@ -227,7 +227,7 @@
                                         </MudText>
                                         <MudTooltip Text="@GetPoiDescriptionOrFallback(poi)">
                                             <MudText Typo="Typo.body2" Color="Color.Default" Class="clamp-2">
-                                                @(poi.TTSScript ?? poi.FullDescription ?? poi.ShortDescription ?? "Chưa có nội dung thuyết minh")
+                                                @(poi.TTSScript ?? "Chưa có nội dung thuyết minh")
                                             </MudText>
                                         </MudTooltip>
                                     </MudCardContent>
@@ -606,8 +606,6 @@
         Id = poi.Id,
         Name = poi.Name,
         Address = poi.Address,
-        ShortDescription = poi.ShortDescription,
-        FullDescription = poi.FullDescription,
         Latitude = poi.Latitude,
         Longitude = poi.Longitude,
         TriggerRadius = poi.TriggerRadius,
@@ -639,8 +637,6 @@
         .Where(p => string.IsNullOrWhiteSpace(_searchString) ||
                     p.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
                     (p.TTSScript?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (p.FullDescription?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (p.ShortDescription?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
                     (p.Address?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false))
         .Where(p => string.IsNullOrWhiteSpace(_selectedCategory) || _selectedCategory == "Tất cả" ||
                     (p.Category != null && p.Category.Equals(_selectedCategory, StringComparison.OrdinalIgnoreCase)))
@@ -761,7 +757,7 @@
                 lat = p.Latitude,
                 lng = p.Longitude,
                 triggerRadius = p.TriggerRadius,
-                description = p.TTSScript ?? p.FullDescription ?? p.ShortDescription ?? "",
+                description = p.TTSScript ?? "",
                 category = p.Category ?? "POI",
                 imageUrl = p.ImageUrl
             }).ToArray();
@@ -1031,8 +1027,6 @@
                 {
                     Address = NormalizePoiAddress(_newPoi.Address),
                     Name = _newPoi.Name,
-                    ShortDescription = _newPoi.ShortDescription,
-                    FullDescription = _newPoi.FullDescription,
                     Latitude = _newPoi.Latitude,
                     Longitude = _newPoi.Longitude,
                     TriggerRadiusMeters = _newPoi.TriggerRadius,
@@ -1071,8 +1065,6 @@
                 {
                     Address = NormalizePoiAddress(_newPoi.Address),
                     Name = _newPoi.Name,
-                    ShortDescription = _newPoi.ShortDescription,
-                    FullDescription = _newPoi.FullDescription,
                     Latitude = _newPoi.Latitude,
                     Longitude = _newPoi.Longitude,
                     TriggerRadiusMeters = _newPoi.TriggerRadius,
@@ -1286,7 +1278,7 @@
 
     private static string GetPoiDescriptionOrFallback(POIDto poi)
     {
-        var description = poi.TTSScript ?? poi.FullDescription ?? poi.ShortDescription;
+        var description = poi.TTSScript;
         return string.IsNullOrWhiteSpace(description)
             ? "Chưa có nội dung thuyết minh"
             : description.Trim();

@@ -28,16 +28,6 @@ public class POITranslation
     public string Name { get; set; } = string.Empty;
     
     /// <summary>
-    /// Mô tả ngắn (đã dịch)
-    /// </summary>
-    public string ShortDescription { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// Mô tả đầy đủ (đã dịch)
-    /// </summary>
-    public string FullDescription { get; set; } = string.Empty;
-    
-    /// <summary>
     /// Script TTS (đã dịch)
     /// </summary>
     public string? TTSScript { get; set; }

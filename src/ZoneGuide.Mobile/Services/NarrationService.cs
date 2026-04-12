@@ -606,18 +606,10 @@ public class NarrationService : INarrationService, IDisposable
 
             item.TTSText = !string.IsNullOrWhiteSpace(translation.TTSScript)
                 ? translation.TTSScript
-                : !string.IsNullOrWhiteSpace(translation.FullDescription)
-                    ? translation.FullDescription
-                    : item.TTSText;
+                : item.TTSText;
 
             if (!string.IsNullOrWhiteSpace(translation.Name))
                 item.POI.Name = translation.Name;
-
-            if (!string.IsNullOrWhiteSpace(translation.ShortDescription))
-                item.POI.ShortDescription = translation.ShortDescription;
-
-            if (!string.IsNullOrWhiteSpace(translation.FullDescription))
-                item.POI.FullDescription = translation.FullDescription;
 
             item.POI.Language = preferredLanguage;
         }

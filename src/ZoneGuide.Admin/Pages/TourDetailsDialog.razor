@@ -8,10 +8,6 @@
                     <MudText>@Tour.Name</MudText>
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Difficulty</MudText>
-                    <MudChip T="string" Color="@GetDifficultyColor(Tour.Difficulty)" Size="Size.Small">@Tour.Difficulty</MudChip>
-                </MudItem>
-                <MudItem xs="12" md="6">
                     <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Duration</MudText>
                     <MudText>@FormatDuration(Tour.EstimatedDurationMinutes)</MudText>
                 </MudItem>
@@ -54,9 +50,9 @@
                                             }
                                         </MudStack>
                                     </MudStack>
-                                    @if (!string.IsNullOrEmpty(poi.ShortDescription))
+                                    @if (!string.IsNullOrEmpty(poi.TTSScript))
                                     {
-                                        <MudText Typo="Typo.body2" Class="mt-2">@poi.ShortDescription</MudText>
+                                        <MudText Typo="Typo.body2" Class="mt-2">@poi.TTSScript</MudText>
                                     }
                                 </MudCardContent>
                             </MudCard>
@@ -84,12 +80,4 @@
         var mins = minutes % 60;
         return mins > 0 ? $"{hours}h {mins}m" : $"{hours}h";
     }
-
-    private Color GetDifficultyColor(string? difficulty) => difficulty switch
-    {
-        "Easy" => Color.Success,
-        "Moderate" => Color.Warning,
-        "Hard" => Color.Error,
-        _ => Color.Default
-    };
 }

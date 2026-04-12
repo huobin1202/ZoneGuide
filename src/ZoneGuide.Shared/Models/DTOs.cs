@@ -35,8 +35,6 @@ public class POIDto
     public string UniqueCode { get; set; } = string.Empty;
     public string? Address { get; set; }
     public string Name { get; set; } = string.Empty;
-    public string? ShortDescription { get; set; }
-    public string? FullDescription { get; set; }
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public double TriggerRadiusMeters { get; set; }
@@ -63,8 +61,6 @@ public class CreatePOIDto
 {
     public string? Address { get; set; }
     public string Name { get; set; } = string.Empty;
-    public string? ShortDescription { get; set; }
-    public string? FullDescription { get; set; }
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public double TriggerRadiusMeters { get; set; } = 50;
@@ -84,8 +80,6 @@ public class UpdatePOIDto
 {
     public string? Address { get; set; }
     public string? Name { get; set; }
-    public string? ShortDescription { get; set; }
-    public string? FullDescription { get; set; }
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
     public double? TriggerRadiusMeters { get; set; }
@@ -109,8 +103,6 @@ public class POITranslationDto
     public int POIId { get; set; }
     public string LanguageCode { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
-    public string ShortDescription { get; set; } = string.Empty;
-    public string FullDescription { get; set; } = string.Empty;
     public string? TTSScript { get; set; }
     public string? AudioUrl { get; set; }
     public bool IsOutdated { get; set; }
@@ -152,8 +144,6 @@ public class TourDto
     public string? ImageUrl { get; set; }
     public string? ThumbnailUrl { get; set; }
     public string Language { get; set; } = "vi-VN";
-    public string Difficulty { get; set; } = "Easy";
-    public int DifficultyLevel { get; set; }
     public bool WheelchairAccessible { get; set; }
     public bool IsActive { get; set; }
     public List<TourTranslationDto>? Translations { get; set; }
@@ -191,7 +181,6 @@ public class CreateTourDto
     public int EstimatedDurationMinutes { get; set; }
     public double DistanceKm { get; set; }
     public string? ImageUrl { get; set; }
-    public string Difficulty { get; set; } = "Easy";
     public List<string> POIIds { get; set; } = new();
 }
 
@@ -205,7 +194,6 @@ public class UpdateTourDto
     public int? EstimatedDurationMinutes { get; set; }
     public double? DistanceKm { get; set; }
     public string? ImageUrl { get; set; }
-    public string? Difficulty { get; set; }
     public List<string>? POIIds { get; set; }
     public bool? IsActive { get; set; }
 }

@@ -12,14 +12,6 @@
                     <MudTextField @bind-Value="_model.Name" Label="Tên POI" Required="true" 
                                   RequiredError="Tên là bắt buộc" Class="mb-3" />
                     
-                    <MudTextField @bind-Value="_model.ShortDescription" Label="Nội dung thuyết minh (TTS) - ngắn" 
-                                  Lines="2" Class="mb-3" />
-                    
-                    <MudTextField @bind-Value="_model.FullDescription" Label="Nội dung thuyết minh (TTS) - chi tiết" 
-                                  Lines="3" Class="mb-3" />
-                    
-                
-
                     <MudText Typo="Typo.subtitle2" Class="mb-2 mt-3">
                         <MudIcon Icon="@Icons.Material.Filled.Map" Size="Size.Small" Class="mr-1" />
                         Trực quan trên bản đồ
@@ -200,10 +192,6 @@
                             </MudItem>
                         </MudGrid>
                         <MudTextField @bind-Value="trans.Name" Label="Tên (dịch)" Class="mt-2" Dense="true" />
-                        <MudTextField @bind-Value="trans.ShortDescription" Label="Nội dung thuyết minh (TTS) - ngắn (dịch)" 
-                                      Class="mt-2" Dense="true" Lines="2" />
-                        <MudTextField @bind-Value="trans.FullDescription" Label="Nội dung thuyết minh (TTS) - chi tiết (dịch)" 
-                                      Class="mt-2" Dense="true" Lines="2" />
                         <MudTextField @bind-Value="trans.TTSScript" Label="TTS Script (dịch)" 
                                       Class="mt-2" Dense="true" Lines="3"
                                       Placeholder="Nội dung thuyết minh bằng ngôn ngữ này..." />
@@ -286,8 +274,6 @@
             {
                 Address = POI.Address,
                 Name = POI.Name,
-                ShortDescription = POI.ShortDescription,
-                FullDescription = POI.FullDescription,
                 Latitude = POI.Latitude,
                 Longitude = POI.Longitude,
                 TriggerRadius = POI.TriggerRadius,
@@ -305,8 +291,6 @@
                     POIId = t.POIId,
                     LanguageCode = t.LanguageCode,
                     Name = t.Name,
-                    ShortDescription = t.ShortDescription,
-                    FullDescription = t.FullDescription,
                     TTSScript = t.TTSScript,
                     AudioUrl = t.AudioUrl
                 }).ToList() ?? new()
@@ -486,8 +470,6 @@
                 {
                     Address = _model.Address,
                     Name = _model.Name,
-                    ShortDescription = _model.ShortDescription,
-                    FullDescription = _model.FullDescription,
                     Latitude = _model.Latitude ?? 0,
                     Longitude = _model.Longitude ?? 0,
                     TriggerRadiusMeters = _model.TriggerRadius,
@@ -514,8 +496,6 @@
                 {
                     Address = _model.Address,
                     Name = _model.Name,
-                    ShortDescription = _model.ShortDescription,
-                    FullDescription = _model.FullDescription,
                     Latitude = _model.Latitude ?? 0,
                     Longitude = _model.Longitude ?? 0,
                     TriggerRadiusMeters = _model.TriggerRadius,
@@ -547,8 +527,7 @@
         {
             LanguageCode = "en-US",
             Name = _model.Name ?? "",
-            ShortDescription = "",
-            FullDescription = ""
+            TTSScript = string.Empty
         });
     }
 
@@ -590,8 +569,6 @@
     {
         public string? Address { get; set; }
         public string Name { get; set; } = "";
-        public string? ShortDescription { get; set; }
-        public string? FullDescription { get; set; }
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
         public double TriggerRadius { get; set; } = 50;
