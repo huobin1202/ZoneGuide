@@ -19,6 +19,10 @@ public partial class AppShell : Shell
         // Register routes
         Routing.RegisterRoute(nameof(POIDetailPage), typeof(POIDetailPage));
         Routing.RegisterRoute(nameof(TourDetailPage), typeof(TourDetailPage));
+        Routing.RegisterRoute(nameof(POIListPage), typeof(POIListPage));
+        Routing.RegisterRoute(nameof(HistoryPage), typeof(HistoryPage));
+        Routing.RegisterRoute(nameof(OfflinePage), typeof(OfflinePage));
+        Routing.RegisterRoute(nameof(SettingsPage), typeof(SettingsPage));
     }
 
     protected override void OnHandlerChanged()
@@ -46,12 +50,10 @@ public partial class AppShell : Shell
 
     private void UpdateLocalizedTitles()
     {
-        PoisTab.Title = AppLocalizer.Instance.Translate("tab_pois");
+        HomeTab.Title = AppLocalizer.Instance.Translate("tab_home");
         MapTab.Title = AppLocalizer.Instance.Translate("tab_map");
         TourTab.Title = AppLocalizer.Instance.Translate("tab_tours");
-        HistoryTab.Title = AppLocalizer.Instance.Translate("tab_history");
-        OfflineTab.Title = AppLocalizer.Instance.Translate("tab_offline");
-        SettingsTab.Title = AppLocalizer.Instance.Translate("tab_settings");
+        MoreTab.Title = AppLocalizer.Instance.Translate("tab_more");
     }
 
     private async Task ApplySavedNarrationPreferencesAsync()

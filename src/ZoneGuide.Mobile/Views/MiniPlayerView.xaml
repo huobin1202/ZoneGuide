@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
+             x:Class="ZoneGuide.Mobile.Views.MiniPlayerView"
+             x:DataType="vm:GlobalMiniPlayerViewModel"
+             IsVisible="{Binding IsVisible}">
+
+    <Border Margin="0,8,0,0"
+            BackgroundColor="White"
+            Stroke="#E5E7EB"
+            StrokeThickness="1"
+            StrokeShape="RoundRectangle 28,28,0,0"
+            Padding="20,10,20,14">
+        <VerticalStackLayout Spacing="10">
+            <VerticalStackLayout Spacing="2">
+                <Label Text="{Binding Title}"
+                       FontSize="15"
+                       FontAttributes="Bold"
+                       TextColor="#111827"
+                       MaxLines="1" />
+            </VerticalStackLayout>
+
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto"
+                  RowDefinitions="Auto"
+                  ColumnSpacing="16"
+                  VerticalOptions="Center">
+                <Button
+                        Text="{Binding ToggleGlyph}"
+                        WidthRequest="42"
+                        HeightRequest="42"
+                        CornerRadius="21"
+                        Padding="0"
+                        FontSize="18"
+                        FontAttributes="Bold"
+                        BackgroundColor="Transparent"
+                        TextColor="#111827"
+                        Clicked="OnTogglePlaybackClicked" />
+
+                <VerticalStackLayout Grid.Column="1"
+                                     Spacing="4"
+                                     VerticalOptions="Center">
+                    <Grid ColumnDefinitions="Auto,*,Auto"
+                          ColumnSpacing="8">
+                        <Label Text="{Binding ElapsedText}"
+                               FontSize="11"
+                               TextColor="#111827"
+                               VerticalOptions="Center" />
+                        <ProgressBar Grid.Column="1"
+                                     Progress="{Binding Progress}"
+                                     HeightRequest="4"
+                                     ProgressColor="#111827"
+                                     BackgroundColor="#E5E7EB"
+                                     VerticalOptions="Center" />
+                        <Label Grid.Column="2"
+                               Text="{Binding RemainingText}"
+                               FontSize="11"
+                               TextColor="#6B7280"
+                               VerticalOptions="Center" />
+                    </Grid>
+                </VerticalStackLayout>
+
+                <Button Grid.Column="2"
+                        Text="{Binding RewindGlyph}"
+                        WidthRequest="48"
+                        HeightRequest="42"
+                        CornerRadius="21"
+                        Padding="0"
+                        FontSize="13"
+                        BackgroundColor="Transparent"
+                        TextColor="#111827"
+                        Clicked="OnRewindClicked" />
+
+                <Button Grid.Column="3"
+                        Text="{Binding StopGlyph}"
+                        WidthRequest="42"
+                        HeightRequest="42"
+                        CornerRadius="21"
+                        Padding="0"
+                        FontSize="14"
+                        BackgroundColor="Transparent"
+                        TextColor="#111827"
+                        Clicked="OnStopPlaybackClicked" />
+            </Grid>
+        </VerticalStackLayout>
+    </Border>
+</ContentView>

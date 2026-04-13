@@ -3,21 +3,42 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
              xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
+             xmlns:views="clr-namespace:ZoneGuide.Mobile.Views"
              x:Class="ZoneGuide.Mobile.Views.SettingsPage"
              x:DataType="vm:SettingsViewModel"
              Shell.NavBarIsVisible="False"
              BackgroundColor="#F6F7FB">
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="Auto,*,Auto">
         <Border Grid.Row="0"
                 BackgroundColor="{StaticResource Primary}"
                 StrokeThickness="0"
                 StrokeShape="RoundRectangle 0,0,28,28"
                 Padding="20,28,20,22">
-            <Label Text="{local:Translate settings_title}"
-                   FontSize="30"
-                   FontAttributes="Bold"
-                   TextColor="White" />
+            <Grid ColumnDefinitions="Auto,*"
+                  ColumnSpacing="14">
+                <Border WidthRequest="48"
+                        HeightRequest="48"
+                        BackgroundColor="#33FFFFFF"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 24">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnBackTapped" />
+                    </Border.GestureRecognizers>
+                    <Label Text="‹"
+                           FontSize="28"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"
+                           TextColor="White" />
+                </Border>
+
+                <Label Grid.Column="1"
+                       Text="{local:Translate settings_title}"
+                       VerticalOptions="Center"
+                       FontSize="30"
+                       FontAttributes="Bold"
+                       TextColor="White" />
+            </Grid>
         </Border>
 
         <ScrollView Grid.Row="1">
@@ -219,6 +240,8 @@
                         Command="{Binding SaveSettingsCommand}" />
             </VerticalStackLayout>
         </ScrollView>
+
+        <views:MiniPlayerView Grid.Row="2" />
     </Grid>
 
 </ContentPage>

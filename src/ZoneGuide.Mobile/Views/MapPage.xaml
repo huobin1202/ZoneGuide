@@ -5,6 +5,7 @@
              xmlns:models="clr-namespace:ZoneGuide.Shared.Models;assembly=ZoneGuide.Shared"
              xmlns:maps="clr-namespace:Microsoft.Maui.Controls.Maps;assembly=Microsoft.Maui.Controls.Maps"
              xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
+             xmlns:views="clr-namespace:ZoneGuide.Mobile.Views"
              x:Class="ZoneGuide.Mobile.Views.MapPage"
              x:Name="MapPageRoot"
              x:DataType="vm:MapViewModel"
@@ -16,33 +17,133 @@
                   IsShowingUser="False"
                   MapType="Street" />
 
-        <Border Margin="14,12,14,0"
-                VerticalOptions="Start"
-                BackgroundColor="White"
-        Stroke="#000000"
-                StrokeShape="RoundRectangle 22"
-                StrokeThickness="1"
-                Padding="14,10">
-            <Grid ColumnDefinitions="Auto,*"
-                  ColumnSpacing="10">
-                <Label Text="⌕"
-                       FontSize="20"
-                       TextColor="{StaticResource Gray400}"
-                       VerticalTextAlignment="Center" />
-                <Label Grid.Column="1"
-                       Text="{local:Translate map_search_placeholder}"
+        <VerticalStackLayout Margin="14,12,14,0"
+                             VerticalOptions="Start"
+                             Spacing="10"
+                             IsVisible="{Binding IsTourModeActive, Converter={StaticResource InverseBoolConverter}}">
+            <Border BackgroundColor="White"
+                    Stroke="#000000"
+                    StrokeShape="RoundRectangle 22"
+                    StrokeThickness="1"
+                    Padding="12,4">
+                <SearchBar x:Name="TopMapSearchBar"
+                           Placeholder="{local:Translate map_search_placeholder}"
+                           Text="{Binding SearchQuery}"
+                           SearchCommand="{Binding PerformSearchCommand}"
+                           Focused="OnTopMapSearchFocused"
+                           SearchButtonPressed="OnTopMapSearchSubmitted"
+                           BackgroundColor="Transparent" />
+            </Border>
+
+            <CollectionView HeightRequest="50"
+                            ItemsSource="{Binding Categories}"
+                            SelectedItem="{Binding SelectedCategory}"
+                            SelectionMode="Single">
+                <CollectionView.ItemsLayout>
+                    <LinearItemsLayout Orientation="Horizontal"
+                                       ItemSpacing="8" />
+                </CollectionView.ItemsLayout>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <Border Padding="14,8"
+                                BackgroundColor="White"
+                                Stroke="#D9E0EA"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 18">
+                            <HorizontalStackLayout Spacing="6">
+                                <Label Text="{Binding Converter={StaticResource CategoryChipIconConverter}}"
+                                       FontSize="14"
+                                       TextColor="#111111"
+                                       VerticalTextAlignment="Center" />
+                                <Label x:Name="MapTopChipLabel"
+                                       Text="{Binding}"
+                                       FontSize="14"
+                                       TextColor="{StaticResource Gray900}"
+                                       FontAttributes="Bold"
+                                       VerticalTextAlignment="Center" />
+                            </HorizontalStackLayout>
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroupList>
+                                    <VisualStateGroup Name="CommonStates">
+                                        <VisualState Name="Normal" />
+                                        <VisualState Name="Selected">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor"
+                                                        Value="#F3E8FF" />
+                                                <Setter Property="Stroke"
+                                                        Value="#A855F7" />
+                                                <Setter TargetName="MapTopChipLabel"
+                                                        Property="Label.TextColor"
+                                                        Value="#6D28D9" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateGroupList>
+                            </VisualStateManager.VisualStateGroups>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </VerticalStackLayout>
+
+        <Grid Margin="14,12,14,0"
+              VerticalOptions="Start"
+              ColumnDefinitions="Auto,*,Auto"
+              ColumnSpacing="12"
+              IsVisible="{Binding IsTourModeActive}">
+            <Border Grid.Column="0"
+                    WidthRequest="48"
+                    HeightRequest="48"
+                    BackgroundColor="White"
+                    Stroke="#EF4444"
+                    StrokeThickness="2"
+                    StrokeShape="RoundRectangle 24">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding StopTourCommand}" />
+                </Border.GestureRecognizers>
+                <Label Text="‹"
+                       FontSize="28"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center"
+                       TextColor="#B91C1C" />
+            </Border>
+
+            <Border Grid.Column="1"
+                    BackgroundColor="White"
+                    Stroke="#E5E7EB"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 24"
+                    Padding="14,10">
+                <Label Text="{Binding ActiveTourName}"
                        FontSize="16"
-                       TextColor="{StaticResource Gray500}"
+                       FontAttributes="Bold"
+                       TextColor="#111827"
+                       MaxLines="1"
+                       LineBreakMode="TailTruncation"
                        VerticalTextAlignment="Center" />
-            </Grid>
-            <Border.GestureRecognizers>
-                <TapGestureRecognizer Tapped="OnOpenSearchSheetTapped" />
-            </Border.GestureRecognizers>
-        </Border>
+            </Border>
+
+            <Border Grid.Column="2"
+                    WidthRequest="48"
+                    HeightRequest="48"
+                    BackgroundColor="White"
+                    Stroke="#E5E7EB"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 24">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnTourSearchTapped" />
+                </Border.GestureRecognizers>
+                <Label Text="⌕"
+                       FontSize="24"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center"
+                       TextColor="#111827" />
+            </Border>
+        </Grid>
 
         <VerticalStackLayout HorizontalOptions="End"
                          VerticalOptions="Start"
-                         Margin="0,82,18,0"
+                         Margin="0,142,18,0"
                          Spacing="10">
             <Button Text="◉"
                     WidthRequest="48"
@@ -64,7 +165,7 @@
                     BackgroundColor="#FFE6E6"
                     TextColor="#B3261E"
                     Command="{Binding StopTourCommand}"
-                    IsVisible="{Binding IsTourModeActive}"
+                    IsVisible="False"
                     SemanticProperties.Hint="Dừng tour hiện tại" />
 
             <Button Text="➤"
@@ -107,6 +208,16 @@
                 Padding="10,8"
                 VerticalOptions="End"
                 IsVisible="{Binding IsSelectedPoiPlayerVisible}">
+            <Border.Triggers>
+                <DataTrigger TargetType="Border"
+                             Binding="{Binding IsTourModeActive}"
+                             Value="True">
+                    <Setter Property="Stroke"
+                            Value="#EF4444" />
+                    <Setter Property="StrokeThickness"
+                            Value="2" />
+                </DataTrigger>
+            </Border.Triggers>
             <Border.GestureRecognizers>
                 <TapGestureRecognizer Command="{Binding ViewPOIDetailCommand}" />
             </Border.GestureRecognizers>
@@ -287,7 +398,7 @@
 
                     <CollectionView x:Name="TourPoiCollectionView"
                                     Grid.Row="2"
-                                    ItemsSource="{Binding POIs}"
+                                    ItemsSource="{Binding TourSheetPOIs}"
                                     SelectionMode="None"
                                     Margin="10,0,0,0"
                                     HeightRequest="214">
@@ -295,52 +406,6 @@
                             <LinearItemsLayout Orientation="Horizontal"
                                                ItemSpacing="12" />
                         </CollectionView.ItemsLayout>
-                        <CollectionView.Header>
-                            <Grid ColumnDefinitions="Auto,Auto"
-                                  Margin="0,0,10,0"
-                                  ColumnSpacing="8">
-                                <Border WidthRequest="108"
-                                        Padding="10"
-                                        BackgroundColor="White"
-                                        Stroke="#D1D5DB"
-                                        StrokeThickness="1"
-                                        StrokeShape="RoundRectangle 18">
-                                    <Border.GestureRecognizers>
-                                        <TapGestureRecognizer Command="{Binding Source={x:Reference MapPageRoot}, Path=BindingContext.ShowStartTourCommand}" />
-                                    </Border.GestureRecognizers>
-
-                                    <VerticalStackLayout Spacing="10"
-                                                         VerticalOptions="Center"
-                                                         HorizontalOptions="Center">
-                                        <Border WidthRequest="56"
-                                                HeightRequest="56"
-                                                Padding="0"
-                                                BackgroundColor="#7C3AED"
-                                                StrokeThickness="0"
-                                                StrokeShape="RoundRectangle 28">
-                                            <Label Text="🗺"
-                                                   FontSize="24"
-                                                   TextColor="White"
-                                                   HorizontalTextAlignment="Center"
-                                                   VerticalTextAlignment="Center" />
-                                        </Border>
-
-                                        <Label Text="{local:Translate map_show_start}"
-                                               FontSize="13"
-                                               FontAttributes="Bold"
-                                               HorizontalTextAlignment="Center"
-                                               TextColor="#374151" />
-                                    </VerticalStackLayout>
-                                </Border>
-
-                                <Label Grid.Column="1"
-                                       Text="···▶"
-                                       FontSize="16"
-                                       TextColor="#9CA3AF"
-                                       VerticalTextAlignment="Center"
-                                       VerticalOptions="Center" />
-                            </Grid>
-                        </CollectionView.Header>
                         <CollectionView.ItemTemplate>
                             <DataTemplate x:DataType="models:POI">
                                 <Border WidthRequest="176"
@@ -448,103 +513,51 @@
                 </Grid>
         </Border>
 
-        <BoxView x:Name="SearchSheetBackdrop"
-                 IsVisible="False"
-                 Opacity="0"
-                 BackgroundColor="#66000000">
-            <BoxView.GestureRecognizers>
-                <TapGestureRecognizer Tapped="OnCloseSearchSheetTapped" />
-            </BoxView.GestureRecognizers>
-        </BoxView>
-
-    <Border x:Name="MapSearchSheet"
-        IsVisible="False"
-        VerticalOptions="Fill"
-        Margin="0"
-        Padding="12,8,12,12"
+        <Border x:Name="MapPoiBottomSheet"
+                IsVisible="{Binding IsTourModeActive, Converter={StaticResource InverseBoolConverter}}"
+                VerticalOptions="End"
                 BackgroundColor="White"
                 Stroke="#E5E7EB"
                 StrokeThickness="1"
                 StrokeShape="RoundRectangle 24,24,0,0"
-                TranslationY="700">
-            <Grid RowDefinitions="Auto,Auto,Auto,*"
+                Margin="0"
+                HeightRequest="360"
+                Padding="12,8,12,12">
+            <Grid RowDefinitions="Auto,*"
                   RowSpacing="8">
-                <Border Grid.Row="0"
-                        HorizontalOptions="Center"
-                        WidthRequest="52"
-                        HeightRequest="6"
-                        BackgroundColor="#D1D5DB"
-                        StrokeThickness="0"
-                        StrokeShape="RoundRectangle 3" />
+                <Grid Grid.Row="0"
+                      HeightRequest="28">
+                    <Grid.GestureRecognizers>
+                        <PanGestureRecognizer PanUpdated="OnMapPoiSheetPanUpdated" />
+                    </Grid.GestureRecognizers>
 
-                <Border Grid.Row="1"
-                        BackgroundColor="White"
-            Stroke="#000000"
-                        StrokeShape="RoundRectangle 20"
-                        StrokeThickness="1"
-                        Padding="12,2">
-                    <SearchBar Placeholder="{local:Translate map_search_placeholder}"
-                               Text="{Binding SearchQuery}"
-                               SearchCommand="{Binding PerformSearchCommand}"
-                               BackgroundColor="Transparent" />
-                </Border>
+                    <Border HorizontalOptions="Center"
+                            VerticalOptions="Center"
+                            WidthRequest="52"
+                            HeightRequest="6"
+                            BackgroundColor="#D1D5DB"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 3" />
+                </Grid>
 
-                <CollectionView Grid.Row="2"
-                                HeightRequest="50"
-                                ItemsSource="{Binding Categories}"
-                                SelectedItem="{Binding SelectedCategory}"
-                                SelectionMode="Single">
-                    <CollectionView.ItemsLayout>
-                        <LinearItemsLayout Orientation="Horizontal"
-                                           ItemSpacing="8" />
-                    </CollectionView.ItemsLayout>
-                    <CollectionView.ItemTemplate>
-                        <DataTemplate x:DataType="x:String">
-                            <Border Padding="14,8"
-                                    BackgroundColor="White"
-                                    Stroke="#D9E0EA"
-                                    StrokeThickness="1"
-                                    StrokeShape="RoundRectangle 18">
-                                <HorizontalStackLayout Spacing="6">
-                                    <Label Text="{Binding Converter={StaticResource CategoryChipIconConverter}}"
-                                           FontSize="14"
-                                           TextColor="#111111"
-                                           VerticalTextAlignment="Center" />
-                                    <Label x:Name="MapChipLabel"
-                                           Text="{Binding}"
-                                           FontSize="14"
-                                           TextColor="{StaticResource Gray900}"
-                                           FontAttributes="Bold"
-                                           VerticalTextAlignment="Center" />
-                                </HorizontalStackLayout>
-                                <VisualStateManager.VisualStateGroups>
-                                    <VisualStateGroupList>
-                                        <VisualStateGroup Name="CommonStates">
-                                            <VisualState Name="Normal" />
-                                            <VisualState Name="Selected">
-                                                <VisualState.Setters>
-                                                    <Setter Property="BackgroundColor"
-                                                            Value="#F3E8FF" />
-                                                    <Setter Property="Stroke"
-                                                            Value="#A855F7" />
-                                                    <Setter TargetName="MapChipLabel"
-                                                            Property="Label.TextColor"
-                                                            Value="#6D28D9" />
-                                                </VisualState.Setters>
-                                            </VisualState>
-                                        </VisualStateGroup>
-                                    </VisualStateGroupList>
-                                </VisualStateManager.VisualStateGroups>
-                            </Border>
-                        </DataTemplate>
-                    </CollectionView.ItemTemplate>
-                </CollectionView>
-
-                <CollectionView Grid.Row="3"
-                                x:Name="MapSearchResults"
+                <CollectionView Grid.Row="1"
+                                x:Name="MapPoiResults"
                                 ItemsSource="{Binding POIs}"
                                 SelectionMode="Single"
-                                SelectionChanged="OnMapSearchResultSelectionChanged">
+                                SelectionChanged="OnMapPoiResultSelectionChanged">
+                    <CollectionView.EmptyView>
+                        <VerticalStackLayout Padding="20,32"
+                                             Spacing="8">
+                            <Label Text="{local:Translate pois_empty_title}"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   HorizontalTextAlignment="Center" />
+                            <Label Text="{local:Translate pois_empty_subtitle}"
+                                   FontSize="13"
+                                   TextColor="{StaticResource Gray500}"
+                                   HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </CollectionView.EmptyView>
                     <CollectionView.ItemTemplate>
                         <DataTemplate x:DataType="models:POI">
                             <Grid ColumnDefinitions="78,*,Auto"
@@ -584,6 +597,147 @@
                 </CollectionView>
             </Grid>
         </Border>
+
+        <Grid x:Name="TourSearchOverlay"
+              IsVisible="False"
+              ZIndex="35">
+            <BoxView Color="#4D111827">
+                <BoxView.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnTourSearchBackdropTapped" />
+                </BoxView.GestureRecognizers>
+            </BoxView>
+
+            <Border Margin="12,88,12,14"
+                    BackgroundColor="White"
+                    Stroke="#E5E7EB"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 24"
+                    Padding="12,12,12,16"
+                    VerticalOptions="Fill">
+                <Grid RowDefinitions="Auto,Auto,*"
+                      RowSpacing="10">
+                    <Border BackgroundColor="White"
+                            Stroke="#000000"
+                            StrokeShape="RoundRectangle 22"
+                            StrokeThickness="1"
+                            Padding="12,4">
+                        <SearchBar x:Name="TourOverlaySearchBar"
+                                   Placeholder="{local:Translate map_search_placeholder}"
+                                   Text="{Binding SearchQuery}"
+                                   SearchCommand="{Binding PerformSearchCommand}"
+                                   SearchButtonPressed="OnTourSearchSubmitted"
+                                   BackgroundColor="Transparent" />
+                    </Border>
+
+                    <CollectionView Grid.Row="1"
+                                    HeightRequest="50"
+                                    ItemsSource="{Binding Categories}"
+                                    SelectedItem="{Binding SelectedCategory}"
+                                    SelectionMode="Single">
+                        <CollectionView.ItemsLayout>
+                            <LinearItemsLayout Orientation="Horizontal"
+                                               ItemSpacing="8" />
+                        </CollectionView.ItemsLayout>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <Border Padding="14,8"
+                                        BackgroundColor="White"
+                                        Stroke="#D9E0EA"
+                                        StrokeThickness="1"
+                                        StrokeShape="RoundRectangle 18">
+                                    <HorizontalStackLayout Spacing="6">
+                                        <Label Text="{Binding Converter={StaticResource CategoryChipIconConverter}}"
+                                               FontSize="14"
+                                               TextColor="#111111"
+                                               VerticalTextAlignment="Center" />
+                                        <Label x:Name="TourSearchChipLabel"
+                                               Text="{Binding}"
+                                               FontSize="14"
+                                               TextColor="{StaticResource Gray900}"
+                                               FontAttributes="Bold"
+                                               VerticalTextAlignment="Center" />
+                                    </HorizontalStackLayout>
+                                    <VisualStateManager.VisualStateGroups>
+                                        <VisualStateGroupList>
+                                            <VisualStateGroup Name="CommonStates">
+                                                <VisualState Name="Normal" />
+                                                <VisualState Name="Selected">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor"
+                                                                Value="#F3E8FF" />
+                                                        <Setter Property="Stroke"
+                                                                Value="#A855F7" />
+                                                        <Setter TargetName="TourSearchChipLabel"
+                                                                Property="Label.TextColor"
+                                                                Value="#6D28D9" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+                                            </VisualStateGroup>
+                                        </VisualStateGroupList>
+                                    </VisualStateManager.VisualStateGroups>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+
+                    <CollectionView Grid.Row="2"
+                                    x:Name="TourSearchResults"
+                                    ItemsSource="{Binding POIs}"
+                                    SelectionMode="Single"
+                                    SelectionChanged="OnMapPoiResultSelectionChanged">
+                        <CollectionView.EmptyView>
+                            <VerticalStackLayout Padding="20,32"
+                                                 Spacing="8">
+                                <Label Text="{local:Translate pois_empty_title}"
+                                       FontSize="18"
+                                       FontAttributes="Bold"
+                                       HorizontalTextAlignment="Center" />
+                                <Label Text="{local:Translate pois_empty_subtitle}"
+                                       FontSize="13"
+                                       TextColor="{StaticResource Gray500}"
+                                       HorizontalTextAlignment="Center" />
+                            </VerticalStackLayout>
+                        </CollectionView.EmptyView>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate x:DataType="models:POI">
+                                <Grid ColumnDefinitions="78,*,Auto"
+                                      ColumnSpacing="12"
+                                      Padding="4,8">
+                                    <Frame Grid.Column="0"
+                                           WidthRequest="78"
+                                           HeightRequest="78"
+                                           CornerRadius="14"
+                                           Padding="0"
+                                           BackgroundColor="#ECEAF8"
+                                           IsClippedToBounds="True">
+                                        <Image Source="{Binding ImageUrl, Converter={StaticResource FlexibleImageSourceConverter}}"
+                                               Aspect="AspectFill" />
+                                    </Frame>
+
+                                    <VerticalStackLayout Grid.Column="1"
+                                                         Spacing="4"
+                                                         VerticalOptions="Center">
+                                        <Label Text="{Binding Name}"
+                                               FontSize="18"
+                                               FontAttributes="Bold"
+                                               MaxLines="2" />
+                                        <Label Text="{Binding Category, Converter={StaticResource LocalizedCategoryConverter}}"
+                                               FontSize="14"
+                                               TextColor="{StaticResource Gray500}" />
+                                    </VerticalStackLayout>
+
+                                    <Label Grid.Column="2"
+                                           Text="›"
+                                           FontSize="28"
+                                           TextColor="{StaticResource Gray400}"
+                                           VerticalTextAlignment="Center" />
+                                </Grid>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </Grid>
+            </Border>
+        </Grid>
 
         <Border x:Name="MapZoomControls"
                 HorizontalOptions="End"
@@ -628,6 +782,10 @@
                            HorizontalOptions="Center"
                            VerticalOptions="Center"
                            Color="{StaticResource Primary}" />
+
+        <views:MiniPlayerView x:Name="MapMiniPlayerView"
+                              VerticalOptions="End"
+                              ZIndex="40" />
     </Grid>
 
 </ContentPage>

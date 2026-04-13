@@ -41,7 +41,7 @@ public partial class LoginPage : ContentPage
             {
                 var appShell = _serviceProvider.GetRequiredService<AppShell>();
                 window.Page = appShell;
-                await appShell.GoToAsync("//pois");
+                await appShell.GoToAsync("//home");
             }
             catch (ObjectDisposedException)
             {

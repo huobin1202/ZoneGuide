@@ -49,7 +49,10 @@ public static class MauiProgram
 
         // Register ViewModels
         builder.Services.AddSingleton<MainViewModel>();
+        builder.Services.AddSingleton<GlobalMiniPlayerViewModel>();
+        builder.Services.AddSingleton<HomeViewModel>();
         builder.Services.AddSingleton<MapViewModel>();
+        builder.Services.AddSingleton<MoreViewModel>();
         builder.Services.AddSingleton<POIListViewModel>();
         builder.Services.AddSingleton<TourListViewModel>();
         builder.Services.AddSingleton<HistoryViewModel>();
@@ -62,7 +65,9 @@ public static class MauiProgram
         // Register Views
         builder.Services.AddTransient<AppShell>();
         builder.Services.AddSingleton<MainPage>();
+        builder.Services.AddSingleton<HomePage>();
         builder.Services.AddSingleton<MapPage>();
+        builder.Services.AddSingleton<MorePage>();
         builder.Services.AddSingleton<POIListPage>();
         builder.Services.AddSingleton<HistoryPage>();
         builder.Services.AddSingleton<TourListPage>();

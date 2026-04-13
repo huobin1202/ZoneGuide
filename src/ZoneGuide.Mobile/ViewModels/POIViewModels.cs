@@ -666,7 +666,7 @@ public partial class POIDetailViewModel : ObservableObject
             return;
         }
 
-        await Shell.Current.GoToAsync("//pois");
+        await Shell.Current.GoToAsync("//home");
     }
 
     [RelayCommand]
@@ -702,7 +702,7 @@ public partial class POIDetailViewModel : ObservableObject
         if (CurrentPoi == null)
             return;
 
-        await Shell.Current.GoToAsync($"//map?poiId={CurrentPoi.Id}");
+        await Shell.Current.GoToAsync($"//map?poiId={CurrentPoi.Id}&openSearch=true");
     }
 
     [RelayCommand]

@@ -3,13 +3,14 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
              xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
+             xmlns:views="clr-namespace:ZoneGuide.Mobile.Views"
              x:Class="ZoneGuide.Mobile.Views.HistoryPage"
              x:Name="HistoryRoot"
              x:DataType="vm:HistoryViewModel"
              Shell.NavBarIsVisible="False"
              BackgroundColor="#F6F7FB">
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="Auto,*,Auto">
         <VerticalStackLayout Grid.Row="0"
                              Padding="16,20,16,12"
                              Spacing="14">
@@ -236,6 +237,8 @@
                 </CollectionView.ItemTemplate>
             </CollectionView>
         </RefreshView>
+
+        <views:MiniPlayerView Grid.Row="2" />
     </Grid>
 
 </ContentPage>

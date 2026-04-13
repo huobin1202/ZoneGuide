@@ -30,7 +30,6 @@ public partial class TourDetailPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
-
         ApplySheetState(SheetExpandedHeight, animate: false);
         RenderMiniMap();
     }
@@ -148,7 +147,7 @@ public partial class TourDetailPage : ContentPage
         if (_viewModel.Tour == null)
             return;
 
-        await Shell.Current.GoToAsync($"//map?tourId={_viewModel.Tour.Id}&startTour=true");
+        await Shell.Current.GoToAsync("//map");
     }
 
     private async void OnMapButtonTapped(object? sender, EventArgs e)
@@ -156,15 +155,21 @@ public partial class TourDetailPage : ContentPage
         if (_viewModel.Tour == null)
             return;
 
-        await Shell.Current.GoToAsync($"//map?tourId={_viewModel.Tour.Id}&startTour=true");
+        await Shell.Current.GoToAsync("//map");
+    }
+
+    private async void OnShowStartTapped(object? sender, EventArgs e)
+    {
+        var command = _viewModel.StartTourCommand;
+        if (command == null || !command.CanExecute(null))
+            return;
+
+        await command.ExecuteAsync(null);
     }
 
     private async void OnSearchTapped(object? sender, EventArgs e)
     {
-        if (_viewModel.Tour == null)
-            return;
-
-        await Shell.Current.GoToAsync($"//map?tourId={_viewModel.Tour.Id}&startTour=true&openSearch=true");
+        await Shell.Current.GoToAsync("//map?openSearch=true");
     }
 
     private async void OnDirectionsTapped(object? sender, EventArgs e)
@@ -172,7 +177,11 @@ public partial class TourDetailPage : ContentPage
         if (_viewModel.Tour == null)
             return;
 
-        await Shell.Current.GoToAsync($"//map?tourId={_viewModel.Tour.Id}&startTour=true");
+        var command = _viewModel.StartTourCommand;
+        if (command == null || !command.CanExecute(null))
+            return;
+
+        await command.ExecuteAsync(null);
     }
 
     private void RenderMiniMap()

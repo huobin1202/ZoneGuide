@@ -4,6 +4,7 @@
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
                          xmlns:maps="clr-namespace:Microsoft.Maui.Controls.Maps;assembly=Microsoft.Maui.Controls.Maps"
              xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
+             xmlns:views="clr-namespace:ZoneGuide.Mobile.Views"
              x:Class="ZoneGuide.Mobile.Views.POIDetailPage"
              x:DataType="vm:POIDetailViewModel"
              Shell.NavBarIsVisible="False"
@@ -162,7 +163,7 @@
                 StrokeThickness="0"
                 StrokeShape="RoundRectangle 20"
                 Padding="12,10"
-                IsVisible="{Binding IsPlayerPanelVisible}"
+                IsVisible="False"
                 ZIndex="20">
             <Grid ColumnDefinitions="*,Auto,Auto,Auto"
                   ColumnSpacing="10">
@@ -212,6 +213,10 @@
                         Command="{Binding HidePlayerPanelCommand}" />
             </Grid>
         </Border>
+
+        <views:MiniPlayerView Grid.RowSpan="2"
+                              VerticalOptions="End"
+                              ZIndex="25" />
     </Grid>
 
 </ContentPage>

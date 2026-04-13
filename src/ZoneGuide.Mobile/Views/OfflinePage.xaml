@@ -3,13 +3,14 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
              xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
+             xmlns:views="clr-namespace:ZoneGuide.Mobile.Views"
              x:Class="ZoneGuide.Mobile.Views.OfflinePage"
              x:Name="OfflineRoot"
              x:DataType="vm:OfflineViewModel"
              Shell.NavBarIsVisible="False"
              BackgroundColor="#F6F7FB">
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="Auto,*,Auto">
         <Border Grid.Row="0"
                 BackgroundColor="#6D28D9"
                 StrokeThickness="0"
@@ -292,6 +293,8 @@
                 </CollectionView>
             </Grid>
         </RefreshView>
+
+        <views:MiniPlayerView Grid.Row="2" />
     </Grid>
 
 </ContentPage>

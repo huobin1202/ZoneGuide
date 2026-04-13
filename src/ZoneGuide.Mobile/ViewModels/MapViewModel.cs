@@ -108,6 +108,9 @@ public partial class MapViewModel : ObservableObject
     private int activeTourPoiCount;
 
     [ObservableProperty]
+    private int? activeTourId;
+
+    [ObservableProperty]
     private bool isTourPoiListVisible;
 
     public bool IsTourModeActive
@@ -158,9 +161,16 @@ public partial class MapViewModel : ObservableObject
         await ApplyStartTourRouteIfRequestedAsync(_requestedTourId.Value);
     }
 
+    public async Task ActivateTourAsync(int tourId)
+    {
+        SetTourRequest(tourId, startTour: true);
+        await ApplyTourRequestAsync();
+    }
+
     private List<POI> _allPOIs = new();
 
     public ObservableCollection<POI> POIs { get; } = new();
+    public ObservableCollection<POI> TourSheetPOIs { get; } = new();
     public ObservableCollection<Pin> MapPins { get; } = new();
     public ObservableCollection<Location> TourRoutePoints { get; } = new();
 
@@ -379,6 +389,16 @@ public partial class MapViewModel : ObservableObject
         }
     }
 
+    private void PopulateTourSheetPois(IEnumerable<POI> pois)
+    {
+        TourSheetPOIs.Clear();
+
+        foreach (var poi in pois)
+        {
+            TourSheetPOIs.Add(poi);
+        }
+    }
+
     private async Task ApplyStartTourRouteIfRequestedAsync(int tourId)
     {
         var tourPois = (await _poiRepository.GetByTourIdAsync(tourId))
@@ -391,7 +411,9 @@ public partial class MapViewModel : ObservableObject
         {
             ClearTourRoute();
             _currentTourPois.Clear();
+            PopulateTourSheetPois([]);
             IsTourModeActive = false;
+            ActiveTourId = null;
             ActiveTourName = string.Empty;
             ActiveTourPoiCount = 0;
             IsTourPoiListVisible = false;
@@ -405,12 +427,14 @@ public partial class MapViewModel : ObservableObject
 
         _currentTourPois.Clear();
         _currentTourPois.AddRange(tourPois);
+        PopulateTourSheetPois(tourPois);
         _replayBlockedPoiId = null;
         ResetAutoNarrationTracking();
 
         ActiveTourName = !string.IsNullOrWhiteSpace(tour?.Name)
             ? tour!.Name
             : AppLocalizer.Instance.Translate("map_tour_fallback");
+        ActiveTourId = tourId;
         ActiveTourPoiCount = tourPois.Count;
 
         PopulatePins(tourPois);
@@ -623,46 +647,52 @@ public partial class MapViewModel : ObservableObject
     [RelayCommand]
     private void PerformSearch()
     {
-        _activeInAppNavigationPoiId = null;
-        _lastInAppNavigationOrigin = null;
-        ClearTourRoute();
-        IsTourModeActive = false;
-        ActiveTourName = string.Empty;
-        ActiveTourPoiCount = 0;
-        IsTourPoiListVisible = false;
-        _currentTourPois.Clear();
-        _lastInRangePoiId = null;
-        _replayBlockedPoiId = null;
-        _lastAutoOpenedPoiId = null;
-        ResetAutoNarrationTracking();
+        var normalizedQuery = NormalizeSearchText(SearchQuery);
+        var hasCategoryFilter = !string.IsNullOrWhiteSpace(SelectedCategory) && !IsAllCategorySelection(SelectedCategory);
+        var source = IsTourModeActive && _currentTourPois.Count > 0
+            ? _currentTourPois.ToList()
+            : _allPOIs.ToList();
 
-        _ = _narrationService.StopAsync();
-        SetMonitoredPois(_allPOIs);
-
-        if (string.IsNullOrWhiteSpace(SearchQuery) && string.IsNullOrWhiteSpace(SelectedCategory))
+        if (string.IsNullOrWhiteSpace(normalizedQuery) && !hasCategoryFilter)
         {
-            PopulatePins(_allPOIs);
+            PopulatePins(source);
+
+            if (IsTourModeActive)
+            {
+                IsTourPoiListVisible = true;
+                SetMonitoredPois(_currentTourPois);
+            }
+            else
+            {
+                SetMonitoredPois(source);
+            }
+
             return;
         }
 
-        var normalizedQuery = NormalizeSearchText(SearchQuery);
-
-        var results = _allPOIs
+        var results = source
             .Where(p =>
                 MatchesSearchQuery(p, normalizedQuery) &&
-                (string.IsNullOrWhiteSpace(SelectedCategory) || IsAllCategorySelection(SelectedCategory) || IsCategoryMatch(p.Category, SelectedCategory)))
+                (!hasCategoryFilter || IsCategoryMatch(p.Category, SelectedCategory)))
             .OrderBy(p => GetSearchRank(p, normalizedQuery))
             .ThenBy(p => p.Name)
             .ToList();
 
         PopulatePins(results);
 
-        if (results.Count > 0)
+        if (IsTourModeActive)
         {
-            SelectedPOI = results.First();
-            MapSpan = MapSpan.FromCenterAndRadius(
-                new Location(SelectedPOI.Latitude, SelectedPOI.Longitude), 
-                Distance.FromKilometers(1)); // Zoom out a bit to show searched area
+            IsTourPoiListVisible = true;
+            SetMonitoredPois(_currentTourPois);
+        }
+        else
+        {
+            SetMonitoredPois(results);
+        }
+
+        if (SelectedPOI != null && results.All(p => p.Id != SelectedPOI.Id))
+        {
+            SelectedPOI = null;
         }
     }
 
@@ -946,6 +976,7 @@ public partial class MapViewModel : ObservableObject
         _ = _narrationService.StopAsync();
         SetMonitoredPois(_allPOIs);
         PopulatePins(_allPOIs);
+        PopulateTourSheetPois([]);
 
         if (_allPOIs.Count > 0)
         {
@@ -965,6 +996,7 @@ public partial class MapViewModel : ObservableObject
         SelectedPOI = null;
         PopulatePins(_currentTourPois);
         SetMonitoredPois(_currentTourPois);
+        PopulateTourSheetPois(_currentTourPois);
         ApplyMapSpanForTourAndUser(_currentTourPois);
     }
 
@@ -985,6 +1017,7 @@ public partial class MapViewModel : ObservableObject
         IsTourModeActive = true;
 
         PopulatePins(orderedTourPois);
+        PopulateTourSheetPois(orderedTourPois);
         SetMonitoredPois(orderedTourPois);
         await SetTourRouteAsync(orderedTourPois);
 
@@ -1003,7 +1036,9 @@ public partial class MapViewModel : ObservableObject
         SelectedPOI = null;
         ClearTourRoute();
         _currentTourPois.Clear();
+        PopulateTourSheetPois([]);
         IsTourModeActive = false;
+        ActiveTourId = null;
         ActiveTourName = string.Empty;
         ActiveTourPoiCount = 0;
         IsTourPoiListVisible = false;

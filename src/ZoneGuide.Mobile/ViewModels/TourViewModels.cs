@@ -2,9 +2,11 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ZoneGuide.Mobile.Localization;
 using ZoneGuide.Mobile.Services;
+using ZoneGuide.Mobile.Views;
 using ZoneGuide.Shared.Interfaces;
 using ZoneGuide.Shared.Models;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 
 namespace ZoneGuide.Mobile.ViewModels;
 
@@ -90,7 +92,7 @@ public partial class TourListViewModel : ObservableObject
     [RelayCommand]
     private async Task ViewDetail(Tour tour)
     {
-        await Shell.Current.GoToAsync($"TourDetailPage?id={tour.Id}");
+        await Shell.Current.GoToAsync($"{nameof(TourDetailPage)}?id={tour.Id}");
     }
 }
 
@@ -107,6 +109,8 @@ public partial class TourDetailViewModel : ObservableObject
     private readonly INarrationService _narrationService;
     private readonly IAudioService _audioService;
     private readonly ITTSService _ttsService;
+    private readonly GlobalMiniPlayerViewModel _miniPlayerViewModel;
+    private readonly MapViewModel _mapViewModel;
     private readonly AppLocalizer _localizer = AppLocalizer.Instance;
     private bool _isTourAudioSessionActive;
     private bool _isTourTtsActive;
@@ -168,7 +172,9 @@ public partial class TourDetailViewModel : ObservableObject
         IGeofenceService geofenceService,
         INarrationService narrationService,
         IAudioService audioService,
-        ITTSService ttsService)
+        ITTSService ttsService,
+        GlobalMiniPlayerViewModel miniPlayerViewModel,
+        MapViewModel mapViewModel)
     {
         _tourRepository = tourRepository;
         _poiRepository = poiRepository;
@@ -177,10 +183,13 @@ public partial class TourDetailViewModel : ObservableObject
         _narrationService = narrationService;
         _audioService = audioService;
         _ttsService = ttsService;
+        _miniPlayerViewModel = miniPlayerViewModel;
+        _mapViewModel = mapViewModel;
 
         _audioService.ProgressChanged += OnAudioProgressChanged;
         _audioService.PlaybackCompleted += OnAudioPlaybackCompleted;
         _ttsService.SpeakCompleted += OnTourTtsCompleted;
+        _mapViewModel.PropertyChanged += OnMapViewModelPropertyChanged;
 
         RefreshDisplayState();
     }
@@ -253,6 +262,8 @@ public partial class TourDetailViewModel : ObservableObject
         }
 
         RefreshDisplayState();
+        await _mapViewModel.ActivateTourAsync(TourId);
+        RefreshDisplayState();
     }
 
     private void RefreshDisplayState()
@@ -291,6 +302,15 @@ public partial class TourDetailViewModel : ObservableObject
         OfflineCardBackground = Color.FromArgb("#111827");
         OfflineStatusText = _localizer.Translate("tour_detail_offline_prompt", "Download images and stops for use when connection is limited");
         OfflineActionText = _localizer.Translate("tour_detail_download_offline", "Download");
+    }
+
+    private void OnMapViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MapViewModel.IsTourModeActive) ||
+            e.PropertyName == nameof(MapViewModel.ActiveTourId))
+        {
+            MainThread.BeginInvokeOnMainThread(RefreshDisplayState);
+        }
     }
 
     private string BuildHighlightsText()
@@ -335,7 +355,6 @@ public partial class TourDetailViewModel : ObservableObject
 
         _geofenceService.ClearPOIs();
         _geofenceService.AddPOIs(activePois);
-
         await Shell.Current.GoToAsync($"//map?tourId={Tour.Id}&startTour=true");
     }
 
@@ -466,6 +485,7 @@ public partial class TourDetailViewModel : ObservableObject
                 return;
             }
 
+            _miniPlayerViewModel.SetActiveTour(Tour);
             IsTourAudioPlaying = true;
             IsTourAudioPaused = false;
         }
@@ -475,6 +495,7 @@ public partial class TourDetailViewModel : ObservableObject
             _isTourTtsActive = false;
             IsTourAudioPlaying = false;
             IsTourAudioPaused = false;
+            _miniPlayerViewModel.ClearTourContext();
             System.Diagnostics.Debug.WriteLine($"[TourDetailVM] PlayTourAudioAsync error: {ex.Message}");
             await Shell.Current.DisplayAlert(
                 _localizer.Translate("tour_detail_audio_error_title", "Error"),
@@ -496,12 +517,14 @@ public partial class TourDetailViewModel : ObservableObject
             IsTourAudioPlaying = false;
             IsTourAudioPaused = false;
             TourAudioProgress = 0;
+            _miniPlayerViewModel.ClearTourContext();
             return;
         }
 
         await _audioService.PauseAsync();
         IsTourAudioPlaying = false;
         IsTourAudioPaused = true;
+        _miniPlayerViewModel.RefreshState();
     }
 
     private async Task ResumeTourAudioAsync()
@@ -518,6 +541,7 @@ public partial class TourDetailViewModel : ObservableObject
             _isTourAudioSessionActive = true;
             IsTourAudioPlaying = true;
             IsTourAudioPaused = false;
+            _miniPlayerViewModel.SetActiveTour(Tour);
         }
         catch
         {
@@ -533,6 +557,7 @@ public partial class TourDetailViewModel : ObservableObject
         MainThread.BeginInvokeOnMainThread(() =>
         {
             TourAudioProgress = Math.Clamp(progress, 0, 1);
+            _miniPlayerViewModel.RefreshState();
         });
     }
 
@@ -547,6 +572,7 @@ public partial class TourDetailViewModel : ObservableObject
             IsTourAudioPlaying = false;
             IsTourAudioPaused = false;
             TourAudioProgress = 1;
+            _miniPlayerViewModel.ClearTourContext();
         });
     }
 
@@ -562,6 +588,7 @@ public partial class TourDetailViewModel : ObservableObject
             IsTourAudioPlaying = false;
             IsTourAudioPaused = false;
             TourAudioProgress = 1;
+            _miniPlayerViewModel.ClearTourContext();
         });
     }
 }

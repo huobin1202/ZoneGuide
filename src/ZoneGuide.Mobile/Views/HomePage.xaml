@@ -1,0 +1,393 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
+             xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
+             xmlns:views="clr-namespace:ZoneGuide.Mobile.Views"
+             x:Class="ZoneGuide.Mobile.Views.HomePage"
+             x:Name="HomeRoot"
+             x:DataType="vm:HomeViewModel"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#F6F7FB">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <Border Grid.Row="0"
+                BackgroundColor="{StaticResource Primary}"
+                StrokeThickness="0"
+                StrokeShape="RoundRectangle 0,0,28,28"
+                Padding="20,24,20,18">
+            <VerticalStackLayout Spacing="4">
+                <Label Text="{Binding WelcomeTitle}"
+                       FontSize="28"
+                       FontAttributes="Bold"
+                       TextColor="White" />
+                <Label Text="{Binding WelcomeSubtitle}"
+                       FontSize="14"
+                       TextColor="#DCEAFE" />
+            </VerticalStackLayout>
+        </Border>
+
+        <RefreshView Grid.Row="1"
+                     IsRefreshing="{Binding IsRefreshing}"
+                     Command="{Binding RefreshCommand}">
+            <ScrollView>
+                <VerticalStackLayout Padding="16,14,16,112"
+                                     Spacing="24">
+                    <VerticalStackLayout Spacing="12">
+                        <Grid ColumnDefinitions="*,Auto"
+                              ColumnSpacing="12">
+                            <Label Text="{local:Translate home_nearby_title}"
+                                   FontSize="20"
+                                   FontAttributes="Bold"
+                                   TextColor="#0F172A" />
+                            <Button Grid.Column="1"
+                                    Text="{local:Translate home_view_all}"
+                                    Padding="14,6"
+                                    CornerRadius="18"
+                                    FontSize="13"
+                                    BackgroundColor="#E0E7FF"
+                                    TextColor="#3730A3"
+                                    Command="{Binding OpenAllPoisCommand}" />
+                        </Grid>
+
+                        <Label Text="{local:Translate home_nearby_subtitle}"
+                               FontSize="13"
+                               TextColor="{StaticResource Gray500}" />
+
+                        <CollectionView ItemsSource="{Binding NearbyPois}"
+                                        HeightRequest="252"
+                                        SelectionMode="None">
+                            <CollectionView.ItemsLayout>
+                                <LinearItemsLayout Orientation="Horizontal"
+                                                   ItemSpacing="12" />
+                            </CollectionView.ItemsLayout>
+                            <CollectionView.EmptyView>
+                                <Border Padding="16"
+                                        BackgroundColor="White"
+                                        Stroke="#E2E8F0"
+                                        StrokeShape="RoundRectangle 18">
+                                    <Label Text="{local:Translate home_nearby_empty}"
+                                           FontSize="13"
+                                           TextColor="{StaticResource Gray500}" />
+                                </Border>
+                            </CollectionView.EmptyView>
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate x:DataType="vm:HomePoiCardViewModel">
+                                    <Border WidthRequest="220"
+                                            BackgroundColor="White"
+                                            Stroke="#E2E8F0"
+                                            StrokeThickness="1"
+                                            StrokeShape="RoundRectangle 22"
+                                            Padding="12">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding BindingContext.OpenPoiDetailCommand, Source={x:Reference HomeRoot}}"
+                                                                  CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <VerticalStackLayout Spacing="10">
+                                            <Border HeightRequest="124"
+                                                    StrokeThickness="0"
+                                                    StrokeShape="RoundRectangle 18"
+                                                    BackgroundColor="#E5E7EB">
+                                                <Image Source="{Binding ImageSource, Converter={StaticResource FlexibleImageSourceConverter}}"
+                                                       Aspect="AspectFill" />
+                                            </Border>
+
+                                            <VerticalStackLayout Spacing="4">
+                                                <Label Text="{Binding Name}"
+                                                       FontSize="17"
+                                                       FontAttributes="Bold"
+                                                       MaxLines="2"
+                                                       LineBreakMode="TailTruncation"
+                                                       TextColor="#0F172A" />
+                                                <Label Text="{Binding Category}"
+                                                       FontSize="13"
+                                                       MaxLines="1"
+                                                       LineBreakMode="TailTruncation"
+                                                       TextColor="#64748B" />
+                                                <Label Text="{Binding DistanceText}"
+                                                       FontSize="12"
+                                                       MaxLines="1"
+                                                       TextColor="#2563EB" />
+                                            </VerticalStackLayout>
+
+                                            <Button Text="{local:Translate poi_detail_listen}"
+                                                    HeightRequest="42"
+                                                    CornerRadius="18"
+                                                    BackgroundColor="#111827"
+                                                    TextColor="White"
+                                                    Command="{Binding BindingContext.PlayPoiCommand, Source={x:Reference HomeRoot}}"
+                                                    CommandParameter="{Binding .}" />
+                                        </VerticalStackLayout>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="12">
+                        <Grid ColumnDefinitions="*,Auto"
+                              ColumnSpacing="12">
+                            <Label Text="{local:Translate home_featured_tours_title}"
+                                   FontSize="20"
+                                   FontAttributes="Bold"
+                                   TextColor="#0F172A" />
+                            <Button Grid.Column="1"
+                                    Text="{local:Translate home_view_all}"
+                                    Padding="14,6"
+                                    CornerRadius="18"
+                                    FontSize="13"
+                                    BackgroundColor="#E0E7FF"
+                                    TextColor="#3730A3"
+                                    Command="{Binding OpenToursCommand}" />
+                        </Grid>
+
+                        <Label Text="{local:Translate home_featured_tours_subtitle}"
+                               FontSize="13"
+                               TextColor="{StaticResource Gray500}" />
+
+                        <CollectionView ItemsSource="{Binding FeaturedTours}"
+                                        HeightRequest="236"
+                                        SelectionMode="None">
+                            <CollectionView.ItemsLayout>
+                                <LinearItemsLayout Orientation="Horizontal"
+                                                   ItemSpacing="12" />
+                            </CollectionView.ItemsLayout>
+                            <CollectionView.EmptyView>
+                                <Border Padding="16"
+                                        BackgroundColor="White"
+                                        Stroke="#E2E8F0"
+                                        StrokeShape="RoundRectangle 18">
+                                    <Label Text="{local:Translate home_featured_tours_empty}"
+                                           FontSize="13"
+                                           TextColor="{StaticResource Gray500}" />
+                                </Border>
+                            </CollectionView.EmptyView>
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate x:DataType="vm:HomeTourCardViewModel">
+                                    <Border WidthRequest="244"
+                                            BackgroundColor="White"
+                                            Stroke="#E2E8F0"
+                                            StrokeThickness="1"
+                                            StrokeShape="RoundRectangle 22"
+                                            Padding="12">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding BindingContext.OpenTourDetailCommand, Source={x:Reference HomeRoot}}"
+                                                                  CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <VerticalStackLayout Spacing="10">
+                                            <Border HeightRequest="124"
+                                                    StrokeThickness="0"
+                                                    StrokeShape="RoundRectangle 18"
+                                                    BackgroundColor="#E5E7EB">
+                                                <Image Source="{Binding ImageSource, Converter={StaticResource FlexibleImageSourceConverter}}"
+                                                       Aspect="AspectFill" />
+                                            </Border>
+
+                                            <VerticalStackLayout Spacing="4">
+                                                <Label Text="{Binding Name}"
+                                                       FontSize="17"
+                                                       FontAttributes="Bold"
+                                                       MaxLines="2"
+                                                       LineBreakMode="TailTruncation"
+                                                       TextColor="#0F172A" />
+                                                <Label Text="{Binding Summary}"
+                                                       FontSize="13"
+                                                       MaxLines="1"
+                                                       TextColor="#2563EB" />
+                                                <Label Text="{Binding MetaText}"
+                                                       FontSize="12"
+                                                       MaxLines="1"
+                                                       TextColor="#64748B" />
+                                            </VerticalStackLayout>
+                                        </VerticalStackLayout>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="12">
+                        <Grid ColumnDefinitions="*,Auto"
+                              ColumnSpacing="12">
+                            <Label Text="{local:Translate home_continue_title}"
+                                   FontSize="20"
+                                   FontAttributes="Bold"
+                                   TextColor="#0F172A" />
+                            <Button Grid.Column="1"
+                                    Text="{local:Translate home_view_all}"
+                                    Padding="14,6"
+                                    CornerRadius="18"
+                                    FontSize="13"
+                                    BackgroundColor="#E0E7FF"
+                                    TextColor="#3730A3"
+                                    Command="{Binding OpenHistoryCommand}" />
+                        </Grid>
+
+                        <Label Text="{local:Translate home_continue_subtitle}"
+                               FontSize="13"
+                               TextColor="{StaticResource Gray500}" />
+
+                        <CollectionView ItemsSource="{Binding ContinueListening}"
+                                        SelectionMode="None">
+                            <CollectionView.EmptyView>
+                                <Border Padding="16"
+                                        BackgroundColor="White"
+                                        Stroke="#E2E8F0"
+                                        StrokeShape="RoundRectangle 18">
+                                    <Label Text="{local:Translate home_continue_empty}"
+                                           FontSize="13"
+                                           TextColor="{StaticResource Gray500}" />
+                                </Border>
+                            </CollectionView.EmptyView>
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate x:DataType="vm:HomeHistoryCardViewModel">
+                                    <Border Margin="0,0,0,12"
+                                            BackgroundColor="White"
+                                            Stroke="#E2E8F0"
+                                            StrokeThickness="1"
+                                            StrokeShape="RoundRectangle 20"
+                                            Padding="12">
+                                        <Grid ColumnDefinitions="72,*,Auto"
+                                              ColumnSpacing="12">
+                                            <Border WidthRequest="72"
+                                                    HeightRequest="72"
+                                                    BackgroundColor="#E5E7EB"
+                                                    StrokeThickness="0"
+                                                    StrokeShape="RoundRectangle 16">
+                                                <Image Source="{Binding ImageSource, Converter={StaticResource FlexibleImageSourceConverter}}"
+                                                       Aspect="AspectFill" />
+                                            </Border>
+
+                                            <VerticalStackLayout Grid.Column="1"
+                                                                 Spacing="4"
+                                                                 VerticalOptions="Center">
+                                                <Label Text="{Binding Title}"
+                                                       FontSize="16"
+                                                       FontAttributes="Bold"
+                                                       TextColor="#0F172A"
+                                                       MaxLines="2"
+                                                       LineBreakMode="TailTruncation" />
+                                                <Label Text="{Binding Subtitle}"
+                                                       FontSize="13"
+                                                       MaxLines="1"
+                                                       TextColor="#64748B" />
+                                                <Label Text="{Binding PlayedAtText}"
+                                                       FontSize="12"
+                                                       MaxLines="1"
+                                                       TextColor="#2563EB" />
+                                                <Label Text="{Binding LanguageText}"
+                                                       FontSize="12"
+                                                       MaxLines="1"
+                                                       TextColor="#64748B" />
+                                            </VerticalStackLayout>
+
+                                            <Button Grid.Column="2"
+                                                    Text="{local:Translate history_replay}"
+                                                    VerticalOptions="Center"
+                                                    Padding="14,8"
+                                                    CornerRadius="18"
+                                                    BackgroundColor="#111827"
+                                                    TextColor="White"
+                                                    Command="{Binding BindingContext.ReplayHistoryCommand, Source={x:Reference HomeRoot}}"
+                                                    CommandParameter="{Binding .}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="12">
+                        <Grid ColumnDefinitions="*,Auto"
+                              ColumnSpacing="12">
+                            <Label Text="{local:Translate home_offline_title}"
+                                   FontSize="20"
+                                   FontAttributes="Bold"
+                                   TextColor="#0F172A" />
+                            <Button Grid.Column="1"
+                                    Text="{local:Translate home_view_all}"
+                                    Padding="14,6"
+                                    CornerRadius="18"
+                                    FontSize="13"
+                                    BackgroundColor="#E0E7FF"
+                                    TextColor="#3730A3"
+                                    Command="{Binding OpenOfflineCommand}" />
+                        </Grid>
+
+                        <Label Text="{local:Translate home_offline_subtitle}"
+                               FontSize="13"
+                               TextColor="{StaticResource Gray500}" />
+
+                        <CollectionView ItemsSource="{Binding OfflineTours}"
+                                        SelectionMode="None">
+                            <CollectionView.EmptyView>
+                                <Border Padding="16"
+                                        BackgroundColor="White"
+                                        Stroke="#E2E8F0"
+                                        StrokeShape="RoundRectangle 18">
+                                    <Label Text="{local:Translate home_offline_empty}"
+                                           FontSize="13"
+                                           TextColor="{StaticResource Gray500}" />
+                                </Border>
+                            </CollectionView.EmptyView>
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate x:DataType="vm:HomeTourCardViewModel">
+                                    <Border Margin="0,0,0,12"
+                                            BackgroundColor="White"
+                                            Stroke="#E2E8F0"
+                                            StrokeThickness="1"
+                                            StrokeShape="RoundRectangle 20"
+                                            Padding="12">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding BindingContext.OpenTourDetailCommand, Source={x:Reference HomeRoot}}"
+                                                                  CommandParameter="{Binding .}" />
+                                        </Border.GestureRecognizers>
+                                        <Grid ColumnDefinitions="72,*,Auto"
+                                              ColumnSpacing="12">
+                                            <Border WidthRequest="72"
+                                                    HeightRequest="72"
+                                                    BackgroundColor="#E5E7EB"
+                                                    StrokeThickness="0"
+                                                    StrokeShape="RoundRectangle 16">
+                                                <Image Source="{Binding ImageSource, Converter={StaticResource FlexibleImageSourceConverter}}"
+                                                       Aspect="AspectFill" />
+                                            </Border>
+
+                                            <VerticalStackLayout Grid.Column="1"
+                                                                 Spacing="4"
+                                                                 VerticalOptions="Center">
+                                                <Label Text="{Binding Name}"
+                                                       FontSize="16"
+                                                       FontAttributes="Bold"
+                                                       TextColor="#0F172A"
+                                                       MaxLines="2"
+                                                       LineBreakMode="TailTruncation" />
+                                                <Label Text="{Binding Summary}"
+                                                       FontSize="13"
+                                                       MaxLines="1"
+                                                       TextColor="#2563EB" />
+                                                <Label Text="{Binding MetaText}"
+                                                       FontSize="12"
+                                                       MaxLines="1"
+                                                       TextColor="#64748B" />
+                                            </VerticalStackLayout>
+
+                                            <Label Grid.Column="2"
+                                                   Text="↓"
+                                                   FontSize="22"
+                                                   TextColor="#2563EB"
+                                                   VerticalOptions="Center" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </ScrollView>
+        </RefreshView>
+
+        <views:MiniPlayerView Grid.Row="2" />
+    </Grid>
+
+</ContentPage>
