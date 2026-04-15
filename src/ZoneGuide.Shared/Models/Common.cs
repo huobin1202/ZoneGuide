@@ -104,6 +104,7 @@ public class NarrationQueueItem
     public string? TTSText { get; set; }
     public string Language { get; set; } = "vi-VN";
     public int Priority { get; set; }
+    public bool IsManualPlayback { get; set; }
     public GeofenceEventType TriggerType { get; set; }
     public double TriggerDistance { get; set; }
     public DateTime QueuedAt { get; set; } = DateTime.UtcNow;

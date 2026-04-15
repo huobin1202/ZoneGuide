@@ -27,7 +27,7 @@ public partial class MapViewModel : ObservableObject
     private const double DefaultTriggerRadiusMeters = 60;
     private const double MinTriggerRadiusMeters = 20;
     private const double MaxActivationRadiusMeters = 5000;
-    private const double NarrationStopHysteresisMeters = 28;
+    private const double NarrationStopHysteresisMeters = 45;
     private static readonly TimeSpan AutoNarrationDebounce = TimeSpan.FromSeconds(1.2);
     private static readonly TimeSpan AutoNarrationSamePoiCooldown = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan AutoOpenPoiDetailCooldown = TimeSpan.FromSeconds(20);
@@ -42,6 +42,7 @@ public partial class MapViewModel : ObservableObject
     private readonly INarrationService _narrationService;
     private readonly ITourRepository _tourRepository;
     private readonly ISyncService _syncService;
+    private readonly ISettingsService _settingsService;
 
     private bool _startTourRequested;
     private int? _requestedTourId;
@@ -182,7 +183,8 @@ public partial class MapViewModel : ObservableObject
         IPOIRepository poiRepository,
         INarrationService narrationService,
         ITourRepository tourRepository,
-        ISyncService syncService)
+        ISyncService syncService,
+        ISettingsService settingsService)
     {
         _locationService = locationService;
         _geofenceService = geofenceService;
@@ -190,6 +192,7 @@ public partial class MapViewModel : ObservableObject
         _narrationService = narrationService;
         _tourRepository = tourRepository;
         _syncService = syncService;
+        _settingsService = settingsService;
 
         _locationService.LocationChanged += OnLocationChanged;
         _geofenceService.GeofenceTriggered += OnGeofenceTriggered;
@@ -901,6 +904,7 @@ public partial class MapViewModel : ObservableObject
         _geofenceService.ResetCooldown(SelectedPOI.Id);
 
         var item = BuildNarrationItem(SelectedPOI, GeofenceEventType.Enter, 0);
+        item.IsManualPlayback = true;
 
         await _narrationService.PlayImmediatelyAsync(item);
         UpdateSelectedPoiNarrationState();
@@ -1093,8 +1097,9 @@ public partial class MapViewModel : ObservableObject
 
         try
         {
-            var autoPlayEnabled = IsTourModeActive;
+            var autoPlayEnabled = _settingsService.Settings.AutoPlayOnEnter;
             var currentItemPoiId = _narrationService.CurrentItem?.POI.Id;
+            var isManualPlayback = _narrationService.CurrentItem?.IsManualPlayback == true;
             var hasActiveNarration = _narrationService.IsPlaying || _narrationService.IsPaused;
 
             if (evt.EventType == GeofenceEventType.Exit)
@@ -1152,6 +1157,12 @@ public partial class MapViewModel : ObservableObject
             }
 
             if (hasActiveNarration && currentItemPoiId == evt.POI.Id)
+            {
+                _lastInRangePoiId = evt.POI.Id;
+                return;
+            }
+
+            if (isManualPlayback)
             {
                 _lastInRangePoiId = evt.POI.Id;
                 return;
@@ -1309,7 +1320,7 @@ public partial class MapViewModel : ObservableObject
 
         try
         {
-            var autoPlayEnabled = IsTourModeActive;
+            var autoPlayEnabled = _settingsService.Settings.AutoPlayOnEnter;
             var monitored = _geofenceService.MonitoredPOIs;
             if (monitored.Count == 0)
                 return;
@@ -1348,6 +1359,7 @@ public partial class MapViewModel : ObservableObject
 
             var activeItem = _narrationService.CurrentItem;
             var hasActiveNarration = _narrationService.IsPlaying || _narrationService.IsPaused;
+            var isManualPlayback = activeItem?.IsManualPlayback == true;
 
             if (inRange == null)
             {
@@ -1356,9 +1368,12 @@ public partial class MapViewModel : ObservableObject
 
                 if (autoPlayEnabled && hasActiveNarration && activeItem != null)
                 {
+                    if (isManualPlayback)
+                        return;
+
                     var currentDistance = location.DistanceTo(activeItem.POI.Latitude, activeItem.POI.Longitude);
-                    var currentTriggerRadius = GetEffectiveTriggerRadiusMeters(activeItem.POI);
-                    var stopRadius = currentTriggerRadius + NarrationStopHysteresisMeters;
+                    var currentApproachRadius = GetEffectiveApproachRadiusMeters(activeItem.POI);
+                    var stopRadius = currentApproachRadius + NarrationStopHysteresisMeters;
 
                     if (currentDistance > stopRadius)
                     {
@@ -1399,6 +1414,12 @@ public partial class MapViewModel : ObservableObject
             if (hasActiveNarration && activeItem != null)
             {
                 if (activeItem.POI.Id == candidatePoi.Id)
+                {
+                    _lastInRangePoiId = candidatePoi.Id;
+                    return;
+                }
+
+                if (isManualPlayback)
                 {
                     _lastInRangePoiId = candidatePoi.Id;
                     return;

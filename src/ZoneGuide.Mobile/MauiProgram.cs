@@ -63,10 +63,10 @@ public static class MauiProgram
         builder.Services.AddSingleton<SettingsViewModel>();
 
         // Register Views
-        builder.Services.AddTransient<AppShell>();
+        builder.Services.AddSingleton<AppShell>();
         builder.Services.AddSingleton<MainPage>();
         builder.Services.AddSingleton<HomePage>();
-        builder.Services.AddSingleton<MapPage>();
+        builder.Services.AddTransient<MapPage>();
         builder.Services.AddSingleton<MorePage>();
         builder.Services.AddSingleton<POIListPage>();
         builder.Services.AddSingleton<HistoryPage>();

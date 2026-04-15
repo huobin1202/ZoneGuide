@@ -339,6 +339,7 @@ public enum HistoryFilterType
                 ? _settingsService.Settings.PreferredLanguage
                 : item.LastLanguageCode,
             Priority = poi.Priority,
+            IsManualPlayback = true,
             TriggerType = GeofenceEventType.Enter,
             TriggerDistance = 0
         };

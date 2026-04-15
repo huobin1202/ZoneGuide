@@ -28,10 +28,11 @@ public partial class AppShell : Shell
     protected override void OnHandlerChanged()
     {
         base.OnHandlerChanged();
-        if (Handler?.MauiContext is null || _narrationPrefsApplied)
+        var services = Handler?.MauiContext?.Services;
+        if (services == null || _narrationPrefsApplied)
             return;
 
-        _ = ApplySavedNarrationPreferencesAsync();
+        _ = ApplySavedNarrationPreferencesAsync(services);
     }
 
     protected override void OnDisappearing()
@@ -56,11 +57,10 @@ public partial class AppShell : Shell
         MoreTab.Title = AppLocalizer.Instance.Translate("tab_more");
     }
 
-    private async Task ApplySavedNarrationPreferencesAsync()
+    private async Task ApplySavedNarrationPreferencesAsync(IServiceProvider services)
     {
         try
         {
-            var services = Handler!.MauiContext!.Services;
             var settings = services.GetService<ISettingsService>();
             var narration = services.GetService<INarrationService>();
             if (settings == null || narration == null)
@@ -72,6 +72,10 @@ public partial class AppShell : Shell
             narration.SetTTSSpeed(s.TTSSpeed);
             await narration.SetVoiceAsync(s.PreferredVoice);
             _narrationPrefsApplied = true;
+        }
+        catch (ObjectDisposedException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[AppShell] Bo qua ap dung cai dat TTS do scope da dispose: {ex.Message}");
         }
         catch (Exception ex)
         {

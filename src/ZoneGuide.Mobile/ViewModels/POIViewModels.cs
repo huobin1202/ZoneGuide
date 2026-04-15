@@ -258,11 +258,11 @@ public partial class POIListViewModel : ObservableObject
         return new NarrationQueueItem
         {
             POI = poi,
-            AudioPath = poi.AudioFilePath,
             AudioUrl = poi.AudioUrl,
             TTSText = poi.TTSScript,
             Language = poi.Language,
             Priority = poi.Priority,
+            IsManualPlayback = true,
             TriggerType = GeofenceEventType.Enter,
             TriggerDistance = 0
         };

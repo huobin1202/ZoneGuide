@@ -17,9 +17,25 @@
                 StrokeShape="RoundRectangle 0,0,28,28"
                 Padding="20,28,20,20">
             <VerticalStackLayout Spacing="18">
-                <Grid ColumnDefinitions="*,Auto"
+                <Grid ColumnDefinitions="Auto,*,Auto"
                       ColumnSpacing="12">
-                    <VerticalStackLayout Spacing="6">
+                    <Border WidthRequest="48"
+                            HeightRequest="48"
+                            BackgroundColor="#33FFFFFF"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 24">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnBackTapped" />
+                        </Border.GestureRecognizers>
+                        <Label Text="‹"
+                               FontSize="28"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center"
+                               TextColor="White" />
+                    </Border>
+
+                    <VerticalStackLayout Grid.Column="1"
+                                         Spacing="6">
                         <Label Text="{local:Translate offline_title}"
                                FontSize="30"
                                FontAttributes="Bold"
@@ -29,7 +45,7 @@
                                TextColor="#E9D5FF" />
                     </VerticalStackLayout>
 
-                    <Button Grid.Column="1"
+                    <Button Grid.Column="2"
                             Text="{local:Translate offline_download_all}"
                             Padding="14,8"
                             BackgroundColor="#44FFFFFF"
