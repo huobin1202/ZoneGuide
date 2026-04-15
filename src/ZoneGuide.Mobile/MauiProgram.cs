@@ -3,6 +3,7 @@ using ZoneGuide.Mobile.ViewModels;
 using ZoneGuide.Mobile.Views;
 using ZoneGuide.Shared.Interfaces;
 using Microsoft.Extensions.Logging;
+using ZXing.Net.Maui.Controls;
 
 namespace ZoneGuide.Mobile;
 
@@ -16,6 +17,7 @@ public static class MauiProgram
         builder
             .UseMauiApp<App>()
             .UseMauiMaps()
+            .UseBarcodeReader()
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
@@ -75,6 +77,7 @@ public static class MauiProgram
         builder.Services.AddTransient<LanguageSelectionPage>();
         builder.Services.AddTransient<POIDetailPage>();
         builder.Services.AddTransient<TourDetailPage>();
+        builder.Services.AddTransient<QRScannerPage>();
         builder.Services.AddSingleton<SettingsPage>();
 
         return builder.Build();

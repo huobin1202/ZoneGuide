@@ -28,10 +28,12 @@ public interface IPOIContributionService
 public class POIContributionService : IPOIContributionService
 {
     private readonly AppDbContext _context;
+    private readonly PoiQrCodeService _poiQrCodeService;
     
-    public POIContributionService(AppDbContext context)
+    public POIContributionService(AppDbContext context, PoiQrCodeService poiQrCodeService)
     {
         _context = context;
+        _poiQrCodeService = poiQrCodeService;
     }
     
     #region Contributor Methods
@@ -300,6 +302,9 @@ public class POIContributionService : IPOIContributionService
             }
 
             await _context.SaveChangesAsync();
+
+            // Generate QR code for the approved POI (payload = "POI:{id}").
+            await _poiQrCodeService.EnsureQrCodeGeneratedAsync(poi.Id);
 
             // Persist link so subsequent contributor edits can target the same POI.
             contribution.OriginalPOIId = poi.Id;

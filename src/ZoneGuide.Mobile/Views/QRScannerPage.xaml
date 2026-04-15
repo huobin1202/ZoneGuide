@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:zxing="clr-namespace:ZXing.Net.Maui.Controls;assembly=ZXing.Net.Maui.Controls"
+             x:Class="ZoneGuide.Mobile.Views.QRScannerPage"
+             x:Name="QRScannerRoot"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="#0B1220">
+
+    <Grid>
+        <zxing:CameraBarcodeReaderView x:Name="_reader"
+                                         HorizontalOptions="FillAndExpand"
+                                         VerticalOptions="FillAndExpand"
+                                         IsDetecting="False"
+                                         BarcodesDetected="OnBarcodesDetected" />
+
+        <Grid RowDefinitions="Auto,*,Auto" Padding="16">
+            <!-- Top bar -->
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" VerticalOptions="Start">
+                <Button Text="✕"
+                        WidthRequest="44"
+                        HeightRequest="44"
+                        CornerRadius="22"
+                        BackgroundColor="#111827"
+                        TextColor="White"
+                        Clicked="OnCloseClicked" />
+
+                <Button Grid.Column="1"
+                        Text="⚙"
+                        WidthRequest="44"
+                        HeightRequest="44"
+                        CornerRadius="22"
+                        BackgroundColor="#111827"
+                        TextColor="White"
+                        IsEnabled="False" />
+            </Grid>
+
+            <!-- Center overlay -->
+            <StackLayout Grid.Row="1" Spacing="18" HorizontalOptions="Center" VerticalOptions="Center">
+                <Border WidthRequest="260"
+                        HeightRequest="260"
+                        Stroke="#E5E7EB"
+                        StrokeThickness="3"
+                        StrokeShape="RoundRectangle 28"
+                        BackgroundColor="#00000000"
+                        InputTransparent="True" />
+
+                <Label Text="Scan QR code"
+                       FontSize="18"
+                       FontAttributes="Bold"
+                       TextColor="White"
+                       HorizontalTextAlignment="Center" />
+            </StackLayout>
+
+            <!-- Bottom action -->
+            <Button Grid.Row="2"
+                    Text="Scan from photo"
+                    HeightRequest="52"
+                    CornerRadius="26"
+                    BackgroundColor="#111827"
+                    TextColor="White"
+                    Clicked="OnScanFromPhotoClicked" />
+        </Grid>
+    </Grid>
+</ContentPage>
+

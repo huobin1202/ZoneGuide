@@ -13,17 +13,20 @@ public class POIsController : ControllerBase
 {
     private readonly IPOIService _poiService;
     private readonly IActivityLogService _activityLogService;
+    private readonly PoiQrCodeService _poiQrCodeService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<POIsController> _logger;
 
     public POIsController(
         IPOIService poiService,
         IActivityLogService activityLogService,
+        PoiQrCodeService poiQrCodeService,
         IHttpClientFactory httpClientFactory,
         ILogger<POIsController> logger)
     {
         _poiService = poiService;
         _activityLogService = activityLogService;
+        _poiQrCodeService = poiQrCodeService;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
@@ -268,6 +271,10 @@ public class POIsController : ControllerBase
         {
             var (actorEmail, actorName) = GetActorIdentity();
             var poi = await _poiService.CreateAsync(dto);
+            if (int.TryParse(poi.Id, out var poiId))
+            {
+                await _poiQrCodeService.EnsureQrCodeGeneratedAsync(poiId);
+            }
             await _activityLogService.LogAsync("Create", "POI", poi.Id, poi.Name, $"Tạo POI mới: {poi.Name}", null, actorEmail, actorName);
             return CreatedAtAction(nameof(GetById), new { id = poi.Id }, poi);
         }
@@ -291,6 +298,10 @@ public class POIsController : ControllerBase
             if (poi == null)
             {
                 return NotFound($"POI with ID '{id}' not found");
+            }
+            if (int.TryParse(poi.Id, out var poiId))
+            {
+                await _poiQrCodeService.EnsureQrCodeGeneratedAsync(poiId);
             }
             await _activityLogService.LogAsync("Update", "POI", id, poi.Name, $"Cập nhật POI: {poi.Name}", null, actorEmail, actorName);
             return Ok(poi);

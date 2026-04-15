@@ -766,7 +766,7 @@ public partial class MapViewModel : ObservableObject
         }
     }
 
-    public async Task<bool> FocusPOIByIdAsync(int poiId)
+    public async Task<bool> FocusPOIByIdAsync(int poiId, bool allowServerSync = false)
     {
         if (poiId <= 0)
             return false;
@@ -774,6 +774,22 @@ public partial class MapViewModel : ObservableObject
         var poi = _allPOIs.FirstOrDefault(p => p.Id == poiId)
                   ?? POIs.FirstOrDefault(p => p.Id == poiId)
                   ?? await _poiRepository.GetByIdAsync(poiId);
+
+        if (poi == null && allowServerSync)
+        {
+            try
+            {
+                // QR có thể được tạo ngay sau khi POI được approve (trên server),
+                // trong lúc app chưa kịp sync -> fallback sync rồi thử lại.
+                await _syncService.SyncFromServerAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MapVM] SyncFromServerAsync failed while focusing POI {poiId}: {ex.Message}");
+            }
+
+            poi = await _poiRepository.GetByIdAsync(poiId);
+        }
 
         if (poi == null)
             return false;

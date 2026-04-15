@@ -38,6 +38,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
     private bool _tourOverlayRequestedOnNavigation;
     private bool _isMapPoiSheetPanning;
     private int? _focusPoiIdRequestedOnNavigation;
+    private bool _autoPlayRequestedOnNavigation;
     private bool _openSearchRequestedOnNavigation;
     private bool _startNavigationToPoiRequestedOnNavigation;
     private bool _isTourSheetPanning;
@@ -228,19 +229,28 @@ public partial class MapPage : ContentPage, IQueryAttributable
 
             if (_focusPoiIdRequestedOnNavigation.HasValue)
             {
+                var focused = false;
                 if (_startNavigationToPoiRequestedOnNavigation)
                 {
-                    await _viewModel.PrepareInAppNavigationToPoiAsync(_focusPoiIdRequestedOnNavigation.Value);
+                    focused = await _viewModel.PrepareInAppNavigationToPoiAsync(_focusPoiIdRequestedOnNavigation.Value);
                 }
                 else
                 {
-                    await _viewModel.FocusPOIByIdAsync(_focusPoiIdRequestedOnNavigation.Value);
+                    focused = await _viewModel.FocusPOIByIdAsync(
+                        _focusPoiIdRequestedOnNavigation.Value,
+                        allowServerSync: _autoPlayRequestedOnNavigation);
+                }
+
+                if (_autoPlayRequestedOnNavigation && focused && _viewModel.PlaySelectedPOICommand.CanExecute(null))
+                {
+                    await _viewModel.PlaySelectedPOICommand.ExecuteAsync(null);
                 }
 
                 UpdateMapPins();
                 UpdateMapRegion();
                 _focusPoiIdRequestedOnNavigation = null;
                 _startNavigationToPoiRequestedOnNavigation = false;
+                _autoPlayRequestedOnNavigation = false;
             }
 
             if (!_tourOverlayRequestedOnNavigation)
@@ -291,6 +301,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
             var startTour = TryGetBoolQueryValue(query, "startTour");
             _openSearchRequestedOnNavigation = TryGetBoolQueryValue(query, "openSearch");
             _startNavigationToPoiRequestedOnNavigation = TryGetBoolQueryValue(query, "navigate");
+            _autoPlayRequestedOnNavigation = TryGetBoolQueryValue(query, "autoplay");
             var hasTourOverlayContext = startTour && tourId.HasValue;
 
             _tourOverlayRequestedOnNavigation = hasTourOverlayContext;
@@ -307,19 +318,28 @@ public partial class MapPage : ContentPage, IQueryAttributable
                 {
                     _ = MainThread.InvokeOnMainThreadAsync(async () =>
                     {
+                        var focused = false;
                         if (_startNavigationToPoiRequestedOnNavigation)
                         {
-                            await _viewModel.PrepareInAppNavigationToPoiAsync(_focusPoiIdRequestedOnNavigation.Value);
+                            focused = await _viewModel.PrepareInAppNavigationToPoiAsync(_focusPoiIdRequestedOnNavigation.Value);
                         }
                         else
                         {
-                            await _viewModel.FocusPOIByIdAsync(_focusPoiIdRequestedOnNavigation.Value);
+                            focused = await _viewModel.FocusPOIByIdAsync(
+                                _focusPoiIdRequestedOnNavigation.Value,
+                                allowServerSync: _autoPlayRequestedOnNavigation);
+                        }
+
+                        if (_autoPlayRequestedOnNavigation && focused && _viewModel.PlaySelectedPOICommand.CanExecute(null))
+                        {
+                            await _viewModel.PlaySelectedPOICommand.ExecuteAsync(null);
                         }
 
                         UpdateMapPins();
                         UpdateMapRegion();
                         _focusPoiIdRequestedOnNavigation = null;
                         _startNavigationToPoiRequestedOnNavigation = false;
+                        _autoPlayRequestedOnNavigation = false;
                     });
                 }
 
@@ -332,17 +352,26 @@ public partial class MapPage : ContentPage, IQueryAttributable
 
                 if (_focusPoiIdRequestedOnNavigation.HasValue)
                 {
+                    var focused = false;
                     if (_startNavigationToPoiRequestedOnNavigation)
                     {
-                        await _viewModel.PrepareInAppNavigationToPoiAsync(_focusPoiIdRequestedOnNavigation.Value);
+                        focused = await _viewModel.PrepareInAppNavigationToPoiAsync(_focusPoiIdRequestedOnNavigation.Value);
                     }
                     else
                     {
-                        await _viewModel.FocusPOIByIdAsync(_focusPoiIdRequestedOnNavigation.Value);
+                        focused = await _viewModel.FocusPOIByIdAsync(
+                            _focusPoiIdRequestedOnNavigation.Value,
+                            allowServerSync: _autoPlayRequestedOnNavigation);
+                    }
+
+                    if (_autoPlayRequestedOnNavigation && focused && _viewModel.PlaySelectedPOICommand.CanExecute(null))
+                    {
+                        await _viewModel.PlaySelectedPOICommand.ExecuteAsync(null);
                     }
 
                     _focusPoiIdRequestedOnNavigation = null;
                     _startNavigationToPoiRequestedOnNavigation = false;
+                    _autoPlayRequestedOnNavigation = false;
                 }
 
                 UpdateMapPins();
@@ -1513,5 +1542,10 @@ public partial class MapPage : ContentPage, IQueryAttributable
         }
 
         command.Execute(null);
+    }
+
+    private async void OnScanQrClicked(object? sender, EventArgs e)
+    {
+        await QrScannerNavigationHelper.OpenScannerAsync(this);
     }
 }

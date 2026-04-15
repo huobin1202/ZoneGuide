@@ -17,6 +17,11 @@ public interface IApiService
     Task<POIDto?> UpdatePOIAsync(string id, UpdatePOIDto dto);
     Task<bool> DeletePOIAsync(string id);
 
+    // POI QR codes
+    Task<List<PoiQrCodeDto>> GetPoiQRCodesAsync(bool includeInactive = false);
+    Task<PoiQrCodeDto?> GeneratePoiQrCodeAsync(string poiId, bool force = false);
+    Task<int> GenerateMissingPoiQRCodesAsync(bool includeInactive = false, bool force = false);
+
     // Tour Operations
     Task<List<TourDto>> GetToursAsync();
     Task<TourDto?> GetTourAsync(string id);
@@ -48,6 +53,16 @@ public class ApiService : IApiService
     public ApiService(HttpClient httpClient)
     {
         _httpClient = httpClient;
+    }
+
+    private PoiQrCodeDto NormalizeQrCodeDto(PoiQrCodeDto dto)
+    {
+        if (!string.IsNullOrWhiteSpace(dto.QrUrl) && Uri.TryCreate(_httpClient.BaseAddress, dto.QrUrl, out var absoluteUri))
+        {
+            dto.QrUrl = absoluteUri.ToString();
+        }
+
+        return dto;
     }
 
     // POI Operations
@@ -178,6 +193,57 @@ public class ApiService : IApiService
         catch
         {
             return false;
+        }
+    }
+
+    // POI QR codes
+    public async Task<List<PoiQrCodeDto>> GetPoiQRCodesAsync(bool includeInactive = false)
+    {
+        try
+        {
+            var url = $"api/qrcodes/pois?includeInactive={includeInactive.ToString().ToLowerInvariant()}";
+            var items = await _httpClient.GetFromJsonAsync<List<PoiQrCodeDto>>(url) ?? new List<PoiQrCodeDto>();
+            return items.Select(NormalizeQrCodeDto).ToList();
+        }
+        catch
+        {
+            return new List<PoiQrCodeDto>();
+        }
+    }
+
+    public async Task<PoiQrCodeDto?> GeneratePoiQrCodeAsync(string poiId, bool force = false)
+    {
+        try
+        {
+            var url = $"api/qrcodes/pois/{Uri.EscapeDataString(poiId)}/generate?force={force.ToString().ToLowerInvariant()}";
+            var response = await _httpClient.PostAsync(url, content: null);
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            var dto = await response.Content.ReadFromJsonAsync<PoiQrCodeDto>();
+            return dto == null ? null : NormalizeQrCodeDto(dto);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<int> GenerateMissingPoiQRCodesAsync(bool includeInactive = false, bool force = false)
+    {
+        try
+        {
+            var url = $"api/qrcodes/pois/generate-missing?includeInactive={includeInactive.ToString().ToLowerInvariant()}&force={force.ToString().ToLowerInvariant()}";
+            var response = await _httpClient.PostAsync(url, content: null);
+            if (!response.IsSuccessStatusCode)
+                return 0;
+
+            var value = await response.Content.ReadFromJsonAsync<int>();
+            return value;
+        }
+        catch
+        {
+            return 0;
         }
     }
 

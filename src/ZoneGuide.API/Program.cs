@@ -88,6 +88,7 @@ builder.Services.AddScoped<ITourService, TourService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<ISyncService, SyncService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddSingleton<PoiQrCodeService>();
 builder.Services.AddScoped<IPOIContributionService, POIContributionService>();
 builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
 

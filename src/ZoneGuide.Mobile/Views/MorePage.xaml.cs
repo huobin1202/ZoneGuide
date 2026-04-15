@@ -9,4 +9,9 @@ public partial class MorePage : ContentPage
         InitializeComponent();
         BindingContext = viewModel;
     }
+
+    private async void OnScanQrClicked(object? sender, EventArgs e)
+    {
+        await QrScannerNavigationHelper.OpenScannerAsync(this);
+    }
 }

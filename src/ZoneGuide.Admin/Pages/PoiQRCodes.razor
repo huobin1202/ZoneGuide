@@ -1,0 +1,176 @@
+@page "/poi-qrcodes"
+@using ZoneGuide.Shared.Models
+@inject IApiService ApiService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudGrid>
+    <MudItem xs="12">
+        <MudPaper Class="pa-4 mb-4">
+            <MudGrid>
+                <MudItem xs="12" sm="8">
+                    <MudText Typo="Typo.h5" Class="mb-1">Quản lý mã QR POI</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Payload: <code>POI:{id}</code>. Ứng dụng sẽ mở MapPage và phát audio theo POI tương ứng.
+                    </MudText>
+                </MudItem>
+                <MudItem xs="12" sm="4" Class="d-flex justify-end align-center">
+                    <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="GenerateMissingAllAsync" Disabled="@_generating">
+                        @if (_generating)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            <span>Đang tạo...</span>
+                        }
+                        else
+                        {
+                            <span>Tạo QR bị thiếu</span>
+                        }
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12">
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
+            Tổng POI: @_codes.Count
+        </MudText>
+    </MudItem>
+
+    <MudItem xs="12">
+        <MudGrid>
+            @foreach (var qr in _codes.OrderBy(x => x.PoiId))
+            {
+                <MudItem xs="12" md="6" lg="4">
+                    <MudCard Class="mb-4">
+                        <MudCardContent>
+                            <MudStack Spacing="1">
+                                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                                    <MudChip T="string" Color="@(qr.Exists ? Color.Success : Color.Error)" Variant="Variant.Filled">
+                                        @(qr.Exists ? "Có QR" : "Chưa có")
+                                    </MudChip>
+                                    <MudText Typo="Typo.subtitle1" Class="font-weight-bold">
+                                        @(string.IsNullOrWhiteSpace(qr.Name) ? $"POI #{qr.PoiId}" : qr.Name)
+                                    </MudText>
+                                </MudStack>
+
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    POI ID: @qr.PoiId
+                                </MudText>
+
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+                                    Payload
+                                </MudText>
+                                <MudText Typo="Typo.body2" Class="mb-2">
+                                    <code style="word-break: break-word;">@qr.Payload</code>
+                                </MudText>
+
+                                <img src="@qr.QrUrl"
+                                     style="width: 200px; height: 200px; border-radius: 12px; background: #f3f4f6;"
+                                     onerror="this.style.display='none';"
+                                     alt="QR POI @qr.PoiId" />
+
+                                <MudStack Row="true" Spacing="2" Class="mt-3">
+                                    @if (qr.Exists)
+                                    {
+                                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="() => RegenerateAsync(qr.PoiId)">
+                                            Regenerate
+                                        </MudButton>
+                                    }
+                                    else
+                                    {
+                                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => GenerateAsync(qr.PoiId)">
+                                            Tạo QR
+                                        </MudButton>
+                                    }
+                                </MudStack>
+                            </MudStack>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private List<PoiQrCodeDto> _codes = new();
+    private bool _generating;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _codes = await ApiService.GetPoiQRCodesAsync(includeInactive: true);
+    }
+
+    private async Task GenerateAsync(int poiId)
+    {
+        _generating = true;
+        try
+        {
+            var result = await ApiService.GeneratePoiQrCodeAsync(poiId.ToString(), force: false);
+            if (result == null)
+            {
+                Snackbar.Add("Tạo QR thất bại", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add($"Đã tạo QR cho POI {poiId}", Severity.Success);
+            await LoadAsync();
+        }
+        finally
+        {
+            _generating = false;
+        }
+    }
+
+    private async Task RegenerateAsync(int poiId)
+    {
+        _generating = true;
+        try
+        {
+            var result = await ApiService.GeneratePoiQrCodeAsync(poiId.ToString(), force: true);
+            if (result == null)
+            {
+                Snackbar.Add("Regenerate QR thất bại", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add($"Đã regenerate QR cho POI {poiId}", Severity.Success);
+            await LoadAsync();
+        }
+        finally
+        {
+            _generating = false;
+        }
+    }
+
+    private async Task GenerateMissingAllAsync()
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Tạo QR bị thiếu",
+            "Hệ thống sẽ sinh QR cho các POI chưa có (payload = POI:{id}). Bạn muốn tiếp tục không?",
+            yesText: "Xác nhận",
+            cancelText: "Hủy");
+
+        if (confirm != true)
+            return;
+
+        _generating = true;
+        try
+        {
+            var count = await ApiService.GenerateMissingPoiQRCodesAsync(includeInactive: true, force: false);
+            Snackbar.Add($"Đã tạo {count} mã QR mới.", Severity.Success);
+            await LoadAsync();
+        }
+        finally
+        {
+            _generating = false;
+        }
+    }
+}
+

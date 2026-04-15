@@ -23,6 +23,7 @@ public partial class AppShell : Shell
         Routing.RegisterRoute(nameof(HistoryPage), typeof(HistoryPage));
         Routing.RegisterRoute(nameof(OfflinePage), typeof(OfflinePage));
         Routing.RegisterRoute(nameof(SettingsPage), typeof(SettingsPage));
+        Routing.RegisterRoute(nameof(QRScannerPage), typeof(QRScannerPage));
     }
 
     protected override void OnHandlerChanged()

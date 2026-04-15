@@ -55,6 +55,18 @@ public class POIDto
 }
 
 /// <summary>
+/// DTO trạng thái mã QR của POI (payload = "POI:{id}")
+/// </summary>
+public class PoiQrCodeDto
+{
+    public int PoiId { get; set; }
+    public string Payload { get; set; } = string.Empty;
+    public string? Name { get; set; }
+    public string QrUrl { get; set; } = string.Empty;
+    public bool Exists { get; set; }
+}
+
+/// <summary>
 /// DTO tạo POI mới
 /// </summary>
 public class CreatePOIDto
