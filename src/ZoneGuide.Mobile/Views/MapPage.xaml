@@ -409,12 +409,12 @@
                         <CollectionView.ItemTemplate>
                             <DataTemplate x:DataType="models:POI">
                                 <Border WidthRequest="176"
-                                        HeightRequest="202"
-                                        Padding="7"
-                                        BackgroundColor="White"
-                                        Stroke="#E5E7EB"
-                                        StrokeThickness="1"
-                                        StrokeShape="RoundRectangle 18">
+                                    HeightRequest="202"
+                                    Padding="7"
+                                    BackgroundColor="White"
+                                    Stroke="#E5E7EB"
+                                    StrokeThickness="1"
+                                    StrokeShape="RoundRectangle 18">
                                     <Border.Triggers>
                                         <DataTrigger TargetType="Border"
                                                      Value="True">

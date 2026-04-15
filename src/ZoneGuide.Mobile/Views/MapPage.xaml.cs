@@ -17,7 +17,7 @@ namespace ZoneGuide.Mobile.Views;
 
 public partial class MapPage : ContentPage, IQueryAttributable
 {
-    private const double MapPoiSheetHandleOnlyHeight = 30;
+    private const double MapPoiSheetHandleOnlyHeight = 50;
     private const double MapPoiSheetDefaultRatio = 0.5;
     private const double MapPoiSheetExpandedRatio = 0.72;
     private const double TourSheetExpandedHeight = 296;
@@ -601,8 +601,21 @@ public partial class MapPage : ContentPage, IQueryAttributable
                 if (TourPoiCollectionView != null)
                 {
                     TourPoiCollectionView.IsVisible = nextHeight > (TourSheetCollapsedHeight + 12);
+                    // Thu nhỏ chiều cao các card theo chiều cao sheet
+                    double minCardHeight = 60;
+                    double maxCardHeight = 202;
+                    double minSheet = TourSheetCollapsedHeight;
+                    double maxSheet = TourSheetExpandedHeight;
+                    double cardHeight = minCardHeight + (maxCardHeight - minCardHeight) * ((nextHeight - minSheet) / (maxSheet - minSheet));
+                    cardHeight = Math.Clamp(cardHeight, minCardHeight, maxCardHeight);
+                    foreach (var item in TourPoiCollectionView.ItemsSource)
+                    {
+                        if (TourPoiCollectionView.ItemTemplate.CreateContent() is Border border)
+                        {
+                            border.HeightRequest = cardHeight;
+                        }
+                    }
                 }
-
                 UpdateSelectedPoiOverlayMargin(nextHeight);
                 break;
 

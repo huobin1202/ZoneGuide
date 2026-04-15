@@ -247,6 +247,8 @@ public partial class TourDetailViewModel : ObservableObject
                 }
             }
 
+            NormalizePoiOrderForDisplay(pois);
+
             POIs.Clear();
             foreach (var poi in pois)
             {
@@ -264,6 +266,41 @@ public partial class TourDetailViewModel : ObservableObject
         RefreshDisplayState();
         await _mapViewModel.ActivateTourAsync(TourId);
         RefreshDisplayState();
+    }
+
+    private static void NormalizePoiOrderForDisplay(IList<POI> pois)
+    {
+        if (pois.Count == 0)
+            return;
+
+        var orderedPois = pois
+            .OrderBy(p => p.OrderInTour < 0 ? int.MaxValue : p.OrderInTour)
+            .ThenBy(p => p.Name)
+            .ToList();
+
+        var nonNegativeOrders = orderedPois
+            .Where(p => p.OrderInTour >= 0)
+            .Select(p => p.OrderInTour)
+            .ToList();
+
+        var isZeroBasedSequence = nonNegativeOrders.Count == orderedPois.Count
+            && nonNegativeOrders.Count > 0
+            && nonNegativeOrders.Min() == 0
+            && nonNegativeOrders.Distinct().Count() == nonNegativeOrders.Count
+            && nonNegativeOrders.Max() == nonNegativeOrders.Count - 1;
+
+        if (isZeroBasedSequence)
+        {
+            for (var index = 0; index < orderedPois.Count; index++)
+            {
+                orderedPois[index].OrderInTour = index + 1;
+            }
+        }
+
+        for (var index = 0; index < orderedPois.Count; index++)
+        {
+            pois[index] = orderedPois[index];
+        }
     }
 
     private void RefreshDisplayState()

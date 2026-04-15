@@ -17,22 +17,22 @@
         <ScrollView>
             <VerticalStackLayout Padding="0,0,0,360"
                                  Spacing="0">
+
                 <Grid HeightRequest="308">
                     <Image Source="{Binding Tour.ThumbnailUrl, Converter={StaticResource FlexibleImageSourceConverter}}"
                            Aspect="AspectFill"
                            BackgroundColor="#D1D5DB" />
-
                     <BoxView Color="#26000000" />
 
-                    <Grid Padding="16,52,16,18"
-                          ColumnDefinitions="Auto,*,Auto"
-                          ColumnSpacing="12">
-                        <Border Grid.Column="0"
-                                WidthRequest="52"
+                    <!-- AbsoluteLayout để đặt nút quay về và tìm kiếm ở hai góc -->
+                    <AbsoluteLayout Padding="16,18,16,0">
+                        <Border WidthRequest="52"
                                 HeightRequest="52"
                                 BackgroundColor="#F2FFFFFF"
                                 StrokeThickness="0"
-                                StrokeShape="RoundRectangle 26">
+                                StrokeShape="RoundRectangle 26"
+                                AbsoluteLayout.LayoutBounds="0,0,52,52"
+                                AbsoluteLayout.LayoutFlags="None">
                             <Border.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnBackClicked" />
                             </Border.GestureRecognizers>
@@ -43,36 +43,23 @@
                                    TextColor="#111827" />
                         </Border>
 
-                        <HorizontalStackLayout Grid.Column="2"
-                                               Spacing="10">
-                            <Border WidthRequest="52"
-                                    HeightRequest="52"
-                                    BackgroundColor="#F2FFFFFF"
-                                    StrokeThickness="0"
-                                    StrokeShape="RoundRectangle 26">
-                                <Border.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnSearchTapped" />
-                                </Border.GestureRecognizers>
-                                <Label Text="⌕"
-                                       FontSize="26"
-                                       HorizontalOptions="Center"
-                                       VerticalOptions="Center"
-                                       TextColor="#111827" />
-                            </Border>
-
-                            <Border WidthRequest="52"
-                                    HeightRequest="52"
-                                    BackgroundColor="#F2FFFFFF"
-                                    StrokeThickness="0"
-                                    StrokeShape="RoundRectangle 26">
-                                <Label Text="♡"
-                                       FontSize="24"
-                                       HorizontalOptions="Center"
-                                       VerticalOptions="Center"
-                                       TextColor="#111827" />
-                            </Border>
-                        </HorizontalStackLayout>
-                    </Grid>
+                        <Border WidthRequest="52"
+                                HeightRequest="52"
+                                BackgroundColor="#F2FFFFFF"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 26"
+                                AbsoluteLayout.LayoutBounds="1,0,52,52"
+                                AbsoluteLayout.LayoutFlags="PositionProportional">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnSearchTapped" />
+                            </Border.GestureRecognizers>
+                            <Label Text="⌕"
+                                   FontSize="26"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"
+                                   TextColor="#111827" />
+                        </Border>
+                    </AbsoluteLayout>
                 </Grid>
 
                 <Grid Padding="16,0,16,0"
@@ -90,24 +77,7 @@
                             TextColor="White"
                             Command="{Binding ToggleTourAudioCommand}" />
 
-                    <Border Grid.Column="1"
-                            WidthRequest="56"
-                            HeightRequest="56"
-                            BackgroundColor="White"
-                            Stroke="#E5E7EB"
-                            StrokeThickness="1"
-                            StrokeShape="RoundRectangle 28"
-                            HorizontalOptions="Center"
-                            VerticalOptions="Center">
-                        <Border.GestureRecognizers>
-                            <TapGestureRecognizer Tapped="OnShowStartTapped" />
-                        </Border.GestureRecognizers>
-                        <Label Text="⌖"
-                               FontSize="22"
-                               HorizontalOptions="Center"
-                               VerticalOptions="Center"
-                               TextColor="#111827" />
-                    </Border>
+                    <!-- Đã xoá nút ở giữa (nút '⌖') giữa audio và map -->
 
                     <Border Grid.Column="2"
                             HeightRequest="56"
@@ -321,7 +291,8 @@
                     </Border>
                 </Grid>
 
-                <Grid Grid.Row="2"
+                <Grid x:Name="PoiSheetContent"
+                      Grid.Row="2"
                       Padding="16,0,16,0"
                       ColumnDefinitions="96,*"
                       ColumnSpacing="12">
@@ -420,10 +391,7 @@
                                                    TextColor="#111827"
                                                    MaxLines="2"
                                                    LineBreakMode="TailTruncation" />
-                                            <Label Text="{local:Translate tour_detail_poi_hint}"
-                                                   FontSize="12"
-                                                   TextColor="#6B7280"
-                                                   MaxLines="1" />
+                                              <!-- Đã xoá Label 'nhấn để xem chi tiết POI' -->
                                         </VerticalStackLayout>
                                     </Grid>
                                 </Border>
