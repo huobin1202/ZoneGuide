@@ -803,7 +803,10 @@ public partial class MapViewModel : ObservableObject
                   ?? POIs.FirstOrDefault(p => p.Id == poiId)
                   ?? await _poiRepository.GetByIdAsync(poiId);
 
-        if (poi == null && allowServerSync)
+        var shouldRefreshFromServer = allowServerSync &&
+                                      (poi == null || NeedsAudioSourceRefresh(poi));
+
+        if (shouldRefreshFromServer)
         {
             try
             {
@@ -834,6 +837,34 @@ public partial class MapViewModel : ObservableObject
 
         SelectPoiCore(poi, revealOverlayInTourMode: false);
         return true;
+    }
+
+    private static bool NeedsAudioSourceRefresh(POI poi)
+    {
+        if (!string.IsNullOrWhiteSpace(poi.AudioFilePath) && File.Exists(poi.AudioFilePath))
+            return false;
+
+        if (string.IsNullOrWhiteSpace(poi.AudioUrl))
+            return true;
+
+        if (!Uri.TryCreate(poi.AudioUrl, UriKind.Absolute, out var audioUri))
+            return true;
+
+        if (!string.Equals(audioUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(audioUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return IsLoopbackLikeHost(audioUri.Host);
+    }
+
+    private static bool IsLoopbackLikeHost(string host)
+    {
+        return string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(host, "::1", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(host, "10.0.2.2", StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<bool> PrepareInAppNavigationToPoiAsync(int poiId)

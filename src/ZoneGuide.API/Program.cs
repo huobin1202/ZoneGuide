@@ -1,5 +1,6 @@
 using System.Text;
 using ZoneGuide.API.Data;
+using ZoneGuide.API.Hubs;
 using ZoneGuide.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,7 @@ builder.WebHost.ConfigureKestrel(options =>
 
 // Add services to the container.
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -91,6 +93,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton<PoiQrCodeService>();
 builder.Services.AddScoped<IPOIContributionService, POIContributionService>();
 builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
+builder.Services.AddSingleton<IQrRealtimeMonitoringService, QrRealtimeMonitoringService>();
 
 // AutoMapper
 builder.Services.AddAutoMapper(cfg => cfg.AddMaps(typeof(Program).Assembly));
@@ -124,6 +127,7 @@ app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<QrMonitoringHub>("/hubs/qr-monitor");
 
 // Auto migrate database
 using (var scope = app.Services.CreateScope())

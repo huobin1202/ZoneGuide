@@ -28,6 +28,8 @@ public class QRCodesController : ControllerBase
             if (!int.TryParse(poi.Id, out var poiId))
                 continue;
 
+            await _qrCodeService.EnsureQrCodeGeneratedAsync(poiId);
+
             result.Add(new PoiQrCodeDto
             {
                 PoiId = poiId,
@@ -74,11 +76,9 @@ public class QRCodesController : ControllerBase
             if (!int.TryParse(poi.Id, out var poiId))
                 continue;
 
-            if (!force && _qrCodeService.QrExists(poiId))
-                continue;
-
-            await _qrCodeService.EnsureQrCodeGeneratedAsync(poiId, force: force);
-            generatedCount++;
+            var generated = await _qrCodeService.EnsureQrCodeGeneratedAsync(poiId, force: force);
+            if (generated)
+                generatedCount++;
         }
 
         return Ok(generatedCount);

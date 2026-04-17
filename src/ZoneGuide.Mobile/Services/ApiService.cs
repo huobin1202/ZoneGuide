@@ -19,7 +19,7 @@ public class ApiService
     // Production: dùng domain thật (ví dụ: https://api.ZoneGuide.com)
     
     // 👇 ĐỔI IP NÀY THÀNH IP MÁY TÍNH CỦA BẠN
-    private const string ServerIP = "192.168.1.3";
+    private const string ServerIP = "192.168.0.149";
     private const string ServerPort = "56042"; // HTTP port (không cần SSL cho development)
     
 #if ANDROID
@@ -273,12 +273,38 @@ public class ApiService
     private IEnumerable<string> GetOrderedBaseUrls()
     {
         var preferred = Preferences.Get(PreferredApiBaseUrlKey, string.Empty);
-        if (string.IsNullOrWhiteSpace(preferred))
+        if (string.IsNullOrWhiteSpace(preferred) || !Uri.TryCreate(preferred, UriKind.Absolute, out _))
             return _syncBaseUrls;
 
-        return _syncBaseUrls
-            .OrderBy(url => string.Equals(url, preferred, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+        return new[] { preferred }
+            .Concat(_syncBaseUrls)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    public static bool TrySetPreferredBaseUrlFromQrPayload(string payload)
+    {
+        if (string.IsNullOrWhiteSpace(payload))
+            return false;
+
+        if (!Uri.TryCreate(payload.Trim(), UriKind.Absolute, out var uri))
+            return false;
+
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+#if ANDROID
+        // On physical Android devices, localhost/127.0.0.1 from QR is not the backend machine.
+        if (string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(uri.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(uri.Host, "::1", StringComparison.OrdinalIgnoreCase))
+            return false;
+#endif
+
+        var preferredBaseUrl = $"{uri.GetLeftPart(UriPartial.Authority).TrimEnd('/')}/api/";
+        SavePreferredBaseUrl(preferredBaseUrl);
+        return true;
     }
 
     private static void SavePreferredBaseUrl(string baseUrl)

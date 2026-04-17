@@ -480,7 +480,9 @@
         document.title = `${poi.name || "ZoneGuide"} | ZoneGuide`;
         elements.name.textContent = poi.name || "Dia diem khong ro ten";
         elements.subtitle.textContent = "Giao dien web duoc canh chinh lai theo man map cua app.";
-        elements.address.textContent = poi.address || "Dang cap nhat";
+        if (elements.address) {
+            elements.address.textContent = poi.address || "Dang cap nhat";
+        }
         elements.category.textContent = getCategoryDisplay(poi.category);
         elements.poiListTitle.textContent = getPoiListTitle();
         elements.language.textContent = translateLanguageName(poi.language || "vi-VN");
@@ -706,7 +708,9 @@
         document.title = "ZoneGuide | Loi mo QR";
         elements.name.textContent = "Khong mo duoc dia diem";
         elements.category.textContent = "Loi tai du lieu";
-        elements.address.textContent = message;
+        if (elements.address) {
+            elements.address.textContent = message;
+        }
         elements.subtitle.textContent = "Vui long kiem tra lai ma QR hoac tinh trang ket noi.";
         elements.language.textContent = "Khong co du lieu";
         elements.coordinates.textContent = "Khong co du lieu";

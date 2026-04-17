@@ -3,6 +3,8 @@ using System.Linq;
 using ZXing;
 using Microsoft.Maui.ApplicationModel;
 using System.Collections;
+using ZoneGuide.Mobile.Services;
+using System.Globalization;
 
 namespace ZoneGuide.Mobile.Views;
 
@@ -97,17 +99,9 @@ public partial class QRScannerPage : ContentPage
                 return;
 
             text = text.Trim();
+            ApiService.TrySetPreferredBaseUrlFromQrPayload(text);
 
-            var match = _poiRegex.Match(text);
-            if (!match.Success)
-            {
-                match = _poiUrlRegex.Match(text);
-            }
-
-            if (!match.Success)
-                return;
-
-            if (!int.TryParse(match.Groups[1].Value, out var poiId))
+            if (!TryExtractPoiId(text, out var poiId))
                 return;
 
             _handled = true;
@@ -115,10 +109,9 @@ public partial class QRScannerPage : ContentPage
             if (_reader != null)
                 _reader.IsDetecting = false;
 
-            MainThread.BeginInvokeOnMainThread(async () =>
+            MainThread.BeginInvokeOnMainThread(() =>
             {
-                await CloseScannerAsync();
-                await Shell.Current.GoToAsync($"//map?poiId={poiId}&autoplay=true");
+                _ = NavigateToPoiAsync(poiId);
             });
         }
         catch
@@ -127,11 +120,70 @@ public partial class QRScannerPage : ContentPage
         }
     }
 
-    private async Task CloseScannerAsync()
+    private bool TryExtractPoiId(string payload, out int poiId)
     {
-        if (Navigation.ModalStack.LastOrDefault() == this)
+        poiId = 0;
+
+        var match = _poiRegex.Match(payload);
+        if (!match.Success)
         {
-            await Navigation.PopModalAsync();
+            match = _poiUrlRegex.Match(payload);
+        }
+
+        if (match.Success && int.TryParse(match.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out poiId))
+            return true;
+
+        if (!Uri.TryCreate(payload, UriKind.Absolute, out var uri))
+            return false;
+
+        // Support links like /webapp/?poiId=12 or /webapp/?id=12
+        var query = uri.Query?.TrimStart('?') ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(query))
+            return false;
+
+        foreach (var pair in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var tokens = pair.Split('=', 2);
+            if (tokens.Length != 2)
+                continue;
+
+            var key = Uri.UnescapeDataString(tokens[0]);
+            if (!string.Equals(key, "poiId", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(key, "id", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var value = Uri.UnescapeDataString(tokens[1]);
+            if (int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out poiId))
+                return true;
+        }
+
+        return false;
+    }
+
+    private async Task NavigateToPoiAsync(int poiId)
+    {
+        try
+        {
+            await Shell.Current.GoToAsync($"//map?poiId={poiId}&autoplay=true");
+            return;
+        }
+        catch
+        {
+            // Fallback route navigation in case absolute route parsing fails on specific Shell state.
+        }
+
+        try
+        {
+            await Shell.Current.GoToAsync($"map?poiId={poiId}&autoplay=true");
+        }
+        catch
+        {
+            await DisplayAlert("Khong mo duoc trang POI", "Da quet ma QR nhung khong the dieu huong den trang ban do.", "OK");
+            _handled = false;
+            if (_reader != null)
+                _reader.IsDetecting = true;
         }
     }
 }
