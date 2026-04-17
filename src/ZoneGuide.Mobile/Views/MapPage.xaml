@@ -10,6 +10,7 @@
              x:Name="MapPageRoot"
              x:DataType="vm:MapViewModel"
              Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
              BackgroundColor="#F6F7FB">
 
     <Grid>
@@ -423,6 +424,8 @@
                                                     <Binding Source="{x:Reference MapPageRoot}"
                                                              Path="BindingContext.SelectedPOI.Id" />
                                                     <Binding Path="Id" />
+                                                    <Binding Source="{x:Reference MapPageRoot}"
+                                                             Path="BindingContext.IsTourSelectionHighlightVisible" />
                                                 </MultiBinding>
                                             </DataTrigger.Binding>
                                             <Setter Property="Stroke"
@@ -433,7 +436,7 @@
                                     </Border.Triggers>
 
                                     <Border.GestureRecognizers>
-                                        <TapGestureRecognizer Command="{Binding Source={x:Reference MapPageRoot}, Path=BindingContext.SelectPOICommand}"
+                                        <TapGestureRecognizer Command="{Binding Source={x:Reference MapPageRoot}, Path=BindingContext.SelectTourSheetPOICommand}"
                                                               CommandParameter="{Binding .}" />
                                     </Border.GestureRecognizers>
 
@@ -784,24 +787,13 @@
                            Color="{StaticResource Primary}" />
 
         <views:MiniPlayerView x:Name="MapMiniPlayerView"
+                              Margin="0,0,0,84"
                               VerticalOptions="End"
-                              ZIndex="40" />
+                              ZIndex="140" />
 
-        <!-- Floating QR scan button (always visible above tab bar) -->
-        <Grid HorizontalOptions="Center" VerticalOptions="End">
-            <Button Text="⌁"
-                    WidthRequest="60"
-                    HeightRequest="60"
-                    CornerRadius="30"
-                    BackgroundColor="#512BD4"
-                    TextColor="White"
-                    FontSize="22"
-                    HorizontalOptions="Center"
-                    VerticalOptions="End"
-                    ZIndex="100"
-                    TranslationY="12"
-                    Clicked="OnScanQrClicked" />
-        </Grid>
+        <views:CustomBottomBarView VerticalOptions="End"
+                                   CurrentTab="map"
+                                   ZIndex="150" />
     </Grid>
 
 </ContentPage>

@@ -24,6 +24,9 @@ public partial class GlobalMiniPlayerViewModel : ObservableObject
     private bool isPaused;
 
     [ObservableProperty]
+    private bool hasActiveTourAudio;
+
+    [ObservableProperty]
     private string title = string.Empty;
 
     [ObservableProperty]
@@ -86,6 +89,7 @@ public partial class GlobalMiniPlayerViewModel : ObservableObject
         if (hasNarration)
         {
             var poi = currentNarration!.POI;
+            HasActiveTourAudio = false;
             IsVisible = true;
             IsPlaying = _narrationService.IsPlaying;
             IsPaused = _narrationService.IsPaused;
@@ -104,6 +108,7 @@ public partial class GlobalMiniPlayerViewModel : ObservableObject
         var hasTourAudio = _tourSessionActive && _activeTour != null && (_audioService.IsPlaying || _audioService.IsPaused);
         if (hasTourAudio)
         {
+            HasActiveTourAudio = true;
             IsVisible = true;
             IsPlaying = _audioService.IsPlaying;
             IsPaused = _audioService.IsPaused;
@@ -120,6 +125,7 @@ public partial class GlobalMiniPlayerViewModel : ObservableObject
             return;
         }
 
+        HasActiveTourAudio = false;
         IsVisible = false;
         IsPlaying = false;
         IsPaused = false;

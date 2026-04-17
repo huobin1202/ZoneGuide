@@ -8,6 +8,7 @@
              x:Name="HistoryRoot"
              x:DataType="vm:HistoryViewModel"
              Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
              BackgroundColor="#F6F7FB">
 
     <Grid RowDefinitions="Auto,*,Auto">

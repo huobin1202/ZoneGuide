@@ -25,7 +25,8 @@ public partial class MapPage : ContentPage, IQueryAttributable
     private const uint TourSheetSnapAnimationMs = 240;
     private const double SelectedPoiOverlayBottomMargin = 16;
     private const double SelectedPoiOverlaySheetGap = 14;
-    private const double MiniPlayerGap = 10;
+    private const double BottomBarSafeInset = 92;
+    private const double MiniPlayerGap = 4;
     private const double BottomSheetMiniPlayerGap = 24;
     private readonly MapViewModel _viewModel;
     private readonly GlobalMiniPlayerViewModel _miniPlayerViewModel;
@@ -148,7 +149,11 @@ public partial class MapPage : ContentPage, IQueryAttributable
         }
         else if (e.PropertyName == nameof(MapViewModel.IsSelectedPoiPlayerVisible))
         {
-            MainThread.BeginInvokeOnMainThread(() => UpdateMapZoomControlsMargin());
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                UpdateSelectedPoiOverlayMargin();
+                UpdateMapZoomControlsMargin();
+            });
         }
         else if (e.PropertyName == nameof(MapViewModel.IsTourModeActive) ||
                  e.PropertyName == nameof(MapViewModel.UserLocation))
@@ -776,7 +781,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
 
         UpdateBottomSheetInsets();
 
-        var bottom = SelectedPoiOverlayBottomMargin;
+        var bottom = Math.Max(SelectedPoiOverlayBottomMargin, BottomBarSafeInset);
         var miniPlayerInset = ResolveMiniPlayerInset();
         if (miniPlayerInset > 0)
         {
@@ -786,7 +791,8 @@ public partial class MapPage : ContentPage, IQueryAttributable
         var activeSheetHeight = ResolveActiveBottomSheetHeight(currentSheetHeight);
         if (activeSheetHeight.HasValue)
         {
-            bottom = activeSheetHeight.Value + SelectedPoiOverlaySheetGap + miniPlayerInset;
+            var sheetBottomInset = ResolveActiveBottomSheetBottomInset(miniPlayerInset);
+            bottom = Math.Max(bottom, activeSheetHeight.Value + sheetBottomInset + SelectedPoiOverlaySheetGap);
         }
 
         var current = SelectedPoiOverlay.Margin;
@@ -838,7 +844,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
         if (MapPoiBottomSheet != null)
         {
             var margin = MapPoiBottomSheet.Margin;
-            MapPoiBottomSheet.Margin = new Thickness(margin.Left, margin.Top, margin.Right, bottomInset);
+            MapPoiBottomSheet.Margin = new Thickness(margin.Left, margin.Top, margin.Right, 0);
         }
     }
 
@@ -866,6 +872,16 @@ public partial class MapPage : ContentPage, IQueryAttributable
         {
             MainThread.BeginInvokeOnMainThread(() => UpdateSelectedPoiOverlayMargin());
         }
+    }
+
+    private double ResolveActiveBottomSheetBottomInset(double miniPlayerInset)
+    {
+        if (_viewModel.IsTourPoiListVisible)
+        {
+            return miniPlayerInset > 0 ? miniPlayerInset + BottomSheetMiniPlayerGap : 0;
+        }
+
+        return 0;
     }
 
     private double? ResolveActiveBottomSheetHeight(double? currentSheetHeight = null)

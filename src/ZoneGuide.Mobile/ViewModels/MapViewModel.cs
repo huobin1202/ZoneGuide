@@ -40,6 +40,7 @@ public partial class MapViewModel : ObservableObject
     private readonly IGeofenceService _geofenceService;
     private readonly IPOIRepository _poiRepository;
     private readonly INarrationService _narrationService;
+    private readonly GlobalMiniPlayerViewModel _miniPlayerViewModel;
     private readonly ITourRepository _tourRepository;
     private readonly ISyncService _syncService;
     private readonly ISettingsService _settingsService;
@@ -60,6 +61,7 @@ public partial class MapViewModel : ObservableObject
     private Location? _lastInAppNavigationOrigin;
     private DateTime _lastInAppNavigationRouteUpdatedAtUtc = DateTime.MinValue;
     private bool _isUpdatingInAppNavigationRoute;
+    private bool _selectedPoiOverlaySuppressedInTourMode;
     private readonly Dictionary<int, DateTime> _autoNarrationDebounceByPoi = new();
     private CancellationTokenSource? _routeBuildCts;
 
@@ -113,6 +115,9 @@ public partial class MapViewModel : ObservableObject
 
     [ObservableProperty]
     private bool isTourPoiListVisible;
+
+    [ObservableProperty]
+    private bool isTourSelectionHighlightVisible = true;
 
     public bool IsTourModeActive
     {
@@ -182,6 +187,7 @@ public partial class MapViewModel : ObservableObject
         IGeofenceService geofenceService,
         IPOIRepository poiRepository,
         INarrationService narrationService,
+        GlobalMiniPlayerViewModel miniPlayerViewModel,
         ITourRepository tourRepository,
         ISyncService syncService,
         ISettingsService settingsService)
@@ -190,6 +196,7 @@ public partial class MapViewModel : ObservableObject
         _geofenceService = geofenceService;
         _poiRepository = poiRepository;
         _narrationService = narrationService;
+        _miniPlayerViewModel = miniPlayerViewModel;
         _tourRepository = tourRepository;
         _syncService = syncService;
         _settingsService = settingsService;
@@ -199,6 +206,7 @@ public partial class MapViewModel : ObservableObject
         _narrationService.NarrationStarted += OnNarrationStateChanged;
         _narrationService.NarrationCompleted += OnNarrationStateChanged;
         _narrationService.NarrationStopped += OnNarrationStateChanged;
+        _miniPlayerViewModel.PropertyChanged += OnMiniPlayerPropertyChanged;
 
         RefreshLocalizedCategories();
         AppLocalizer.Instance.PropertyChanged += OnLocalizerPropertyChanged;
@@ -292,18 +300,18 @@ public partial class MapViewModel : ObservableObject
                             $"[MapVM] Ignored startup outlier location: {location.Latitude},{location.Longitude} (acc={location.Accuracy:F0}m)");
                     }
 
-                    // Ưu tiên hiển thị POI trên bản đồ. Chỉ zoom vào vị trí user khi không có POI.
+                    // Ưu tiên hiển thị cụm POI trên bản đồ. Chỉ zoom vào user khi không có POI nào.
                     if (TourRoutePoints.Count > 1)
                     {
                         ApplyMapSpanForTourAndUser(POIs.ToList());
                     }
-                    else if (_hasReliableUserLocation && UserLocation != null)
-                    {
-                        MapSpan = MapSpan.FromCenterAndRadius(UserLocation, Distance.FromKilometers(0.8));
-                    }
                     else if (_allPOIs.Count > 0)
                     {
                         ApplyMapSpanForPoiCollection(_allPOIs);
+                    }
+                    else if (_hasReliableUserLocation && UserLocation != null)
+                    {
+                        MapSpan = MapSpan.FromCenterAndRadius(UserLocation, Distance.FromKilometers(0.8));
                     }
                     else
                     {
@@ -416,6 +424,7 @@ public partial class MapViewModel : ObservableObject
             _currentTourPois.Clear();
             PopulateTourSheetPois([]);
             IsTourModeActive = false;
+            _selectedPoiOverlaySuppressedInTourMode = false;
             ActiveTourId = null;
             ActiveTourName = string.Empty;
             ActiveTourPoiCount = 0;
@@ -442,7 +451,9 @@ public partial class MapViewModel : ObservableObject
 
         PopulatePins(tourPois);
         SetMonitoredPois(tourPois);
+        _selectedPoiOverlaySuppressedInTourMode = false;
         IsTourModeActive = true;
+        IsTourSelectionHighlightVisible = true;
         IsTourPoiListVisible = true;
 
         await SetTourRouteAsync(tourPois);
@@ -742,8 +753,25 @@ public partial class MapViewModel : ObservableObject
     [RelayCommand]
     private void SelectPOI(POI poi)
     {
+        SelectPoiCore(poi, revealOverlayInTourMode: false);
+    }
+
+    [RelayCommand]
+    private void SelectTourSheetPOI(POI poi)
+    {
+        SelectPoiCore(poi, revealOverlayInTourMode: true);
+    }
+
+    private void SelectPoiCore(POI poi, bool revealOverlayInTourMode)
+    {
         if (poi == null)
             return;
+
+        if (IsTourModeActive && revealOverlayInTourMode)
+        {
+            _selectedPoiOverlaySuppressedInTourMode = false;
+            IsTourSelectionHighlightVisible = true;
+        }
 
         if (!IsTourModeActive)
         {
@@ -804,7 +832,7 @@ public partial class MapViewModel : ObservableObject
             POIs.Add(poi);
         }
 
-        SelectPOI(poi);
+        SelectPoiCore(poi, revealOverlayInTourMode: false);
         return true;
     }
 
@@ -997,6 +1025,8 @@ public partial class MapViewModel : ObservableObject
         SetMonitoredPois(_allPOIs);
         PopulatePins(_allPOIs);
         PopulateTourSheetPois([]);
+        _selectedPoiOverlaySuppressedInTourMode = false;
+        IsTourSelectionHighlightVisible = true;
 
         if (_allPOIs.Count > 0)
         {
@@ -1035,6 +1065,8 @@ public partial class MapViewModel : ObservableObject
 
         IsTourPoiListVisible = true;
         IsTourModeActive = true;
+        _selectedPoiOverlaySuppressedInTourMode = false;
+        IsTourSelectionHighlightVisible = true;
 
         PopulatePins(orderedTourPois);
         PopulateTourSheetPois(orderedTourPois);
@@ -1058,6 +1090,8 @@ public partial class MapViewModel : ObservableObject
         _currentTourPois.Clear();
         PopulateTourSheetPois([]);
         IsTourModeActive = false;
+        _selectedPoiOverlaySuppressedInTourMode = false;
+        IsTourSelectionHighlightVisible = true;
         ActiveTourId = null;
         ActiveTourName = string.Empty;
         ActiveTourPoiCount = 0;
@@ -1660,6 +1694,23 @@ public partial class MapViewModel : ObservableObject
         MainThread.BeginInvokeOnMainThread(UpdateSelectedPoiNarrationState);
     }
 
+    private void OnMiniPlayerPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(GlobalMiniPlayerViewModel.HasActiveTourAudio) ||
+            e.PropertyName == nameof(GlobalMiniPlayerViewModel.IsVisible))
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                if (IsTourModeActive && _miniPlayerViewModel.IsVisible)
+                {
+                    _selectedPoiOverlaySuppressedInTourMode = true;
+                    IsTourSelectionHighlightVisible = false;
+                }
+                UpdateSelectedPoiNarrationState();
+            });
+        }
+    }
+
     private void UpdateSelectedPoiNarrationState()
     {
         CurrentNarrationPoiId = _narrationService.CurrentItem?.POI.Id;
@@ -1671,7 +1722,9 @@ public partial class MapViewModel : ObservableObject
 
         IsSelectedPoiNarrationActive = isCurrentSelected && _narrationService.IsPlaying;
         IsSelectedPoiNarrationPaused = isCurrentSelected && _narrationService.IsPaused;
-        IsSelectedPoiPlayerVisible = SelectedPOI != null;
+        var shouldHideForPlayback = IsTourModeActive && _miniPlayerViewModel.IsVisible;
+        var shouldStayHiddenAfterPlayback = IsTourModeActive && _selectedPoiOverlaySuppressedInTourMode;
+        IsSelectedPoiPlayerVisible = SelectedPOI != null && !shouldHideForPlayback && !shouldStayHiddenAfterPlayback;
     }
 
     private void UpdateSelectedPoiDistanceDisplay()

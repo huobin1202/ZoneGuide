@@ -8,6 +8,7 @@
              x:Name="OfflineRoot"
              x:DataType="vm:OfflineViewModel"
              Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
              BackgroundColor="#F6F7FB">
 
     <Grid RowDefinitions="Auto,*,Auto">

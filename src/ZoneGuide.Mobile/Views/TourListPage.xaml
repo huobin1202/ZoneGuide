@@ -7,9 +7,10 @@
              xmlns:views="clr-namespace:ZoneGuide.Mobile.Views"
              x:Class="ZoneGuide.Mobile.Views.TourListPage"
              x:DataType="vm:TourListViewModel"
+             Shell.TabBarIsVisible="False"
              Title="{local:Translate tours_title}">
 
-    <Grid RowDefinitions="*,Auto">
+    <Grid RowDefinitions="*,Auto,Auto">
         <RefreshView IsRefreshing="{Binding IsRefreshing}"
                      Command="{Binding RefreshCommand}">
             <CollectionView ItemsSource="{Binding Tours}"
@@ -133,22 +134,8 @@
         </RefreshView>
 
         <views:MiniPlayerView Grid.Row="1" />
-
-        <!-- Floating QR scan button (always visible above tab bar) -->
-        <Grid Grid.Row="1" HorizontalOptions="Center" VerticalOptions="End">
-            <Button Text="⌁"
-                    WidthRequest="60"
-                    HeightRequest="60"
-                    CornerRadius="30"
-                    BackgroundColor="#512BD4"
-                    TextColor="White"
-                    FontSize="22"
-                    HorizontalOptions="Center"
-                    VerticalOptions="End"
-                    ZIndex="100"
-                    TranslationY="12"
-                    Clicked="OnScanQrClicked" />
-        </Grid>
+        <views:CustomBottomBarView Grid.Row="2"
+                                   CurrentTab="tours" />
     </Grid>
 
 </ContentPage>

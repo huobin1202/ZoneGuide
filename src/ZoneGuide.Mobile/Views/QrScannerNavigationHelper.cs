@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.ApplicationModel;
 
 namespace ZoneGuide.Mobile.Views;
@@ -6,6 +7,11 @@ internal static class QrScannerNavigationHelper
 {
     public static async Task OpenScannerAsync(Page page)
     {
+        if (page.Navigation.ModalStack.LastOrDefault() is QRScannerPage)
+        {
+            return;
+        }
+
         var status = await Permissions.CheckStatusAsync<Permissions.Camera>();
         if (status != PermissionStatus.Granted)
         {
@@ -18,7 +24,9 @@ internal static class QrScannerNavigationHelper
             return;
         }
 
-        await Shell.Current.GoToAsync(nameof(QRScannerPage));
+        var services = page.Handler?.MauiContext?.Services ?? Shell.Current?.Handler?.MauiContext?.Services;
+        var scannerPage = services?.GetRequiredService<QRScannerPage>() ?? new QRScannerPage();
+        await page.Navigation.PushModalAsync(scannerPage);
     }
 }
 

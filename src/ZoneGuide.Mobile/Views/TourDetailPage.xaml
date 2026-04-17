@@ -10,6 +10,7 @@
              x:Name="PageRoot"
              x:DataType="vm:TourDetailViewModel"
              Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
              BackgroundColor="#F3F4F6"
              Title="{Binding Tour.Name}">
 

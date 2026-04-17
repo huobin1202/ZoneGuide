@@ -8,6 +8,7 @@
              x:Class="ZoneGuide.Mobile.Views.POIDetailPage"
              x:DataType="vm:POIDetailViewModel"
              Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
              BackgroundColor="#F6F7FB">
 
         <Grid RowDefinitions="300,*">

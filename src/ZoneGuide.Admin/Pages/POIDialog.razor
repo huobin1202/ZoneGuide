@@ -56,11 +56,11 @@
                     <MudGrid Class="mt-3">
                         <MudItem xs="12" sm="4">
                             <MudNumericField @bind-Value="_model.TriggerRadius"
-                                             Label="Bán kính kích hoạt (m)" Min="20" Max="150" />
+                                             Label="Bán kính kích hoạt (m)" Min="1" Max="100" />
                         </MudItem>
                         <MudItem xs="12" sm="4">
                             <MudNumericField @bind-Value="_model.ApproachRadius"
-                                             Label="Bán kính thuyết minh (m)" Min="20" Max="500" />
+                                             Label="Bán kính thuyết minh (m)" Min="1" Max="50" />
                         </MudItem>
                         <MudItem xs="12" sm="4">
                             <MudNumericField @bind-Value="_model.Priority" Label="Độ ưu tiên" Min="1" Max="5" />

@@ -33,10 +33,9 @@ public partial class QRScannerPage : ContentPage
         }
     }
 
-    private void OnCloseClicked(object? sender, EventArgs e)
+    private async void OnCloseClicked(object? sender, EventArgs e)
     {
-        // We open this page via Shell navigation; go back by one level.
-        _ = Shell.Current.GoToAsync("..");
+        await CloseScannerAsync();
     }
 
     private async void OnScanFromPhotoClicked(object? sender, EventArgs e)
@@ -57,7 +56,7 @@ public partial class QRScannerPage : ContentPage
         if (status != PermissionStatus.Granted)
         {
             await DisplayAlert("Không có quyền camera", "Bạn cần cấp quyền camera để quét mã QR.", "OK");
-            await Shell.Current.GoToAsync("..");
+            await CloseScannerAsync();
             return;
         }
 
@@ -118,12 +117,21 @@ public partial class QRScannerPage : ContentPage
 
             MainThread.BeginInvokeOnMainThread(async () =>
             {
+                await CloseScannerAsync();
                 await Shell.Current.GoToAsync($"//map?poiId={poiId}&autoplay=true");
             });
         }
         catch
         {
             // Ignore unexpected barcode payloads to avoid crashing scanner page.
+        }
+    }
+
+    private async Task CloseScannerAsync()
+    {
+        if (Navigation.ModalStack.LastOrDefault() == this)
+        {
+            await Navigation.PopModalAsync();
         }
     }
 }

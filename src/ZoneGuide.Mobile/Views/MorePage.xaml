@@ -8,9 +8,10 @@
              x:Name="MoreRoot"
              x:DataType="vm:MoreViewModel"
              Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
              BackgroundColor="#F6F7FB">
 
-    <Grid RowDefinitions="Auto,*,Auto">
+    <Grid RowDefinitions="Auto,*,Auto,Auto">
         <Border Grid.Row="0"
                 BackgroundColor="#0F172A"
                 StrokeThickness="0"
@@ -81,22 +82,8 @@
         </ScrollView>
 
         <views:MiniPlayerView Grid.Row="2" />
-
-        <!-- Floating QR scan button (always visible above tab bar) -->
-        <Grid Grid.Row="2" HorizontalOptions="Center" VerticalOptions="End">
-            <Button Text="⌁"
-                    WidthRequest="60"
-                    HeightRequest="60"
-                    CornerRadius="30"
-                    BackgroundColor="#512BD4"
-                    TextColor="White"
-                    FontSize="22"
-                    HorizontalOptions="Center"
-                    VerticalOptions="End"
-                    ZIndex="100"
-                    TranslationY="12"
-                    Clicked="OnScanQrClicked" />
-        </Grid>
+        <views:CustomBottomBarView Grid.Row="3"
+                                   CurrentTab="more" />
     </Grid>
 
 </ContentPage>
