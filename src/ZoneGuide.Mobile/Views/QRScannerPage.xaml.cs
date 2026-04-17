@@ -45,6 +45,19 @@ public partial class QRScannerPage : ContentPage
         await DisplayAlert("Chưa hỗ trợ", "Tính năng scan từ ảnh đang được phát triển.", "OK");
     }
 
+    private async Task CloseScannerAsync()
+    {
+        if (_reader != null)
+        {
+            _reader.IsDetecting = false;
+        }
+
+        if (Navigation?.ModalStack?.LastOrDefault() == this)
+        {
+            await Navigation.PopModalAsync();
+        }
+    }
+
     private async Task InitializeScannerAsync()
     {
         _handled = false;

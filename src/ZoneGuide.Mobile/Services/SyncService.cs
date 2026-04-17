@@ -407,6 +407,7 @@ public class SyncService : ISyncService
             }
 
             return !Directory.Exists(offlineDir);
+        }
         catch
         {
             return false;
