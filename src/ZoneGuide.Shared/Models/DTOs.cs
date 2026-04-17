@@ -55,7 +55,7 @@ public class POIDto
 }
 
 /// <summary>
-/// DTO trạng thái mã QR của POI (payload = "POI:{id}")
+/// DTO trạng thái mã QR của POI (payload = URL công khai mở app/web)
 /// </summary>
 public class PoiQrCodeDto
 {

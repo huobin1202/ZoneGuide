@@ -1,24 +1,34 @@
 using QRCoder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace ZoneGuide.API.Services;
 
 public class PoiQrCodeService
 {
-    public const string PayloadPrefix = "POI:";
+    private const string DefaultPublicBaseUrl = "https://localhost:56040";
 
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<PoiQrCodeService> _logger;
+    private readonly string _publicBaseUrl;
     private readonly QRCodeGenerator _qrGenerator = new();
 
-    public PoiQrCodeService(IWebHostEnvironment env, ILogger<PoiQrCodeService> logger)
+    public PoiQrCodeService(
+        IWebHostEnvironment env,
+        ILogger<PoiQrCodeService> logger,
+        IConfiguration configuration)
     {
         _env = env;
         _logger = logger;
+        _publicBaseUrl = configuration["PublicWebApp:BaseUrl"]?.TrimEnd('/') ?? DefaultPublicBaseUrl;
     }
 
-    public string BuildPayload(int poiId) => $"{PayloadPrefix}{poiId}";
+    public string BuildPayload(int poiId) => GetPoiLandingUrl(poiId);
+
+    public string GetPoiLandingPath(int poiId) => $"/poi/{poiId}?autoplay=true";
+
+    public string GetPoiLandingUrl(int poiId) => $"{_publicBaseUrl}{GetPoiLandingPath(poiId)}";
 
     // Public URL served from wwwroot
     public string GetQrUrl(int poiId) => $"/uploads/qrcodes/poi-{poiId}.png";

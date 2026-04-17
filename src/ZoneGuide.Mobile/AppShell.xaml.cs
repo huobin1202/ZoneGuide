@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using ZoneGuide.Mobile.Localization;
+using ZoneGuide.Mobile.Services;
 using ZoneGuide.Mobile.Views;
 using ZoneGuide.Shared.Interfaces;
 
@@ -14,6 +15,7 @@ public partial class AppShell : Shell
         InitializeComponent();
 
         AppLocalizer.Instance.PropertyChanged += OnLocalizerPropertyChanged;
+        AppLinkDispatcher.UriReceived += OnAppLinkReceived;
         UpdateLocalizedTitles();
 
         // Register routes
@@ -24,6 +26,8 @@ public partial class AppShell : Shell
         Routing.RegisterRoute(nameof(OfflinePage), typeof(OfflinePage));
         Routing.RegisterRoute(nameof(SettingsPage), typeof(SettingsPage));
         Routing.RegisterRoute(nameof(QRScannerPage), typeof(QRScannerPage));
+
+        _ = HandlePendingAppLinkAsync();
     }
 
     protected override void OnHandlerChanged()
@@ -82,5 +86,50 @@ public partial class AppShell : Shell
         {
             System.Diagnostics.Debug.WriteLine($"[AppShell] Áp dụng cài đặt TTS: {ex.Message}");
         }
+    }
+
+    private void OnAppLinkReceived(object? sender, Uri uri)
+    {
+        _ = MainThread.InvokeOnMainThreadAsync(() => NavigateFromAppLinkAsync(uri));
+    }
+
+    private async Task HandlePendingAppLinkAsync()
+    {
+        var pendingUri = AppLinkDispatcher.ConsumePendingUri();
+        if (pendingUri == null)
+            return;
+
+        await MainThread.InvokeOnMainThreadAsync(() => NavigateFromAppLinkAsync(pendingUri));
+    }
+
+    private async Task NavigateFromAppLinkAsync(Uri uri)
+    {
+        if (!TryParsePoiLink(uri, out var poiId, out var autoplay))
+            return;
+
+        await GoToAsync($"//map?poiId={poiId}&autoplay={autoplay.ToString().ToLowerInvariant()}");
+    }
+
+    private static bool TryParsePoiLink(Uri uri, out int poiId, out bool autoplay)
+    {
+        poiId = 0;
+        autoplay = true;
+
+        if (!string.Equals(uri.Scheme, "zoneguide", StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(uri.Host, "poi", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var path = uri.AbsolutePath.Trim('/');
+        if (!int.TryParse(path, out poiId))
+            return false;
+
+        if (uri.Query.StartsWith("?autoplay=false", StringComparison.OrdinalIgnoreCase))
+        {
+            autoplay = false;
+        }
+
+        return true;
     }
 }

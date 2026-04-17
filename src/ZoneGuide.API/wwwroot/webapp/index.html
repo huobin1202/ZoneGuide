@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>ZoneGuide</title>
+    <link rel="stylesheet" href="/webapp/styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+    <svg class="icon-sprite" aria-hidden="true">
+        <symbol id="icon-search" viewBox="0 0 24 24"><path d="M10.5 4a6.5 6.5 0 1 0 4.03 11.6l4.43 4.44 1.42-1.42-4.44-4.43A6.5 6.5 0 0 0 10.5 4Zm0 2a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Z"/></symbol>
+        <symbol id="icon-map" viewBox="0 0 24 24"><path d="M15 5.3 9 3 3 5.3v15.4L9 18l6 2.7 6-2.3V3zm-1 2.15v10.98l-4-1.8V5.65zM5 6.68l2-.77v10.97l-2 .77zm14 10.18-2 .77V6.67l2-.77z"/></symbol>
+        <symbol id="icon-layers" viewBox="0 0 24 24"><path d="m12 3 9 4.5-9 4.5-9-4.5L12 3Zm-7 8.1L12 14.6l7-3.5 2 1-9 4.5-9-4.5 2-1Zm0 4.6L12 19.2l7-3.5 2 1-9 4.5-9-4.5 2-1Z"/></symbol>
+        <symbol id="icon-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10-6.5-10-6.5Z"/></symbol>
+        <symbol id="icon-app" viewBox="0 0 24 24"><path d="M14 4h6v6h-2V7.41l-7.29 7.3-1.42-1.42 7.3-7.29H14V4ZM6 6h5v2H8v8h8v-3h2v5H6V6Z"/></symbol>
+        <symbol id="icon-crosshair" viewBox="0 0 24 24"><path d="M11 2h2v3.06A7.002 7.002 0 0 1 18.94 11H22v2h-3.06A7.002 7.002 0 0 1 13 18.94V22h-2v-3.06A7.002 7.002 0 0 1 5.06 13H2v-2h3.06A7.002 7.002 0 0 1 11 5.06V2Zm1 5a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm0 2.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Z"/></symbol>
+        <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></symbol>
+        <symbol id="icon-minus" viewBox="0 0 24 24"><path d="M5 11h14v2H5z"/></symbol>
+        <symbol id="icon-chevron-up" viewBox="0 0 24 24"><path d="m12 8 6 6-1.4 1.4L12 10.8l-4.6 4.6L6 14l6-6Z"/></symbol>
+        <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="m10 6 6 6-6 6-1.4-1.4 4.6-4.6-4.6-4.6L10 6Z"/></symbol>
+        <symbol id="icon-all" viewBox="0 0 24 24"><path d="M12 4a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm0 3a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z"/></symbol>
+        <symbol id="icon-tourism" viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.74 8 11 4.6-1.26 8-6 8-11V5l-8-3Zm0 3.12 5 1.88V11c0 3.73-2.3 7.4-5 8.74C9.3 18.4 7 14.73 7 11V7l5-1.88Z"/></symbol>
+        <symbol id="icon-service" viewBox="0 0 24 24"><path d="M19.43 12.98 21 11.41l-1.41-1.41-1.57 1.57a6.97 6.97 0 0 0-1.62-.95V8.5h-2v2.12a6.97 6.97 0 0 0-1.9 0V8.5h-2v2.12c-.58.2-1.13.52-1.62.95L4.41 10 3 11.41l1.57 1.57c-.43.76-.69 1.61-.76 2.52H2.5v2h2.31c.07.91.33 1.76.76 2.52L4 21.59 5.41 23l1.57-1.57c.49.43 1.04.75 1.62.95V24h2v-1.62a6.97 6.97 0 0 0 1.9 0V24h2v-1.62c.58-.2 1.13-.52 1.62-.95L19.59 23 21 21.59l-1.57-1.57c.43-.76.69-1.61.76-2.52h2.31v-2h-2.31a6.88 6.88 0 0 0-.76-2.52ZM12 19a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/></symbol>
+        <symbol id="icon-food" viewBox="0 0 24 24"><path d="M7 2h2v8a3 3 0 0 1-2 2.82V22H5v-9.18A3 3 0 0 1 3 10V2h2v7h2V2Zm8 0c2.21 0 4 1.79 4 4v7h-2v9h-2V2Z"/></symbol>
+        <symbol id="icon-entertainment" viewBox="0 0 24 24"><path d="M17 3v9.26A3.99 3.99 0 0 0 15 12c-2.21 0-4 1.57-4 3.5S12.79 19 15 19s4-1.57 4-3.5V7h3V3h-5Z"/></symbol>
+        <symbol id="icon-drinks" viewBox="0 0 24 24"><path d="M5 4h14l-1.1 7.7A4 4 0 0 1 13.94 15H13v5h3v2H8v-2h3v-5h-.94a4 4 0 0 1-3.96-3.3L5 4Zm2.3 2 .76 5.3A2 2 0 0 0 10.06 13h3.88a2 2 0 0 0 1.98-1.7L16.7 6H7.3Z"/></symbol>
+        <symbol id="icon-shopping" viewBox="0 0 24 24"><path d="M7 6V5a5 5 0 0 1 10 0v1h3v14H4V6h3Zm2 0h6V5a3 3 0 0 0-6 0v1Zm-3 2v10h12V8h-1v2h-2V8H9v2H7V8H6Z"/></symbol>
+    </svg>
+    <main class="app-shell">
+        <section id="home-panel" class="app-panel" hidden aria-label="Home">
+            <div class="panel-scroll">
+                <header class="panel-hero panel-hero-dark">
+                    <div>
+                        <p class="panel-kicker">ZoneGuide</p>
+                        <h1>Home</h1>
+                        <p id="home-subtitle" class="panel-subtitle">Kham pha diem den, tour va diem dang mo tu QR ngay tren web.</p>
+                    </div>
+                </header>
+
+                <section class="content-block">
+                    <div class="block-head">
+                        <h2>Gan ban</h2>
+                        <button id="home-open-map" class="link-button" type="button">Mo ban do</button>
+                    </div>
+                    <div id="home-nearby-list" class="card-rail"></div>
+                </section>
+
+                <section class="content-block">
+                    <div class="block-head">
+                        <h2>Tour noi bat</h2>
+                        <button id="home-open-tours" class="link-button" type="button">Xem tat ca</button>
+                    </div>
+                    <div id="home-tour-list" class="card-stack"></div>
+                </section>
+            </div>
+        </section>
+
+        <section class="map-screen" aria-label="Ban do dia diem">
+            <iframe id="poi-map" class="map-canvas" title="Ban do dia diem" loading="lazy"></iframe>
+
+            <header class="map-toolbar">
+                <label class="search-pill search-input-wrap" for="poi-search-input">
+                    <span class="search-icon icon-wrap"><svg class="icon"><use href="#icon-search"/></svg></span>
+                    <input id="poi-search-input" class="search-input" type="search" placeholder="Tim kiem dia diem..." autocomplete="off" />
+                </label>
+                <div id="chip-row" class="chip-row" aria-label="Danh muc">
+                    <button class="filter-chip filter-chip-active" type="button" data-filter="all">Tat ca</button>
+                </div>
+                <div id="poi-results" class="poi-results" hidden></div>
+            </header>
+
+            <div class="map-actions">
+                <button id="map-recenter" class="map-fab" type="button" aria-label="Ve lai dia diem dang chon"><svg class="icon"><use href="#icon-crosshair"/></svg></button>
+                <button id="map-zoom-in" class="map-fab" type="button" aria-label="Phong to ban do"><svg class="icon"><use href="#icon-plus"/></svg></button>
+                <button id="map-zoom-out" class="map-fab" type="button" aria-label="Thu nho ban do"><svg class="icon"><use href="#icon-minus"/></svg></button>
+            </div>
+
+            <section id="poi-overlay" class="poi-overlay" aria-label="Thong tin dia diem">
+                <button id="overlay-toggle" class="poi-card" type="button" aria-expanded="false">
+                    <div id="poi-image" class="poi-image placeholder">
+                        <span>ZoneGuide</span>
+                    </div>
+                    <div class="poi-copy">
+                        <p id="poi-category" class="poi-eyebrow">Dang tai</p>
+                        <h1 id="poi-name">Dang tai dia diem...</h1>
+                        <p id="poi-distance" class="poi-distance">Dang xac dinh khoang cach</p>
+                    </div>
+                    <div class="poi-actions">
+                        <span id="play-indicator" class="play-indicator">Nghe</span>
+                        <span class="expand-indicator icon-wrap" aria-hidden="true"><svg class="icon"><use href="#icon-chevron-up"/></svg></span>
+                    </div>
+                </button>
+
+                <div id="poi-sheet" class="poi-sheet" hidden>
+                    <div class="sheet-handle" aria-hidden="true"></div>
+
+                    <section class="sheet-section">
+                        <p id="poi-subtitle" class="sheet-summary">Mo dia diem tu ma QR va xem vi tri ngay tren ban do.</p>
+                        <p id="autoplay-status" class="inline-status">Dang chuan bi du lieu dia diem...</p>
+                        <div class="meta-grid">
+                            <div class="meta-item">
+                                <span class="meta-label">Ngon ngu</span>
+                                <p id="poi-language">Dang cap nhat</p>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">Toa do</span>
+                                <p id="poi-coordinates">Dang cap nhat</p>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">Kich hoat</span>
+                                <p id="poi-trigger-radius">50m</p>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">Canh bao</span>
+                                <p id="poi-approach-radius">100m</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="sheet-actions">
+                        <button id="play-audio-button" class="button button-primary" type="button" hidden>Phat audio</button>
+                        <a id="maps-link" class="button button-secondary" href="#" target="_blank" rel="noreferrer">Mo Google Maps</a>
+                        <a id="open-app-link" class="button button-secondary" href="#">Mo trong app</a>
+                    </section>
+
+                    <audio id="poi-audio" controls preload="metadata" playsinline hidden></audio>
+
+                    <section class="sheet-section">
+                        <span class="meta-label">Thuyet minh</span>
+                        <p id="poi-script" class="narration-text">Dang tai noi dung...</p>
+                    </section>
+                </div>
+            </section>
+
+            <section id="poi-list-sheet" class="poi-list-sheet" aria-label="Danh sach dia diem">
+                <button id="poi-list-toggle" class="poi-list-handle" type="button" aria-expanded="false" aria-label="Mo danh sach dia diem">
+                    <span class="poi-list-grabber" aria-hidden="true"></span>
+                </button>
+
+                <div class="poi-list-header">
+                    <div class="poi-list-copy">
+                        <p class="poi-list-kicker">Danh sach POI</p>
+                        <h2 id="poi-list-title">Dia diem gan day</h2>
+                    </div>
+                    <span id="poi-list-count" class="poi-list-count">0</span>
+                </div>
+
+                <div id="poi-list-items" class="poi-list-items"></div>
+            </section>
+        </section>
+
+        <section id="tour-panel" class="app-panel" hidden aria-label="Tour">
+            <div class="panel-scroll">
+                <header class="panel-hero">
+                    <div>
+                        <p class="panel-kicker">Kham pha</p>
+                        <h1>Tour</h1>
+                        <p class="panel-subtitle">Danh sach tour dang mo tren web, co the xem chi tiet va chuyen sang ban do.</p>
+                    </div>
+                </header>
+
+                <section class="content-block">
+                    <div id="tour-list" class="card-stack"></div>
+                </section>
+
+                <section id="tour-detail" class="content-block" hidden>
+                    <div class="block-head">
+                        <h2 id="tour-detail-name">Chi tiet tour</h2>
+                        <button id="tour-back-button" class="link-button" type="button">Thu gon</button>
+                    </div>
+                    <p id="tour-detail-summary" class="panel-subtitle panel-subtitle-dark"></p>
+                    <div id="tour-detail-pois" class="card-stack compact-stack"></div>
+                </section>
+            </div>
+        </section>
+
+        <section id="more-panel" class="app-panel" hidden aria-label="Them">
+            <div class="panel-scroll">
+                <header class="panel-hero panel-hero-slate">
+                    <div>
+                        <p class="panel-kicker">Tien ich</p>
+                        <h1>Them</h1>
+                        <p class="panel-subtitle">Cai dat webapp, lien ket nhanh va tuy chon mo sang app goc.</p>
+                    </div>
+                </header>
+
+                <section class="content-block">
+                    <div class="settings-card-web">
+                        <label class="toggle-row-web" for="setting-autoplay-web">
+                            <span>Tu dong phat khi vao vung</span>
+                            <input id="setting-autoplay-web" type="checkbox" />
+                        </label>
+                        <label class="setting-row-web" for="setting-volume-web">
+                            <span>Am luong</span>
+                            <input id="setting-volume-web" type="range" min="0" max="100" value="100" />
+                        </label>
+                    </div>
+                </section>
+
+                <section class="content-block">
+                    <div class="more-grid">
+                        <button id="more-open-current-poi" class="more-action-card" type="button">
+                            <span class="more-action-icon"><svg class="icon"><use href="#icon-map"/></svg></span>
+                            <strong>Mo POI hien tai</strong>
+                            <small>Quay lai diem dang xem tren ban do.</small>
+                        </button>
+                        <button id="more-open-app" class="more-action-card" type="button">
+                            <span class="more-action-icon"><svg class="icon"><use href="#icon-app"/></svg></span>
+                            <strong>Mo app</strong>
+                            <small>Deep link sang ZoneGuide tren thiet bi.</small>
+                        </button>
+                        <button id="more-open-google-maps" class="more-action-card" type="button">
+                            <span class="more-action-icon"><svg class="icon"><use href="#icon-crosshair"/></svg></span>
+                            <strong>Google Maps</strong>
+                            <small>Mo vi tri POI hien tai tren ban do ngoai.</small>
+                        </button>
+                    </div>
+                </section>
+            </div>
+        </section>
+
+        <nav class="bottom-nav" aria-label="Dieu huong nhanh">
+            <button id="nav-home" class="nav-item" type="button">
+                <span class="nav-icon"><svg class="icon"><use href="#icon-search"/></svg></span>
+                <span class="nav-label">Home</span>
+            </button>
+            <button id="nav-map" class="nav-item nav-item-active" type="button">
+                <span class="nav-icon"><svg class="icon"><use href="#icon-map"/></svg></span>
+                <span class="nav-label">Ban do</span>
+            </button>
+            <button id="nav-tour" class="nav-item" type="button">
+                <span class="nav-icon"><svg class="icon"><use href="#icon-layers"/></svg></span>
+                <span class="nav-label">Tour</span>
+            </button>
+            <button id="nav-more" class="nav-item" type="button">
+                <span class="nav-icon"><svg class="icon"><use href="#icon-service"/></svg></span>
+                <span class="nav-label">Them</span>
+            </button>
+        </nav>
+    </main>
+
+    <script src="/webapp/app.js"></script>
+</body>
+</html>

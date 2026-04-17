@@ -10,6 +10,7 @@ public partial class QRScannerPage : ContentPage
 {
     private bool _handled;
     private readonly Regex _poiRegex = new(@"^POI:(\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private readonly Regex _poiUrlRegex = new(@"(?:^https?://.+/poi/|^zoneguide://poi/)(\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public QRScannerPage()
     {
@@ -99,6 +100,11 @@ public partial class QRScannerPage : ContentPage
             text = text.Trim();
 
             var match = _poiRegex.Match(text);
+            if (!match.Success)
+            {
+                match = _poiUrlRegex.Match(text);
+            }
+
             if (!match.Success)
                 return;
 

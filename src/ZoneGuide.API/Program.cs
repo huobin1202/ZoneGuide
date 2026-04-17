@@ -129,6 +129,7 @@ app.MapControllers();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var qrService = scope.ServiceProvider.GetRequiredService<PoiQrCodeService>();
     db.Database.Migrate();
     
     // Seed Admin account if not exists
@@ -186,6 +187,16 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine("Email: user@ZoneGuide.com");
         Console.WriteLine("Password: User@123");
         Console.WriteLine("===========================================");
+    }
+
+    var poiIds = db.POIs
+        .Where(p => p.IsActive)
+        .Select(p => p.Id)
+        .ToList();
+
+    foreach (var poiId in poiIds)
+    {
+        await qrService.EnsureQrCodeGeneratedAsync(poiId, force: true);
     }
 }
 
