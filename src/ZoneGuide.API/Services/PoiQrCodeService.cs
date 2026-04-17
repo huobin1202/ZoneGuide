@@ -8,6 +8,7 @@ namespace ZoneGuide.API.Services;
 public class PoiQrCodeService
 {
     private const string DefaultPublicBaseUrl = "https://localhost:56040";
+    private const string TunnelUrlEnvVar = "ZONEGUIDE_PUBLIC_TUNNEL_URL";
 
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<PoiQrCodeService> _logger;
@@ -21,7 +22,61 @@ public class PoiQrCodeService
     {
         _env = env;
         _logger = logger;
-        _publicBaseUrl = configuration["PublicWebApp:BaseUrl"]?.TrimEnd('/') ?? DefaultPublicBaseUrl;
+
+        var lanBaseUrl = NormalizeBaseUrl(configuration["PublicWebApp:BaseUrl"]);
+        var tunnelEnvBaseUrl = NormalizeBaseUrl(Environment.GetEnvironmentVariable(TunnelUrlEnvVar));
+        var tunnelBaseUrl = tunnelEnvBaseUrl ?? NormalizeBaseUrl(configuration["PublicWebApp:TunnelBaseUrl"]);
+        var preferTunnel = configuration.GetValue<bool>("PublicWebApp:PreferTunnel");
+
+        _publicBaseUrl = ResolvePublicBaseUrl(lanBaseUrl, tunnelBaseUrl, preferTunnel, tunnelEnvBaseUrl != null);
+        _logger.LogInformation("QR payload base URL: {BaseUrl}", _publicBaseUrl);
+    }
+
+    private static string ResolvePublicBaseUrl(string? lanBaseUrl, string? tunnelBaseUrl, bool preferTunnel, bool hasTunnelEnvOverride)
+    {
+        if (hasTunnelEnvOverride && !string.IsNullOrWhiteSpace(tunnelBaseUrl))
+        {
+            return tunnelBaseUrl;
+        }
+
+        if (preferTunnel && !string.IsNullOrWhiteSpace(tunnelBaseUrl))
+        {
+            return tunnelBaseUrl;
+        }
+
+        if (!string.IsNullOrWhiteSpace(lanBaseUrl))
+        {
+            return lanBaseUrl;
+        }
+
+        if (!string.IsNullOrWhiteSpace(tunnelBaseUrl))
+        {
+            return tunnelBaseUrl;
+        }
+
+        return DefaultPublicBaseUrl;
+    }
+
+    private static string? NormalizeBaseUrl(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        var trimmed = raw.Trim();
+        if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
+        {
+            return null;
+        }
+
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return trimmed.TrimEnd('/');
     }
 
     public string BuildPayload(int poiId) => GetPoiLandingUrl(poiId);
@@ -40,6 +95,12 @@ public class PoiQrCodeService
         return Path.Combine(webRoot, "uploads", "qrcodes", $"poi-{poiId}.png");
     }
 
+    private string GetPayloadFilePath(int poiId)
+    {
+        var webRoot = _env.WebRootPath ?? string.Empty;
+        return Path.Combine(webRoot, "uploads", "qrcodes", $"poi-{poiId}.payload.txt");
+    }
+
     public bool QrExists(int poiId)
     {
         var path = GetQrFilePath(poiId);
@@ -55,8 +116,23 @@ public class PoiQrCodeService
     private async Task<bool> EnsureQrCodeGeneratedAsync(int poiId, string payload, bool force)
     {
         var filePath = GetQrFilePath(poiId);
-        if (!force && File.Exists(filePath))
-            return true;
+        var payloadFilePath = GetPayloadFilePath(poiId);
+
+        if (!force && File.Exists(filePath) && File.Exists(payloadFilePath))
+        {
+            try
+            {
+                var existingPayload = await File.ReadAllTextAsync(payloadFilePath);
+                if (string.Equals(existingPayload.Trim(), payload, StringComparison.Ordinal))
+                {
+                    return false;
+                }
+            }
+            catch
+            {
+                // If payload marker is unreadable, regenerate defensively.
+            }
+        }
 
         string? directory = Path.GetDirectoryName(filePath);
         if (!string.IsNullOrWhiteSpace(directory))
@@ -70,6 +146,7 @@ public class PoiQrCodeService
         var bytes = png.GetGraphic(20);
 
         await File.WriteAllBytesAsync(filePath, bytes);
+        await File.WriteAllTextAsync(payloadFilePath, payload);
         _logger.LogInformation("Generated QR for POI {PoiId} -> {FilePath}", poiId, filePath);
 
         return true;

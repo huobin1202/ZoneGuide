@@ -37,6 +37,7 @@ public interface IApiService
     Task<DashboardAnalyticsDto?> GetDashboardAsync(DateTime? from = null, DateTime? to = null);
     Task<List<TopPOIDto>> GetTopPOIsAsync(int count = 10);
     Task<List<HeatmapPointDto>> GetHeatmapDataAsync(DateTime? from = null, DateTime? to = null);
+    Task<QrMonitoringSnapshotDto?> GetQrMonitoringSnapshotAsync();
 
     // TTS
     Task<string?> GenerateTtsAsync(string text, string language);
@@ -427,6 +428,18 @@ public class ApiService : IApiService
         }
     }
 
+    public async Task<QrMonitoringSnapshotDto?> GetQrMonitoringSnapshotAsync()
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<QrMonitoringSnapshotDto>("api/qr-monitoring/snapshot");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public async Task<T?> GetAsync<T>(string url) where T : class
     {
         try
@@ -485,3 +498,15 @@ public class ApiService : IApiService
 
 // Analytics DTOs are defined in ZoneGuide.API.Services.SyncService
 // We use those definitions through the Shared project
+
+public sealed class QrMonitoringSnapshotDto
+{
+    public int ActiveDeviceCount { get; set; }
+    public int UniqueDeviceCount { get; set; }
+    public long TotalAccessCount { get; set; }
+    public int AccessesLastMinute { get; set; }
+    public DateTime? LastAccessAtUtc { get; set; }
+    public int? LastPoiId { get; set; }
+    public int ActiveWindowSeconds { get; set; }
+    public int LastMinuteWindowSeconds { get; set; }
+}
