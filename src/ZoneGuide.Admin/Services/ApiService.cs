@@ -38,6 +38,7 @@ public interface IApiService
     Task<List<TopPOIDto>> GetTopPOIsAsync(int count = 10);
     Task<List<HeatmapPointDto>> GetHeatmapDataAsync(DateTime? from = null, DateTime? to = null);
     Task<QrMonitoringSnapshotDto?> GetQrMonitoringSnapshotAsync();
+    Task<MobileLiveMonitoringSnapshotDto?> GetMobileMonitoringSnapshotAsync();
 
     // TTS
     Task<string?> GenerateTtsAsync(string text, string language);
@@ -433,6 +434,18 @@ public class ApiService : IApiService
         try
         {
             return await _httpClient.GetFromJsonAsync<QrMonitoringSnapshotDto>("api/qr-monitoring/snapshot");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<MobileLiveMonitoringSnapshotDto?> GetMobileMonitoringSnapshotAsync()
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<MobileLiveMonitoringSnapshotDto>("api/mobile-monitoring/snapshot");
         }
         catch
         {

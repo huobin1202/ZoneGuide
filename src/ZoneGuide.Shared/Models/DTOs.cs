@@ -318,6 +318,71 @@ public class DailyStatsDto
 }
 
 /// <summary>
+/// Heartbeat từ app mobile để admin theo dõi realtime.
+/// </summary>
+public class MobileLiveHeartbeatDto
+{
+    public string SessionId { get; set; } = string.Empty;
+    public string DeviceId { get; set; } = string.Empty;
+    public bool IsTracking { get; set; } = true;
+    public string Platform { get; set; } = string.Empty;
+    public string? AppVersion { get; set; }
+    public string? PreferredLanguage { get; set; }
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public double Accuracy { get; set; }
+    public double? Speed { get; set; }
+    public double? Heading { get; set; }
+    public double? Altitude { get; set; }
+    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    public int? NearestPoiId { get; set; }
+    public string? NearestPoiName { get; set; }
+    public string? StatusMessage { get; set; }
+}
+
+/// <summary>
+/// Một phiên mobile đang hoạt động trên dashboard realtime.
+/// </summary>
+public class MobileLiveSessionDto
+{
+    public string SessionId { get; set; } = string.Empty;
+    public string DeviceId { get; set; } = string.Empty;
+    public bool IsTracking { get; set; }
+    public bool IsAuthenticated { get; set; }
+    public int? UserId { get; set; }
+    public string? UserDisplayName { get; set; }
+    public string? UserEmail { get; set; }
+    public string Platform { get; set; } = string.Empty;
+    public string? AppVersion { get; set; }
+    public string? PreferredLanguage { get; set; }
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public double Accuracy { get; set; }
+    public double? Speed { get; set; }
+    public double? Heading { get; set; }
+    public double? Altitude { get; set; }
+    public DateTime LocationTimestampUtc { get; set; }
+    public DateTime LastSeenAtUtc { get; set; }
+    public int? NearestPoiId { get; set; }
+    public string? NearestPoiName { get; set; }
+    public string? StatusMessage { get; set; }
+}
+
+/// <summary>
+/// Snapshot realtime của người dùng app mobile.
+/// </summary>
+public class MobileLiveMonitoringSnapshotDto
+{
+    public int ActiveSessionCount { get; set; }
+    public int AuthenticatedSessionCount { get; set; }
+    public int AnonymousSessionCount { get; set; }
+    public int TrackingSessionCount { get; set; }
+    public DateTime? LastUpdatedAtUtc { get; set; }
+    public int ActiveWindowSeconds { get; set; }
+    public List<MobileLiveSessionDto> Sessions { get; set; } = new();
+}
+
+/// <summary>
 /// DTO cho Activity Log
 /// </summary>
 public class ActivityLogDto

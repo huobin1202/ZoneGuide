@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ZoneGuide.Mobile.Services;
 using ZoneGuide.Mobile.Localization;
 using ZoneGuide.Shared.Interfaces;
 using ZoneGuide.Shared.Models;
@@ -18,8 +19,11 @@ public partial class MainViewModel : ObservableObject
     private readonly IPOIRepository _poiRepository;
     private readonly IAnalyticsRepository _analyticsRepository;
     private readonly ISettingsService _settingsService;
+    private readonly ApiService _apiService;
 
     private string _sessionId = string.Empty;
+    private DateTime _lastLiveHeartbeatAtUtc = DateTime.MinValue;
+    private const int LiveHeartbeatIntervalSeconds = 5;
 
     [ObservableProperty]
     private bool isTracking;
@@ -53,7 +57,8 @@ public partial class MainViewModel : ObservableObject
         INarrationService narrationService,
         IPOIRepository poiRepository,
         IAnalyticsRepository analyticsRepository,
-        ISettingsService settingsService)
+        ISettingsService settingsService,
+        ApiService apiService)
     {
         _locationService = locationService;
         _geofenceService = geofenceService;
@@ -61,6 +66,7 @@ public partial class MainViewModel : ObservableObject
         _poiRepository = poiRepository;
         _analyticsRepository = analyticsRepository;
         _settingsService = settingsService;
+        _apiService = apiService;
 
         // Subscribe events
         _locationService.LocationChanged += OnLocationChanged;
@@ -181,6 +187,7 @@ public partial class MainViewModel : ObservableObject
 
         // Lưu lịch sử vị trí (ẩn danh)
         await SaveLocationHistoryAsync(location);
+        await SendLiveHeartbeatAsync(location);
     }
 
     private async void OnGeofenceTriggered(object? sender, GeofenceEvent evt)
@@ -315,5 +322,46 @@ public partial class MainViewModel : ObservableObject
             await _settingsService.SetAsync("anonymous_device_id", deviceId);
         }
         return deviceId;
+    }
+
+    private async Task SendLiveHeartbeatAsync(LocationData location)
+    {
+        var now = DateTime.UtcNow;
+        if ((now - _lastLiveHeartbeatAtUtc).TotalSeconds < LiveHeartbeatIntervalSeconds)
+        {
+            return;
+        }
+
+        _lastLiveHeartbeatAtUtc = now;
+
+        try
+        {
+            var deviceId = await GetAnonymousDeviceIdAsync();
+            var nearestPoi = _geofenceService.NearestPOI;
+
+            await _apiService.UploadMobileHeartbeatAsync(new MobileLiveHeartbeatDto
+            {
+                SessionId = _sessionId,
+                DeviceId = deviceId,
+                IsTracking = IsTracking,
+                Platform = DeviceInfo.Current.Platform.ToString(),
+                AppVersion = AppInfo.Current.VersionString,
+                PreferredLanguage = _settingsService.Settings.PreferredLanguage,
+                Latitude = location.Latitude,
+                Longitude = location.Longitude,
+                Accuracy = location.Accuracy,
+                Speed = location.Speed,
+                Heading = location.Heading,
+                Altitude = location.Altitude,
+                Timestamp = location.Timestamp,
+                NearestPoiId = nearestPoi?.Id,
+                NearestPoiName = nearestPoi?.Name,
+                StatusMessage = StatusMessage
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainVM] Live heartbeat error: {ex.Message}");
+        }
     }
 }

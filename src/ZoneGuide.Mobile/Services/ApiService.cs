@@ -1,6 +1,7 @@
 using ZoneGuide.Shared.Models;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Net.Http.Headers;
 
 namespace ZoneGuide.Mobile.Services;
 
@@ -282,6 +283,18 @@ public class ApiService
             .ToList();
     }
 
+    private static async Task<string?> GetAccessTokenAsync()
+    {
+        try
+        {
+            return await SecureStorage.GetAsync("auth_access_token");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public static bool TrySetPreferredBaseUrlFromQrPayload(string payload)
     {
         if (string.IsNullOrWhiteSpace(payload))
@@ -558,6 +571,44 @@ public class ApiService
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[ApiService] UploadAnalytics error via {baseUrl}: {ex.Message}");
+            }
+        }
+
+        return false;
+    }
+
+    public async Task<bool> UploadMobileHeartbeatAsync(MobileLiveHeartbeatDto data)
+    {
+        foreach (var baseUrl in GetOrderedBaseUrls())
+        {
+            try
+            {
+                var heartbeatUri = new Uri(new Uri(baseUrl), "mobile-monitoring/heartbeat");
+                using var request = new HttpRequestMessage(HttpMethod.Post, heartbeatUri)
+                {
+                    Content = JsonContent.Create(data)
+                };
+
+                var accessToken = await GetAccessTokenAsync();
+                if (!string.IsNullOrWhiteSpace(accessToken))
+                {
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                }
+
+                var response = await _httpClient.SendAsync(request);
+                if (response.IsSuccessStatusCode)
+                {
+                    SavePreferredBaseUrl(baseUrl);
+                    return true;
+                }
+
+                var body = await response.Content.ReadAsStringAsync();
+                System.Diagnostics.Debug.WriteLine(
+                    $"[ApiService] UploadMobileHeartbeat failed via {baseUrl}: {(int)response.StatusCode} {response.ReasonPhrase}. Body: {body[..Math.Min(body.Length, 300)]}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ApiService] UploadMobileHeartbeat error via {baseUrl}: {ex.Message}");
             }
         }
 

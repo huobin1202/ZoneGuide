@@ -94,6 +94,7 @@ builder.Services.AddSingleton<PoiQrCodeService>();
 builder.Services.AddScoped<IPOIContributionService, POIContributionService>();
 builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
 builder.Services.AddSingleton<IQrRealtimeMonitoringService, QrRealtimeMonitoringService>();
+builder.Services.AddSingleton<IMobileLiveMonitoringService, MobileLiveMonitoringService>();
 
 // AutoMapper
 builder.Services.AddAutoMapper(cfg => cfg.AddMaps(typeof(Program).Assembly));
@@ -128,6 +129,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<QrMonitoringHub>("/hubs/qr-monitor");
+app.MapHub<MobileMonitoringHub>("/hubs/mobile-monitor");
 
 // Auto migrate database
 using (var scope = app.Services.CreateScope())
