@@ -13,9 +13,6 @@ namespace ZoneGuide.Mobile.ViewModels;
 /// </summary>
 public partial class SettingsViewModel : ObservableObject
 {
-    private const double MinRadiusMeters = 10;
-    private const double MaxRadiusMeters = 200;
-
     private readonly ISettingsService _settingsService;
     private readonly ISyncService _syncService;
     private readonly ITTSService _ttsService;
@@ -39,14 +36,6 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private int gpsAccuracyIndex = 1;
 
-    [ObservableProperty]
-    private double triggerRadius = 50;
-
-    [ObservableProperty]
-    private double approachRadius = 100;
-
-    [ObservableProperty]
-    private int cooldownSeconds = 300;
 
     [ObservableProperty]
     private bool autoPlayOnEnter = true;
@@ -110,9 +99,6 @@ public partial class SettingsViewModel : ObservableObject
             GPSAccuracyLevel.High => 2,
             _ => 1
         };
-        TriggerRadius = NormalizeRadius(settings.DefaultTriggerRadius);
-        ApproachRadius = NormalizeApproachRadius(settings.DefaultApproachRadius, TriggerRadius);
-        CooldownSeconds = settings.DefaultCooldownSeconds;
         AutoPlayOnEnter = settings.AutoPlayOnEnter;
         NotifyOnApproach = settings.NotifyOnApproach;
         SelectedVoice = settings.PreferredVoice;
@@ -147,17 +133,6 @@ public partial class SettingsViewModel : ObservableObject
         return $"{AppLocalizer.Instance.Translate("settings_last_sync")}: {value.Value:dd/MM/yyyy HH:mm}";
     }
 
-    private static double NormalizeRadius(double value)
-    {
-        return Math.Clamp(value, MinRadiusMeters, MaxRadiusMeters);
-    }
-
-    private static double NormalizeApproachRadius(double value, double triggerRadius)
-    {
-        var normalizedTrigger = NormalizeRadius(triggerRadius);
-        var normalizedApproach = NormalizeRadius(value);
-        return Math.Max(normalizedApproach, normalizedTrigger);
-    }
 
     private async Task LoadVoicesAsync()
     {
@@ -174,19 +149,11 @@ public partial class SettingsViewModel : ObservableObject
     {
         var settings = _settingsService.Settings;
         var previousLanguage = settings.PreferredLanguage;
-        var normalizedTriggerRadius = NormalizeRadius(TriggerRadius);
-        var normalizedApproachRadius = NormalizeApproachRadius(ApproachRadius, normalizedTriggerRadius);
-
-        TriggerRadius = normalizedTriggerRadius;
-        ApproachRadius = normalizedApproachRadius;
 
         settings.PreferredLanguage = PreferredLanguage;
         settings.TTSSpeed = TtsSpeed;
         settings.Volume = Volume;
         settings.GPSAccuracy = GpsAccuracy;
-        settings.DefaultTriggerRadius = normalizedTriggerRadius;
-        settings.DefaultApproachRadius = normalizedApproachRadius;
-        settings.DefaultCooldownSeconds = CooldownSeconds;
         settings.AutoPlayOnEnter = AutoPlayOnEnter;
         settings.NotifyOnApproach = NotifyOnApproach;
         settings.PreferredVoice = SelectedVoice;
@@ -286,30 +253,6 @@ public partial class SettingsViewModel : ObservableObject
             2 => GPSAccuracyLevel.High,
             _ => GPSAccuracyLevel.Medium
         };
-    }
-
-    partial void OnTriggerRadiusChanged(double value)
-    {
-        var normalized = NormalizeRadius(value);
-        if (Math.Abs(normalized - value) > 0.001)
-        {
-            TriggerRadius = normalized;
-            return;
-        }
-
-        if (ApproachRadius < normalized)
-        {
-            ApproachRadius = normalized;
-        }
-    }
-
-    partial void OnApproachRadiusChanged(double value)
-    {
-        var normalized = NormalizeApproachRadius(value, TriggerRadius);
-        if (Math.Abs(normalized - value) > 0.001)
-        {
-            ApproachRadius = normalized;
-        }
     }
 
     partial void OnVolumeChanged(float value)

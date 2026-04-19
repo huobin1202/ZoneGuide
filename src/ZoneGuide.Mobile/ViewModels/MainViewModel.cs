@@ -13,6 +13,7 @@ namespace ZoneGuide.Mobile.ViewModels;
 /// </summary>
 public partial class MainViewModel : ObservableObject
 {
+    private const double NearbyPoiRangeMeters = 240;
     private readonly ILocationService _locationService;
     private readonly IGeofenceService _geofenceService;
     private readonly INarrationService _narrationService;
@@ -175,7 +176,7 @@ public partial class MainViewModel : ObservableObject
         NearestDistance = _geofenceService.NearestPOIDistance;
 
         // Cập nhật danh sách POI gần
-        var nearby = _geofenceService.GetPOIsInRange(_settingsService.Settings.DefaultApproachRadius * 2);
+        var nearby = _geofenceService.GetPOIsInRange(NearbyPoiRangeMeters);
         
         MainThread.BeginInvokeOnMainThread(() =>
         {
