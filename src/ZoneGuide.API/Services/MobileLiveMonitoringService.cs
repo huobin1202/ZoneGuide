@@ -37,7 +37,7 @@ public sealed class MobileLiveMonitoringService : IMobileLiveMonitoringService, 
         _hubContext = hubContext;
         _logger = logger;
 
-        var activeWindowSeconds = Clamp(configuration.GetValue<int?>("MobileMonitoring:ActiveWindowSeconds") ?? 45, 10, 600);
+        var activeWindowSeconds = Clamp(configuration.GetValue<int?>("MobileMonitoring:ActiveWindowSeconds") ?? 10, 1, 600);
         var broadcastIntervalSeconds = Clamp(configuration.GetValue<int?>("MobileMonitoring:BroadcastIntervalSeconds") ?? 2, 1, 10);
 
         _activeWindow = TimeSpan.FromSeconds(activeWindowSeconds);

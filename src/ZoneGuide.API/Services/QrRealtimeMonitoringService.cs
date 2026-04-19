@@ -42,7 +42,7 @@ public sealed class QrRealtimeMonitoringService : IQrRealtimeMonitoringService, 
         _hubContext = hubContext;
         _logger = logger;
 
-        var activeWindowSeconds = Clamp(configuration.GetValue<int?>("QrMonitoring:ActiveWindowSeconds") ?? 60, 10, 3600);
+        var activeWindowSeconds = Clamp(configuration.GetValue<int?>("QrMonitoring:ActiveWindowSeconds") ?? 10, 1, 3600);
         var lastMinuteWindowSeconds = Clamp(configuration.GetValue<int?>("QrMonitoring:LastMinuteWindowSeconds") ?? 60, 10, 3600);
         var broadcastIntervalSeconds = Clamp(configuration.GetValue<int?>("QrMonitoring:BroadcastIntervalSeconds") ?? 1, 1, 10);
 

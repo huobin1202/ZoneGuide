@@ -35,7 +35,8 @@ public class AudioService : IAudioService, IDisposable
     {
         try
         {
-            await StopAsync();
+            // Clean up old player first
+            await CleanupPlayerAsync();
 
             if (!File.Exists(filePath))
             {
@@ -57,6 +58,7 @@ public class AudioService : IAudioService, IDisposable
         catch (Exception ex)
         {
             PlaybackError?.Invoke(this, ex.Message);
+            await CleanupPlayerAsync();
         }
     }
 
@@ -64,7 +66,8 @@ public class AudioService : IAudioService, IDisposable
     {
         try
         {
-            await StopAsync();
+            // Clean up old player first
+            await CleanupPlayerAsync();
 
             _activeStream = await _httpClient.GetStreamAsync(url);
 
@@ -96,6 +99,7 @@ public class AudioService : IAudioService, IDisposable
         catch (Exception ex)
         {
             PlaybackError?.Invoke(this, ex.Message);
+            await CleanupPlayerAsync();
         }
     }
 
@@ -125,13 +129,26 @@ public class AudioService : IAudioService, IDisposable
 
     public Task StopAsync()
     {
+        return CleanupPlayerAsync();
+    }
+
+    private Task CleanupPlayerAsync()
+    {
         StopProgressTracking();
         
         if (_player != null)
         {
-            _player.Stop();
-            _player.Dispose();
-            _player = null;
+            try
+            {
+                _player.PlaybackEnded -= OnPlaybackEnded;
+                _player.Stop();
+            }
+            catch { /* Ignore disposal errors */ }
+            finally
+            {
+                _player.Dispose();
+                _player = null;
+            }
         }
 
         DisposeActiveStream();

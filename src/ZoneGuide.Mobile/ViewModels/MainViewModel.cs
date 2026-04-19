@@ -21,6 +21,7 @@ public partial class MainViewModel : ObservableObject
     private readonly ISettingsService _settingsService;
     private readonly ApiService _apiService;
 
+    private const string SessionIdKey = "mobile_session_id";
     private string _sessionId = string.Empty;
     private DateTime _lastLiveHeartbeatAtUtc = DateTime.MinValue;
     private const int LiveHeartbeatIntervalSeconds = 5;

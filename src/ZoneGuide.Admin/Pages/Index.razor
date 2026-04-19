@@ -108,14 +108,6 @@ else if (_dashboard != null)
                         <MudText Typo="Typo.h5">@(_mobileRealtime?.ActiveSessionCount ?? 0)</MudText>
                     </MudItem>
                     <MudItem xs="6" sm="3">
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Đã đăng nhập</MudText>
-                        <MudText Typo="Typo.h5">@(_mobileRealtime?.AuthenticatedSessionCount ?? 0)</MudText>
-                    </MudItem>
-                    <MudItem xs="6" sm="3">
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Ẩn danh</MudText>
-                        <MudText Typo="Typo.h5">@(_mobileRealtime?.AnonymousSessionCount ?? 0)</MudText>
-                    </MudItem>
-                    <MudItem xs="6" sm="3">
                         <MudText Typo="Typo.caption" Class="mud-text-secondary">Đang tracking</MudText>
                         <MudText Typo="Typo.h5">@(_mobileRealtime?.TrackingSessionCount ?? 0)</MudText>
                     </MudItem>
