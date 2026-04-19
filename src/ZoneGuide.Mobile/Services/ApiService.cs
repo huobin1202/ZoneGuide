@@ -18,32 +18,47 @@ public class ApiService
     // Emulator Android: 10.0.2.2
     // Thiết bị thật cùng WiFi: dùng IP LAN (ví dụ: 192.168.1.3)
     // Production: dùng domain thật (ví dụ: https://api.ZoneGuide.com)
+    // Ngrok: dùng URL ngrok (ví dụ: https://abc123.ngrok-free.app)
     
-    // 👇 ĐỔI IP NÀY THÀNH IP MÁY TÍNH CỦA BẠN
-    private const string ServerIP = "192.168.0.149";
-    private const string ServerPort = "56042"; // HTTP port (không cần SSL cho development)
+    // 👇 SỬ DỤNG NGROK: Đặt URL ngrok của bạn vào đây (để trống nếu dùng IP local)
+    private const string NgrokUrl = "https://whinny-armhole-goldmine.ngrok-free.dev"; // Ví dụ: "https://abc123.ngrok-free.app" 
+    
+    // 👇 ĐỔI IP NÀY THÀNH IP MÁY TÍNH CỦA BẠN (nếu không dùng ngrok)
+    private const string ServerIP = "192.168.1.6";
+    private const string ServerPort = "56042"; // HTTP port
     
 #if ANDROID
-    private static readonly string BaseUrl = $"http://{ServerIP}:{ServerPort}/api/";
+    private static readonly string BaseUrl = string.IsNullOrWhiteSpace(NgrokUrl)
+        ? $"http://{ServerIP}:{ServerPort}/api/"
+        : $"{NgrokUrl.TrimEnd('/')}/api/";
 #else
     private const string BaseUrl = "https://localhost:56040/api/";
 #endif
 
     private static List<string> BuildSyncBaseUrls()
     {
+        var urls = new List<string>();
+        
+        // Thêm ngrok URL nếu có
+        if (!string.IsNullOrWhiteSpace(NgrokUrl))
+        {
+            urls.Add($"{NgrokUrl.TrimEnd('/')}/api/");
+        }
+        
 #if ANDROID
-        var urls = new List<string>
+        // Thêm các URL local
+        urls.AddRange(new[]
         {
             "http://10.0.2.2:56042/api/",
             "https://10.0.2.2:56040/api/",
             $"http://{ServerIP}:{ServerPort}/api/"
-        };
+        });
 #else
-        var urls = new List<string>
+        urls.AddRange(new[]
         {
             "https://localhost:56040/api/",
             "http://localhost:56042/api/"
-        };
+        });
 #endif
 
         return urls
@@ -236,7 +251,9 @@ public class ApiService
             return trimmed;
 
 #if ANDROID
-        var serverRoot = $"http://{ServerIP}:{ServerPort}";
+        var serverRoot = string.IsNullOrWhiteSpace(NgrokUrl)
+            ? $"http://{ServerIP}:{ServerPort}"
+            : NgrokUrl.TrimEnd('/');
 #else
         const string serverRoot = "https://localhost:56040";
 #endif

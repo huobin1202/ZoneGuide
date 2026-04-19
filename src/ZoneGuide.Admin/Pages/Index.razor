@@ -6,6 +6,7 @@
 @implements IAsyncDisposable
 
 @using Microsoft.AspNetCore.SignalR.Client
+@using ZoneGuide.Shared.Models
 
 
 @if (_loading)
@@ -89,6 +90,39 @@ else if (_dashboard != null)
 
                 <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">
                     @GetRealtimeFooterText()
+                </MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="6">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                    <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Mobile App Monitoring</MudText>
+                    <MudChip T="string" Color="@(_mobileRealtimeConnected ? Color.Success : Color.Warning)" Variant="Variant.Filled" Size="Size.Small">
+                        @(_mobileRealtimeConnected ? "LIVE" : "OFFLINE")
+                    </MudChip>
+                </MudStack>
+
+                <MudGrid Class="mt-2">
+                    <MudItem xs="6" sm="3">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Phiên active</MudText>
+                        <MudText Typo="Typo.h5">@(_mobileRealtime?.ActiveSessionCount ?? 0)</MudText>
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Đã đăng nhập</MudText>
+                        <MudText Typo="Typo.h5">@(_mobileRealtime?.AuthenticatedSessionCount ?? 0)</MudText>
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Ẩn danh</MudText>
+                        <MudText Typo="Typo.h5">@(_mobileRealtime?.AnonymousSessionCount ?? 0)</MudText>
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Đang tracking</MudText>
+                        <MudText Typo="Typo.h5">@(_mobileRealtime?.TrackingSessionCount ?? 0)</MudText>
+                    </MudItem>
+                </MudGrid>
+
+                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">
+                    @GetMobileRealtimeFooterText()
                 </MudText>
             </MudPaper>
         </MudItem>
@@ -185,6 +219,9 @@ else
     private QrMonitoringSnapshotDto? _qrRealtime;
     private HubConnection? _qrHubConnection;
     private bool _qrRealtimeConnected;
+    private MobileLiveMonitoringSnapshotDto? _mobileRealtime;
+    private HubConnection? _mobileHubConnection;
+    private bool _mobileRealtimeConnected;
     private bool _loading = true;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -210,6 +247,7 @@ else
 
         await LoadDashboard();
         await InitializeQrRealtimeAsync();
+        await InitializeMobileRealtimeAsync();
         StateHasChanged();
     }
 
@@ -279,6 +317,64 @@ else
         return $"Truy cập gần nhất: {poiText} lúc {localTime:dd/MM/yyyy HH:mm:ss}";
     }
 
+    private async Task InitializeMobileRealtimeAsync()
+    {
+        _mobileRealtime = await ApiService.GetMobileMonitoringSnapshotAsync();
+
+        var apiBaseUrl = Configuration["ApiBaseUrl"] ?? "https://localhost:56040";
+        var hubUrl = $"{apiBaseUrl.TrimEnd('/')}/hubs/mobile-monitor";
+
+        _mobileHubConnection = new HubConnectionBuilder()
+            .WithUrl(hubUrl)
+            .WithAutomaticReconnect()
+            .Build();
+
+        _mobileHubConnection.Reconnecting += _ =>
+        {
+            _mobileRealtimeConnected = false;
+            return InvokeAsync(StateHasChanged);
+        };
+
+        _mobileHubConnection.Reconnected += _ =>
+        {
+            _mobileRealtimeConnected = true;
+            return InvokeAsync(StateHasChanged);
+        };
+
+        _mobileHubConnection.Closed += _ =>
+        {
+            _mobileRealtimeConnected = false;
+            return InvokeAsync(StateHasChanged);
+        };
+
+        _mobileHubConnection.On<MobileLiveMonitoringSnapshotDto>("MobileMonitorUpdated", snapshot =>
+        {
+            _mobileRealtime = snapshot;
+            _ = InvokeAsync(StateHasChanged);
+        });
+
+        try
+        {
+            await _mobileHubConnection.StartAsync();
+            _mobileRealtimeConnected = true;
+        }
+        catch
+        {
+            _mobileRealtimeConnected = false;
+        }
+    }
+
+    private string GetMobileRealtimeFooterText()
+    {
+        if (_mobileRealtime == null || !_mobileRealtime.LastUpdatedAtUtc.HasValue)
+        {
+            return "Chưa ghi nhận phiên mobile";
+        }
+
+        var localTime = _mobileRealtime.LastUpdatedAtUtc.Value.ToLocalTime();
+        return $"Cập nhật gần nhất lúc {localTime:dd/MM/yyyy HH:mm:ss}";
+    }
+
     private string FormatDuration(double seconds)
     {
         var ts = TimeSpan.FromSeconds(seconds);
@@ -292,6 +388,10 @@ else
         if (_qrHubConnection != null)
         {
             await _qrHubConnection.DisposeAsync();
+        }
+        if (_mobileHubConnection != null)
+        {
+            await _mobileHubConnection.DisposeAsync();
         }
     }
 }
