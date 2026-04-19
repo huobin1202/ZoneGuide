@@ -82,6 +82,13 @@ public class NarrationService : INarrationService, IDisposable
 
     public async Task PlayImmediatelyAsync(NarrationQueueItem item)
     {
+        // Chặn trùng lặp - nếu đang phát hoặc đã queued cùng POI, bỏ qua
+        if (_currentItem?.POI.Id == item.POI.Id || _queue.Any(q => q.POI.Id == item.POI.Id))
+        {
+            System.Diagnostics.Debug.WriteLine($"[NarrationService] PlayImmediatelyAsync: skip duplicate POI {item.POI.Id}");
+            return;
+        }
+
         // Dừng cái hiện tại
         await StopAsync();
 
