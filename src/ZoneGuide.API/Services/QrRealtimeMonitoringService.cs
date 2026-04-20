@@ -9,6 +9,8 @@ namespace ZoneGuide.API.Services;
 public interface IQrRealtimeMonitoringService
 {
     Task<QrMonitoringSnapshotDto> RegisterAccessAsync(int poiId, string deviceId, string? ipAddress, string? userAgent, bool hasStableCookie);
+    Task<QrMonitoringSnapshotDto> RegisterPresenceAsync(int poiId, string sessionId, string deviceId, string? ipAddress, string? userAgent, bool hasStableCookie);
+    Task<QrMonitoringSnapshotDto> UnregisterPresenceAsync(string sessionId);
     QrMonitoringSnapshotDto GetSnapshot();
 }
 
@@ -18,7 +20,7 @@ public sealed class QrRealtimeMonitoringService : IQrRealtimeMonitoringService, 
     private readonly TimeSpan _lastMinuteWindow;
     private readonly TimeSpan _queueRetentionWindow;
 
-    private readonly ConcurrentDictionary<string, DateTime> _lastSeenByDevice = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, QrPresenceSessionState> _activeSessions = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, byte> _uniqueDevices = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentQueue<DateTime> _accessTimestamps = new();
     private readonly IHubContext<QrMonitoringHub> _hubContext;
@@ -59,7 +61,6 @@ public sealed class QrRealtimeMonitoringService : IQrRealtimeMonitoringService, 
         var now = DateTime.UtcNow;
         var normalizedDeviceId = ResolveDeviceId(deviceId, ipAddress, userAgent, hasStableCookie);
 
-        _lastSeenByDevice[normalizedDeviceId] = now;
         _uniqueDevices[normalizedDeviceId] = 1;
         _accessTimestamps.Enqueue(now);
 
@@ -77,6 +78,39 @@ public sealed class QrRealtimeMonitoringService : IQrRealtimeMonitoringService, 
         return snapshot;
     }
 
+    public async Task<QrMonitoringSnapshotDto> RegisterPresenceAsync(int poiId, string sessionId, string deviceId, string? ipAddress, string? userAgent, bool hasStableCookie)
+    {
+        var now = DateTime.UtcNow;
+        var normalizedSessionId = string.IsNullOrWhiteSpace(sessionId) ? Guid.NewGuid().ToString("N") : sessionId.Trim();
+        var normalizedDeviceId = ResolveDeviceId(deviceId, ipAddress, userAgent, hasStableCookie);
+
+        _uniqueDevices[normalizedDeviceId] = 1;
+        _activeSessions.AddOrUpdate(
+            normalizedSessionId,
+            _ => new QrPresenceSessionState(normalizedSessionId, normalizedDeviceId, poiId, now),
+            (_, existing) =>
+            {
+                existing.Update(normalizedDeviceId, poiId, now);
+                return existing;
+            });
+
+        var snapshot = BuildSnapshot(now);
+        await BroadcastSnapshotIfChangedAsync(snapshot, poiId);
+        return snapshot;
+    }
+
+    public async Task<QrMonitoringSnapshotDto> UnregisterPresenceAsync(string sessionId)
+    {
+        if (!string.IsNullOrWhiteSpace(sessionId))
+        {
+            _activeSessions.TryRemove(sessionId.Trim(), out _);
+        }
+
+        var snapshot = BuildSnapshot(DateTime.UtcNow);
+        await BroadcastSnapshotIfChangedAsync(snapshot, null);
+        return snapshot;
+    }
+
     public QrMonitoringSnapshotDto GetSnapshot()
     {
         return BuildSnapshot(DateTime.UtcNow);
@@ -86,8 +120,10 @@ public sealed class QrRealtimeMonitoringService : IQrRealtimeMonitoringService, 
     {
         CleanupOldEntries(now);
 
-        var activeThreshold = now - _activeWindow;
-        var activeDeviceCount = _lastSeenByDevice.Values.Count(lastSeen => lastSeen >= activeThreshold);
+        var activeDeviceCount = _activeSessions.Values
+            .Select(x => x.DeviceId)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count();
 
         var minuteThreshold = now - _lastMinuteWindow;
         var accessesLastMinute = _accessTimestamps.Count(ts => ts >= minuteThreshold);
@@ -118,11 +154,11 @@ public sealed class QrRealtimeMonitoringService : IQrRealtimeMonitoringService, 
     {
         var activeThreshold = now - _activeWindow;
 
-        foreach (var kvp in _lastSeenByDevice)
+        foreach (var kvp in _activeSessions)
         {
-            if (kvp.Value < activeThreshold)
+            if (kvp.Value.LastSeenAtUtc < activeThreshold)
             {
-                _lastSeenByDevice.TryRemove(kvp.Key, out _);
+                _activeSessions.TryRemove(kvp.Key, out _);
             }
         }
 
@@ -227,6 +263,29 @@ public sealed class QrRealtimeMonitoringService : IQrRealtimeMonitoringService, 
     private static string BuildSignature(QrMonitoringSnapshotDto snapshot)
     {
         return $"{snapshot.ActiveDeviceCount}|{snapshot.UniqueDeviceCount}|{snapshot.TotalAccessCount}|{snapshot.AccessesLastMinute}|{snapshot.LastPoiId}|{snapshot.LastAccessAtUtc?.Ticks}";
+    }
+
+    private sealed class QrPresenceSessionState
+    {
+        public QrPresenceSessionState(string sessionId, string deviceId, int poiId, DateTime lastSeenAtUtc)
+        {
+            SessionId = sessionId;
+            DeviceId = deviceId;
+            PoiId = poiId;
+            LastSeenAtUtc = lastSeenAtUtc;
+        }
+
+        public string SessionId { get; }
+        public string DeviceId { get; private set; }
+        public int PoiId { get; private set; }
+        public DateTime LastSeenAtUtc { get; private set; }
+
+        public void Update(string deviceId, int poiId, DateTime lastSeenAtUtc)
+        {
+            DeviceId = deviceId;
+            PoiId = poiId;
+            LastSeenAtUtc = lastSeenAtUtc;
+        }
     }
 
     public void Dispose()

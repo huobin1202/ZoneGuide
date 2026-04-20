@@ -11,12 +11,14 @@ public partial class App : Application
 {
     private readonly IServiceProvider _services;
     private readonly ISettingsService _settingsService;
+    private readonly IMobilePresenceService _mobilePresenceService;
 
-    public App(IServiceProvider services, ISettingsService settingsService)
+    public App(IServiceProvider services, ISettingsService settingsService, IMobilePresenceService mobilePresenceService)
     {
         InitializeComponent();
         _services = services;
         _settingsService = settingsService;
+        _mobilePresenceService = mobilePresenceService;
 
         // Bắt unhandled exceptions để debug
         AppDomain.CurrentDomain.UnhandledException += (s, e) =>
@@ -45,7 +47,14 @@ public partial class App : Application
         {
             System.Diagnostics.Debug.WriteLine("[App] Window Created successfully");
             await InitializeRootPageAsync(window);
+            await _mobilePresenceService.StartAsync();
         };
+
+        window.Activated += async (s, e) => await _mobilePresenceService.StartAsync();
+        window.Resumed += async (s, e) => await _mobilePresenceService.StartAsync();
+        window.Deactivated += async (s, e) => await _mobilePresenceService.StopAsync();
+        window.Stopped += async (s, e) => await _mobilePresenceService.StopAsync();
+        window.Destroying += async (s, e) => await _mobilePresenceService.StopAsync();
 
         return window;
     }

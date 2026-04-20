@@ -325,6 +325,7 @@ public class MobileLiveHeartbeatDto
     public string SessionId { get; set; } = string.Empty;
     public string DeviceId { get; set; } = string.Empty;
     public bool IsTracking { get; set; } = true;
+    public bool HasLocationFix { get; set; }
     public string Platform { get; set; } = string.Empty;
     public string? AppVersion { get; set; }
     public string? PreferredLanguage { get; set; }
@@ -348,6 +349,7 @@ public class MobileLiveSessionDto
     public string SessionId { get; set; } = string.Empty;
     public string DeviceId { get; set; } = string.Empty;
     public bool IsTracking { get; set; }
+    public bool HasLocationFix { get; set; }
     public bool IsAuthenticated { get; set; }
     public int? UserId { get; set; }
     public string? UserDisplayName { get; set; }
@@ -380,6 +382,15 @@ public class MobileLiveMonitoringSnapshotDto
     public DateTime? LastUpdatedAtUtc { get; set; }
     public int ActiveWindowSeconds { get; set; }
     public List<MobileLiveSessionDto> Sessions { get; set; } = new();
+}
+
+/// <summary>
+/// Presence heartbeat từ web QR page để admin theo dõi realtime khi tab còn active.
+/// </summary>
+public class QrPresenceHeartbeatDto
+{
+    public string SessionId { get; set; } = string.Empty;
+    public int PoiId { get; set; }
 }
 
 /// <summary>

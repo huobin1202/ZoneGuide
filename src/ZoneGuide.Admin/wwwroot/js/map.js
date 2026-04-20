@@ -863,6 +863,7 @@ window.updateTrackingUsers = function(trackingSessions) {
     if (!trackingSessions || trackingSessions.length === 0) return;
     
     trackingSessions.forEach(function(session) {
+        if (session.hasLocationFix === false) return;
         if (!session.latitude || !session.longitude) return;
         
         var isTracking = session.isTracking;

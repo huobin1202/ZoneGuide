@@ -12,6 +12,7 @@ public interface IMobileLiveMonitoringService
         int? userId,
         string? userDisplayName,
         string? userEmail);
+    Task<MobileLiveMonitoringSnapshotDto> UnregisterSessionAsync(string sessionId);
 
     MobileLiveMonitoringSnapshotDto GetSnapshot();
 }
@@ -79,6 +80,18 @@ public sealed class MobileLiveMonitoringService : IMobileLiveMonitoringService, 
     public MobileLiveMonitoringSnapshotDto GetSnapshot()
     {
         return BuildSnapshot(DateTime.UtcNow);
+    }
+
+    public async Task<MobileLiveMonitoringSnapshotDto> UnregisterSessionAsync(string sessionId)
+    {
+        if (!string.IsNullOrWhiteSpace(sessionId))
+        {
+            _sessions.TryRemove(sessionId.Trim(), out _);
+        }
+
+        var snapshot = BuildSnapshot(DateTime.UtcNow);
+        await BroadcastSnapshotIfChangedAsync(snapshot);
+        return snapshot;
     }
 
     private MobileLiveMonitoringSnapshotDto BuildSnapshot(DateTime now)
@@ -158,7 +171,7 @@ public sealed class MobileLiveMonitoringService : IMobileLiveMonitoringService, 
     private static string BuildSignature(MobileLiveMonitoringSnapshotDto snapshot)
     {
         var sessions = string.Join(';', snapshot.Sessions.Select(s =>
-            $"{s.SessionId}:{s.LastSeenAtUtc.Ticks}:{s.Latitude:F5}:{s.Longitude:F5}:{s.IsTracking}:{s.UserId}:{s.NearestPoiId}"));
+            $"{s.SessionId}:{s.LastSeenAtUtc.Ticks}:{s.HasLocationFix}:{s.Latitude:F5}:{s.Longitude:F5}:{s.IsTracking}:{s.UserId}:{s.NearestPoiId}"));
 
         return $"{snapshot.ActiveSessionCount}|{snapshot.AuthenticatedSessionCount}|{snapshot.TrackingSessionCount}|{snapshot.LastUpdatedAtUtc?.Ticks}|{sessions}";
     }
@@ -189,6 +202,7 @@ public sealed class MobileLiveMonitoringService : IMobileLiveMonitoringService, 
         public string SessionId { get; private init; } = string.Empty;
         public string DeviceId { get; private set; } = string.Empty;
         public bool IsTracking { get; private set; }
+        public bool HasLocationFix { get; private set; }
         public bool IsAuthenticated { get; private set; }
         public int? UserId { get; private set; }
         public string? UserDisplayName { get; private set; }
@@ -236,6 +250,7 @@ public sealed class MobileLiveMonitoringService : IMobileLiveMonitoringService, 
         {
             DeviceId = deviceId;
             IsTracking = heartbeat.IsTracking;
+            HasLocationFix = heartbeat.HasLocationFix;
             IsAuthenticated = userId.HasValue;
             UserId = userId;
             UserDisplayName = string.IsNullOrWhiteSpace(userDisplayName) ? heartbeat.DeviceId : userDisplayName;
@@ -243,13 +258,16 @@ public sealed class MobileLiveMonitoringService : IMobileLiveMonitoringService, 
             Platform = string.IsNullOrWhiteSpace(heartbeat.Platform) ? "unknown" : heartbeat.Platform.Trim();
             AppVersion = heartbeat.AppVersion?.Trim();
             PreferredLanguage = heartbeat.PreferredLanguage?.Trim();
-            Latitude = heartbeat.Latitude;
-            Longitude = heartbeat.Longitude;
-            Accuracy = heartbeat.Accuracy;
-            Speed = heartbeat.Speed;
-            Heading = heartbeat.Heading;
-            Altitude = heartbeat.Altitude;
-            LocationTimestampUtc = heartbeat.Timestamp == default ? now : heartbeat.Timestamp.ToUniversalTime();
+            if (HasLocationFix)
+            {
+                Latitude = heartbeat.Latitude;
+                Longitude = heartbeat.Longitude;
+                Accuracy = heartbeat.Accuracy;
+                Speed = heartbeat.Speed;
+                Heading = heartbeat.Heading;
+                Altitude = heartbeat.Altitude;
+                LocationTimestampUtc = heartbeat.Timestamp == default ? now : heartbeat.Timestamp.ToUniversalTime();
+            }
             LastSeenAtUtc = now;
             NearestPoiId = heartbeat.NearestPoiId;
             NearestPoiName = heartbeat.NearestPoiName?.Trim();
@@ -263,6 +281,7 @@ public sealed class MobileLiveMonitoringService : IMobileLiveMonitoringService, 
                 SessionId = SessionId,
                 DeviceId = DeviceId,
                 IsTracking = IsTracking,
+                HasLocationFix = HasLocationFix,
                 IsAuthenticated = IsAuthenticated,
                 UserId = UserId,
                 UserDisplayName = UserDisplayName,

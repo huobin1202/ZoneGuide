@@ -1,6 +1,8 @@
 (function () {
     const VISIT_STATE_KEY = "zoneguide-web-poi-visit";
     const SETTINGS_KEY = "zoneguide-web-settings";
+    const QR_PRESENCE_SESSION_KEY = "zoneguide-web-qr-session-id";
+    const QR_PRESENCE_INTERVAL_MS = 5000;
     const params = new URLSearchParams(window.location.search);
     const initialPoiId = params.get("poiId");
     const settings = loadSettings();
@@ -16,8 +18,11 @@
     let allPois = [];
     let filteredPois = [];
     let allTours = [];
+    let qrPresenceTimerId = null;
+    let qrPresenceActive = false;
     let isListSheetExpanded = false;
     let sheetDragState = null;
+    const qrPresenceSessionId = getQrPresenceSessionId();
     const categoryOrder = ["tourism", "service", "food", "entertainment", "drinks", "shopping"];
 
     const elements = {
@@ -186,6 +191,9 @@
                 window.open(elements.mapsLink.href, "_blank", "noopener");
             }
         });
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        window.addEventListener("pagehide", stopQrPresence);
+        window.addEventListener("beforeunload", stopQrPresence);
 
         elements.audio.addEventListener("play", function () {
             elements.playIndicator.textContent = "Dang nghe";
@@ -252,6 +260,7 @@
         renderPoi(poi);
         applyPoiSettings(poi, { resetVisit: false });
         restartAutoplayLifecycle();
+        refreshQrPresence();
     }
 
     function buildCategoryChips(pois) {
@@ -749,6 +758,96 @@
         initAutoplayLifecycle(currentPoi);
     }
 
+    function handleVisibilityChange() {
+        if (document.visibilityState === "visible") {
+            refreshQrPresence();
+            return;
+        }
+
+        stopQrPresence();
+    }
+
+    function refreshQrPresence() {
+        if (!currentPoiId || document.visibilityState !== "visible") {
+            stopQrPresence();
+            return;
+        }
+
+        sendQrPresenceHeartbeat();
+
+        if (qrPresenceTimerId !== null) {
+            window.clearInterval(qrPresenceTimerId);
+        }
+
+        qrPresenceTimerId = window.setInterval(function () {
+            if (document.visibilityState === "visible") {
+                sendQrPresenceHeartbeat();
+                return;
+            }
+
+            stopQrPresence();
+        }, QR_PRESENCE_INTERVAL_MS);
+    }
+
+    function sendQrPresenceHeartbeat() {
+        if (!currentPoiId) {
+            return;
+        }
+
+        qrPresenceActive = true;
+        fetch("/api/qr-monitoring/presence", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json"
+            },
+            credentials: "same-origin",
+            keepalive: true,
+            body: JSON.stringify({
+                sessionId: qrPresenceSessionId,
+                poiId: Number(currentPoiId)
+            })
+        }).catch(function () {
+            // Ignore transient QR presence errors on the public web page.
+        });
+    }
+
+    function stopQrPresence() {
+        if (qrPresenceTimerId !== null) {
+            window.clearInterval(qrPresenceTimerId);
+            qrPresenceTimerId = null;
+        }
+
+        if (!qrPresenceActive) {
+            return;
+        }
+
+        qrPresenceActive = false;
+        const payload = JSON.stringify({
+            sessionId: qrPresenceSessionId,
+            poiId: Number(currentPoiId || 0)
+        });
+
+        if (navigator.sendBeacon) {
+            const blob = new Blob([payload], { type: "application/json" });
+            navigator.sendBeacon("/api/qr-monitoring/presence/stop", blob);
+            return;
+        }
+
+        fetch("/api/qr-monitoring/presence/stop", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json"
+            },
+            credentials: "same-origin",
+            keepalive: true,
+            body: payload
+        }).catch(function () {
+            // Ignore transient QR stop errors on unload/background transitions.
+        });
+    }
+
     function initAutoplayLifecycle(poi) {
         if (!navigator.geolocation) {
             if (autoplayRequested && settings.autoplay && !hasPlayedCurrentVisit(currentPoiId)) {
@@ -902,6 +1001,20 @@
     function buildIntentLink(id) {
         const fallbackUrl = new URL(window.location.href);
         return `intent://poi/${encodeURIComponent(id)}?autoplay=true#Intent;scheme=zoneguide;package=com.ZoneGuide.app;S.browser_fallback_url=${encodeURIComponent(fallbackUrl.toString())};end`;
+    }
+
+    function getQrPresenceSessionId() {
+        try {
+            let sessionId = window.sessionStorage.getItem(QR_PRESENCE_SESSION_KEY);
+            if (!sessionId) {
+                sessionId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                window.sessionStorage.setItem(QR_PRESENCE_SESSION_KEY, sessionId);
+            }
+
+            return sessionId;
+        } catch (error) {
+            return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        }
     }
 
     function isAndroid() {

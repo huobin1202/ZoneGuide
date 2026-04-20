@@ -5,7 +5,6 @@ using ZoneGuide.Mobile.Localization;
 using ZoneGuide.Shared.Interfaces;
 using ZoneGuide.Shared.Models;
 using System.Collections.ObjectModel;
-using System.Threading;
 
 namespace ZoneGuide.Mobile.ViewModels;
 
@@ -24,14 +23,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly IPOIRepository _poiRepository;
     private readonly IAnalyticsRepository _analyticsRepository;
     private readonly ISettingsService _settingsService;
-    private readonly ApiService _apiService;
-
-    private const string SessionIdKey = "mobile_session_id";
+    private readonly IMobilePresenceService _mobilePresenceService;
     private string _sessionId = string.Empty;
-    private DateTime _lastLiveHeartbeatAtUtc = DateTime.MinValue;
-    private const int LiveHeartbeatIntervalSeconds = 5;
-    private Timer? _heartbeatTimer;
-    private const int HeartbeatTimerIntervalMs = 5000; // Send heartbeat every 5 seconds
     private bool _isFirstLocationFix = true;
     private readonly HashSet<int> _playedPoiIdsInCurrentVisit = new();
 
@@ -68,7 +61,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IPOIRepository poiRepository,
         IAnalyticsRepository analyticsRepository,
         ISettingsService settingsService,
-        ApiService apiService)
+        IMobilePresenceService mobilePresenceService)
     {
         _locationService = locationService;
         _geofenceService = geofenceService;
@@ -76,7 +69,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _poiRepository = poiRepository;
         _analyticsRepository = analyticsRepository;
         _settingsService = settingsService;
-        _apiService = apiService;
+        _mobilePresenceService = mobilePresenceService;
 
         // Subscribe events
         _locationService.LocationChanged += OnLocationChanged;
@@ -94,31 +87,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Tải POIs từ database
         var pois = await _poiRepository.GetActiveAsync();
         _geofenceService.AddPOIs(pois);
-
         _sessionId = Guid.NewGuid().ToString("N");
-
-        // Start periodic heartbeat timer for live monitoring
-        // This ensures heartbeat is sent even when device is stationary
-        _heartbeatTimer = new Timer(
-            async _ => await SendPeriodicHeartbeatAsync(),
-            null,
-            HeartbeatTimerIntervalMs,
-            HeartbeatTimerIntervalMs);
-    }
-
-    /// <summary>
-    /// Periodic heartbeat sent via timer - maintains session even when device is stationary
-    /// </summary>
-    private async Task SendPeriodicHeartbeatAsync()
-    {
-        if (CurrentLocation == null)
-            return;
-
-        var now = DateTime.UtcNow;
-        if ((now - _lastLiveHeartbeatAtUtc).TotalSeconds >= LiveHeartbeatIntervalSeconds)
-        {
-            await SendLiveHeartbeatAsync(CurrentLocation);
-        }
     }
 
     [RelayCommand]
@@ -131,10 +100,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             IsTracking = true;
             StatusMessage = AppLocalizer.Instance.Translate("main_status_tracking");
+            _mobilePresenceService.UpdateStatus(StatusMessage);
         }
         else
         {
             StatusMessage = AppLocalizer.Instance.Translate("main_status_tracking_failed");
+            _mobilePresenceService.UpdateStatus(StatusMessage);
         }
     }
 
@@ -144,6 +115,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         await _locationService.StopTrackingAsync();
         IsTracking = false;
         StatusMessage = AppLocalizer.Instance.Translate("main_status_tracking_stopped");
+        _mobilePresenceService.UpdateStatus(StatusMessage);
     }
 
     [RelayCommand]
@@ -228,7 +200,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         // Lưu lịch sử vị trí (ẩn danh)
         await SaveLocationHistoryAsync(location);
-        await SendLiveHeartbeatAsync(location);
     }
 
     private async void OnGeofenceTriggered(object? sender, GeofenceEvent evt)
@@ -248,6 +219,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
                     StatusMessage = string.Format(
                         AppLocalizer.Instance.Translate("main_status_enter_region"),
                         evt.POI.Name);
+                    _mobilePresenceService.UpdateStatus(StatusMessage);
                     var item = CreateNarrationItem(evt.POI, evt.EventType, evt.Distance);
                     await _narrationService.PlayImmediatelyAsync(item);
                     _playedPoiIdsInCurrentVisit.Add(evt.POI.Id);
@@ -260,6 +232,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
                     StatusMessage = string.Format(
                         AppLocalizer.Instance.Translate("main_status_approach_region"),
                         evt.POI.Name);
+                    _mobilePresenceService.UpdateStatus(StatusMessage);
                     // Có thể thêm notification ở đây
                 }
                 break;
@@ -269,6 +242,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 StatusMessage = string.Format(
                     AppLocalizer.Instance.Translate("main_status_exit_region"),
                     evt.POI.Name);
+                _mobilePresenceService.UpdateStatus(StatusMessage);
                 break;
         }
     }
@@ -282,6 +256,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             StatusMessage = string.Format(
                 AppLocalizer.Instance.Translate("main_status_now_playing"),
                 item.POI.Name);
+            _mobilePresenceService.UpdateStatus(StatusMessage);
         });
     }
 
@@ -297,6 +272,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             CurrentNarration = null;
             NarrationProgress = 0;
             StatusMessage = AppLocalizer.Instance.Translate("main_status_play_completed");
+            _mobilePresenceService.UpdateStatus(StatusMessage);
         });
     }
 
@@ -310,6 +286,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             CurrentNarration = null;
             NarrationProgress = 0;
             StatusMessage = AppLocalizer.Instance.Translate("main_status_play_stopped");
+            _mobilePresenceService.UpdateStatus(StatusMessage);
         });
     }
 
@@ -368,56 +345,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var deviceId = await _settingsService.GetAsync<string>("anonymous_device_id");
         if (string.IsNullOrEmpty(deviceId))
         {
-            deviceId = Guid.NewGuid().ToString("N")[..16]; // Hash ngắn
+            deviceId = Guid.NewGuid().ToString("N")[..16];
             await _settingsService.SetAsync("anonymous_device_id", deviceId);
         }
+
         return deviceId;
-    }
-
-    private async Task SendLiveHeartbeatAsync(LocationData location)
-    {
-        var now = DateTime.UtcNow;
-        if ((now - _lastLiveHeartbeatAtUtc).TotalSeconds < LiveHeartbeatIntervalSeconds)
-        {
-            return;
-        }
-
-        _lastLiveHeartbeatAtUtc = now;
-
-        try
-        {
-            var deviceId = await GetAnonymousDeviceIdAsync();
-            var nearestPoi = _geofenceService.NearestPOI;
-
-            await _apiService.UploadMobileHeartbeatAsync(new MobileLiveHeartbeatDto
-            {
-                SessionId = _sessionId,
-                DeviceId = deviceId,
-                IsTracking = IsTracking,
-                Platform = DeviceInfo.Current.Platform.ToString(),
-                AppVersion = AppInfo.Current.VersionString,
-                PreferredLanguage = _settingsService.Settings.PreferredLanguage,
-                Latitude = location.Latitude,
-                Longitude = location.Longitude,
-                Accuracy = location.Accuracy,
-                Speed = location.Speed,
-                Heading = location.Heading,
-                Altitude = location.Altitude,
-                Timestamp = location.Timestamp,
-                NearestPoiId = nearestPoi?.Id,
-                NearestPoiName = nearestPoi?.Name,
-                StatusMessage = StatusMessage
-            });
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[MainVM] Live heartbeat error: {ex.Message}");
-        }
     }
 
     public void Dispose()
     {
-        _heartbeatTimer?.Dispose();
         _locationService.LocationChanged -= OnLocationChanged;
         _geofenceService.GeofenceTriggered -= OnGeofenceTriggered;
         _narrationService.NarrationStarted -= OnNarrationStarted;

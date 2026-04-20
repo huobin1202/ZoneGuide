@@ -41,6 +41,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<ISettingsService, SettingsService>();
         builder.Services.AddSingleton<ISyncService, SyncService>();
         builder.Services.AddSingleton<ApiService>();
+        builder.Services.AddSingleton<IMobilePresenceService, MobilePresenceService>();
         
         // Register Repositories
         builder.Services.AddSingleton<IPOIRepository, POIRepository>();

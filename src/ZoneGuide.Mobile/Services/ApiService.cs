@@ -632,6 +632,48 @@ public class ApiService
         return false;
     }
 
+    public async Task<bool> UploadMobileOfflineAsync(string sessionId)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            return false;
+        }
+
+        foreach (var baseUrl in GetOrderedBaseUrls())
+        {
+            try
+            {
+                var offlineUri = new Uri(new Uri(baseUrl), "mobile-monitoring/offline");
+                using var request = new HttpRequestMessage(HttpMethod.Post, offlineUri)
+                {
+                    Content = JsonContent.Create(new MobileLiveHeartbeatDto
+                    {
+                        SessionId = sessionId
+                    })
+                };
+
+                var accessToken = await GetAccessTokenAsync();
+                if (!string.IsNullOrWhiteSpace(accessToken))
+                {
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                }
+
+                var response = await _httpClient.SendAsync(request);
+                if (response.IsSuccessStatusCode)
+                {
+                    SavePreferredBaseUrl(baseUrl);
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ApiService] UploadMobileOffline error via {baseUrl}: {ex.Message}");
+            }
+        }
+
+        return false;
+    }
+
     #endregion
 
     #region Download

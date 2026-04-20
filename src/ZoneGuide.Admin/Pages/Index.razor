@@ -82,10 +82,6 @@ else if (_dashboard != null)
                         <MudText Typo="Typo.caption" Class="mud-text-secondary">Lượt truy cập QR</MudText>
                         <MudText Typo="Typo.h5">@(_qrRealtime?.TotalAccessCount ?? 0)</MudText>
                     </MudItem>
-                    <MudItem xs="6" sm="3">
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Đang truy cập</MudText>
-                        <MudText Typo="Typo.h5">@(_qrRealtime?.AccessesLastMinute ?? 0)</MudText>
-                    </MudItem>
                 </MudGrid>
 
                 <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">

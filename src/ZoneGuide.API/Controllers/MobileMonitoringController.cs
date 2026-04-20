@@ -38,6 +38,18 @@ public class MobileMonitoringController : ControllerBase
         return Ok(_monitoringService.GetSnapshot());
     }
 
+    [HttpPost("offline")]
+    public async Task<ActionResult<MobileLiveMonitoringSnapshotDto>> UnregisterSession([FromBody] MobileLiveHeartbeatDto heartbeat)
+    {
+        if (heartbeat == null || string.IsNullOrWhiteSpace(heartbeat.SessionId))
+        {
+            return BadRequest();
+        }
+
+        var snapshot = await _monitoringService.UnregisterSessionAsync(heartbeat.SessionId);
+        return Ok(snapshot);
+    }
+
     private int? GetCurrentUserId()
     {
         var raw = User.FindFirstValue(ClaimTypes.NameIdentifier);
