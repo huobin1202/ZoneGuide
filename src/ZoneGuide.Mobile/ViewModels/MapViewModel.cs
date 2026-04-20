@@ -55,8 +55,10 @@ public partial class MapViewModel : ObservableObject
     private int? _replayBlockedPoiId;
     private int? _lastAutoOpenedPoiId;
     private DateTime _lastAutoOpenedAtUtc = DateTime.MinValue;
+    private int? _lockedPoiId;
     private int? _lastAutoNarrationPoiId;
     private DateTime _lastAutoNarrationAtUtc = DateTime.MinValue;
+    private bool _geofenceInitialized;
     private int? _activeInAppNavigationPoiId;
     private Location? _lastInAppNavigationOrigin;
     private DateTime _lastInAppNavigationRouteUpdatedAtUtc = DateTime.MinValue;
@@ -1168,6 +1170,13 @@ public partial class MapViewModel : ObservableObject
             _hasReliableUserLocation = true;
         });
 
+        // Initialize geofence states silently on first location fix to prevent auto-play
+        if (!_geofenceInitialized)
+        {
+            _geofenceInitialized = true;
+            _geofenceService.InitializeFromLocation(location);
+        }
+
         _ = _geofenceService.ProcessLocationUpdateAsync(location);
         _ = EnsureNarrationByCurrentLocationAsync(location);
     }
@@ -1178,6 +1187,12 @@ public partial class MapViewModel : ObservableObject
 
         try
         {
+            // Skip auto-play on first geofence initialization (when user opens app inside a POI zone)
+            if (!_geofenceInitialized)
+            {
+                return;
+            }
+
             var autoPlayEnabled = _settingsService.Settings.AutoPlayOnEnter;
             var currentItemPoiId = _narrationService.CurrentItem?.POI.Id;
             var isManualPlayback = _narrationService.CurrentItem?.IsManualPlayback == true;
@@ -1198,6 +1213,12 @@ public partial class MapViewModel : ObservableObject
                 if (_lastAutoOpenedPoiId == evt.POI.Id)
                 {
                     _lastAutoOpenedPoiId = null;
+                }
+
+                // Clear POI lock when user exits the locked POI's zone
+                if (_lockedPoiId == evt.POI.Id)
+                {
+                    _lockedPoiId = null;
                 }
 
                 return;
@@ -1237,6 +1258,18 @@ public partial class MapViewModel : ObservableObject
                 _replayBlockedPoiId = null;
             }
 
+            // POI LOCKING: If a POI is locked, only that POI can trigger auto-play
+            if (_lockedPoiId.HasValue)
+            {
+                if (_lockedPoiId != evt.POI.Id)
+                {
+                    // Different POI - ignore to prevent switching
+                    _lastInRangePoiId = evt.POI.Id;
+                    return;
+                }
+                // Same POI as locked - allow to proceed
+            }
+
             if (hasActiveNarration && currentItemPoiId == evt.POI.Id)
             {
                 _lastInRangePoiId = evt.POI.Id;
@@ -1266,6 +1299,9 @@ public partial class MapViewModel : ObservableObject
                 evt.Distance));
 
             MarkAutoNarrationPlayed(evt.POI.Id);
+
+            // Lock to this POI - prevents switching to other POIs while this one is active
+            _lockedPoiId = evt.POI.Id;
 
             _lastInRangePoiId = evt.POI.Id;
         }
@@ -1725,6 +1761,29 @@ public partial class MapViewModel : ObservableObject
         MainThread.BeginInvokeOnMainThread(UpdateSelectedPoiNarrationState);
     }
 
+    private void OnNarrationCompleted(object? sender, NarrationQueueItem item)
+    {
+        // Clear POI lock when narration completes naturally
+        // This allows re-entry to trigger the same POI again later
+        _lockedPoiId = null;
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            UpdateSelectedPoiNarrationState();
+        });
+    }
+
+    private void OnNarrationStopped(object? sender, NarrationQueueItem item)
+    {
+        // Clear POI lock when user manually stops narration
+        _lockedPoiId = null;
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            UpdateSelectedPoiNarrationState();
+        });
+    }
+
     private void OnMiniPlayerPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(GlobalMiniPlayerViewModel.HasActiveTourAudio) ||
@@ -1954,3 +2013,6 @@ public partial class MapViewModel : ObservableObject
         };
     }
 }
+
+
+

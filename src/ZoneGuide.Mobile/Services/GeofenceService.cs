@@ -11,10 +11,6 @@ public class GeofenceService : IGeofenceService
 {
     private const int MinEffectiveCooldownSeconds = 1;
     private const int MaxEffectiveCooldownSeconds = 3600;
-    private const double MaxActivationRadiusMeters = 5000;
-    private const double DefaultTriggerRadiusMeters = 60;
-    private const double DefaultApproachRadiusMeters = 120;
-    private const double MinTriggerRadiusMeters = 20;
 
     public event EventHandler<GeofenceEvent>? GeofenceTriggered;
 
@@ -30,6 +26,7 @@ public class GeofenceService : IGeofenceService
     public IReadOnlyList<POI> MonitoredPOIs => _monitoredPOIs.AsReadOnly();
     public POI? NearestPOI { get; private set; }
     public double? NearestPOIDistance { get; private set; }
+    public bool IsInitialized { get; private set; }
 
     public void AddPOI(POI poi)
     {
@@ -77,6 +74,50 @@ public class GeofenceService : IGeofenceService
         }
     }
 
+    /// <summary>
+    /// Initialize geofence states silently from an initial location.
+    /// This sets the initial Enter/Approach/Exit state WITHOUT firing events,
+    /// preventing auto-play when the user starts the app already inside a zone.
+    /// </summary>
+    public void InitializeFromLocation(LocationData initialLocation)
+    {
+        lock (_lock)
+        {
+            foreach (var poi in _monitoredPOIs.Where(p => p.IsActive))
+            {
+                var distance = initialLocation.DistanceTo(poi.Latitude, poi.Longitude);
+                // Only use admin-configured radii - no fallback defaults
+                var triggerRadius = poi.TriggerRadius;
+                var approachRadius = poi.ApproachRadius;
+
+                // Skip POIs without properly configured radii
+                if (triggerRadius <= 0 || approachRadius <= 0)
+                    continue;
+
+                var state = _poiStates.GetOrAdd(poi.Id, _ => new GeofenceState());
+                state.Distance = distance;
+
+                // Set initial state SILENTLY - no events fired
+                if (distance <= triggerRadius)
+                {
+                    state.CurrentState = GeofenceEventType.Enter;
+                    state.EnterTime = DateTime.UtcNow;
+                }
+                else if (distance <= approachRadius)
+                {
+                    state.CurrentState = GeofenceEventType.Approach;
+                }
+                else
+                {
+                    state.CurrentState = GeofenceEventType.Exit;
+                }
+            }
+
+            // Mark as initialized so future events will fire
+            IsInitialized = true;
+        }
+    }
+
     public async Task ProcessLocationUpdateAsync(LocationData location)
     {
         await Task.Run(() =>
@@ -90,11 +131,13 @@ public class GeofenceService : IGeofenceService
                 foreach (var poi in _monitoredPOIs.Where(p => p.IsActive))
                 {
                     var distance = location.DistanceTo(poi.Latitude, poi.Longitude);
-                    var triggerRadius = poi.TriggerRadius > 0 ? poi.TriggerRadius : DefaultTriggerRadiusMeters;
-                    triggerRadius = Math.Clamp(triggerRadius, MinTriggerRadiusMeters, MaxActivationRadiusMeters);
+                    // Only use admin-configured radii - no fallback defaults
+                    var triggerRadius = poi.TriggerRadius;
+                    var approachRadius = poi.ApproachRadius;
 
-                    var approachRadius = poi.ApproachRadius > 0 ? poi.ApproachRadius : DefaultApproachRadiusMeters;
-                    approachRadius = Math.Clamp(approachRadius, triggerRadius, MaxActivationRadiusMeters);
+                    // Skip POIs without properly configured radii
+                    if (triggerRadius <= 0 || approachRadius <= 0)
+                        continue;
 
                     // Tìm POI gần nhất
                     if (distance < nearestDistance)
@@ -203,10 +246,35 @@ public class GeofenceService : IGeofenceService
             NearestPOI = nearest;
             NearestPOIDistance = nearest != null ? nearestDistance : null;
 
-            // Fire events theo thứ tự priority
-            foreach (var evt in events.OrderByDescending(e => e.POI.Priority))
+            // Fire events - Exit events fire immediately, but Enter events are throttled
+            // to only the best candidate (nearest + highest priority) to prevent
+            // rapid switching between overlapping POI zones.
+            // Skip firing events until geofence is initialized to prevent auto-play on app start.
+            if (!IsInitialized)
+            {
+                return;
+            }
+
+            var enterEvents = events.Where(e => e.EventType == GeofenceEventType.Enter).ToList();
+            var nonEnterEvents = events.Where(e => e.EventType != GeofenceEventType.Enter);
+
+            // Fire all non-Enter events (Exit, Approach, Dwell)
+            foreach (var evt in nonEnterEvents)
             {
                 GeofenceTriggered?.Invoke(this, evt);
+            }
+
+            // For Enter events, only fire the best candidate:
+            // - Smallest distance (nearest)
+            // - If tie, highest priority
+            if (enterEvents.Any())
+            {
+                var bestEnter = enterEvents
+                    .OrderBy(e => e.Distance)                    // Nearest first
+                    .ThenByDescending(e => e.POI.Priority)       // Highest priority first
+                    .First();
+                
+                GeofenceTriggered?.Invoke(this, bestEnter);
             }
         });
     }

@@ -32,6 +32,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private const int LiveHeartbeatIntervalSeconds = 5;
     private Timer? _heartbeatTimer;
     private const int HeartbeatTimerIntervalMs = 5000; // Send heartbeat every 5 seconds
+    private bool _isFirstLocationFix = true;
 
     [ObservableProperty]
     private bool isTracking;
@@ -196,6 +197,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private async void OnLocationChanged(object? sender, LocationData location)
     {
         CurrentLocation = location;
+
+        // On first location fix, initialize geofence states silently to prevent auto-play
+        if (_isFirstLocationFix)
+        {
+            _isFirstLocationFix = false;
+            _geofenceService.InitializeFromLocation(location);
+        }
 
         // Xử lý Geofence
         await _geofenceService.ProcessLocationUpdateAsync(location);

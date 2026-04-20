@@ -1,1 +1,1 @@
-https://whinny-armhole-goldmine.ngrok-free.dev/poi/9?autoplay=true
+http://192.168.1.3:56042/poi/9?autoplay=true
