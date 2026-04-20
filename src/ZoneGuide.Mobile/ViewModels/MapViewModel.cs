@@ -65,6 +65,7 @@ public partial class MapViewModel : ObservableObject
     private bool _isUpdatingInAppNavigationRoute;
     private bool _selectedPoiOverlaySuppressedInTourMode;
     private readonly Dictionary<int, DateTime> _autoNarrationDebounceByPoi = new();
+    private readonly HashSet<int> _playedPoiIdsInCurrentVisit = new();
     private CancellationTokenSource? _routeBuildCts;
 
     [ObservableProperty]
@@ -294,6 +295,13 @@ public partial class MapViewModel : ObservableObject
                     {
                         UserLocation = candidate;
                         _hasReliableUserLocation = true;
+
+                        if (!_geofenceInitialized)
+                        {
+                            _geofenceInitialized = true;
+                            _geofenceService.InitializeFromLocation(location);
+                        }
+
                         await _geofenceService.ProcessLocationUpdateAsync(location);
                     }
                     else
@@ -340,6 +348,33 @@ public partial class MapViewModel : ObservableObject
         {
             IsLoading = false;
         }
+    }
+
+    public async Task SuppressAutoNarrationForCurrentInRangePoisAsync()
+    {
+        var current = _locationService.CurrentLocation;
+        if (current == null || !IsValidLocation(current))
+        {
+            return;
+        }
+
+        var monitored = _geofenceService.MonitoredPOIs;
+        if (monitored.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var poi in monitored)
+        {
+            var approachRadius = GetEffectiveApproachRadiusMeters(poi);
+            var distance = current.DistanceTo(poi.Latitude, poi.Longitude);
+            if (distance <= approachRadius)
+            {
+                _playedPoiIdsInCurrentVisit.Add(poi.Id);
+            }
+        }
+
+        await Task.CompletedTask;
     }
 
     [RelayCommand]
@@ -978,6 +1013,7 @@ public partial class MapViewModel : ObservableObject
         }
 
         _replayBlockedPoiId = null;
+        _playedPoiIdsInCurrentVisit.Add(SelectedPOI.Id);
         _geofenceService.ResetCooldown(SelectedPOI.Id);
 
         var item = BuildNarrationItem(SelectedPOI, GeofenceEventType.Enter, 0);
@@ -1171,14 +1207,19 @@ public partial class MapViewModel : ObservableObject
         });
 
         // Initialize geofence states silently on first location fix to prevent auto-play
+        var initializedFromThisUpdate = false;
         if (!_geofenceInitialized)
         {
             _geofenceInitialized = true;
             _geofenceService.InitializeFromLocation(location);
+            initializedFromThisUpdate = true;
         }
 
         _ = _geofenceService.ProcessLocationUpdateAsync(location);
-        _ = EnsureNarrationByCurrentLocationAsync(location);
+        if (!initializedFromThisUpdate)
+        {
+            _ = EnsureNarrationByCurrentLocationAsync(location);
+        }
     }
 
     private async void OnGeofenceTriggered(object? sender, GeofenceEvent evt)
@@ -1200,6 +1241,8 @@ public partial class MapViewModel : ObservableObject
 
             if (evt.EventType == GeofenceEventType.Exit)
             {
+                _playedPoiIdsInCurrentVisit.Remove(evt.POI.Id);
+
                 if (_replayBlockedPoiId == evt.POI.Id)
                 {
                     _replayBlockedPoiId = null;
@@ -1621,6 +1664,11 @@ public partial class MapViewModel : ObservableObject
 
     private bool ShouldSkipAutoNarration(int poiId)
     {
+        if (_playedPoiIdsInCurrentVisit.Contains(poiId))
+        {
+            return true;
+        }
+
         var now = DateTime.UtcNow;
 
         if (_autoNarrationDebounceByPoi.TryGetValue(poiId, out var lastAttemptAt) &&
@@ -1637,12 +1685,14 @@ public partial class MapViewModel : ObservableObject
 
     private void MarkAutoNarrationPlayed(int poiId)
     {
+        _playedPoiIdsInCurrentVisit.Add(poiId);
         _lastAutoNarrationPoiId = poiId;
         _lastAutoNarrationAtUtc = DateTime.UtcNow;
     }
 
     private void ResetAutoNarrationTracking()
     {
+        _playedPoiIdsInCurrentVisit.Clear();
         _lastAutoNarrationPoiId = null;
         _lastAutoNarrationAtUtc = DateTime.MinValue;
         _autoNarrationDebounceByPoi.Clear();

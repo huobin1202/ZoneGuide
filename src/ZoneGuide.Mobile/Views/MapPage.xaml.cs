@@ -226,6 +226,11 @@ public partial class MapPage : ContentPage, IQueryAttributable
                 await _viewModel.ApplyTourRequestAsync();
             }
 
+            if (!_autoPlayRequestedOnNavigation)
+            {
+                await _viewModel.SuppressAutoNarrationForCurrentInRangePoisAsync();
+            }
+
             UpdateMapPins();
             UpdateTourRoute();
             UpdateMapRegion();

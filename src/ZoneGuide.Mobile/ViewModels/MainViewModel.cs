@@ -33,6 +33,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private Timer? _heartbeatTimer;
     private const int HeartbeatTimerIntervalMs = 5000; // Send heartbeat every 5 seconds
     private bool _isFirstLocationFix = true;
+    private readonly HashSet<int> _playedPoiIdsInCurrentVisit = new();
 
     [ObservableProperty]
     private bool isTracking;
@@ -183,6 +184,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
+            _playedPoiIdsInCurrentVisit.Add(poi.Id);
             _geofenceService.ResetCooldown(poi.Id);
 
             var item = CreateNarrationItem(poi, GeofenceEventType.Enter, 0);
@@ -236,6 +238,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
         switch (evt.EventType)
         {
             case GeofenceEventType.Enter:
+                if (_playedPoiIdsInCurrentVisit.Contains(evt.POI.Id))
+                {
+                    break;
+                }
+
                 if (settings.AutoPlayOnEnter)
                 {
                     StatusMessage = string.Format(
@@ -243,6 +250,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
                         evt.POI.Name);
                     var item = CreateNarrationItem(evt.POI, evt.EventType, evt.Distance);
                     await _narrationService.PlayImmediatelyAsync(item);
+                    _playedPoiIdsInCurrentVisit.Add(evt.POI.Id);
                 }
                 break;
 
@@ -257,6 +265,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 break;
 
             case GeofenceEventType.Exit:
+                _playedPoiIdsInCurrentVisit.Remove(evt.POI.Id);
                 StatusMessage = string.Format(
                     AppLocalizer.Instance.Translate("main_status_exit_region"),
                     evt.POI.Name);
