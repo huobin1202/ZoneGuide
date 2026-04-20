@@ -330,7 +330,9 @@ public class NarrationService : INarrationService, IDisposable
                     {
                         item.Status = NarrationStatus.Completed;
                         await CloseHistoryRecordAsync(true);
-                        _geofenceService.ResetCooldown(item.POI.Id);
+                        // DO NOT reset cooldown when narration completes naturally.
+                        // Cooldown should only be reset when user manually stops/skips,
+                        // or when user exits the POI region.
 
                         // Update state before raising completion event so ViewModels
                         // don't read stale IsPlaying=true and keep pause icon.

@@ -24,7 +24,7 @@ public class ApiService
     private const string NgrokUrl = "https://whinny-armhole-goldmine.ngrok-free.dev"; // Ví dụ: "https://abc123.ngrok-free.app" 
     
     // 👇 ĐỔI IP NÀY THÀNH IP MÁY TÍNH CỦA BẠN (nếu không dùng ngrok)
-    private const string ServerIP = "192.168.1.6";
+    private const string ServerIP = "192.168.1.3";
     private const string ServerPort = "56042"; // HTTP port
     
 #if ANDROID

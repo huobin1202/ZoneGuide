@@ -191,6 +191,11 @@ public class GeofenceService : IGeofenceService
 
                             SetCooldown(poi.Id, TimeSpan.FromSeconds(effectiveCooldownSeconds));
                         }
+                        // Reset cooldown khi user exit vùng POI - cho phép phát lại khi quay lại
+                        else if (newState.Value == GeofenceEventType.Exit)
+                        {
+                            ResetCooldown(poi.Id);
+                        }
                     }
                 }
             }

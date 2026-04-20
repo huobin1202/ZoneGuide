@@ -795,3 +795,95 @@ window.renderTourPlannerMap = async function (elementId, points) {
     renderFallbackRoute(points);
     return defaultResult;
 };
+
+// ==========================================
+// Heatmap page with OpenStreetMap and live tracking
+// ==========================================
+var heatmapMap = null;
+var heatmapHeatLayer = null;
+var heatmapTrackingMarkers = [];
+
+window.initHeatmapMap = function(elementId) {
+    var container = document.getElementById(elementId);
+    if (!container) {
+        console.warn('Heatmap container not found:', elementId);
+        return;
+    }
+    
+    if (heatmapMap) {
+        heatmapMap.remove();
+        heatmapMap = null;
+    }
+    
+    heatmapTrackingMarkers = [];
+    
+    heatmapMap = L.map(elementId, {
+        maxBounds: [[-90, -180], [90, 180]],
+        maxBoundsViscosity: 1.0
+    }).setView([16.0544, 108.2022], 13);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap',
+        maxZoom: 19,
+        noWrap: true
+    }).addTo(heatmapMap);
+    
+    setTimeout(function() { heatmapMap.invalidateSize(); }, 100);
+};
+
+window.updateHeatmapData = function(heatmapPoints) {
+    if (!heatmapMap) return;
+    
+    if (heatmapHeatLayer) {
+        heatmapMap.removeLayer(heatmapHeatLayer);
+        heatmapHeatLayer = null;
+    }
+    
+    if (heatmapPoints && heatmapPoints.length > 0) {
+        var heatData = heatmapPoints.map(function(point) {
+            var intensity = Math.min(point.weight / 10, 1);
+            return [point.latitude, point.longitude, intensity];
+        });
+        
+        heatmapHeatLayer = L.heatLayer(heatData, {
+            radius: 25, blur: 15, maxZoom: 17,
+            gradient: {0.2: 'blue', 0.4: 'lime', 0.6: 'yellow', 0.8: 'orange', 1.0: 'red'}
+        }).addTo(heatmapMap);
+    }
+};
+
+window.updateTrackingUsers = function(trackingSessions) {
+    if (!heatmapMap) return;
+    
+    heatmapTrackingMarkers.forEach(function(marker) {
+        heatmapMap.removeLayer(marker);
+    });
+    heatmapTrackingMarkers = [];
+    
+    if (!trackingSessions || trackingSessions.length === 0) return;
+    
+    trackingSessions.forEach(function(session) {
+        if (!session.latitude || !session.longitude) return;
+        
+        var isTracking = session.isTracking;
+        var color = isTracking ? '#22c55e' : '#6b7280';
+        var status = isTracking ? 'dang theo doi' : 'tam dung';
+        var displayName = session.userDisplayName || session.deviceId || 'Thiet bi';
+        
+        var icon = L.divIcon({
+            html: '<div style="background:' + color + ';width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>',
+            className: 'tracking-marker', iconSize: [16, 16], iconAnchor: [8, 8]
+        });
+        
+        var marker = L.marker([session.latitude, session.longitude], {icon: icon})
+            .addTo(heatmapMap)
+            .bindPopup('<strong>' + displayName + '</strong><br/>' + status + '<br/>' +
+                session.latitude.toFixed(6) + ', ' + session.longitude.toFixed(6));
+        
+        heatmapTrackingMarkers.push(marker);
+    });
+};
+
+window.resizeHeatmapMap = function() {
+    if (heatmapMap) setTimeout(function() { heatmapMap.invalidateSize(); }, 100);
+};

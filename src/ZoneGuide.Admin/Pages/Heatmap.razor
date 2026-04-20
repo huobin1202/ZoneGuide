@@ -1,5 +1,6 @@
 @page "/heatmap"
 @inject IApiService ApiService
+@inject IJSRuntime JS
 
 
 <MudPaper Class="pa-4 mb-4" Elevation="1">
@@ -10,6 +11,12 @@
         <MudItem xs="12" md="2" Class="d-flex align-end">
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadData">
                 Apply Filter
+            </MudButton>
+        </MudItem>
+        <MudItem xs="12" md="6" Class="d-flex align-end">
+            <MudButton Variant="Variant.Outlined" Color="Color.Info" OnClick="RefreshTrackingData" Class="ml-2">
+                <MudIcon Icon="@Icons.Material.Filled.Refresh" Class="mr-1" />
+                Refresh Live Tracking
             </MudButton>
         </MudItem>
     </MudGrid>
@@ -23,58 +30,23 @@ else
 {
     <MudGrid>
         <MudItem xs="12" md="8">
-            <MudPaper Class="pa-4" Elevation="1" Style="height: 500px;">
-                <MudText Typo="Typo.h6" Class="mb-2">Location Distribution</MudText>
-                <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
-                    Showing @_heatmapData.Count aggregated location points
+            <MudPaper Class="pa-4" Elevation="1" Style="height: 600px;">
+                <MudText Typo="Typo.h6" Class="mb-2">Location Heatmap</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">
+                    Historical visits: @_heatmapData.Count points | Live tracking: @(_mobileSnapshot?.TrackingSessionCount ?? 0) users
                 </MudText>
                 
-                @if (_heatmapData.Any())
-                {
-                    <MudAlert Severity="Severity.Info" Class="mb-4">
-                        Heatmap visualization requires integration with a mapping library like Leaflet.js or Google Maps.
-                        The data points are available for rendering.
-                    </MudAlert>
-                    
-                    <MudSimpleTable Dense="true" Bordered="true" Style="max-height: 300px; overflow-y: auto;">
-                        <thead>
-                            <tr>
-                                <th>Latitude</th>
-                                <th>Longitude</th>
-                                <th>Weight (visits)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var point in _heatmapData.OrderByDescending(p => p.Weight).Take(50))
-                            {
-                                <tr>
-                                    <td>@point.Latitude.ToString("F6")</td>
-                                    <td>@point.Longitude.ToString("F6")</td>
-                                    <td>
-                                        <MudProgressLinear Value="@GetRelativeWeight(point.Weight)" 
-                                                           Color="Color.Error" Rounded="true" Size="Size.Small">
-                                            <MudText Typo="Typo.caption">@point.Weight</MudText>
-                                        </MudProgressLinear>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </MudSimpleTable>
-                }
-                else
-                {
-                    <MudText>No heatmap data available for the selected period.</MudText>
-                }
+                <div id="heatmap-map" style="width: 100%; height: 480px; border-radius: 8px; border: 1px solid #e0e0e0;"></div>
             </MudPaper>
         </MudItem>
         
         <MudItem xs="12" md="4">
-            <MudPaper Class="pa-4" Elevation="1">
+            <MudPaper Class="pa-4 mb-4" Elevation="1">
                 <MudText Typo="Typo.h6" Class="mb-4">Statistics</MudText>
                 <MudSimpleTable Dense="true">
                     <tbody>
                         <tr>
-                            <td>Total Data Points</td>
+                            <td>Historical Data Points</td>
                             <td><strong>@_heatmapData.Count</strong></td>
                         </tr>
                         <tr>
@@ -89,11 +61,64 @@ else
                             <td>Avg Weight</td>
                             <td><strong>@(_heatmapData.Any() ? _heatmapData.Average(p => p.Weight).ToString("F1") : "0")</strong></td>
                         </tr>
+                        <tr>
+                            <td colspan="2"><MudDivider Class="my-2" /></td>
+                        </tr>
+                        <tr>
+                            <td>Active Sessions</td>
+                            <td><strong>@(_mobileSnapshot?.ActiveSessionCount ?? 0)</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Tracking Users</td>
+                            <td><strong>@(_mobileSnapshot?.TrackingSessionCount ?? 0)</strong></td>
+                        </tr>
                     </tbody>
                 </MudSimpleTable>
             </MudPaper>
             
-          
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudText Typo="Typo.h6" Class="mb-4">Legend</MudText>
+                <MudStack Spacing="2">
+                    <div class="d-flex align-center">
+                        <div style="width: 20px; height: 20px; background: linear-gradient(to right, blue, lime, yellow, orange, red); border-radius: 4px;"></div>
+                        <MudText Class="ml-2" Typo="Typo.body2">Heatmap (historical visits)</MudText>
+                    </div>
+                    <div class="d-flex align-center">
+                        <div style="width: 16px; height: 16px; background: #22c55e; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>
+                        <MudText Class="ml-2" Typo="Typo.body2">Live tracking (active)</MudText>
+                    </div>
+                    <div class="d-flex align-center">
+                        <div style="width: 16px; height: 16px; background: #6b7280; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>
+                        <MudText Class="ml-2" Typo="Typo.body2">Live tracking (paused)</MudText>
+                    </div>
+                </MudStack>
+            </MudPaper>
+            
+            @if (_heatmapData.Any())
+            {
+                <MudPaper Class="pa-4 mt-4" Elevation="1" Style="max-height: 250px; overflow-y: auto;">
+                    <MudText Typo="Typo.h6" Class="mb-2">Top Locations</MudText>
+                    <MudSimpleTable Dense="true" Striped="true">
+                        <thead>
+                            <tr>
+                                <th>Location</th>
+                                <th>Visits</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var point in _heatmapData.OrderByDescending(p => p.Weight).Take(10))
+                            {
+                                <tr>
+                                    <td>@point.Latitude.ToString("F4"), @point.Longitude.ToString("F4")</td>
+                                    <td>
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Error">@point.Weight</MudChip>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudPaper>
+            }
         </MudItem>
     </MudGrid>
 }
@@ -101,11 +126,43 @@ else
 @code {
     private DateRange _dateRange = new(DateTime.UtcNow.AddDays(-30), DateTime.UtcNow);
     private List<HeatmapPointDto> _heatmapData = new();
+    private MobileLiveMonitoringSnapshotDto? _mobileSnapshot;
     private bool _loading = true;
+    private bool _mapInitialized = false;
+    private System.Timers.Timer? _refreshTimer;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
+        await LoadMobileSnapshot();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_mapInitialized)
+        {
+            await Task.Delay(200); // Wait for DOM to be ready
+            try
+            {
+                await JS.InvokeVoidAsync("initHeatmapMap", "heatmap-map");
+                _mapInitialized = true;
+
+                // Update heatmap data on map
+                await UpdateHeatmapLayer();
+
+                // Update tracking users on map
+                await UpdateTrackingLayer();
+
+                // Start auto-refresh timer for live tracking (every 10 seconds)
+                _refreshTimer = new System.Timers.Timer(10000);
+                _refreshTimer.Elapsed += async (s, e) => await RefreshTrackingData();
+                _refreshTimer.Start();
+            }
+            catch
+            {
+                // Map initialization failed, will retry on next render
+            }
+        }
     }
 
     private async Task LoadData()
@@ -113,14 +170,42 @@ else
         _loading = true;
         _heatmapData = await ApiService.GetHeatmapDataAsync(_dateRange.Start, _dateRange.End);
         _loading = false;
+        
+        if (_mapInitialized)
+        {
+            await UpdateHeatmapLayer();
+        }
     }
 
-    private double GetRelativeWeight(int weight)
+    private async Task LoadMobileSnapshot()
     {
-        if (!_heatmapData.Any()) return 0;
-        var max = _heatmapData.Max(p => p.Weight);
-        return max > 0 ? (double)weight / max * 100 : 0;
+        _mobileSnapshot = await ApiService.GetMobileMonitoringSnapshotAsync();
+        
+        if (_mapInitialized)
+        {
+            await UpdateTrackingLayer();
+        }
     }
 
+    private async Task RefreshTrackingData()
+    {
+        await LoadMobileSnapshot();
+    }
 
+    private async Task UpdateHeatmapLayer()
+    {
+        if (_heatmapData.Any() && _mapInitialized)
+        {
+            await JS.InvokeVoidAsync("updateHeatmapData", _heatmapData);
+        }
+    }
+
+    private async Task UpdateTrackingLayer()
+    {
+        if (_mobileSnapshot?.Sessions != null && _mapInitialized)
+        {
+            await JS.InvokeVoidAsync("updateTrackingUsers", _mobileSnapshot.Sessions);
+        }
+    }
+}
 }

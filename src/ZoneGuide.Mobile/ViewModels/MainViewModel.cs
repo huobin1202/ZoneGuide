@@ -5,14 +5,18 @@ using ZoneGuide.Mobile.Localization;
 using ZoneGuide.Shared.Interfaces;
 using ZoneGuide.Shared.Models;
 using System.Collections.ObjectModel;
+using System.Threading;
 
 namespace ZoneGuide.Mobile.ViewModels;
 
 /// <summary>
 /// ViewModel chính - Quản lý GPS, Geofence, Narration
 /// </summary>
-public partial class MainViewModel : ObservableObject
+public partial class MainViewModel : ObservableObject, IDisposable
 {
+    /// <summary>
+    /// Bán kính tìm POI gần trên màn hình Home/List
+    /// </summary>
     private const double NearbyPoiRangeMeters = 240;
     private readonly ILocationService _locationService;
     private readonly IGeofenceService _geofenceService;
@@ -26,6 +30,8 @@ public partial class MainViewModel : ObservableObject
     private string _sessionId = string.Empty;
     private DateTime _lastLiveHeartbeatAtUtc = DateTime.MinValue;
     private const int LiveHeartbeatIntervalSeconds = 5;
+    private Timer? _heartbeatTimer;
+    private const int HeartbeatTimerIntervalMs = 5000; // Send heartbeat every 5 seconds
 
     [ObservableProperty]
     private bool isTracking;
@@ -88,6 +94,29 @@ public partial class MainViewModel : ObservableObject
         _geofenceService.AddPOIs(pois);
 
         _sessionId = Guid.NewGuid().ToString("N");
+
+        // Start periodic heartbeat timer for live monitoring
+        // This ensures heartbeat is sent even when device is stationary
+        _heartbeatTimer = new Timer(
+            async _ => await SendPeriodicHeartbeatAsync(),
+            null,
+            HeartbeatTimerIntervalMs,
+            HeartbeatTimerIntervalMs);
+    }
+
+    /// <summary>
+    /// Periodic heartbeat sent via timer - maintains session even when device is stationary
+    /// </summary>
+    private async Task SendPeriodicHeartbeatAsync()
+    {
+        if (CurrentLocation == null)
+            return;
+
+        var now = DateTime.UtcNow;
+        if ((now - _lastLiveHeartbeatAtUtc).TotalSeconds >= LiveHeartbeatIntervalSeconds)
+        {
+            await SendLiveHeartbeatAsync(CurrentLocation);
+        }
     }
 
     [RelayCommand]
@@ -241,7 +270,9 @@ public partial class MainViewModel : ObservableObject
 
     private void OnNarrationCompleted(object? sender, NarrationQueueItem item)
     {
-        _geofenceService.ResetCooldown(item.POI.Id);
+        // DO NOT reset cooldown when narration completes naturally.
+        // Cooldown is only reset when user manually stops/skips narration,
+        // or when user exits the POI region (handled by GeofenceService).
 
         MainThread.BeginInvokeOnMainThread(() =>
         {
@@ -365,5 +396,16 @@ public partial class MainViewModel : ObservableObject
         {
             System.Diagnostics.Debug.WriteLine($"[MainVM] Live heartbeat error: {ex.Message}");
         }
+    }
+
+    public void Dispose()
+    {
+        _heartbeatTimer?.Dispose();
+        _locationService.LocationChanged -= OnLocationChanged;
+        _geofenceService.GeofenceTriggered -= OnGeofenceTriggered;
+        _narrationService.NarrationStarted -= OnNarrationStarted;
+        _narrationService.NarrationCompleted -= OnNarrationCompleted;
+        _narrationService.NarrationStopped -= OnNarrationStopped;
+        _narrationService.ProgressUpdated -= OnProgressUpdated;
     }
 }
