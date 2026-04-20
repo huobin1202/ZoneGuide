@@ -104,7 +104,7 @@
 
     private async Task LoadAsync()
     {
-        _codes = await ApiService.GetPoiQRCodesAsync(includeInactive: true);
+        _codes = await ApiService.GetPoiQRCodesAsync(includeInactive: false);
     }
 
     private async Task GenerateAsync(int poiId)
@@ -163,7 +163,7 @@
         _generating = true;
         try
         {
-            var count = await ApiService.GenerateMissingPoiQRCodesAsync(includeInactive: true, force: false);
+            var count = await ApiService.GenerateMissingPoiQRCodesAsync(includeInactive: false, force: false);
             Snackbar.Add($"Đã tạo {count} mã QR mới.", Severity.Success);
             await LoadAsync();
         }

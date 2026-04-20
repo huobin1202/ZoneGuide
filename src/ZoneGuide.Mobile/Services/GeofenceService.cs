@@ -265,13 +265,13 @@ public class GeofenceService : IGeofenceService
             }
 
             // For Enter events, only fire the best candidate:
-            // - Smallest distance (nearest)
-            // - If tie, highest priority
+            // - Highest priority first
+            // - If tie, nearest distance
             if (enterEvents.Any())
             {
                 var bestEnter = enterEvents
-                    .OrderBy(e => e.Distance)                    // Nearest first
-                    .ThenByDescending(e => e.POI.Priority)       // Highest priority first
+                    .OrderByDescending(e => e.POI.Priority)      // Highest priority first
+                    .ThenBy(e => e.Distance)                     // Nearest first
                     .First();
                 
                 GeofenceTriggered?.Invoke(this, bestEnter);

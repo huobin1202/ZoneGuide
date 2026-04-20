@@ -223,6 +223,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
             }
             else
             {
+                await _viewModel.RefreshVisibleDataAsync(syncFirst: _viewModel.POIs.Count == 0);
                 await _viewModel.ApplyTourRequestAsync();
             }
 

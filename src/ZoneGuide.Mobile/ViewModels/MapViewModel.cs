@@ -382,10 +382,9 @@ public partial class MapViewModel : ObservableObject
     {
         try
         {
-            var activePois = await _poiRepository.GetActiveAsync();
-            var sourcePois = activePois.Count > 0 ? activePois : await _poiRepository.GetAllAsync();
+            var sourcePois = await LoadSourcePoisAsync();
 
-            if (activePois.Count == 0)
+            if (!sourcePois.Any(p => p.IsActive))
             {
                 System.Diagnostics.Debug.WriteLine("[MapVM] Active POIs are empty, fallback to all POIs for map rendering.");
             }
@@ -1222,6 +1221,61 @@ public partial class MapViewModel : ObservableObject
         }
     }
 
+    public async Task RefreshVisibleDataAsync(bool syncFirst = false)
+    {
+        if (IsLoading)
+            return;
+
+        try
+        {
+            if (syncFirst)
+            {
+                try
+                {
+                    await _syncService.SyncFromServerAsync();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MapVM] Refresh sync failed (non-fatal): {ex.Message}");
+                }
+            }
+
+            var sourcePois = await LoadSourcePoisAsync();
+            _allPOIs = sourcePois
+                .Where(p => p.Latitude is >= -90 and <= 90 && p.Longitude is >= -180 and <= 180)
+                .ToList();
+
+            if (IsTourModeActive && _currentTourPois.Count > 0)
+            {
+                var refreshedTourPois = _currentTourPois
+                    .Select(poi => _allPOIs.FirstOrDefault(candidate => candidate.Id == poi.Id) ?? poi)
+                    .OrderBy(p => p.OrderInTour)
+                    .ToList();
+
+                _currentTourPois.Clear();
+                _currentTourPois.AddRange(refreshedTourPois);
+                PopulateTourSheetPois(refreshedTourPois);
+                PopulatePins(refreshedTourPois);
+                SetMonitoredPois(refreshedTourPois);
+            }
+            else
+            {
+                PopulatePins(_allPOIs);
+                SetMonitoredPois(_allPOIs);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MapVM] RefreshVisibleDataAsync error: {ex}");
+        }
+    }
+
+    private async Task<List<POI>> LoadSourcePoisAsync()
+    {
+        var activePois = await _poiRepository.GetActiveAsync();
+        return activePois.Count > 0 ? activePois : await _poiRepository.GetAllAsync();
+    }
+
     private async void OnGeofenceTriggered(object? sender, GeofenceEvent evt)
     {
         await _geofencePlaybackGate.WaitAsync();
@@ -1513,8 +1567,8 @@ public partial class MapViewModel : ObservableObject
                     ApproachRadius = GetEffectiveApproachRadiusMeters(p)
                 })
                 .Where(x => x.Distance <= x.ApproachRadius)
-                .OrderBy(x => x.Distance)
-                .ThenByDescending(x => x.Poi.Priority)
+                .OrderByDescending(x => x.Poi.Priority)
+                .ThenBy(x => x.Distance)
                 .FirstOrDefault();
 
             var activeItem = _narrationService.CurrentItem;
