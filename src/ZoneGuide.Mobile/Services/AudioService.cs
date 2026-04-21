@@ -8,6 +8,9 @@ namespace ZoneGuide.Mobile.Services;
 /// </summary>
 public class AudioService : IAudioService, IDisposable
 {
+    private static readonly TimeSpan ProgressUpdateInterval = TimeSpan.FromMilliseconds(250);
+    private const double ProgressChangeThreshold = 0.01;
+
     public event EventHandler? PlaybackStarted;
     public event EventHandler? PlaybackCompleted;
     public event EventHandler? PlaybackPaused;
@@ -21,6 +24,8 @@ public class AudioService : IAudioService, IDisposable
     private CancellationTokenSource? _progressCts;
     private readonly SemaphoreSlim _playbackGate = new(1, 1);
     private float _volume = 1.0f;
+    private bool _isStopping;
+    private double _lastReportedProgress = -1;
 
     public bool IsPlaying => _player?.IsPlaying ?? false;
     public bool IsPaused { get; private set; }
@@ -213,6 +218,7 @@ public class AudioService : IAudioService, IDisposable
         DisposeActiveStream();
         
         IsPaused = false;
+        _isStopping = false;
         return Task.CompletedTask;
     }
 
@@ -255,6 +261,7 @@ public class AudioService : IAudioService, IDisposable
 
         StopProgressTracking();
         IsPaused = false;
+        _lastReportedProgress = 1;
         DisposeActiveStream();
         PlaybackCompleted?.Invoke(this, EventArgs.Empty);
     }

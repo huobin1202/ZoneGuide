@@ -39,13 +39,7 @@ public class POIsController : ControllerBase
     {
         try
         {
-            var pois = await _poiService.GetAllAsync(includeInactive: true);
-
-            if (!string.IsNullOrEmpty(category))
-            {
-                pois = pois.Where(p => p.Category == category).ToList();
-            }
-
+            var pois = await _poiService.GetAllAsync(includeInactive: true, category: category);
             return Ok(pois);
         }
         catch (Exception ex)
@@ -63,13 +57,7 @@ public class POIsController : ControllerBase
     {
         try
         {
-            var pois = await _poiService.GetAllAsync();
-            
-            if (!string.IsNullOrEmpty(category))
-            {
-                pois = pois.Where(p => p.Category == category).ToList();
-            }
-
+            var pois = await _poiService.GetAllAsync(category: category);
             return Ok(pois);
         }
         catch (Exception ex)
@@ -368,13 +356,7 @@ public class POIsController : ControllerBase
     {
         try
         {
-            var pois = await _poiService.GetAllAsync();
-            var categories = pois
-                .Where(p => !string.IsNullOrEmpty(p.Category))
-                .Select(p => p.Category!)
-                .Distinct()
-                .OrderBy(c => c)
-                .ToList();
+            var categories = await _poiService.GetCategoriesAsync();
             return Ok(categories);
         }
         catch (Exception ex)

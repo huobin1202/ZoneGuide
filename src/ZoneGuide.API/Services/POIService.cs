@@ -6,7 +6,7 @@ namespace ZoneGuide.API.Services;
 
 public interface IPOIService
 {
-    Task<List<POIDto>> GetAllAsync(bool includeInactive = false);
+    Task<List<POIDto>> GetAllAsync(bool includeInactive = false, string? category = null);
     Task<POIDto?> GetByIdAsync(string id);
     Task<List<POITranslationDto>> GetTranslationsAsync(string poiId);
     Task<POITranslationDto?> UpsertTranslationAsync(string poiId, string languageCode, POITranslationDto dto);
@@ -14,6 +14,7 @@ public interface IPOIService
     Task<List<POIDto>> GetByTourIdAsync(string tourId);
     Task<List<POIDto>> SearchAsync(string keyword);
     Task<List<POIDto>> GetNearbyAsync(double latitude, double longitude, double radiusMeters);
+    Task<List<string>> GetCategoriesAsync(bool includeInactive = false);
     Task<POIDto> CreateAsync(CreatePOIDto dto);
     Task<POIDto?> UpdateAsync(string id, UpdatePOIDto dto);
     Task<bool> DeleteAsync(string id);
@@ -28,15 +29,21 @@ public interface IPOIService
             _context = context;
         }
 
-        public async Task<List<POIDto>> GetAllAsync(bool includeInactive = false)
+        public async Task<List<POIDto>> GetAllAsync(bool includeInactive = false, string? category = null)
         {
             var query = _context.POIs
                 .Include(p => p.Translations)
+                .AsNoTracking()
                 .AsQueryable();
 
             if (!includeInactive)
             {
                 query = query.Where(p => p.IsActive);
+            }
+
+            if (!string.IsNullOrWhiteSpace(category))
+            {
+                query = query.Where(p => p.Category == category);
             }
 
             var entities = await query.OrderBy(p => p.Name).ToListAsync();
@@ -51,6 +58,7 @@ public interface IPOIService
             
         var entity = await _context.POIs
             .Include(p => p.Translations)
+            .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == intId);
 
         return entity != null ? MapToDto(entity) : null;
@@ -195,6 +203,7 @@ public interface IPOIService
         var poiIdSet = poiIdsByOrder.ToHashSet();
         var poiById = await _context.POIs
             .Include(p => p.Translations)
+            .AsNoTracking()
             .Where(p => p.IsActive && poiIdSet.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id);
 
@@ -210,6 +219,7 @@ public interface IPOIService
     {
         var entities = await _context.POIs
             .Include(p => p.Translations)
+            .AsNoTracking()
             .Where(p => p.IsActive && 
                 (p.Name.Contains(keyword) ||
                  (p.Address != null && p.Address.Contains(keyword)) ||
@@ -227,6 +237,7 @@ public interface IPOIService
 
         var entities = await _context.POIs
             .Include(p => p.Translations)
+            .AsNoTracking()
             .Where(p => p.IsActive &&
                 p.Latitude >= latitude - latDelta &&
                 p.Latitude <= latitude + latDelta &&
@@ -241,6 +252,25 @@ public interface IPOIService
             .ToList();
 
         return result;
+    }
+
+    public async Task<List<string>> GetCategoriesAsync(bool includeInactive = false)
+    {
+        var query = _context.POIs
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (!includeInactive)
+        {
+            query = query.Where(p => p.IsActive);
+        }
+
+        return await query
+            .Where(p => !string.IsNullOrEmpty(p.Category))
+            .Select(p => p.Category!)
+            .Distinct()
+            .OrderBy(c => c)
+            .ToListAsync();
     }
 
     private static double CalculateDistance(double lat1, double lon1, double lat2, double lon2)

@@ -15,6 +15,7 @@ public interface IAnalyticsService
 public class AnalyticsService : IAnalyticsService
 {
     private readonly AppDbContext _context;
+    private const double HeatmapGridSize = 0.001d;
 
     public AnalyticsService(AppDbContext context)
     {
@@ -65,26 +66,47 @@ public class AnalyticsService : IAnalyticsService
         {
             _context.NarrationHistories.AddRange(narrationEntities);
 
-            // Update POI statistics
-            foreach (var narration in narrationEntities)
-            {
-                var date = narration.StartTime.Date;
-                var stat = await _context.POIStatistics
-                    .FirstOrDefaultAsync(s => s.POIId == narration.POIId && s.Date == date);
+            // Batch-update POI daily statistics to avoid one query per narration row.
+            var narrationStats = narrationEntities
+                .GroupBy(n => new { n.POIId, Date = n.StartTime.Date })
+                .Select(g => new
+                {
+                    g.Key.POIId,
+                    g.Key.Date,
+                    ListenCount = g.Count(),
+                    CompletedCount = g.Count(n => n.Completed),
+                    TotalListenDurationSeconds = g.Sum(n => (long)n.DurationSeconds)
+                })
+                .ToList();
 
-                if (stat == null)
+            var statPoiIds = narrationStats.Select(s => s.POIId).Distinct().ToList();
+            var statDates = narrationStats.Select(s => s.Date).Distinct().ToList();
+
+            var existingStats = await _context.POIStatistics
+                .Where(s => statPoiIds.Contains(s.POIId) && statDates.Contains(s.Date))
+                .ToListAsync();
+
+            var statsByKey = existingStats.ToDictionary(
+                s => (s.POIId, s.Date),
+                s => s);
+
+            foreach (var aggregated in narrationStats)
+            {
+                var key = (aggregated.POIId, aggregated.Date);
+                if (!statsByKey.TryGetValue(key, out var stat))
                 {
                     stat = new POIStatisticsEntity
                     {
-                        POIId = narration.POIId,
-                        Date = date
+                        POIId = aggregated.POIId,
+                        Date = aggregated.Date
                     };
                     _context.POIStatistics.Add(stat);
+                    statsByKey[key] = stat;
                 }
 
-                stat.ListenCount++;
-                if (narration.Completed) stat.CompletedCount++;
-                stat.TotalListenDurationSeconds += narration.DurationSeconds;
+                stat.ListenCount += aggregated.ListenCount;
+                stat.CompletedCount += aggregated.CompletedCount;
+                stat.TotalListenDurationSeconds += aggregated.TotalListenDurationSeconds;
             }
         }
 
@@ -98,15 +120,23 @@ public class AnalyticsService : IAnalyticsService
 
         var totalPOIs = await _context.POIs.CountAsync(p => p.IsActive);
         var totalTours = await _context.Tours.CountAsync(t => t.IsActive);
-
-        var narrations = await _context.NarrationHistories
+        var narrationsQuery = _context.NarrationHistories
+            .AsNoTracking()
             .Where(n => n.StartTime >= fromDate && n.StartTime <= toDate)
-            .ToListAsync();
+            .AsQueryable();
 
-        var totalListens = narrations.Count;
-        var uniqueUsers = narrations.Select(n => n.AnonymousDeviceId).Distinct().Count();
-        var avgDuration = narrations.Any() ? narrations.Average(n => n.DurationSeconds) : 0;
-        var completionRate = totalListens > 0 ? (double)narrations.Count(n => n.Completed) / totalListens : 0;
+        var totalListens = await narrationsQuery.CountAsync();
+        var uniqueUsers = await narrationsQuery
+            .Select(n => n.AnonymousDeviceId)
+            .Distinct()
+            .CountAsync();
+        var avgDuration = totalListens > 0
+            ? await narrationsQuery.AverageAsync(n => (double?)n.DurationSeconds) ?? 0
+            : 0;
+        var completedCount = totalListens > 0
+            ? await narrationsQuery.CountAsync(n => n.Completed)
+            : 0;
+        var completionRate = totalListens > 0 ? (double)completedCount / totalListens : 0;
 
         return new DashboardAnalyticsDto
         {
@@ -128,6 +158,7 @@ public class AnalyticsService : IAnalyticsService
         var toDate = to ?? DateTime.UtcNow;
 
         var stats = await _context.NarrationHistories
+            .AsNoTracking()
             .Where(n => n.StartTime >= fromDate && n.StartTime <= toDate)
             .GroupBy(n => new { n.POIId, n.POIName })
             .Select(g => new TopPOIDto
@@ -150,17 +181,13 @@ public class AnalyticsService : IAnalyticsService
         var fromDate = from ?? DateTime.UtcNow.AddDays(-30);
         var toDate = to ?? DateTime.UtcNow;
 
-        // Group locations into grid cells
-        var locations = await _context.LocationHistories
+        var heatmap = await _context.LocationHistories
+            .AsNoTracking()
             .Where(l => l.Timestamp >= fromDate && l.Timestamp <= toDate)
-            .ToListAsync();
-
-        var gridSize = 0.001; // ~100m
-        var heatmap = locations
             .GroupBy(l => new
             {
-                Lat = Math.Round(l.Latitude / gridSize) * gridSize,
-                Lon = Math.Round(l.Longitude / gridSize) * gridSize
+                Lat = Math.Round(l.Latitude / HeatmapGridSize) * HeatmapGridSize,
+                Lon = Math.Round(l.Longitude / HeatmapGridSize) * HeatmapGridSize
             })
             .Select(g => new HeatmapPointDto
             {
@@ -168,7 +195,8 @@ public class AnalyticsService : IAnalyticsService
                 Longitude = g.Key.Lon,
                 Weight = g.Count()
             })
-            .ToList();
+            .OrderByDescending(p => p.Weight)
+            .ToListAsync();
 
         return heatmap;
     }
@@ -176,6 +204,7 @@ public class AnalyticsService : IAnalyticsService
     private async Task<List<DailyStatsDto>> GetDailyStatsAsync(DateTime from, DateTime to)
     {
         var stats = await _context.NarrationHistories
+            .AsNoTracking()
             .Where(n => n.StartTime >= from && n.StartTime <= to)
             .GroupBy(n => n.StartTime.Date)
             .Select(g => new DailyStatsDto

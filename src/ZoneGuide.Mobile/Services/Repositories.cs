@@ -131,10 +131,21 @@ public class POIRepository : IPOIRepository
         if (pois.Count == 0)
             return pois;
 
+        var db = await _database.GetConnectionAsync();
         var result = new List<POI>(pois.Count);
+        var preferredLanguage = NormalizeLanguage(_settingsService.Settings.PreferredLanguage);
+        var poiIds = pois.Select(p => p.Id).Distinct().ToHashSet();
+        var translations = await db.Table<POITranslation>()
+            .Where(t => poiIds.Contains(t.POIId))
+            .ToListAsync();
+        var translationsByPoiId = translations
+            .GroupBy(t => t.POIId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
         foreach (var poi in pois)
         {
-            result.Add(await ApplyPreferredLanguageAsync(poi));
+            translationsByPoiId.TryGetValue(poi.Id, out var poiTranslations);
+            result.Add(ApplyPreferredLanguage(poi, preferredLanguage, poiTranslations));
         }
 
         return result;
@@ -143,9 +154,14 @@ public class POIRepository : IPOIRepository
     private async Task<POI> ApplyPreferredLanguageAsync(POI poi)
     {
         var preferredLanguage = NormalizeLanguage(_settingsService.Settings.PreferredLanguage);
-        var sourceLanguage = NormalizeLanguage(poi.Language);
-
         var translation = await _poiTranslationRepository.GetByPOIIdAndLanguageAsync(poi.Id, preferredLanguage);
+        return ApplyPreferredLanguage(poi, preferredLanguage, translation == null ? null : [translation]);
+    }
+
+    private static POI ApplyPreferredLanguage(POI poi, string preferredLanguage, IReadOnlyCollection<POITranslation>? availableTranslations)
+    {
+        var sourceLanguage = NormalizeLanguage(poi.Language);
+        var translation = ResolveTranslation(availableTranslations, preferredLanguage);
         if (translation == null)
         {
             // For default/source language, keep original POI content.
@@ -179,6 +195,29 @@ public class POIRepository : IPOIRepository
             audioFilePath: poi.AudioFilePath,
             audioUrl: string.IsNullOrWhiteSpace(translation.AudioUrl) ? poi.AudioUrl : translation.AudioUrl,
             language: preferredLanguage);
+    }
+
+    private static POITranslation? ResolveTranslation(IReadOnlyCollection<POITranslation>? translations, string preferredLanguage)
+    {
+        if (translations == null || translations.Count == 0)
+            return null;
+
+        var normalized = NormalizeLanguage(preferredLanguage);
+        var primary = GetPrimaryLanguage(normalized);
+
+        foreach (var translation in translations)
+        {
+            if (string.Equals(NormalizeLanguage(translation.LanguageCode), normalized, StringComparison.OrdinalIgnoreCase))
+                return translation;
+        }
+
+        foreach (var translation in translations)
+        {
+            if (string.Equals(GetPrimaryLanguage(NormalizeLanguage(translation.LanguageCode)), primary, StringComparison.OrdinalIgnoreCase))
+                return translation;
+        }
+
+        return null;
     }
 
     private static POI ClonePoiWithResolvedContent(
@@ -583,10 +622,21 @@ public class TourRepository : ITourRepository
         if (tours.Count == 0)
             return tours;
 
+        var db = await _database.GetConnectionAsync();
         var result = new List<Tour>(tours.Count);
+        var preferredLanguage = NormalizeLanguage(_settingsService.Settings.PreferredLanguage);
+        var tourIds = tours.Select(t => t.Id).Distinct().ToHashSet();
+        var translations = await db.Table<TourTranslation>()
+            .Where(t => tourIds.Contains(t.TourId))
+            .ToListAsync();
+        var translationsByTourId = translations
+            .GroupBy(t => t.TourId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
         foreach (var tour in tours)
         {
-            result.Add(await ApplyPreferredLanguageAsync(tour));
+            translationsByTourId.TryGetValue(tour.Id, out var tourTranslations);
+            result.Add(ApplyPreferredLanguage(tour, preferredLanguage, tourTranslations));
         }
 
         return result;
@@ -595,9 +645,14 @@ public class TourRepository : ITourRepository
     private async Task<Tour> ApplyPreferredLanguageAsync(Tour tour)
     {
         var preferredLanguage = NormalizeLanguage(_settingsService.Settings.PreferredLanguage);
-        var sourceLanguage = NormalizeLanguage(tour.Language);
-
         var translation = await _tourTranslationRepository.GetByTourIdAndLanguageAsync(tour.Id, preferredLanguage);
+        return ApplyPreferredLanguage(tour, preferredLanguage, translation == null ? null : [translation]);
+    }
+
+    private static Tour ApplyPreferredLanguage(Tour tour, string preferredLanguage, IReadOnlyCollection<TourTranslation>? availableTranslations)
+    {
+        var sourceLanguage = NormalizeLanguage(tour.Language);
+        var translation = ResolveTranslation(availableTranslations, preferredLanguage);
         if (translation == null)
         {
             if (string.Equals(GetPrimaryLanguage(preferredLanguage), "vi", StringComparison.OrdinalIgnoreCase)
@@ -624,6 +679,29 @@ public class TourRepository : ITourRepository
             string.IsNullOrWhiteSpace(translation.AudioUrl) ? tour.AudioUrl : translation.AudioUrl,
             tour.AudioFilePath,
             preferredLanguage);
+    }
+
+    private static TourTranslation? ResolveTranslation(IReadOnlyCollection<TourTranslation>? translations, string preferredLanguage)
+    {
+        if (translations == null || translations.Count == 0)
+            return null;
+
+        var normalized = NormalizeLanguage(preferredLanguage);
+        var primary = GetPrimaryLanguage(normalized);
+
+        foreach (var translation in translations)
+        {
+            if (string.Equals(NormalizeLanguage(translation.LanguageCode), normalized, StringComparison.OrdinalIgnoreCase))
+                return translation;
+        }
+
+        foreach (var translation in translations)
+        {
+            if (string.Equals(GetPrimaryLanguage(NormalizeLanguage(translation.LanguageCode)), primary, StringComparison.OrdinalIgnoreCase))
+                return translation;
+        }
+
+        return null;
     }
 
     private static Tour CloneTourWithDescription(
