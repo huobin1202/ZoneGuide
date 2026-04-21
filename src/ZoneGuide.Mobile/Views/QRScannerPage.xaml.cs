@@ -71,7 +71,6 @@ public partial class QRScannerPage : ContentPage
         if (status != PermissionStatus.Granted)
         {
             await DisplayAlert("Không có quyền camera", "Bạn cần cấp quyền camera để quét mã QR.", "OK");
-            await CloseScannerAsync();
             return;
         }
 
@@ -96,13 +95,11 @@ public partial class QRScannerPage : ContentPage
                 await Dispatcher.DispatchAsync(async () =>
                 {
                     await DisplayAlert("Không khởi tạo được camera", "Máy quét QR không thể khởi động trên thiết bị này.", "OK");
-                    await CloseScannerAsync();
                 });
                 return;
             }
 
             await DisplayAlert("Không khởi tạo được camera", "Máy quét QR không thể khởi động trên thiết bị này.", "OK");
-            await CloseScannerAsync();
         }
     }
 
