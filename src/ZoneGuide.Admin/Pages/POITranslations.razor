@@ -226,13 +226,13 @@ else
                         <div class="audio-created-scroll">
                             @foreach (var audio in CreatedTourAudios)
                             {
-                                <MudPaper Class="pa-2 mb-2" Outlined="true">
+                                <MudPaper @key="@($"{audio.LanguageCode}:{audio.AudioUrl}")" Class="pa-2 mb-2" Outlined="true">
                                     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-1">
                                         <MudText Typo="Typo.body2">@GetLanguageLabel(audio.LanguageCode)</MudText>
                                         <MudText Typo="Typo.caption" Class="@GetTourAudioStatusClass(audio)">@GetTourAudioStatusText(audio)</MudText>
                                     </MudStack>
 
-                                    <audio controls preload="metadata" style="width:100%" class="mb-2">
+                                    <audio @key="@($"{audio.LanguageCode}:{audio.AudioUrl}")" controls preload="metadata" style="width:100%" class="mb-2">
                                         <source src="@ResolveAudioSource(audio.AudioUrl)" />
                                     </audio>
                                 </MudPaper>
@@ -253,13 +253,13 @@ else
                     <div class="audio-created-scroll">
                         @foreach (var audio in CreatedAudios)
                         {
-                            <MudPaper Class="pa-2 mb-2" Outlined="true">
+                            <MudPaper @key="@($"{audio.LanguageCode}:{audio.AudioUrl}")" Class="pa-2 mb-2" Outlined="true">
                                 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-1">
                                     <MudText Typo="Typo.body2">@GetLanguageLabel(audio.LanguageCode)</MudText>
                                     <MudText Typo="Typo.caption" Class="@GetAudioStatusClass(audio)">@GetAudioStatusText(audio)</MudText>
                                 </MudStack>
 
-                                <audio controls preload="metadata" style="width:100%" class="mb-2">
+                                <audio @key="@($"{audio.LanguageCode}:{audio.AudioUrl}")" controls preload="metadata" style="width:100%" class="mb-2">
                                     <source src="@ResolveAudioSource(audio.AudioUrl)" />
                                 </audio>
 
