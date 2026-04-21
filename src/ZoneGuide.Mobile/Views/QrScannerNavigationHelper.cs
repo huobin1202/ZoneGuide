@@ -12,21 +12,29 @@ internal static class QrScannerNavigationHelper
             return;
         }
 
-        var status = await Permissions.CheckStatusAsync<Permissions.Camera>();
-        if (status != PermissionStatus.Granted)
+        try
         {
-            status = await Permissions.RequestAsync<Permissions.Camera>();
-        }
+            var status = await Permissions.CheckStatusAsync<Permissions.Camera>();
+            if (status != PermissionStatus.Granted)
+            {
+                status = await Permissions.RequestAsync<Permissions.Camera>();
+            }
 
-        if (status != PermissionStatus.Granted)
+            if (status != PermissionStatus.Granted)
+            {
+                await page.DisplayAlert("Không có quyền camera", "Bạn cần cấp quyền camera để quét mã QR.", "OK");
+                return;
+            }
+
+            var services = page.Handler?.MauiContext?.Services ?? Shell.Current?.Handler?.MauiContext?.Services;
+            var scannerPage = services?.GetRequiredService<QRScannerPage>() ?? new QRScannerPage();
+            await page.Navigation.PushModalAsync(scannerPage);
+        }
+        catch (Exception ex)
         {
-            await page.DisplayAlert("Không có quyền camera", "Bạn cần cấp quyền camera để quét mã QR.", "OK");
-            return;
+            System.Diagnostics.Debug.WriteLine($"[QrScanner] Failed to open scanner: {ex}");
+            await page.DisplayAlert("Không mở được máy quét", "Thiết bị không khởi tạo được camera quét QR.", "OK");
         }
-
-        var services = page.Handler?.MauiContext?.Services ?? Shell.Current?.Handler?.MauiContext?.Services;
-        var scannerPage = services?.GetRequiredService<QRScannerPage>() ?? new QRScannerPage();
-        await page.Navigation.PushModalAsync(scannerPage);
     }
 }
 

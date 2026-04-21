@@ -22,7 +22,7 @@ public partial class QRScannerPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
-        _ = InitializeScannerAsync();
+        _ = SafeInitializeScannerAsync();
     }
 
     protected override void OnDisappearing()
@@ -78,6 +78,31 @@ public partial class QRScannerPage : ContentPage
         if (_reader != null)
         {
             _reader.IsDetecting = true;
+        }
+    }
+
+    private async Task SafeInitializeScannerAsync()
+    {
+        try
+        {
+            await InitializeScannerAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[QrScanner] Initialize failed: {ex}");
+
+            if (Dispatcher.IsDispatchRequired)
+            {
+                await Dispatcher.DispatchAsync(async () =>
+                {
+                    await DisplayAlert("Không khởi tạo được camera", "Máy quét QR không thể khởi động trên thiết bị này.", "OK");
+                    await CloseScannerAsync();
+                });
+                return;
+            }
+
+            await DisplayAlert("Không khởi tạo được camera", "Máy quét QR không thể khởi động trên thiết bị này.", "OK");
+            await CloseScannerAsync();
         }
     }
 

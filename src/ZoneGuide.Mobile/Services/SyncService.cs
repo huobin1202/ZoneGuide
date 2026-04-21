@@ -113,16 +113,16 @@ public class SyncService : ISyncService
 
             SyncProgress?.Invoke(this, 0.5);
 
+            var existingPoiMap = await GetExistingPoiMapAsync(syncData.POIs);
+
             // Cập nhật POIs
             foreach (var poiDto in syncData.POIs)
             {
                 var poiId = int.TryParse(poiDto.Id, out var parsedPoiId) ? parsedPoiId : 0;
-                var existingPoi = poiId > 0
-                    ? await _poiRepository.GetByIdRawAsync(poiId)
-                    : null;
+                existingPoiMap.TryGetValue(poiId, out var existingPoi);
 
                 var poi = MapToPOI(poiDto, existingPoi);
-                await _poiRepository.InsertOrUpdateAsync(poi);
+                await SavePoiAsync(poi, existingPoi != null);
                 await SyncPoiTranslationsAsync(poiDto, poi.Id);
             }
 
@@ -134,16 +134,16 @@ public class SyncService : ISyncService
                 await _tourRepository.DeleteAsync(deletedId);
             }
 
+            var existingTourMap = await GetExistingTourMapAsync(syncData.Tours);
+
             // Cập nhật Tours
             foreach (var tourDto in syncData.Tours)
             {
                 var tourId = int.TryParse(tourDto.Id, out var parsedTourId) ? parsedTourId : 0;
-                var existingTour = tourId > 0
-                    ? await _tourRepository.GetByIdAsync(tourId)
-                    : null;
+                existingTourMap.TryGetValue(tourId, out var existingTour);
 
                 var tour = MapToTour(tourDto, existingTour);
-                await _tourRepository.InsertOrUpdateAsync(tour);
+                await SaveTourAsync(tour, existingTour != null);
                 await SyncTourTranslationsAsync(tourDto, tour.Id);
             }
 
@@ -569,7 +569,14 @@ public class SyncService : ISyncService
                 CreatedAt = existingEntry?.CreatedAt ?? DateTime.UtcNow
             };
 
-            await _poiTranslationRepository.InsertOrUpdateAsync(entry);
+            if (existingEntry != null)
+            {
+                await _poiTranslationRepository.UpdateAsync(entry);
+            }
+            else
+            {
+                await _poiTranslationRepository.InsertAsync(entry);
+            }
         }
     }
 
@@ -617,18 +624,77 @@ public class SyncService : ISyncService
             if (string.IsNullOrWhiteSpace(translation.LanguageCode))
                 continue;
 
+            var normalizedLanguage = NormalizeLanguage(translation.LanguageCode);
+            var existingEntry = existing.FirstOrDefault(t =>
+                string.Equals(NormalizeLanguage(t.LanguageCode), normalizedLanguage, StringComparison.OrdinalIgnoreCase));
+
             var entry = new TourTranslation
             {
+                Id = existingEntry?.Id ?? 0,
                 TourId = tourId,
-                LanguageCode = NormalizeLanguage(translation.LanguageCode),
+                LanguageCode = normalizedLanguage,
                 Description = translation.Description ?? string.Empty,
                 IsOutdated = translation.IsOutdated,
                 AudioUrl = translation.AudioUrl,
-                IsAudioOutdated = translation.IsAudioOutdated
+                IsAudioOutdated = translation.IsAudioOutdated,
+                CreatedAt = existingEntry?.CreatedAt ?? DateTime.UtcNow
             };
 
-            await _tourTranslationRepository.InsertOrUpdateAsync(entry);
+            if (existingEntry != null)
+            {
+                await _tourTranslationRepository.UpdateAsync(entry);
+            }
+            else
+            {
+                await _tourTranslationRepository.InsertAsync(entry);
+            }
         }
+    }
+
+    private async Task<Dictionary<int, POI>> GetExistingPoiMapAsync(IEnumerable<POIDto> poiDtos)
+    {
+        var ids = poiDtos
+            .Select(dto => int.TryParse(dto.Id, out var id) ? id : 0)
+            .Where(id => id > 0)
+            .ToHashSet();
+
+        if (ids.Count == 0)
+            return new Dictionary<int, POI>();
+
+        var existing = await _poiRepository.GetAllAsync();
+        return existing
+            .Where(p => ids.Contains(p.Id))
+            .ToDictionary(p => p.Id);
+    }
+
+    private async Task<Dictionary<int, Tour>> GetExistingTourMapAsync(IEnumerable<TourDto> tourDtos)
+    {
+        var ids = tourDtos
+            .Select(dto => int.TryParse(dto.Id, out var id) ? id : 0)
+            .Where(id => id > 0)
+            .ToHashSet();
+
+        if (ids.Count == 0)
+            return new Dictionary<int, Tour>();
+
+        var existing = await _tourRepository.GetAllAsync();
+        return existing
+            .Where(t => ids.Contains(t.Id))
+            .ToDictionary(t => t.Id);
+    }
+
+    private Task SavePoiAsync(POI poi, bool exists)
+    {
+        return exists
+            ? _poiRepository.UpdateAsync(poi)
+            : _poiRepository.InsertAsync(poi);
+    }
+
+    private Task SaveTourAsync(Tour tour, bool exists)
+    {
+        return exists
+            ? _tourRepository.UpdateAsync(tour)
+            : _tourRepository.InsertAsync(tour);
     }
 
     private async Task EnsureSyncStateLoadedAsync()

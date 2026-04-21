@@ -8,6 +8,9 @@ namespace ZoneGuide.Mobile.Services;
 /// </summary>
 public class AudioService : IAudioService, IDisposable
 {
+    private static readonly TimeSpan ProgressUpdateInterval = TimeSpan.FromMilliseconds(250);
+    private const double ProgressChangeThreshold = 0.01;
+
     public event EventHandler? PlaybackStarted;
     public event EventHandler? PlaybackCompleted;
     public event EventHandler? PlaybackPaused;
@@ -20,6 +23,8 @@ public class AudioService : IAudioService, IDisposable
     private Stream? _activeStream;
     private CancellationTokenSource? _progressCts;
     private float _volume = 1.0f;
+    private bool _isStopping;
+    private double _lastReportedProgress = -1;
 
     public bool IsPlaying => _player?.IsPlaying ?? false;
     public bool IsPaused { get; private set; }
@@ -135,6 +140,8 @@ public class AudioService : IAudioService, IDisposable
     private Task CleanupPlayerAsync()
     {
         StopProgressTracking();
+        _isStopping = true;
+        _lastReportedProgress = -1;
         
         if (_player != null)
         {
@@ -154,6 +161,7 @@ public class AudioService : IAudioService, IDisposable
         DisposeActiveStream();
         
         IsPaused = false;
+        _isStopping = false;
         return Task.CompletedTask;
     }
 
@@ -185,8 +193,14 @@ public class AudioService : IAudioService, IDisposable
 
     private void OnPlaybackEnded(object? sender, EventArgs e)
     {
+        if (IsPaused || _isStopping)
+        {
+            return;
+        }
+
         StopProgressTracking();
         IsPaused = false;
+        _lastReportedProgress = 1;
         DisposeActiveStream();
         PlaybackCompleted?.Invoke(this, EventArgs.Empty);
     }
@@ -199,14 +213,23 @@ public class AudioService : IAudioService, IDisposable
         
         _ = Task.Run(async () =>
         {
-            while (!_progressCts.Token.IsCancellationRequested && _player?.IsPlaying == true)
+            var token = _progressCts.Token;
+
+            while (!token.IsCancellationRequested && _player?.IsPlaying == true)
             {
                 if (_player.Duration > 0)
                 {
                     var progress = _player.CurrentPosition / _player.Duration;
-                    ProgressChanged?.Invoke(this, progress);
+                    if (_lastReportedProgress < 0 ||
+                        Math.Abs(progress - _lastReportedProgress) >= ProgressChangeThreshold ||
+                        progress >= 1)
+                    {
+                        _lastReportedProgress = progress;
+                        ProgressChanged?.Invoke(this, progress);
+                    }
                 }
-                await Task.Delay(100);
+
+                await Task.Delay(ProgressUpdateInterval, token);
             }
         }, _progressCts.Token);
     }

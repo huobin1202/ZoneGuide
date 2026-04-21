@@ -215,6 +215,18 @@ public class GeofenceService : IGeofenceService
 
                         _lastTriggerTime[poi.Id] = DateTime.UtcNow;
 
+
+
+
+
+
+
+
+
+
+
+
+
                         events.Add(new GeofenceEvent
                         {
                             POI = poi,

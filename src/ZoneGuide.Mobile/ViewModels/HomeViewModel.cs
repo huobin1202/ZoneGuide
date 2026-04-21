@@ -11,6 +11,8 @@ namespace ZoneGuide.Mobile.ViewModels;
 
 public partial class HomeViewModel : ObservableObject
 {
+    private static readonly TimeSpan HomeHistoryWindow = TimeSpan.FromDays(90);
+
     private readonly IPOIRepository _poiRepository;
     private readonly ITourRepository _tourRepository;
     private readonly IAnalyticsRepository _analyticsRepository;
@@ -19,7 +21,9 @@ public partial class HomeViewModel : ObservableObject
     private readonly INarrationService _narrationService;
     private readonly ISettingsService _settingsService;
     private readonly ISyncService _syncService;
+    private readonly SemaphoreSlim _backgroundRefreshGate = new(1, 1);
     private bool _isInitialized;
+    private bool _hasPendingBackgroundRefresh;
 
     [ObservableProperty]
     private bool isLoading;
@@ -64,14 +68,14 @@ public partial class HomeViewModel : ObservableObject
             return;
 
         _isInitialized = true;
-        await LoadHomeAsync(syncFirst: true);
+        await LoadHomeAsync(syncInBackground: true);
     }
 
     [RelayCommand]
     private async Task RefreshAsync()
     {
         IsRefreshing = true;
-        await LoadHomeAsync(syncFirst: true);
+        await LoadHomeAsync(syncInBackground: false);
     }
 
     [RelayCommand]
@@ -167,7 +171,7 @@ public partial class HomeViewModel : ObservableObject
         }
     }
 
-    private async Task LoadHomeAsync(bool syncFirst)
+    private async Task LoadHomeAsync(bool syncInBackground)
     {
         if (IsLoading)
             return;
@@ -176,35 +180,136 @@ public partial class HomeViewModel : ObservableObject
 
         try
         {
-            if (syncFirst)
+            if (syncInBackground)
             {
-                try
-                {
-                    await _syncService.SyncFromServerAsync();
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[HomeVM] Sync failed (non-fatal): {ex.Message}");
-                }
+                _ = RefreshHomeFromServerAsync();
+            }
+            else
+            {
+                await SyncHomeFromServerAsync();
             }
 
-            var location = await _locationService.GetCurrentLocationAsync();
-            var pois = await _poiRepository.GetActiveAsync();
-            var tours = await _tourRepository.GetActiveAsync();
-            var histories = await _analyticsRepository.GetNarrationsByDateRangeAsync(
-                DateTime.UtcNow.AddYears(-1),
-                DateTime.UtcNow.AddDays(1));
-
-            BuildWelcome(location);
-            BuildNearbyPois(pois, location);
-            BuildFeaturedTours(tours);
-            BuildContinueListening(histories, pois);
-            await BuildOfflineToursAsync(tours);
+            await LoadHomeSnapshotAsync();
         }
         finally
         {
             IsLoading = false;
             IsRefreshing = false;
+        }
+    }
+
+    private async Task LoadHomeSnapshotAsync()
+    {
+        var locationTask = ResolvePreferredLocationAsync();
+        var poisTask = _poiRepository.GetActiveAsync();
+        var toursTask = _tourRepository.GetActiveAsync();
+        var historiesTask = _analyticsRepository.GetNarrationsByDateRangeAsync(
+            DateTime.UtcNow.Subtract(HomeHistoryWindow),
+            DateTime.UtcNow.AddDays(1));
+
+        await Task.WhenAll(locationTask, poisTask, toursTask, historiesTask);
+
+        var location = await locationTask;
+        var pois = await poisTask;
+        var tours = await toursTask;
+        var histories = await historiesTask;
+
+        BuildWelcome(location);
+        BuildNearbyPois(pois, location);
+        BuildFeaturedTours(tours);
+        BuildContinueListening(histories, pois);
+        await BuildOfflineToursAsync(tours);
+    }
+
+    private async Task<LocationData?> ResolvePreferredLocationAsync()
+    {
+        var cachedLocation = _locationService.CurrentLocation;
+        if (cachedLocation != null)
+        {
+            _ = RefreshLocationInBackgroundAsync();
+            return cachedLocation;
+        }
+
+        try
+        {
+            return await _locationService.GetCurrentLocationAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HomeVM] Location lookup failed (non-fatal): {ex.Message}");
+            return null;
+        }
+    }
+
+    private async Task RefreshLocationInBackgroundAsync()
+    {
+        try
+        {
+            await _locationService.GetCurrentLocationAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HomeVM] Background location refresh failed (non-fatal): {ex.Message}");
+        }
+    }
+
+    private async Task SyncHomeFromServerAsync()
+    {
+        try
+        {
+            await _syncService.SyncFromServerAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HomeVM] Sync failed (non-fatal): {ex.Message}");
+        }
+    }
+
+    private async Task RefreshHomeFromServerAsync()
+    {
+        if (!_backgroundRefreshGate.Wait(0))
+        {
+            _hasPendingBackgroundRefresh = true;
+            return;
+        }
+
+        try
+        {
+            do
+            {
+                _hasPendingBackgroundRefresh = false;
+                var synced = await _syncService.SyncFromServerAsync();
+                if (!synced)
+                    continue;
+
+                await MainThread.InvokeOnMainThreadAsync(async () =>
+                {
+                    if (IsLoading)
+                    {
+                        _hasPendingBackgroundRefresh = true;
+                        return;
+                    }
+
+                    IsLoading = true;
+                    try
+                    {
+                        await LoadHomeSnapshotAsync();
+                    }
+                    finally
+                    {
+                        IsLoading = false;
+                    }
+                });
+            }
+            while (_hasPendingBackgroundRefresh);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HomeVM] Background home refresh failed (non-fatal): {ex.Message}");
+        }
+        finally
+        {
+            _backgroundRefreshGate.Release();
         }
     }
 
