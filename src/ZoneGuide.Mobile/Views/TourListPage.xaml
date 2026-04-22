@@ -4,15 +4,18 @@
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
              xmlns:models="clr-namespace:ZoneGuide.Shared.Models;assembly=ZoneGuide.Shared"
              xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
+             xmlns:views="clr-namespace:ZoneGuide.Mobile.Views"
              x:Class="ZoneGuide.Mobile.Views.TourListPage"
              x:DataType="vm:TourListViewModel"
+             Shell.TabBarIsVisible="False"
              Title="{local:Translate tours_title}">
 
-    <RefreshView IsRefreshing="{Binding IsRefreshing}"
-                 Command="{Binding RefreshCommand}">
-        <CollectionView ItemsSource="{Binding Tours}"
-                        SelectionMode="None"
-                        Margin="0,8,0,16">
+    <Grid RowDefinitions="*,Auto,Auto">
+        <RefreshView IsRefreshing="{Binding IsRefreshing}"
+                     Command="{Binding RefreshCommand}">
+            <CollectionView ItemsSource="{Binding Tours}"
+                            SelectionMode="None"
+                            Margin="0,8,0,16">
             <CollectionView.EmptyView>
                 <VerticalStackLayout HorizontalOptions="Center"
                                      VerticalOptions="Center"
@@ -127,7 +130,12 @@
                     </Frame>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
-        </CollectionView>
-    </RefreshView>
+            </CollectionView>
+        </RefreshView>
+
+        <views:MiniPlayerView Grid.Row="1" />
+        <views:CustomBottomBarView Grid.Row="2"
+                                   CurrentTab="tours" />
+    </Grid>
 
 </ContentPage>

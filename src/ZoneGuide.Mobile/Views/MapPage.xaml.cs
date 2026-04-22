@@ -2,6 +2,7 @@ using ZoneGuide.Mobile.ViewModels;
 using ZoneGuide.Shared.Models;
 using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Maps;
+using CommunityToolkit.Mvvm.Input;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
@@ -16,12 +17,19 @@ namespace ZoneGuide.Mobile.Views;
 
 public partial class MapPage : ContentPage, IQueryAttributable
 {
+    private const double MapPoiSheetHandleOnlyHeight = 50;
+    private const double MapPoiSheetDefaultRatio = 0.5;
+    private const double MapPoiSheetExpandedRatio = 0.72;
     private const double TourSheetExpandedHeight = 296;
     private const double TourSheetCollapsedHeight = 122;
     private const uint TourSheetSnapAnimationMs = 240;
     private const double SelectedPoiOverlayBottomMargin = 16;
     private const double SelectedPoiOverlaySheetGap = 14;
+    private const double BottomBarSafeInset = 92;
+    private const double MiniPlayerGap = 4;
+    private const double BottomSheetMiniPlayerGap = 24;
     private readonly MapViewModel _viewModel;
+    private readonly GlobalMiniPlayerViewModel _miniPlayerViewModel;
     private int _lastRenderedPinCount = -1;
     private Microsoft.Maui.Controls.Maps.Polyline? _tourRoutePolyline;
     private bool _hasInitialized;
@@ -29,12 +37,15 @@ public partial class MapPage : ContentPage, IQueryAttributable
     private CancellationTokenSource? _routeUpdateDebounceCts;
     private const int CollectionUpdateDebounceMs = 80;
     private bool _tourOverlayRequestedOnNavigation;
-    private bool _isSearchSheetOpen;
+    private bool _isMapPoiSheetPanning;
     private int? _focusPoiIdRequestedOnNavigation;
+    private bool _autoPlayRequestedOnNavigation;
     private bool _openSearchRequestedOnNavigation;
     private bool _startNavigationToPoiRequestedOnNavigation;
     private bool _isTourSheetPanning;
     private double _tourSheetPanStartHeight;
+    private double _mapPoiSheetPanStartHeight;
+    private bool _eventsAttached;
     private const double OffscreenIndicatorSize = 48;
     private const double OffscreenIndicatorEdgePadding = 14;
     private const double OffscreenSafeViewportRatio = 0.85;
@@ -47,18 +58,15 @@ public partial class MapPage : ContentPage, IQueryAttributable
     private BitmapDescriptor? _userCursorMarkerIcon;
 #endif
 
-    public MapPage(MapViewModel viewModel)
+    public MapPage(MapViewModel viewModel, GlobalMiniPlayerViewModel miniPlayerViewModel)
     {
         _viewModel = viewModel;
+        _miniPlayerViewModel = miniPlayerViewModel;
 
         try
         {
             InitializeComponent();
             BindingContext = viewModel;
-            if (MainMap != null)
-            {
-                MainMap.PropertyChanged += OnMainMapPropertyChanged;
-            }
             AttachViewModelEvents();
         }
         catch (Exception ex)
@@ -71,49 +79,101 @@ public partial class MapPage : ContentPage, IQueryAttributable
 
     private void AttachViewModelEvents()
     {
+        if (_eventsAttached)
+            return;
+
+        if (MainMap != null)
+        {
+            MainMap.PropertyChanged += OnMainMapPropertyChanged;
+        }
+
+        if (MapMiniPlayerView != null)
+        {
+            MapMiniPlayerView.SizeChanged += OnMiniPlayerLayoutChanged;
+        }
+
+        _miniPlayerViewModel.PropertyChanged += OnMiniPlayerPropertyChanged;
         _viewModel.POIs.CollectionChanged += OnPoisCollectionChanged;
         _viewModel.TourRoutePoints.CollectionChanged += OnTourRoutePointsCollectionChanged;
-        _viewModel.PropertyChanged += (s, e) => {
-            if (e.PropertyName == nameof(MapViewModel.MapSpan))
-            {
-                UpdateMapRegion();
-            }
-            else if (e.PropertyName == nameof(MapViewModel.SelectedPOI) && _viewModel.SelectedPOI == null)
-            {
-                FitMapToAllPins();
-            }
-            else if (e.PropertyName == nameof(MapViewModel.IsTourPoiListVisible))
-            {
-                MainThread.BeginInvokeOnMainThread(() =>
-                {
-                    if (_viewModel.IsTourPoiListVisible)
-                    {
-                        ApplyTourSheetState(TourSheetExpandedHeight, animate: false);
-                        UpdateTourRecenterButtonVisibility();
-                        return;
-                    }
+        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        _eventsAttached = true;
+    }
 
-                    UpdateSelectedPoiOverlayMargin();
-                    UpdateMapZoomControlsMargin();
+    private void DetachViewModelEvents()
+    {
+        if (!_eventsAttached)
+            return;
+
+        if (MainMap != null)
+        {
+            MainMap.PropertyChanged -= OnMainMapPropertyChanged;
+        }
+
+        if (MapMiniPlayerView != null)
+        {
+            MapMiniPlayerView.SizeChanged -= OnMiniPlayerLayoutChanged;
+        }
+
+        _miniPlayerViewModel.PropertyChanged -= OnMiniPlayerPropertyChanged;
+        _viewModel.POIs.CollectionChanged -= OnPoisCollectionChanged;
+        _viewModel.TourRoutePoints.CollectionChanged -= OnTourRoutePointsCollectionChanged;
+        _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        _eventsAttached = false;
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MapViewModel.MapSpan))
+        {
+            UpdateMapRegion();
+        }
+        else if (e.PropertyName == nameof(MapViewModel.SelectedPOI) && _viewModel.SelectedPOI == null)
+        {
+            FitMapToAllPins();
+        }
+        else if (e.PropertyName == nameof(MapViewModel.IsTourPoiListVisible))
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                if (_viewModel.IsTourPoiListVisible)
+                {
+                    ApplyTourSheetState(TourSheetExpandedHeight, animate: false);
                     UpdateTourRecenterButtonVisibility();
-                });
-            }
-            else if (e.PropertyName == nameof(MapViewModel.IsSelectedPoiPlayerVisible))
+                    return;
+                }
+
+                UpdateSelectedPoiOverlayMargin();
+                UpdateMapZoomControlsMargin();
+                UpdateTourRecenterButtonVisibility();
+            });
+        }
+        else if (e.PropertyName == nameof(MapViewModel.IsSelectedPoiPlayerVisible))
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
             {
-                MainThread.BeginInvokeOnMainThread(() => UpdateMapZoomControlsMargin());
-            }
-            else if (e.PropertyName == nameof(MapViewModel.IsTourModeActive) ||
-                     e.PropertyName == nameof(MapViewModel.UserLocation))
+                UpdateSelectedPoiOverlayMargin();
+                UpdateMapZoomControlsMargin();
+            });
+        }
+        else if (e.PropertyName == nameof(MapViewModel.IsTourModeActive) ||
+                 e.PropertyName == nameof(MapViewModel.UserLocation))
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
             {
-                MainThread.BeginInvokeOnMainThread(UpdateTourRecenterButtonVisibility);
-            }
+                if (!_viewModel.IsTourModeActive)
+                {
+                    CloseTourSearchOverlay();
+                }
+
+                UpdateTourRecenterButtonVisibility();
+            });
+        }
 #if ANDROID
-            if (e.PropertyName == nameof(MapViewModel.UserLocation))
-            {
-                MainThread.BeginInvokeOnMainThread(RefreshNativeUserLocationMarker);
-            }
+        if (e.PropertyName == nameof(MapViewModel.UserLocation))
+        {
+            MainThread.BeginInvokeOnMainThread(RefreshNativeUserLocationMarker);
+        }
 #endif
-        };
     }
 
     private static View BuildInitializationFallback(string message)
@@ -153,6 +213,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+        AttachViewModelEvents();
         try
         {
             if (!_hasInitialized)
@@ -162,7 +223,13 @@ public partial class MapPage : ContentPage, IQueryAttributable
             }
             else
             {
+                await _viewModel.RefreshVisibleDataAsync(syncFirst: _viewModel.POIs.Count == 0);
                 await _viewModel.ApplyTourRequestAsync();
+            }
+
+            if (!_autoPlayRequestedOnNavigation)
+            {
+                await _viewModel.SuppressAutoNarrationForCurrentInRangePoisAsync();
             }
 
             UpdateMapPins();
@@ -173,24 +240,40 @@ public partial class MapPage : ContentPage, IQueryAttributable
 
             if (_focusPoiIdRequestedOnNavigation.HasValue)
             {
+                var focused = false;
                 if (_startNavigationToPoiRequestedOnNavigation)
                 {
-                    await _viewModel.PrepareInAppNavigationToPoiAsync(_focusPoiIdRequestedOnNavigation.Value);
+                    focused = await _viewModel.PrepareInAppNavigationToPoiAsync(_focusPoiIdRequestedOnNavigation.Value);
                 }
                 else
                 {
-                    await _viewModel.FocusPOIByIdAsync(_focusPoiIdRequestedOnNavigation.Value);
+                    focused = await _viewModel.FocusPOIByIdAsync(
+                        _focusPoiIdRequestedOnNavigation.Value,
+                        allowServerSync: _autoPlayRequestedOnNavigation);
+                }
+
+                if (_autoPlayRequestedOnNavigation && focused && _viewModel.PlaySelectedPOICommand.CanExecute(null))
+                {
+                    await _viewModel.PlaySelectedPOICommand.ExecuteAsync(null);
                 }
 
                 UpdateMapPins();
                 UpdateMapRegion();
                 _focusPoiIdRequestedOnNavigation = null;
                 _startNavigationToPoiRequestedOnNavigation = false;
+                _autoPlayRequestedOnNavigation = false;
             }
 
             if (!_tourOverlayRequestedOnNavigation)
             {
-                _viewModel.IsTourPoiListVisible = false;
+                if (!_viewModel.IsTourModeActive)
+                {
+                    _viewModel.IsTourPoiListVisible = false;
+                }
+            }
+            else if (_viewModel.IsTourModeActive)
+            {
+                _viewModel.IsTourPoiListVisible = true;
             }
 
             _tourOverlayRequestedOnNavigation = false;
@@ -205,11 +288,11 @@ public partial class MapPage : ContentPage, IQueryAttributable
             UpdateTourRecenterButtonVisibility();
             UpdateMapZoomControlsMargin();
 
-            ResetSearchSheetLayout();
+            ResetMapPoiSheetLayout();
 
             if (_openSearchRequestedOnNavigation)
             {
-                await OpenSearchSheetAsync();
+                await OpenMapPoiSheetAsync(focusSearch: true);
                 _openSearchRequestedOnNavigation = false;
             }
         }
@@ -229,10 +312,11 @@ public partial class MapPage : ContentPage, IQueryAttributable
             var startTour = TryGetBoolQueryValue(query, "startTour");
             _openSearchRequestedOnNavigation = TryGetBoolQueryValue(query, "openSearch");
             _startNavigationToPoiRequestedOnNavigation = TryGetBoolQueryValue(query, "navigate");
+            _autoPlayRequestedOnNavigation = TryGetBoolQueryValue(query, "autoplay");
             var hasTourOverlayContext = startTour && tourId.HasValue;
 
             _tourOverlayRequestedOnNavigation = hasTourOverlayContext;
-            if (!hasTourOverlayContext)
+            if (!hasTourOverlayContext && !_viewModel.IsTourModeActive)
             {
                 _viewModel.IsTourPoiListVisible = false;
             }
@@ -245,19 +329,28 @@ public partial class MapPage : ContentPage, IQueryAttributable
                 {
                     _ = MainThread.InvokeOnMainThreadAsync(async () =>
                     {
+                        var focused = false;
                         if (_startNavigationToPoiRequestedOnNavigation)
                         {
-                            await _viewModel.PrepareInAppNavigationToPoiAsync(_focusPoiIdRequestedOnNavigation.Value);
+                            focused = await _viewModel.PrepareInAppNavigationToPoiAsync(_focusPoiIdRequestedOnNavigation.Value);
                         }
                         else
                         {
-                            await _viewModel.FocusPOIByIdAsync(_focusPoiIdRequestedOnNavigation.Value);
+                            focused = await _viewModel.FocusPOIByIdAsync(
+                                _focusPoiIdRequestedOnNavigation.Value,
+                                allowServerSync: _autoPlayRequestedOnNavigation);
+                        }
+
+                        if (_autoPlayRequestedOnNavigation && focused && _viewModel.PlaySelectedPOICommand.CanExecute(null))
+                        {
+                            await _viewModel.PlaySelectedPOICommand.ExecuteAsync(null);
                         }
 
                         UpdateMapPins();
                         UpdateMapRegion();
                         _focusPoiIdRequestedOnNavigation = null;
                         _startNavigationToPoiRequestedOnNavigation = false;
+                        _autoPlayRequestedOnNavigation = false;
                     });
                 }
 
@@ -270,17 +363,26 @@ public partial class MapPage : ContentPage, IQueryAttributable
 
                 if (_focusPoiIdRequestedOnNavigation.HasValue)
                 {
+                    var focused = false;
                     if (_startNavigationToPoiRequestedOnNavigation)
                     {
-                        await _viewModel.PrepareInAppNavigationToPoiAsync(_focusPoiIdRequestedOnNavigation.Value);
+                        focused = await _viewModel.PrepareInAppNavigationToPoiAsync(_focusPoiIdRequestedOnNavigation.Value);
                     }
                     else
                     {
-                        await _viewModel.FocusPOIByIdAsync(_focusPoiIdRequestedOnNavigation.Value);
+                        focused = await _viewModel.FocusPOIByIdAsync(
+                            _focusPoiIdRequestedOnNavigation.Value,
+                            allowServerSync: _autoPlayRequestedOnNavigation);
+                    }
+
+                    if (_autoPlayRequestedOnNavigation && focused && _viewModel.PlaySelectedPOICommand.CanExecute(null))
+                    {
+                        await _viewModel.PlaySelectedPOICommand.ExecuteAsync(null);
                     }
 
                     _focusPoiIdRequestedOnNavigation = null;
                     _startNavigationToPoiRequestedOnNavigation = false;
+                    _autoPlayRequestedOnNavigation = false;
                 }
 
                 UpdateMapPins();
@@ -299,6 +401,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
         base.OnDisappearing();
         CancelDebounce(ref _pinsUpdateDebounceCts);
         CancelDebounce(ref _routeUpdateDebounceCts);
+        DetachViewModelEvents();
     }
 
     protected override void OnSizeAllocated(double width, double height)
@@ -473,7 +576,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
                     var pin = new Pin
                     {
                         Label = label,
-                        Address = poi.TTSScript ?? poi.FullDescription ?? poi.ShortDescription ?? "",
+                        Address = poi.TTSScript ?? "",
                         Location = new Location(poi.Latitude, poi.Longitude),
                         Type = PinType.Place
                     };
@@ -538,8 +641,21 @@ public partial class MapPage : ContentPage, IQueryAttributable
                 if (TourPoiCollectionView != null)
                 {
                     TourPoiCollectionView.IsVisible = nextHeight > (TourSheetCollapsedHeight + 12);
+                    // Thu nhỏ chiều cao các card theo chiều cao sheet
+                    double minCardHeight = 60;
+                    double maxCardHeight = 202;
+                    double minSheet = TourSheetCollapsedHeight;
+                    double maxSheet = TourSheetExpandedHeight;
+                    double cardHeight = minCardHeight + (maxCardHeight - minCardHeight) * ((nextHeight - minSheet) / (maxSheet - minSheet));
+                    cardHeight = Math.Clamp(cardHeight, minCardHeight, maxCardHeight);
+                    foreach (var item in TourPoiCollectionView.ItemsSource)
+                    {
+                        if (TourPoiCollectionView.ItemTemplate.CreateContent() is Border border)
+                        {
+                            border.HeightRequest = cardHeight;
+                        }
+                    }
                 }
-
                 UpdateSelectedPoiOverlayMargin(nextHeight);
                 break;
 
@@ -595,17 +711,94 @@ public partial class MapPage : ContentPage, IQueryAttributable
         animation.Commit(this, "TourPoiBottomSheetSnap", 16, TourSheetSnapAnimationMs, Easing.SinOut);
     }
 
+    private void OnMapPoiSheetPanUpdated(object? sender, PanUpdatedEventArgs e)
+    {
+        if (MapPoiBottomSheet == null || _viewModel.IsTourModeActive)
+            return;
+
+        var defaultHeight = GetMapPoiSheetDefaultHeight();
+        var expandedHeight = GetMapPoiSheetExpandedHeight();
+
+        switch (e.StatusType)
+        {
+            case GestureStatus.Started:
+                _isMapPoiSheetPanning = true;
+                _mapPoiSheetPanStartHeight = MapPoiBottomSheet.HeightRequest > 0
+                    ? MapPoiBottomSheet.HeightRequest
+                    : defaultHeight;
+                break;
+
+            case GestureStatus.Running:
+                if (!_isMapPoiSheetPanning)
+                    return;
+
+                var nextHeight = _mapPoiSheetPanStartHeight - e.TotalY;
+                nextHeight = Math.Clamp(nextHeight, MapPoiSheetHandleOnlyHeight, expandedHeight);
+                MapPoiBottomSheet.HeightRequest = nextHeight;
+                UpdateMapPoiSheetContentVisibility(nextHeight);
+                UpdateSelectedPoiOverlayMargin(nextHeight);
+                break;
+
+            case GestureStatus.Completed:
+            case GestureStatus.Canceled:
+                if (!_isMapPoiSheetPanning)
+                    return;
+
+                _isMapPoiSheetPanning = false;
+                var targetHeight = ResolveNearestMapPoiSheetSnapHeight(MapPoiBottomSheet.HeightRequest, defaultHeight, expandedHeight);
+
+                ApplyMapPoiSheetState(targetHeight, animate: true);
+                break;
+        }
+    }
+
+    private void ApplyMapPoiSheetState(double targetHeight, bool animate)
+    {
+        if (MapPoiBottomSheet == null)
+            return;
+
+        var startHeight = MapPoiBottomSheet.HeightRequest > 0
+            ? MapPoiBottomSheet.HeightRequest
+            : targetHeight;
+
+        if (!animate || Math.Abs(startHeight - targetHeight) < 0.5d)
+        {
+            MapPoiBottomSheet.HeightRequest = targetHeight;
+            UpdateMapPoiSheetContentVisibility(targetHeight);
+            UpdateSelectedPoiOverlayMargin(targetHeight);
+            return;
+        }
+
+        this.AbortAnimation("MapPoiBottomSheetSnap");
+        var animation = new Animation(v =>
+        {
+            MapPoiBottomSheet.HeightRequest = v;
+            UpdateMapPoiSheetContentVisibility(v);
+            UpdateSelectedPoiOverlayMargin(v);
+        }, startHeight, targetHeight);
+
+        animation.Commit(this, "MapPoiBottomSheetSnap", 16, TourSheetSnapAnimationMs, Easing.SinOut);
+    }
+
     private void UpdateSelectedPoiOverlayMargin(double? currentSheetHeight = null)
     {
         if (SelectedPoiOverlay == null)
             return;
 
-        var bottom = SelectedPoiOverlayBottomMargin;
-        if (_viewModel.IsTourPoiListVisible && TourPoiBottomSheet != null)
+        UpdateBottomSheetInsets();
+
+        var bottom = Math.Max(SelectedPoiOverlayBottomMargin, BottomBarSafeInset);
+        var miniPlayerInset = ResolveMiniPlayerInset();
+        if (miniPlayerInset > 0)
         {
-            var resolvedSheetHeight = currentSheetHeight
-                ?? (TourPoiBottomSheet.HeightRequest > 0 ? TourPoiBottomSheet.HeightRequest : TourSheetCollapsedHeight);
-            bottom = resolvedSheetHeight + SelectedPoiOverlaySheetGap;
+            bottom = Math.Max(bottom, miniPlayerInset + MiniPlayerGap);
+        }
+
+        var activeSheetHeight = ResolveActiveBottomSheetHeight(currentSheetHeight);
+        if (activeSheetHeight.HasValue)
+        {
+            var sheetBottomInset = ResolveActiveBottomSheetBottomInset(miniPlayerInset);
+            bottom = Math.Max(bottom, activeSheetHeight.Value + sheetBottomInset + SelectedPoiOverlaySheetGap);
         }
 
         var current = SelectedPoiOverlay.Margin;
@@ -627,15 +820,91 @@ public partial class MapPage : ContentPage, IQueryAttributable
             bottom = Math.Max(bottom, overlayBottom + overlayHeight + 12);
         }
 
-        if (_viewModel.IsTourPoiListVisible && TourPoiBottomSheet != null)
+        var activeSheetHeight = ResolveActiveBottomSheetHeight(currentSheetHeight);
+        if (activeSheetHeight.HasValue)
         {
-            var sheetHeight = currentSheetHeight
-                ?? (TourPoiBottomSheet.HeightRequest > 0 ? TourPoiBottomSheet.HeightRequest : TourSheetCollapsedHeight);
-            bottom = Math.Max(bottom, sheetHeight + 12);
+            bottom = Math.Max(bottom, activeSheetHeight.Value + 12);
+        }
+
+        var miniPlayerInset = ResolveMiniPlayerInset();
+        if (miniPlayerInset > 0)
+        {
+            bottom = Math.Max(bottom, miniPlayerInset + MiniPlayerGap);
         }
 
         var current = MapZoomControls.Margin;
         MapZoomControls.Margin = new Thickness(current.Left, current.Top, current.Right, bottom);
+    }
+
+    private void UpdateBottomSheetInsets()
+    {
+        var miniPlayerInset = ResolveMiniPlayerInset();
+        var bottomInset = miniPlayerInset > 0 ? miniPlayerInset + BottomSheetMiniPlayerGap : 0;
+
+        if (TourPoiBottomSheet != null)
+        {
+            var margin = TourPoiBottomSheet.Margin;
+            TourPoiBottomSheet.Margin = new Thickness(margin.Left, margin.Top, margin.Right, bottomInset);
+        }
+
+        if (MapPoiBottomSheet != null)
+        {
+            var margin = MapPoiBottomSheet.Margin;
+            MapPoiBottomSheet.Margin = new Thickness(margin.Left, margin.Top, margin.Right, 0);
+        }
+    }
+
+    private double ResolveMiniPlayerInset()
+    {
+        if (MapMiniPlayerView == null || !_miniPlayerViewModel.IsVisible || !MapMiniPlayerView.IsVisible)
+            return 0;
+
+        var height = MapMiniPlayerView.Height > 0 ? MapMiniPlayerView.Height : MapMiniPlayerView.HeightRequest;
+        if (height <= 0)
+            height = 96;
+
+        var margin = MapMiniPlayerView.Margin;
+        return height + margin.Top + margin.Bottom;
+    }
+
+    private void OnMiniPlayerLayoutChanged(object? sender, EventArgs e)
+    {
+        UpdateSelectedPoiOverlayMargin();
+    }
+
+    private void OnMiniPlayerPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(GlobalMiniPlayerViewModel.IsVisible))
+        {
+            MainThread.BeginInvokeOnMainThread(() => UpdateSelectedPoiOverlayMargin());
+        }
+    }
+
+    private double ResolveActiveBottomSheetBottomInset(double miniPlayerInset)
+    {
+        if (_viewModel.IsTourPoiListVisible)
+        {
+            return miniPlayerInset > 0 ? miniPlayerInset + BottomSheetMiniPlayerGap : 0;
+        }
+
+        return 0;
+    }
+
+    private double? ResolveActiveBottomSheetHeight(double? currentSheetHeight = null)
+    {
+        if (_viewModel.IsTourPoiListVisible && TourPoiBottomSheet != null)
+        {
+            return currentSheetHeight
+                ?? (TourPoiBottomSheet.HeightRequest > 0 ? TourPoiBottomSheet.HeightRequest : TourSheetCollapsedHeight);
+        }
+
+        if (!_viewModel.IsTourModeActive && MapPoiBottomSheet != null && MapPoiBottomSheet.IsVisible)
+        {
+            return currentSheetHeight
+                ?? (MapPoiBottomSheet.HeightRequest > 0 ? MapPoiBottomSheet.HeightRequest : GetMapPoiSheetDefaultHeight());
+        }
+
+        return null;
     }
 
     private void OnZoomInClicked(object? sender, EventArgs e)
@@ -1058,9 +1327,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
         if (mapWidth <= 0 || mapHeight <= 0)
             return false;
 
-        var bottomInset = _viewModel.IsTourPoiListVisible && TourPoiBottomSheet != null
-            ? Math.Max(TourSheetCollapsedHeight, TourPoiBottomSheet.HeightRequest)
-            : 0;
+        var bottomInset = ResolveActiveBottomSheetHeight() ?? 0;
 
         var usableHeight = Math.Max(mapHeight - bottomInset, OffscreenIndicatorSize + (OffscreenIndicatorEdgePadding * 2));
 
@@ -1148,92 +1415,159 @@ public partial class MapPage : ContentPage, IQueryAttributable
         return earthRadiusKm * c;
     }
 
-    private void ResetSearchSheetLayout()
+    private void ResetMapPoiSheetLayout()
     {
-        if (MapSearchSheet == null || SearchSheetBackdrop == null)
+        if (MapPoiBottomSheet == null)
             return;
 
-        _isSearchSheetOpen = false;
-        SearchSheetBackdrop.IsVisible = false;
-        SearchSheetBackdrop.Opacity = 0;
-        MapSearchSheet.IsVisible = false;
-        MapSearchSheet.TranslationY = GetSearchSheetClosedTranslationY();
-    }
-
-    private double GetSearchSheetClosedTranslationY()
-    {
-        var sheetHeight = MapSearchSheet?.Height ?? 0;
-        var pageHeight = Height;
-        var height = Math.Max(sheetHeight, pageHeight);
-
-        if (height <= 0)
-            return 700;
-
-        return height + 24;
-    }
-
-    private async Task OpenSearchSheetAsync()
-    {
-        if (_isSearchSheetOpen || MapSearchSheet == null || SearchSheetBackdrop == null)
+        if (_viewModel.IsTourModeActive)
             return;
 
-        _isSearchSheetOpen = true;
-        MapSearchSheet.IsVisible = true;
-        SearchSheetBackdrop.IsVisible = true;
-        SearchSheetBackdrop.Opacity = 0;
-        MapSearchSheet.TranslationY = GetSearchSheetClosedTranslationY();
-
-        await Task.WhenAll(
-            SearchSheetBackdrop.FadeToAsync(1, 150, Easing.CubicOut),
-            MapSearchSheet.TranslateToAsync(0, 0, 220, Easing.CubicOut));
+        ApplyMapPoiSheetState(MapPoiSheetHandleOnlyHeight, animate: false);
     }
 
-    private async Task CloseSearchSheetAsync()
+    private double GetMapPoiSheetDefaultHeight()
     {
-        if (!_isSearchSheetOpen || MapSearchSheet == null || SearchSheetBackdrop == null)
+        var pageHeight = Height > 0 ? Height : 720;
+        return Math.Max(280, pageHeight * MapPoiSheetDefaultRatio);
+    }
+
+    private double GetMapPoiSheetExpandedHeight()
+    {
+        var pageHeight = Height > 0 ? Height : 720;
+        return Math.Max(GetMapPoiSheetDefaultHeight(), pageHeight * MapPoiSheetExpandedRatio);
+    }
+
+    private static double ResolveNearestMapPoiSheetSnapHeight(double currentHeight, double defaultHeight, double expandedHeight)
+    {
+        var candidates = new[] { MapPoiSheetHandleOnlyHeight, defaultHeight, expandedHeight };
+        return candidates.OrderBy(x => Math.Abs(x - currentHeight)).First();
+    }
+
+    private void UpdateMapPoiSheetContentVisibility(double currentHeight)
+    {
+        if (MapPoiResults == null)
             return;
 
-        _isSearchSheetOpen = false;
-
-        await Task.WhenAll(
-            SearchSheetBackdrop.FadeToAsync(0, 120, Easing.CubicIn),
-            MapSearchSheet.TranslateToAsync(0, GetSearchSheetClosedTranslationY(), 180, Easing.CubicIn));
-
-        SearchSheetBackdrop.IsVisible = false;
-        MapSearchSheet.IsVisible = false;
+        MapPoiResults.IsVisible = currentHeight > (MapPoiSheetHandleOnlyHeight + 24);
+        if (!MapPoiResults.IsVisible)
+        {
+            TopMapSearchBar?.Unfocus();
+        }
     }
 
-    private async void OnOpenSearchSheetTapped(object? sender, TappedEventArgs e)
+    private async Task OpenMapPoiSheetAsync(bool focusSearch)
     {
-        await OpenSearchSheetAsync();
+        if (_viewModel.IsTourModeActive)
+            return;
+
+        var targetHeight = GetMapPoiSheetDefaultHeight();
+        ApplyMapPoiSheetState(targetHeight, animate: true);
+
+        if (!focusSearch)
+            return;
+
+        await Task.Delay(120);
+        TopMapSearchBar?.Focus();
     }
 
-    private async void OnCloseSearchSheetTapped(object? sender, TappedEventArgs e)
+    private async Task OpenTourSearchOverlayAsync()
     {
-        await CloseSearchSheetAsync();
+        if (TourSearchOverlay == null)
+            return;
+
+        TourSearchOverlay.IsVisible = true;
+
+        ExecutePerformSearchCommand();
+
+        await Task.Delay(120);
+        TourOverlaySearchBar?.Focus();
     }
 
-    private async void OnMapSearchResultSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private void CloseTourSearchOverlay()
+    {
+        if (TourSearchOverlay == null)
+            return;
+
+        TourSearchOverlay.IsVisible = false;
+        TourOverlaySearchBar?.Unfocus();
+
+        if (TourSearchResults != null)
+        {
+            TourSearchResults.SelectedItem = null;
+        }
+    }
+
+    private async void OnTopMapSearchFocused(object? sender, FocusEventArgs e)
+    {
+        await OpenMapPoiSheetAsync(focusSearch: false);
+    }
+
+    private async void OnTopMapSearchSubmitted(object? sender, EventArgs e)
+    {
+        await OpenMapPoiSheetAsync(focusSearch: false);
+    }
+
+    private void OnMapPoiResultSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (e.CurrentSelection.FirstOrDefault() is not POI poi)
             return;
 
         _viewModel.SelectPOICommand.Execute(poi);
-
-        await CloseSearchSheetAsync();
-
-        try
+        if (ReferenceEquals(sender, TourSearchResults))
         {
-            await Shell.Current.GoToAsync($"POIDetailPage?id={poi.Id}");
+            CloseTourSearchOverlay();
         }
-        catch (Exception ex)
+        else
         {
-            System.Diagnostics.Debug.WriteLine($"[MapPage] Navigate to POIDetailPage error: {ex}");
+            TopMapSearchBar?.Unfocus();
         }
 
         if (sender is CollectionView collectionView)
         {
             collectionView.SelectedItem = null;
         }
+    }
+
+    private async void OnTourSearchTapped(object? sender, EventArgs e)
+    {
+        if (TourSearchOverlay?.IsVisible == true)
+        {
+            CloseTourSearchOverlay();
+            return;
+        }
+
+        await OpenTourSearchOverlayAsync();
+    }
+
+    private void OnTourSearchBackdropTapped(object? sender, EventArgs e)
+    {
+        CloseTourSearchOverlay();
+    }
+
+    private async void OnTourSearchSubmitted(object? sender, EventArgs e)
+    {
+        ExecutePerformSearchCommand();
+        await Task.CompletedTask;
+    }
+
+    private void ExecutePerformSearchCommand()
+    {
+        var command = _viewModel.PerformSearchCommand;
+        if (!command.CanExecute(null))
+            return;
+
+        if (command is IAsyncRelayCommand asyncCommand)
+        {
+            _ = asyncCommand.ExecuteAsync(null);
+            return;
+        }
+
+        command.Execute(null);
+    }
+
+    private async void OnScanQrClicked(object? sender, EventArgs e)
+    {
+        await QrScannerNavigationHelper.OpenScannerAsync(this);
     }
 }

@@ -13,9 +13,6 @@ namespace ZoneGuide.Mobile.ViewModels;
 /// </summary>
 public partial class SettingsViewModel : ObservableObject
 {
-    private const double MinRadiusMeters = 10;
-    private const double MaxRadiusMeters = 5000;
-
     private readonly ISettingsService _settingsService;
     private readonly ISyncService _syncService;
     private readonly ITTSService _ttsService;
@@ -39,32 +36,12 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private int gpsAccuracyIndex = 1;
 
-    [ObservableProperty]
-    private double triggerRadius = 50;
-
-    [ObservableProperty]
-    private double approachRadius = 100;
-
-    [ObservableProperty]
-    private int cooldownSeconds = 300;
 
     [ObservableProperty]
     private bool autoPlayOnEnter = true;
 
     [ObservableProperty]
     private bool notifyOnApproach = true;
-
-    [ObservableProperty]
-    private bool batterySaverMode;
-
-    [ObservableProperty]
-    private bool backgroundTracking = true;
-
-    [ObservableProperty]
-    private bool offlineMode;
-
-    [ObservableProperty]
-    private bool autoDownloadOffline = true;
 
     [ObservableProperty]
     private bool isSyncing;
@@ -79,20 +56,12 @@ public partial class SettingsViewModel : ObservableObject
     private string selectedVoice = string.Empty;
 
     [ObservableProperty]
-    private bool useKilometerUnit;
-
-    [ObservableProperty]
-    private int distanceUnitIndex;
-
-    [ObservableProperty]
     private LanguageOptionItem? selectedLanguageOption;
 
     public ObservableCollection<LanguageOptionItem> AvailableLanguages { get; } = new();
 
     public ObservableCollection<string> AvailableVoices { get; } = new();
     public ObservableCollection<string> GpsAccuracyOptions { get; } = new();
-    public ObservableCollection<string> DistanceUnitOptions { get; } = new();
-
     public SettingsViewModel(
         ISettingsService settingsService,
         ISyncService syncService,
@@ -130,21 +99,13 @@ public partial class SettingsViewModel : ObservableObject
             GPSAccuracyLevel.High => 2,
             _ => 1
         };
-        TriggerRadius = NormalizeRadius(settings.DefaultTriggerRadius);
-        ApproachRadius = NormalizeApproachRadius(settings.DefaultApproachRadius, TriggerRadius);
-        CooldownSeconds = settings.DefaultCooldownSeconds;
         AutoPlayOnEnter = settings.AutoPlayOnEnter;
         NotifyOnApproach = settings.NotifyOnApproach;
-        BatterySaverMode = settings.BatterySaverMode;
-        BackgroundTracking = settings.BackgroundTracking;
-        OfflineMode = settings.OfflineMode;
-        AutoDownloadOffline = settings.AutoDownloadOffline;
         SelectedVoice = settings.PreferredVoice;
-        UseKilometerUnit = string.Equals(settings.DistanceUnit, "km", StringComparison.OrdinalIgnoreCase);
-        DistanceUnitIndex = UseKilometerUnit ? 1 : 0;
         SelectedLanguageOption = AvailableLanguages.FirstOrDefault(x => x.Code == PreferredLanguage) ?? AvailableLanguages.FirstOrDefault();
         AppLocalizer.Instance.SetLanguage(PreferredLanguage);
-        DistanceUnitService.SetPreferredUnit(settings.DistanceUnit);
+        RefreshLocalizedOptions();
+        RefreshLocalizedOptions();
 
         LastSyncTime = _syncService.LastSyncTime;
         LastSyncTimeLabel = BuildLastSyncTimeLabel(LastSyncTime);
@@ -162,10 +123,6 @@ public partial class SettingsViewModel : ObservableObject
         GpsAccuracyOptions.Add(AppLocalizer.Instance.Translate("settings_gps_low"));
         GpsAccuracyOptions.Add(AppLocalizer.Instance.Translate("settings_gps_medium"));
         GpsAccuracyOptions.Add(AppLocalizer.Instance.Translate("settings_gps_high"));
-
-        DistanceUnitOptions.Clear();
-        DistanceUnitOptions.Add("Mét (m)");
-        DistanceUnitOptions.Add("Kilômét (km)");
     }
 
     private static string BuildLastSyncTimeLabel(DateTime? value)
@@ -176,17 +133,6 @@ public partial class SettingsViewModel : ObservableObject
         return $"{AppLocalizer.Instance.Translate("settings_last_sync")}: {value.Value:dd/MM/yyyy HH:mm}";
     }
 
-    private static double NormalizeRadius(double value)
-    {
-        return Math.Clamp(value, MinRadiusMeters, MaxRadiusMeters);
-    }
-
-    private static double NormalizeApproachRadius(double value, double triggerRadius)
-    {
-        var normalizedTrigger = NormalizeRadius(triggerRadius);
-        var normalizedApproach = NormalizeRadius(value);
-        return Math.Max(normalizedApproach, normalizedTrigger);
-    }
 
     private async Task LoadVoicesAsync()
     {
@@ -203,32 +149,17 @@ public partial class SettingsViewModel : ObservableObject
     {
         var settings = _settingsService.Settings;
         var previousLanguage = settings.PreferredLanguage;
-        var normalizedTriggerRadius = NormalizeRadius(TriggerRadius);
-        var normalizedApproachRadius = NormalizeApproachRadius(ApproachRadius, normalizedTriggerRadius);
-
-        TriggerRadius = normalizedTriggerRadius;
-        ApproachRadius = normalizedApproachRadius;
 
         settings.PreferredLanguage = PreferredLanguage;
         settings.TTSSpeed = TtsSpeed;
         settings.Volume = Volume;
         settings.GPSAccuracy = GpsAccuracy;
-        settings.DefaultTriggerRadius = normalizedTriggerRadius;
-        settings.DefaultApproachRadius = normalizedApproachRadius;
-        settings.DefaultCooldownSeconds = CooldownSeconds;
         settings.AutoPlayOnEnter = AutoPlayOnEnter;
         settings.NotifyOnApproach = NotifyOnApproach;
-        settings.BatterySaverMode = BatterySaverMode;
-        settings.BackgroundTracking = BackgroundTracking;
-        settings.OfflineMode = OfflineMode;
-        settings.AutoDownloadOffline = AutoDownloadOffline;
         settings.PreferredVoice = SelectedVoice;
-        settings.DistanceUnit = DistanceUnitIndex == 1 ? "km" : "m";
-        UseKilometerUnit = DistanceUnitIndex == 1;
 
         await _settingsService.SaveAsync();
         AppLocalizer.Instance.SetLanguage(PreferredLanguage);
-        DistanceUnitService.SetPreferredUnit(settings.DistanceUnit);
 
         var languageChanged = !string.Equals(previousLanguage, PreferredLanguage, StringComparison.OrdinalIgnoreCase);
         if (languageChanged)
@@ -293,31 +224,6 @@ public partial class SettingsViewModel : ObservableObject
         await _ttsService.SpeakAsync(sample, PreferredLanguage);
     }
 
-    [RelayCommand]
-    private async Task ClearCacheAsync()
-    {
-        var confirm = await Shell.Current.DisplayAlert(
-            AppLocalizer.Instance.Translate("settings_clear_cache_confirm_title"),
-            AppLocalizer.Instance.Translate("settings_clear_cache_confirm_message"),
-            AppLocalizer.Instance.Translate("alert_delete"),
-            AppLocalizer.Instance.Translate("alert_cancel"));
-
-        if (confirm)
-        {
-            // Xóa thư mục offline
-            var offlineDir = Path.Combine(FileSystem.AppDataDirectory, "offline");
-            if (Directory.Exists(offlineDir))
-            {
-                Directory.Delete(offlineDir, true);
-            }
-
-            await Shell.Current.DisplayAlert(
-                AppLocalizer.Instance.Translate("settings_save_success_title"),
-                AppLocalizer.Instance.Translate("settings_clear_cache_success_message"),
-                AppLocalizer.Instance.Translate("alert_ok"));
-        }
-    }
-
     partial void OnPreferredLanguageChanged(string value)
     {
         _ = LoadVoicesAsync();
@@ -349,30 +255,6 @@ public partial class SettingsViewModel : ObservableObject
         };
     }
 
-    partial void OnTriggerRadiusChanged(double value)
-    {
-        var normalized = NormalizeRadius(value);
-        if (Math.Abs(normalized - value) > 0.001)
-        {
-            TriggerRadius = normalized;
-            return;
-        }
-
-        if (ApproachRadius < normalized)
-        {
-            ApproachRadius = normalized;
-        }
-    }
-
-    partial void OnApproachRadiusChanged(double value)
-    {
-        var normalized = NormalizeApproachRadius(value, TriggerRadius);
-        if (Math.Abs(normalized - value) > 0.001)
-        {
-            ApproachRadius = normalized;
-        }
-    }
-
     partial void OnVolumeChanged(float value)
     {
         _narrationService.SetVolume(value);
@@ -386,24 +268,5 @@ public partial class SettingsViewModel : ObservableObject
     partial void OnLastSyncTimeChanged(DateTime? value)
     {
         LastSyncTimeLabel = BuildLastSyncTimeLabel(value);
-    }
-
-    partial void OnUseKilometerUnitChanged(bool value)
-    {
-        DistanceUnitIndex = value ? 1 : 0;
-        DistanceUnitService.SetPreferredUnit(value ? "km" : "m");
-    }
-
-    partial void OnDistanceUnitIndexChanged(int value)
-    {
-        var normalized = value == 1 ? 1 : 0;
-        if (normalized != value)
-        {
-            DistanceUnitIndex = normalized;
-            return;
-        }
-
-        UseKilometerUnit = normalized == 1;
-        DistanceUnitService.SetPreferredUnit(UseKilometerUnit ? "km" : "m");
     }
 }

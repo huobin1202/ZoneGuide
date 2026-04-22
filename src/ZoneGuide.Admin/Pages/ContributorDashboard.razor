@@ -6,18 +6,10 @@
 @inject ISnackbar Snackbar
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 
-<PageTitle>ZoneGuide - Contributor Dashboard</PageTitle>
+<PageTitle>ZoneGuide</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
-    <MudPaper Class="pa-4 mb-4">
-        <MudText Typo="Typo.h4" Class="mb-1">
-            <MudIcon Icon="@Icons.Material.Filled.Dashboard" Class="mr-2" />
-            Dashboard Contributor
-        </MudText>
-        <MudText Typo="Typo.body2" Class="mud-text-secondary">
-            Xin chào, @_currentUser?.DisplayName! Theo dõi tiến độ đóng góp và xử lý nhanh các mục cần cập nhật.
-        </MudText>
-    </MudPaper>
+    
 
     @if (_loading)
     {

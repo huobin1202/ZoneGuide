@@ -21,16 +21,6 @@ public class POI
     public string Name { get; set; } = string.Empty;
     
     /// <summary>
-    /// Mô tả ngắn
-    /// </summary>
-    public string ShortDescription { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// Mô tả đầy đủ
-    /// </summary>
-    public string FullDescription { get; set; } = string.Empty;
-    
-    /// <summary>
     /// Vĩ độ
     /// </summary>
     public double Latitude { get; set; }
@@ -64,6 +54,16 @@ public class POI
     /// URL audio online
     /// </summary>
     public string? AudioUrl { get; set; }
+
+    /// <summary>
+    /// Thời lượng audio (giây) nếu đã biết metadata
+    /// </summary>
+    public int? AudioDurationSeconds { get; set; }
+
+    /// <summary>
+    /// Kích thước file audio (bytes) nếu đã biết metadata
+    /// </summary>
+    public long? AudioFileSizeBytes { get; set; }
     
     /// <summary>
     /// Script TTS (nếu không có file audio)

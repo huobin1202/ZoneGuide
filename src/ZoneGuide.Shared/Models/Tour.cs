@@ -24,6 +24,16 @@ public class Tour
     /// Mô tả tour
     /// </summary>
     public string Description { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Đường dẫn file audio offline cho tour
+    /// </summary>
+    public string? AudioFilePath { get; set; }
+
+    /// <summary>
+    /// URL audio online cho tour
+    /// </summary>
+    public string? AudioUrl { get; set; }
     
     /// <summary>
     /// Thời gian ước tính (phút)
@@ -49,11 +59,6 @@ public class Tour
     /// Ngôn ngữ mặc định
     /// </summary>
     public string Language { get; set; } = "vi-VN";
-    
-    /// <summary>
-    /// Độ khó (1-5)
-    /// </summary>
-    public int DifficultyLevel { get; set; } = 1;
     
     /// <summary>
     /// Có hỗ trợ xe lăn không

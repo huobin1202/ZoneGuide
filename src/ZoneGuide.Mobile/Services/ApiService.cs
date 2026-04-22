@@ -1,6 +1,7 @@
 using ZoneGuide.Shared.Models;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Net.Http.Headers;
 
 namespace ZoneGuide.Mobile.Services;
 
@@ -17,32 +18,47 @@ public class ApiService
     // Emulator Android: 10.0.2.2
     // Thiết bị thật cùng WiFi: dùng IP LAN (ví dụ: 192.168.1.3)
     // Production: dùng domain thật (ví dụ: https://api.ZoneGuide.com)
+    // Ngrok: dùng URL ngrok (ví dụ: https://abc123.ngrok-free.app)
     
-    // 👇 ĐỔI IP NÀY THÀNH IP MÁY TÍNH CỦA BẠN
-    private const string ServerIP = "192.168.1.3";
-    private const string ServerPort = "56042"; // HTTP port (không cần SSL cho development)
+    // 👇 SỬ DỤNG NGROK: Đặt URL ngrok của bạn vào đây (để trống nếu dùng IP local)
+    private const string NgrokUrl = "https://whinny-armhole-goldmine.ngrok-free.dev"; // Ví dụ: "https://abc123.ngrok-free.app" 
+    
+    // 👇 ĐỔI IP NÀY THÀNH IP MÁY TÍNH CỦA BẠN (nếu không dùng ngrok)
+    private const string ServerIP = "192.168.2.119";
+    private const string ServerPort = "56042"; // HTTP port
     
 #if ANDROID
-    private static readonly string BaseUrl = $"http://{ServerIP}:{ServerPort}/api/";
+    private static readonly string BaseUrl = string.IsNullOrWhiteSpace(NgrokUrl)
+        ? $"http://{ServerIP}:{ServerPort}/api/"
+        : $"{NgrokUrl.TrimEnd('/')}/api/";
 #else
     private const string BaseUrl = "https://localhost:56040/api/";
 #endif
 
     private static List<string> BuildSyncBaseUrls()
     {
+        var urls = new List<string>();
+        
+        // Thêm ngrok URL nếu có
+        if (!string.IsNullOrWhiteSpace(NgrokUrl))
+        {
+            urls.Add($"{NgrokUrl.TrimEnd('/')}/api/");
+        }
+        
 #if ANDROID
-        var urls = new List<string>
+        // Thêm các URL local
+        urls.AddRange(new[]
         {
             "http://10.0.2.2:56042/api/",
             "https://10.0.2.2:56040/api/",
             $"http://{ServerIP}:{ServerPort}/api/"
-        };
+        });
 #else
-        var urls = new List<string>
+        urls.AddRange(new[]
         {
             "https://localhost:56040/api/",
             "http://localhost:56042/api/"
-        };
+        });
 #endif
 
         return urls
@@ -235,7 +251,9 @@ public class ApiService
             return trimmed;
 
 #if ANDROID
-        var serverRoot = $"http://{ServerIP}:{ServerPort}";
+        var serverRoot = string.IsNullOrWhiteSpace(NgrokUrl)
+            ? $"http://{ServerIP}:{ServerPort}"
+            : NgrokUrl.TrimEnd('/');
 #else
         const string serverRoot = "https://localhost:56040";
 #endif
@@ -273,12 +291,50 @@ public class ApiService
     private IEnumerable<string> GetOrderedBaseUrls()
     {
         var preferred = Preferences.Get(PreferredApiBaseUrlKey, string.Empty);
-        if (string.IsNullOrWhiteSpace(preferred))
+        if (string.IsNullOrWhiteSpace(preferred) || !Uri.TryCreate(preferred, UriKind.Absolute, out _))
             return _syncBaseUrls;
 
-        return _syncBaseUrls
-            .OrderBy(url => string.Equals(url, preferred, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+        return new[] { preferred }
+            .Concat(_syncBaseUrls)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private static async Task<string?> GetAccessTokenAsync()
+    {
+        try
+        {
+            return await SecureStorage.GetAsync("auth_access_token");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public static bool TrySetPreferredBaseUrlFromQrPayload(string payload)
+    {
+        if (string.IsNullOrWhiteSpace(payload))
+            return false;
+
+        if (!Uri.TryCreate(payload.Trim(), UriKind.Absolute, out var uri))
+            return false;
+
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+#if ANDROID
+        // On physical Android devices, localhost/127.0.0.1 from QR is not the backend machine.
+        if (string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(uri.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(uri.Host, "::1", StringComparison.OrdinalIgnoreCase))
+            return false;
+#endif
+
+        var preferredBaseUrl = $"{uri.GetLeftPart(UriPartial.Authority).TrimEnd('/')}/api/";
+        SavePreferredBaseUrl(preferredBaseUrl);
+        return true;
     }
 
     private static void SavePreferredBaseUrl(string baseUrl)
@@ -532,6 +588,86 @@ public class ApiService
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[ApiService] UploadAnalytics error via {baseUrl}: {ex.Message}");
+            }
+        }
+
+        return false;
+    }
+
+    public async Task<bool> UploadMobileHeartbeatAsync(MobileLiveHeartbeatDto data)
+    {
+        foreach (var baseUrl in GetOrderedBaseUrls())
+        {
+            try
+            {
+                var heartbeatUri = new Uri(new Uri(baseUrl), "mobile-monitoring/heartbeat");
+                using var request = new HttpRequestMessage(HttpMethod.Post, heartbeatUri)
+                {
+                    Content = JsonContent.Create(data)
+                };
+
+                var accessToken = await GetAccessTokenAsync();
+                if (!string.IsNullOrWhiteSpace(accessToken))
+                {
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                }
+
+                var response = await _httpClient.SendAsync(request);
+                if (response.IsSuccessStatusCode)
+                {
+                    SavePreferredBaseUrl(baseUrl);
+                    return true;
+                }
+
+                var body = await response.Content.ReadAsStringAsync();
+                System.Diagnostics.Debug.WriteLine(
+                    $"[ApiService] UploadMobileHeartbeat failed via {baseUrl}: {(int)response.StatusCode} {response.ReasonPhrase}. Body: {body[..Math.Min(body.Length, 300)]}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ApiService] UploadMobileHeartbeat error via {baseUrl}: {ex.Message}");
+            }
+        }
+
+        return false;
+    }
+
+    public async Task<bool> UploadMobileOfflineAsync(string sessionId)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            return false;
+        }
+
+        foreach (var baseUrl in GetOrderedBaseUrls())
+        {
+            try
+            {
+                var offlineUri = new Uri(new Uri(baseUrl), "mobile-monitoring/offline");
+                using var request = new HttpRequestMessage(HttpMethod.Post, offlineUri)
+                {
+                    Content = JsonContent.Create(new MobileLiveHeartbeatDto
+                    {
+                        SessionId = sessionId
+                    })
+                };
+
+                var accessToken = await GetAccessTokenAsync();
+                if (!string.IsNullOrWhiteSpace(accessToken))
+                {
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                }
+
+                var response = await _httpClient.SendAsync(request);
+                if (response.IsSuccessStatusCode)
+                {
+                    SavePreferredBaseUrl(baseUrl);
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ApiService] UploadMobileOffline error via {baseUrl}: {ex.Message}");
             }
         }
 

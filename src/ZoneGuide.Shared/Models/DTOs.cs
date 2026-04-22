@@ -35,8 +35,6 @@ public class POIDto
     public string UniqueCode { get; set; } = string.Empty;
     public string? Address { get; set; }
     public string Name { get; set; } = string.Empty;
-    public string? ShortDescription { get; set; }
-    public string? FullDescription { get; set; }
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public double TriggerRadiusMeters { get; set; }
@@ -57,14 +55,24 @@ public class POIDto
 }
 
 /// <summary>
+/// DTO trạng thái mã QR của POI (payload = URL công khai mở app/web)
+/// </summary>
+public class PoiQrCodeDto
+{
+    public int PoiId { get; set; }
+    public string Payload { get; set; } = string.Empty;
+    public string? Name { get; set; }
+    public string QrUrl { get; set; } = string.Empty;
+    public bool Exists { get; set; }
+}
+
+/// <summary>
 /// DTO tạo POI mới
 /// </summary>
 public class CreatePOIDto
 {
     public string? Address { get; set; }
     public string Name { get; set; } = string.Empty;
-    public string? ShortDescription { get; set; }
-    public string? FullDescription { get; set; }
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public double TriggerRadiusMeters { get; set; } = 50;
@@ -84,8 +92,6 @@ public class UpdatePOIDto
 {
     public string? Address { get; set; }
     public string? Name { get; set; }
-    public string? ShortDescription { get; set; }
-    public string? FullDescription { get; set; }
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
     public double? TriggerRadiusMeters { get; set; }
@@ -109,8 +115,6 @@ public class POITranslationDto
     public int POIId { get; set; }
     public string LanguageCode { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
-    public string ShortDescription { get; set; } = string.Empty;
-    public string FullDescription { get; set; } = string.Empty;
     public string? TTSScript { get; set; }
     public string? AudioUrl { get; set; }
     public bool IsOutdated { get; set; }
@@ -146,14 +150,13 @@ public class TourDto
     public string UniqueCode { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string? AudioUrl { get; set; }
     public int EstimatedDurationMinutes { get; set; }
     public double DistanceKm { get; set; }
     public int POICount { get; set; }
     public string? ImageUrl { get; set; }
     public string? ThumbnailUrl { get; set; }
     public string Language { get; set; } = "vi-VN";
-    public string Difficulty { get; set; } = "Easy";
-    public int DifficultyLevel { get; set; }
     public bool WheelchairAccessible { get; set; }
     public bool IsActive { get; set; }
     public List<TourTranslationDto>? Translations { get; set; }
@@ -171,6 +174,8 @@ public class TourTranslationDto
     public string LanguageCode { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public bool IsOutdated { get; set; }
+    public string? AudioUrl { get; set; }
+    public bool IsAudioOutdated { get; set; }
 }
 
 /// <summary>
@@ -188,10 +193,10 @@ public class CreateTourDto
 {
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string? AudioUrl { get; set; }
     public int EstimatedDurationMinutes { get; set; }
     public double DistanceKm { get; set; }
     public string? ImageUrl { get; set; }
-    public string Difficulty { get; set; } = "Easy";
     public List<string> POIIds { get; set; } = new();
 }
 
@@ -202,10 +207,10 @@ public class UpdateTourDto
 {
     public string? Name { get; set; }
     public string? Description { get; set; }
+    public string? AudioUrl { get; set; }
     public int? EstimatedDurationMinutes { get; set; }
     public double? DistanceKm { get; set; }
     public string? ImageUrl { get; set; }
-    public string? Difficulty { get; set; }
     public List<string>? POIIds { get; set; }
     public bool? IsActive { get; set; }
 }
@@ -310,6 +315,82 @@ public class DailyStatsDto
     public int ListenCount { get; set; }
     public int UniqueUsers { get; set; }
     public double AvgDurationSeconds { get; set; }
+}
+
+/// <summary>
+/// Heartbeat từ app mobile để admin theo dõi realtime.
+/// </summary>
+public class MobileLiveHeartbeatDto
+{
+    public string SessionId { get; set; } = string.Empty;
+    public string DeviceId { get; set; } = string.Empty;
+    public bool IsTracking { get; set; } = true;
+    public bool HasLocationFix { get; set; }
+    public string Platform { get; set; } = string.Empty;
+    public string? AppVersion { get; set; }
+    public string? PreferredLanguage { get; set; }
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public double Accuracy { get; set; }
+    public double? Speed { get; set; }
+    public double? Heading { get; set; }
+    public double? Altitude { get; set; }
+    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    public int? NearestPoiId { get; set; }
+    public string? NearestPoiName { get; set; }
+    public string? StatusMessage { get; set; }
+}
+
+/// <summary>
+/// Một phiên mobile đang hoạt động trên dashboard realtime.
+/// </summary>
+public class MobileLiveSessionDto
+{
+    public string SessionId { get; set; } = string.Empty;
+    public string DeviceId { get; set; } = string.Empty;
+    public bool IsTracking { get; set; }
+    public bool HasLocationFix { get; set; }
+    public bool IsAuthenticated { get; set; }
+    public int? UserId { get; set; }
+    public string? UserDisplayName { get; set; }
+    public string? UserEmail { get; set; }
+    public string Platform { get; set; } = string.Empty;
+    public string? AppVersion { get; set; }
+    public string? PreferredLanguage { get; set; }
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public double Accuracy { get; set; }
+    public double? Speed { get; set; }
+    public double? Heading { get; set; }
+    public double? Altitude { get; set; }
+    public DateTime LocationTimestampUtc { get; set; }
+    public DateTime LastSeenAtUtc { get; set; }
+    public int? NearestPoiId { get; set; }
+    public string? NearestPoiName { get; set; }
+    public string? StatusMessage { get; set; }
+}
+
+/// <summary>
+/// Snapshot realtime của người dùng app mobile.
+/// </summary>
+public class MobileLiveMonitoringSnapshotDto
+{
+    public int ActiveSessionCount { get; set; }
+    public int AuthenticatedSessionCount { get; set; }
+    public int AnonymousSessionCount { get; set; }
+    public int TrackingSessionCount { get; set; }
+    public DateTime? LastUpdatedAtUtc { get; set; }
+    public int ActiveWindowSeconds { get; set; }
+    public List<MobileLiveSessionDto> Sessions { get; set; } = new();
+}
+
+/// <summary>
+/// Presence heartbeat từ web QR page để admin theo dõi realtime khi tab còn active.
+/// </summary>
+public class QrPresenceHeartbeatDto
+{
+    public string SessionId { get; set; } = string.Empty;
+    public int PoiId { get; set; }
 }
 
 /// <summary>

@@ -18,4 +18,9 @@ public partial class TourListPage : ContentPage
         base.OnAppearing();
         await _viewModel.InitializeAsync();
     }
+
+    private async void OnScanQrClicked(object? sender, EventArgs e)
+    {
+        await QrScannerNavigationHelper.OpenScannerAsync(this);
+    }
 }

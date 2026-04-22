@@ -2,9 +2,11 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ZoneGuide.Mobile.Localization;
 using ZoneGuide.Mobile.Services;
+using ZoneGuide.Mobile.Views;
 using ZoneGuide.Shared.Interfaces;
 using ZoneGuide.Shared.Models;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 
 namespace ZoneGuide.Mobile.ViewModels;
 
@@ -90,7 +92,7 @@ public partial class TourListViewModel : ObservableObject
     [RelayCommand]
     private async Task ViewDetail(Tour tour)
     {
-        await Shell.Current.GoToAsync($"TourDetailPage?id={tour.Id}");
+        await Shell.Current.GoToAsync($"{nameof(TourDetailPage)}?id={tour.Id}");
     }
 }
 
@@ -104,7 +106,14 @@ public partial class TourDetailViewModel : ObservableObject
     private readonly IPOIRepository _poiRepository;
     private readonly ISyncService _syncService;
     private readonly IGeofenceService _geofenceService;
+    private readonly INarrationService _narrationService;
+    private readonly IAudioService _audioService;
+    private readonly ITTSService _ttsService;
+    private readonly GlobalMiniPlayerViewModel _miniPlayerViewModel;
+    private readonly MapViewModel _mapViewModel;
     private readonly AppLocalizer _localizer = AppLocalizer.Instance;
+    private bool _isTourAudioSessionActive;
+    private bool _isTourTtsActive;
 
     [ObservableProperty]
     private int tourId;
@@ -139,18 +148,49 @@ public partial class TourDetailViewModel : ObservableObject
     [ObservableProperty]
     private int poiCountDisplay;
 
+    [ObservableProperty]
+    private bool isTourAudioPlaying;
+
+    [ObservableProperty]
+    private bool isTourAudioPaused;
+
+    [ObservableProperty]
+    private double tourAudioProgress;
+
+    [ObservableProperty]
+    private string tourAudioButtonText = string.Empty;
+
+    [ObservableProperty]
+    private string estimatedDurationText = string.Empty;
+
     public ObservableCollection<POI> POIs { get; } = new();
 
     public TourDetailViewModel(
         ITourRepository tourRepository,
         IPOIRepository poiRepository,
         ISyncService syncService,
-        IGeofenceService geofenceService)
+        IGeofenceService geofenceService,
+        INarrationService narrationService,
+        IAudioService audioService,
+        ITTSService ttsService,
+        GlobalMiniPlayerViewModel miniPlayerViewModel,
+        MapViewModel mapViewModel)
     {
         _tourRepository = tourRepository;
         _poiRepository = poiRepository;
         _syncService = syncService;
         _geofenceService = geofenceService;
+        _narrationService = narrationService;
+        _audioService = audioService;
+        _ttsService = ttsService;
+        _miniPlayerViewModel = miniPlayerViewModel;
+        _mapViewModel = mapViewModel;
+
+        _audioService.ProgressChanged += OnAudioProgressChanged;
+        _audioService.PlaybackCompleted += OnAudioPlaybackCompleted;
+        _ttsService.SpeakCompleted += OnTourTtsCompleted;
+        _mapViewModel.PropertyChanged += OnMapViewModelPropertyChanged;
+
         RefreshDisplayState();
     }
 
@@ -170,6 +210,16 @@ public partial class TourDetailViewModel : ObservableObject
     }
 
     partial void OnTourChanged(Tour? value)
+    {
+        RefreshDisplayState();
+    }
+
+    partial void OnIsTourAudioPlayingChanged(bool value)
+    {
+        RefreshDisplayState();
+    }
+
+    partial void OnIsTourAudioPausedChanged(bool value)
     {
         RefreshDisplayState();
     }
@@ -197,6 +247,8 @@ public partial class TourDetailViewModel : ObservableObject
                 }
             }
 
+            NormalizePoiOrderForDisplay(pois);
+
             POIs.Clear();
             foreach (var poi in pois)
             {
@@ -212,6 +264,43 @@ public partial class TourDetailViewModel : ObservableObject
         }
 
         RefreshDisplayState();
+        await _mapViewModel.ActivateTourAsync(TourId);
+        RefreshDisplayState();
+    }
+
+    private static void NormalizePoiOrderForDisplay(IList<POI> pois)
+    {
+        if (pois.Count == 0)
+            return;
+
+        var orderedPois = pois
+            .OrderBy(p => p.OrderInTour < 0 ? int.MaxValue : p.OrderInTour)
+            .ThenBy(p => p.Name)
+            .ToList();
+
+        var nonNegativeOrders = orderedPois
+            .Where(p => p.OrderInTour >= 0)
+            .Select(p => p.OrderInTour)
+            .ToList();
+
+        var isZeroBasedSequence = nonNegativeOrders.Count == orderedPois.Count
+            && nonNegativeOrders.Count > 0
+            && nonNegativeOrders.Min() == 0
+            && nonNegativeOrders.Distinct().Count() == nonNegativeOrders.Count
+            && nonNegativeOrders.Max() == nonNegativeOrders.Count - 1;
+
+        if (isZeroBasedSequence)
+        {
+            for (var index = 0; index < orderedPois.Count; index++)
+            {
+                orderedPois[index].OrderInTour = index + 1;
+            }
+        }
+
+        for (var index = 0; index < orderedPois.Count; index++)
+        {
+            pois[index] = orderedPois[index];
+        }
     }
 
     private void RefreshDisplayState()
@@ -220,11 +309,16 @@ public partial class TourDetailViewModel : ObservableObject
             ? POIs.Count
             : Tour?.POICount ?? 0;
 
+        EstimatedDurationText = Tour == null
+            ? string.Empty
+            : $"{Tour.EstimatedDurationMinutes} {AppLocalizer.Instance.Translate("duration_minute_short")}";
+
         DistanceDisplay = Tour == null
-            ? DistanceUnitService.FormatAsKilometers(0)
-            : DistanceUnitService.FormatAsKilometers(Tour.EstimatedDistanceMeters);
+            ? DistanceUnitService.FormatFromMeters(0)
+            : DistanceUnitService.FormatFromMeters(Tour.EstimatedDistanceMeters);
 
         HighlightsText = BuildHighlightsText();
+        TourAudioButtonText = BuildTourAudioButtonText();
 
         if (IsDownloading)
         {
@@ -247,6 +341,15 @@ public partial class TourDetailViewModel : ObservableObject
         OfflineActionText = _localizer.Translate("tour_detail_download_offline", "Download");
     }
 
+    private void OnMapViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MapViewModel.IsTourModeActive) ||
+            e.PropertyName == nameof(MapViewModel.ActiveTourId))
+        {
+            MainThread.BeginInvokeOnMainThread(RefreshDisplayState);
+        }
+    }
+
     private string BuildHighlightsText()
     {
         if (POIs.Count == 0)
@@ -266,6 +369,17 @@ public partial class TourDetailViewModel : ObservableObject
         return string.Join(" • ", names);
     }
 
+    private string BuildTourAudioButtonText()
+    {
+        if (IsTourAudioPlaying)
+            return _localizer.Translate("tour_detail_pause_audio", "Pause");
+
+        if (IsTourAudioPaused)
+            return _localizer.Translate("tour_detail_resume_audio", "Resume");
+
+        return _localizer.Translate("tour_detail_listen_audio", "Listen");
+    }
+
     [RelayCommand]
     private async Task StartTourAsync()
     {
@@ -278,7 +392,6 @@ public partial class TourDetailViewModel : ObservableObject
 
         _geofenceService.ClearPOIs();
         _geofenceService.AddPOIs(activePois);
-
         await Shell.Current.GoToAsync($"//map?tourId={Tour.Id}&startTour=true");
     }
 
@@ -289,6 +402,27 @@ public partial class TourDetailViewModel : ObservableObject
             await DeleteOfflineAsync();
         else
             await DownloadOfflineAsync();
+    }
+
+    [RelayCommand]
+    private async Task ToggleTourAudioAsync()
+    {
+        if (Tour == null)
+            return;
+
+        if (IsTourAudioPlaying)
+        {
+            await PauseTourAudioAsync();
+            return;
+        }
+
+        if (IsTourAudioPaused)
+        {
+            await ResumeTourAudioAsync();
+            return;
+        }
+
+        await PlayTourAudioAsync();
     }
 
     [RelayCommand]
@@ -348,5 +482,150 @@ public partial class TourDetailViewModel : ObservableObject
     private async Task ViewPOIDetail(POI poi)
     {
         await Shell.Current.GoToAsync($"POIDetailPage?id={poi.Id}");
+    }
+
+    private async Task PlayTourAudioAsync()
+    {
+        if (Tour == null)
+            return;
+
+        try
+        {
+            await _narrationService.StopAsync();
+            await _audioService.StopAsync();
+            await _ttsService.StopAsync();
+
+            _isTourAudioSessionActive = true;
+            _isTourTtsActive = false;
+            TourAudioProgress = 0;
+
+            if (!string.IsNullOrWhiteSpace(Tour.AudioFilePath) && File.Exists(Tour.AudioFilePath))
+            {
+                await _audioService.PlayAsync(Tour.AudioFilePath);
+            }
+            else if (!string.IsNullOrWhiteSpace(Tour.AudioUrl))
+            {
+                await _audioService.PlayFromUrlAsync(Tour.AudioUrl);
+            }
+            else if (!string.IsNullOrWhiteSpace(Tour.Description))
+            {
+                _isTourTtsActive = true;
+                await _ttsService.SpeakAsync(Tour.Description, Tour.Language);
+            }
+            else
+            {
+                _isTourAudioSessionActive = false;
+                await Shell.Current.DisplayAlert(
+                    _localizer.Translate("tour_detail_audio_unavailable_title", "Notice"),
+                    _localizer.Translate("tour_detail_audio_unavailable_message", "This tour does not have audio content yet."),
+                    _localizer.Translate("alert_ok", "OK"));
+                return;
+            }
+
+            _miniPlayerViewModel.SetActiveTour(Tour);
+            IsTourAudioPlaying = true;
+            IsTourAudioPaused = false;
+        }
+        catch (Exception ex)
+        {
+            _isTourAudioSessionActive = false;
+            _isTourTtsActive = false;
+            IsTourAudioPlaying = false;
+            IsTourAudioPaused = false;
+            _miniPlayerViewModel.ClearTourContext();
+            System.Diagnostics.Debug.WriteLine($"[TourDetailVM] PlayTourAudioAsync error: {ex.Message}");
+            await Shell.Current.DisplayAlert(
+                _localizer.Translate("tour_detail_audio_error_title", "Error"),
+                _localizer.Translate("tour_detail_audio_error_message", "Unable to play tour audio."),
+                _localizer.Translate("alert_ok", "OK"));
+        }
+    }
+
+    private async Task PauseTourAudioAsync()
+    {
+        if (!_isTourAudioSessionActive)
+            return;
+
+        if (_isTourTtsActive)
+        {
+            await _ttsService.StopAsync();
+            _isTourAudioSessionActive = false;
+            _isTourTtsActive = false;
+            IsTourAudioPlaying = false;
+            IsTourAudioPaused = false;
+            TourAudioProgress = 0;
+            _miniPlayerViewModel.ClearTourContext();
+            return;
+        }
+
+        await _audioService.PauseAsync();
+        IsTourAudioPlaying = false;
+        IsTourAudioPaused = true;
+        _miniPlayerViewModel.RefreshState();
+    }
+
+    private async Task ResumeTourAudioAsync()
+    {
+        if (_isTourTtsActive)
+        {
+            await PlayTourAudioAsync();
+            return;
+        }
+
+        try
+        {
+            await _audioService.ResumeAsync();
+            _isTourAudioSessionActive = true;
+            IsTourAudioPlaying = true;
+            IsTourAudioPaused = false;
+            _miniPlayerViewModel.SetActiveTour(Tour);
+        }
+        catch
+        {
+            await PlayTourAudioAsync();
+        }
+    }
+
+    private void OnAudioProgressChanged(object? sender, double progress)
+    {
+        if (!_isTourAudioSessionActive || _isTourTtsActive)
+            return;
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            TourAudioProgress = Math.Clamp(progress, 0, 1);
+            _miniPlayerViewModel.RefreshState();
+        });
+    }
+
+    private void OnAudioPlaybackCompleted(object? sender, EventArgs e)
+    {
+        if (!_isTourAudioSessionActive || _isTourTtsActive)
+            return;
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            _isTourAudioSessionActive = false;
+            IsTourAudioPlaying = false;
+            IsTourAudioPaused = false;
+            TourAudioProgress = 1;
+            _miniPlayerViewModel.ClearTourContext();
+        });
+    }
+
+    private void OnTourTtsCompleted(object? sender, EventArgs e)
+    {
+        if (!_isTourAudioSessionActive || !_isTourTtsActive)
+            return;
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            _isTourAudioSessionActive = false;
+            _isTourTtsActive = false;
+            IsTourAudioPlaying = false;
+            IsTourAudioPaused = false;
+            TourAudioProgress = 1;
+            _miniPlayerViewModel.ClearTourContext();
+        });
     }
 }

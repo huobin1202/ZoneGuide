@@ -1,5 +1,6 @@
 @using ZoneGuide.Shared.Models
 @using System.Globalization
+@using System.Text.Json
 @inject HttpClient Http
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -18,7 +19,6 @@
                 <MudText Typo="Typo.subtitle2">Thông tin POI</MudText>
                 <MudDivider Class="my-2" />
                 <MudText><strong>Tên:</strong> @Contribution.Name</MudText>
-                <MudText><strong>Nội dung thuyết minh (TTS) - ngắn:</strong> @(Contribution.ShortDescription ?? "-")</MudText>
                 <MudText>
                     <strong>Vị trí:</strong>
                     @if (HasLocation)
@@ -34,6 +34,11 @@
                 </MudText>
                 <MudText><strong>Bán kính kích hoạt:</strong> @Contribution.TriggerRadius m</MudText>
                 <MudText><strong>Danh mục:</strong> @(Contribution.Category ?? "-")</MudText>
+                <MudText><strong>Audio gốc:</strong> @(string.IsNullOrWhiteSpace(Contribution.AudioUrl) ? "Chưa có" : "Đã có")</MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Translate"
+                           OnClick="OpenTranslationsAudioDialogAsync" Class="mt-2">
+                    Xem bản dịch / audio
+                </MudButton>
             </MudItem>
             <MudItem xs="12" md="6">
                 <MudText Typo="Typo.subtitle2">Thông tin người gửi</MudText>
@@ -41,15 +46,23 @@
                 <MudText><strong>Người đóng góp:</strong> @Contribution.ContributorName</MudText>
                 <MudText><strong>Ngày tạo:</strong> @Contribution.CreatedAt.ToString("dd/MM/yyyy HH:mm")</MudText>
                 <MudText><strong>Ngày gửi:</strong> @(Contribution.SubmittedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-")</MudText>
-                @if (!string.IsNullOrEmpty(Contribution.ContributorNotes))
+                @if (!string.IsNullOrWhiteSpace(CleanContributorNotes))
                 {
-                    <MudText><strong>Ghi chú:</strong> @Contribution.ContributorNotes</MudText>
+                    <MudText><strong>Ghi chú:</strong> @CleanContributorNotes</MudText>
                 }
             </MudItem>
             <MudItem xs="12">
-                <MudText Typo="Typo.subtitle2">Nội dung thuyết minh (TTS) - chi tiết</MudText>
+                <MudText Typo="Typo.subtitle2">Nội dung thuyết minh (TTS)</MudText>
                 <MudDivider Class="my-2" />
-                <MudText Style="white-space: pre-wrap;">@(Contribution.FullDescription ?? "-")</MudText>
+                <MudText Style="white-space: pre-wrap;">@(string.IsNullOrWhiteSpace(Contribution.TTSScript) ? "-" : Contribution.TTSScript)</MudText>
+                @if (!string.IsNullOrWhiteSpace(Contribution.AudioUrl))
+                {
+                    <MudPaper Class="pa-2 mt-2" Outlined="true">
+                        <audio controls preload="metadata" style="width:100%">
+                            <source src="@Contribution.AudioUrl" />
+                        </audio>
+                    </MudPaper>
+                }
             </MudItem>
             @if (!string.IsNullOrEmpty(Contribution.ImageUrl))
             {
@@ -92,8 +105,10 @@
     private POIApprovalStatus decision = POIApprovalStatus.Approved;
     private string? feedback;
     private bool isSaving = false;
+    private const string TranslationMetaPrefix = "[ZG_I18N]";
     private string _addressDisplay = "Đang tải địa chỉ...";
     private bool HasLocation => Contribution.Latitude.HasValue && Contribution.Longitude.HasValue;
+    private string CleanContributorNotes => StripTranslationMeta(Contribution.ContributorNotes);
 
     protected override async Task OnInitializedAsync()
     {
@@ -158,6 +173,26 @@
 
         var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
         await DialogService.ShowAsync<ContributionLocationDialog>("Xem vị trí đóng góp", parameters, options);
+    }
+
+    private async Task OpenTranslationsAudioDialogAsync()
+    {
+        var parameters = new DialogParameters
+        {
+            { "Contribution", Contribution }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+        await DialogService.ShowAsync<ContributionTranslationsAudioDialog>("Bản dịch / Audio", parameters, options);
+    }
+
+    private static string StripTranslationMeta(string? notes)
+    {
+        if (string.IsNullOrWhiteSpace(notes))
+            return string.Empty;
+
+        var idx = notes.IndexOf(TranslationMetaPrefix, StringComparison.Ordinal);
+        return idx >= 0 ? notes[..idx].TrimEnd() : notes;
     }
 
     private async Task ResolveAddressAsync()

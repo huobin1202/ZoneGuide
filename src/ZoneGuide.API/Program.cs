@@ -1,5 +1,6 @@
 using System.Text;
 using ZoneGuide.API.Data;
+using ZoneGuide.API.Hubs;
 using ZoneGuide.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,7 @@ builder.WebHost.ConfigureKestrel(options =>
 
 // Add services to the container.
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -88,8 +90,11 @@ builder.Services.AddScoped<ITourService, TourService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<ISyncService, SyncService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddSingleton<PoiQrCodeService>();
 builder.Services.AddScoped<IPOIContributionService, POIContributionService>();
 builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
+builder.Services.AddSingleton<IQrRealtimeMonitoringService, QrRealtimeMonitoringService>();
+builder.Services.AddSingleton<IMobileLiveMonitoringService, MobileLiveMonitoringService>();
 
 // AutoMapper
 builder.Services.AddAutoMapper(cfg => cfg.AddMaps(typeof(Program).Assembly));
@@ -123,11 +128,14 @@ app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<QrMonitoringHub>("/hubs/qr-monitor");
+app.MapHub<MobileMonitoringHub>("/hubs/mobile-monitor");
 
 // Auto migrate database
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var qrService = scope.ServiceProvider.GetRequiredService<PoiQrCodeService>();
     db.Database.Migrate();
     
     // Seed Admin account if not exists
@@ -185,6 +193,16 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine("Email: user@ZoneGuide.com");
         Console.WriteLine("Password: User@123");
         Console.WriteLine("===========================================");
+    }
+
+    var poiIds = db.POIs
+        .Where(p => p.IsActive)
+        .Select(p => p.Id)
+        .ToList();
+
+    foreach (var poiId in poiIds)
+    {
+        await qrService.EnsureQrCodeGeneratedAsync(poiId, force: true);
     }
 }
 

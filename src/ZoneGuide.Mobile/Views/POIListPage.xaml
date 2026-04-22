@@ -4,12 +4,13 @@
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
              xmlns:models="clr-namespace:ZoneGuide.Shared.Models;assembly=ZoneGuide.Shared"
              xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
+             xmlns:views="clr-namespace:ZoneGuide.Mobile.Views"
              x:Class="ZoneGuide.Mobile.Views.POIListPage"
              x:DataType="vm:POIListViewModel"
              Shell.NavBarIsVisible="False"
              BackgroundColor="#F6F7FB">
 
-    <Grid RowDefinitions="Auto,Auto,*"
+    <Grid RowDefinitions="Auto,Auto,*,Auto"
           Padding="14,10,14,0"
           RowSpacing="8">
         <Border Grid.Row="0"
@@ -193,6 +194,8 @@
                 </CollectionView.ItemTemplate>
             </CollectionView>
         </RefreshView>
+
+        <views:MiniPlayerView Grid.Row="3" />
     </Grid>
 
 </ContentPage>

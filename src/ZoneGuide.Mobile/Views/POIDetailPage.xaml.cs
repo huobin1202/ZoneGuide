@@ -65,7 +65,7 @@ public partial class POIDetailPage : ContentPage
         MiniPoiMap.Pins.Add(new Pin
         {
             Label = poi.Name,
-            Address = poi.ShortDescription,
+            Address = poi.TTSScript,
             Location = poiLocation,
             Type = PinType.Place
         });

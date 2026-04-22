@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="ZoneGuide.Mobile.Views.CustomBottomBarView"
+             x:Name="Root"
+             HeightRequest="104">
+
+    <Grid HeightRequest="104"
+          InputTransparent="False">
+        <Border Margin="0,18,0,0"
+                BackgroundColor="#FCFCFE"
+                StrokeThickness="0"
+                StrokeShape="RoundRectangle 28,28,0,0"
+                Padding="18,16,18,14">
+            <Border.Shadow>
+                <Shadow Brush="#140F172A"
+                        Offset="0,-3"
+                        Radius="14"
+                        Opacity="0.6" />
+            </Border.Shadow>
+
+            <Grid ColumnDefinitions="*,*,84,*,*">
+                <VerticalStackLayout Grid.Column="0"
+                                     Spacing="5"
+                                     HorizontalOptions="Center"
+                                     VerticalOptions="Center">
+                    <VerticalStackLayout.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnHomeTapped" />
+                    </VerticalStackLayout.GestureRecognizers>
+                    <Label x:Name="HomeIcon"
+                           Text="⌂"
+                           FontSize="22"
+                           HorizontalTextAlignment="Center" />
+                    <Label x:Name="HomeText"
+                           Text="Home"
+                           FontSize="12"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Grid.Column="1"
+                                     Spacing="5"
+                                     HorizontalOptions="Center"
+                                     VerticalOptions="Center">
+                    <VerticalStackLayout.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnMapTapped" />
+                    </VerticalStackLayout.GestureRecognizers>
+                    <Label x:Name="MapIcon"
+                           Text="◫"
+                           FontSize="22"
+                           HorizontalTextAlignment="Center" />
+                    <Label x:Name="MapText"
+                           Text="Bản đồ"
+                           FontSize="12"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Grid.Column="3"
+                                     Spacing="5"
+                                     HorizontalOptions="Center"
+                                     VerticalOptions="Center">
+                    <VerticalStackLayout.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnToursTapped" />
+                    </VerticalStackLayout.GestureRecognizers>
+                    <Label x:Name="ToursIcon"
+                           Text="⌖"
+                           FontSize="22"
+                           HorizontalTextAlignment="Center" />
+                    <Label x:Name="ToursText"
+                           Text="Tour"
+                           FontSize="12"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Grid.Column="4"
+                                     Spacing="5"
+                                     HorizontalOptions="Center"
+                                     VerticalOptions="Center">
+                    <VerticalStackLayout.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnMoreTapped" />
+                    </VerticalStackLayout.GestureRecognizers>
+                    <Label x:Name="MoreIcon"
+                           Text="⚙"
+                           FontSize="22"
+                           HorizontalTextAlignment="Center" />
+                    <Label x:Name="MoreText"
+                           Text="Thêm"
+                           FontSize="12"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Grid>
+        </Border>
+
+        <Border WidthRequest="74"
+                HeightRequest="74"
+                HorizontalOptions="Center"
+                VerticalOptions="Start"
+                BackgroundColor="{StaticResource Primary}"
+                StrokeThickness="0"
+                StrokeShape="RoundRectangle 20">
+            <Border.Shadow>
+                <Shadow Brush="#337C3AED"
+                        Offset="0,8"
+                        Radius="18"
+                        Opacity="0.9" />
+            </Border.Shadow>
+            <Border.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnQrTapped" />
+            </Border.GestureRecognizers>
+
+            <Image Source="qr_scan.svg"
+                   WidthRequest="34"
+                   HeightRequest="34"
+                   HorizontalOptions="Center"
+                   VerticalOptions="Center" />
+        </Border>
+    </Grid>
+</ContentView>

@@ -4,9 +4,11 @@
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
                          xmlns:maps="clr-namespace:Microsoft.Maui.Controls.Maps;assembly=Microsoft.Maui.Controls.Maps"
              xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
+             xmlns:views="clr-namespace:ZoneGuide.Mobile.Views"
              x:Class="ZoneGuide.Mobile.Views.POIDetailPage"
              x:DataType="vm:POIDetailViewModel"
              Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
              BackgroundColor="#F6F7FB">
 
         <Grid RowDefinitions="300,*">
@@ -37,7 +39,7 @@
         </Grid>
 
         <Button Grid.Row="0"
-                Text="🔊 Phát"
+                Text="{local:Translate poi_detail_play_button}"
                 HeightRequest="54"
                 WidthRequest="170"
                 CornerRadius="27"
@@ -108,7 +110,7 @@
                                    VerticalOptions="Center"
                                    TextColor="{StaticResource Primary}" />
                             <Label Grid.Column="1"
-                                   Text="Chạm để mở bản đồ và xem đúng vị trí điểm"
+                                   Text="{local:Translate poi_detail_open_map_hint}"
                                    FontSize="13"
                                    TextColor="#374151"
                                    VerticalOptions="Center" />
@@ -162,7 +164,7 @@
                 StrokeThickness="0"
                 StrokeShape="RoundRectangle 20"
                 Padding="12,10"
-                IsVisible="{Binding IsPlayerPanelVisible}"
+                IsVisible="False"
                 ZIndex="20">
             <Grid ColumnDefinitions="*,Auto,Auto,Auto"
                   ColumnSpacing="10">
@@ -212,6 +214,10 @@
                         Command="{Binding HidePlayerPanelCommand}" />
             </Grid>
         </Border>
+
+        <views:MiniPlayerView Grid.RowSpan="2"
+                              VerticalOptions="End"
+                              ZIndex="25" />
     </Grid>
 
 </ContentPage>

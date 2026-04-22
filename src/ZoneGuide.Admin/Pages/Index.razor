@@ -2,6 +2,11 @@
 @inject IApiService ApiService
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @inject NavigationManager Navigation
+@inject IConfiguration Configuration
+@implements IAsyncDisposable
+
+@using Microsoft.AspNetCore.SignalR.Client
+@using ZoneGuide.Shared.Models
 
 
 @if (_loading)
@@ -53,6 +58,60 @@ else if (_dashboard != null)
                         <MudText Typo="Typo.h4">@_dashboard.UniqueUsers</MudText>
                     </MudStack>
                 </MudStack>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="6">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                    <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Realtime QR Monitoring</MudText>
+                    <MudChip T="string" Color="@(_qrRealtimeConnected ? Color.Success : Color.Warning)" Variant="Variant.Filled" Size="Size.Small">
+                        @(_qrRealtimeConnected ? "LIVE" : "OFFLINE")
+                    </MudChip>
+                </MudStack>
+
+                <MudGrid Class="mt-2">
+                    <MudItem xs="6" sm="3">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Thiết bị active</MudText>
+                        <MudText Typo="Typo.h5">@(_qrRealtime?.ActiveDeviceCount ?? 0)</MudText>
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Thiết bị duy nhất</MudText>
+                        <MudText Typo="Typo.h5">@(_qrRealtime?.UniqueDeviceCount ?? 0)</MudText>
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Lượt truy cập QR</MudText>
+                        <MudText Typo="Typo.h5">@(_qrRealtime?.TotalAccessCount ?? 0)</MudText>
+                    </MudItem>
+                </MudGrid>
+
+                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">
+                    @GetRealtimeFooterText()
+                </MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="6">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                    <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Mobile App Monitoring</MudText>
+                    <MudChip T="string" Color="@(_mobileRealtimeConnected ? Color.Success : Color.Warning)" Variant="Variant.Filled" Size="Size.Small">
+                        @(_mobileRealtimeConnected ? "LIVE" : "OFFLINE")
+                    </MudChip>
+                </MudStack>
+
+                <MudGrid Class="mt-2">
+                    <MudItem xs="6" sm="3">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Phiên active</MudText>
+                        <MudText Typo="Typo.h5">@(_mobileRealtime?.ActiveSessionCount ?? 0)</MudText>
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Đang tracking</MudText>
+                        <MudText Typo="Typo.h5">@(_mobileRealtime?.TrackingSessionCount ?? 0)</MudText>
+                    </MudItem>
+                </MudGrid>
+
+                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">
+                    @GetMobileRealtimeFooterText()
+                </MudText>
             </MudPaper>
         </MudItem>
     </MudGrid>
@@ -145,6 +204,12 @@ else
 
 @code {
     private DashboardAnalyticsDto? _dashboard;
+    private QrMonitoringSnapshotDto? _qrRealtime;
+    private HubConnection? _qrHubConnection;
+    private bool _qrRealtimeConnected;
+    private MobileLiveMonitoringSnapshotDto? _mobileRealtime;
+    private HubConnection? _mobileHubConnection;
+    private bool _mobileRealtimeConnected;
     private bool _loading = true;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -169,6 +234,8 @@ else
         }
 
         await LoadDashboard();
+        await InitializeQrRealtimeAsync();
+        await InitializeMobileRealtimeAsync();
         StateHasChanged();
     }
 
@@ -179,11 +246,140 @@ else
         _loading = false;
     }
 
+    private async Task InitializeQrRealtimeAsync()
+    {
+        _qrRealtime = await ApiService.GetQrMonitoringSnapshotAsync();
+
+        var apiBaseUrl = Configuration["ApiBaseUrl"] ?? "https://localhost:56040";
+        var hubUrl = $"{apiBaseUrl.TrimEnd('/')}/hubs/qr-monitor";
+
+        _qrHubConnection = new HubConnectionBuilder()
+            .WithUrl(hubUrl)
+            .WithAutomaticReconnect()
+            .Build();
+
+        _qrHubConnection.Reconnecting += _ =>
+        {
+            _qrRealtimeConnected = false;
+            return InvokeAsync(StateHasChanged);
+        };
+
+        _qrHubConnection.Reconnected += _ =>
+        {
+            _qrRealtimeConnected = true;
+            return InvokeAsync(StateHasChanged);
+        };
+
+        _qrHubConnection.Closed += _ =>
+        {
+            _qrRealtimeConnected = false;
+            return InvokeAsync(StateHasChanged);
+        };
+
+        _qrHubConnection.On<QrMonitoringSnapshotDto>("QrMonitorUpdated", snapshot =>
+        {
+            _qrRealtime = snapshot;
+            _ = InvokeAsync(StateHasChanged);
+        });
+
+        try
+        {
+            await _qrHubConnection.StartAsync();
+            _qrRealtimeConnected = true;
+        }
+        catch
+        {
+            _qrRealtimeConnected = false;
+        }
+    }
+
+    private string GetRealtimeFooterText()
+    {
+        if (_qrRealtime == null || !_qrRealtime.LastAccessAtUtc.HasValue)
+        {
+            return "Chưa ghi nhận truy cập QR";
+        }
+
+        var poiText = _qrRealtime.LastPoiId.HasValue ? $"POI #{_qrRealtime.LastPoiId.Value}" : "POI không xác định";
+        var localTime = _qrRealtime.LastAccessAtUtc.Value.ToLocalTime();
+        return $"Truy cập gần nhất: {poiText} lúc {localTime:dd/MM/yyyy HH:mm:ss}";
+    }
+
+    private async Task InitializeMobileRealtimeAsync()
+    {
+        _mobileRealtime = await ApiService.GetMobileMonitoringSnapshotAsync();
+
+        var apiBaseUrl = Configuration["ApiBaseUrl"] ?? "https://localhost:56040";
+        var hubUrl = $"{apiBaseUrl.TrimEnd('/')}/hubs/mobile-monitor";
+
+        _mobileHubConnection = new HubConnectionBuilder()
+            .WithUrl(hubUrl)
+            .WithAutomaticReconnect()
+            .Build();
+
+        _mobileHubConnection.Reconnecting += _ =>
+        {
+            _mobileRealtimeConnected = false;
+            return InvokeAsync(StateHasChanged);
+        };
+
+        _mobileHubConnection.Reconnected += _ =>
+        {
+            _mobileRealtimeConnected = true;
+            return InvokeAsync(StateHasChanged);
+        };
+
+        _mobileHubConnection.Closed += _ =>
+        {
+            _mobileRealtimeConnected = false;
+            return InvokeAsync(StateHasChanged);
+        };
+
+        _mobileHubConnection.On<MobileLiveMonitoringSnapshotDto>("MobileMonitorUpdated", snapshot =>
+        {
+            _mobileRealtime = snapshot;
+            _ = InvokeAsync(StateHasChanged);
+        });
+
+        try
+        {
+            await _mobileHubConnection.StartAsync();
+            _mobileRealtimeConnected = true;
+        }
+        catch
+        {
+            _mobileRealtimeConnected = false;
+        }
+    }
+
+    private string GetMobileRealtimeFooterText()
+    {
+        if (_mobileRealtime == null || !_mobileRealtime.LastUpdatedAtUtc.HasValue)
+        {
+            return "Chưa ghi nhận phiên mobile";
+        }
+
+        var localTime = _mobileRealtime.LastUpdatedAtUtc.Value.ToLocalTime();
+        return $"Cập nhật gần nhất lúc {localTime:dd/MM/yyyy HH:mm:ss}";
+    }
+
     private string FormatDuration(double seconds)
     {
         var ts = TimeSpan.FromSeconds(seconds);
         return ts.TotalMinutes >= 1 
             ? $"{(int)ts.TotalMinutes}m {ts.Seconds}s" 
             : $"{ts.Seconds}s";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_qrHubConnection != null)
+        {
+            await _qrHubConnection.DisposeAsync();
+        }
+        if (_mobileHubConnection != null)
+        {
+            await _mobileHubConnection.DisposeAsync();
+        }
     }
 }

@@ -3,6 +3,7 @@ using ZoneGuide.Mobile.ViewModels;
 using ZoneGuide.Mobile.Views;
 using ZoneGuide.Shared.Interfaces;
 using Microsoft.Extensions.Logging;
+using ZXing.Net.Maui.Controls;
 
 namespace ZoneGuide.Mobile;
 
@@ -16,6 +17,7 @@ public static class MauiProgram
         builder
             .UseMauiApp<App>()
             .UseMauiMaps()
+            .UseBarcodeReader()
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
@@ -39,6 +41,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<ISettingsService, SettingsService>();
         builder.Services.AddSingleton<ISyncService, SyncService>();
         builder.Services.AddSingleton<ApiService>();
+        builder.Services.AddSingleton<IMobilePresenceService, MobilePresenceService>();
         
         // Register Repositories
         builder.Services.AddSingleton<IPOIRepository, POIRepository>();
@@ -49,7 +52,10 @@ public static class MauiProgram
 
         // Register ViewModels
         builder.Services.AddSingleton<MainViewModel>();
+        builder.Services.AddSingleton<GlobalMiniPlayerViewModel>();
+        builder.Services.AddSingleton<HomeViewModel>();
         builder.Services.AddSingleton<MapViewModel>();
+        builder.Services.AddSingleton<MoreViewModel>();
         builder.Services.AddSingleton<POIListViewModel>();
         builder.Services.AddSingleton<TourListViewModel>();
         builder.Services.AddSingleton<HistoryViewModel>();
@@ -60,9 +66,11 @@ public static class MauiProgram
         builder.Services.AddSingleton<SettingsViewModel>();
 
         // Register Views
-        builder.Services.AddTransient<AppShell>();
+        builder.Services.AddSingleton<AppShell>();
         builder.Services.AddSingleton<MainPage>();
-        builder.Services.AddSingleton<MapPage>();
+        builder.Services.AddSingleton<HomePage>();
+        builder.Services.AddTransient<MapPage>();
+        builder.Services.AddSingleton<MorePage>();
         builder.Services.AddSingleton<POIListPage>();
         builder.Services.AddSingleton<HistoryPage>();
         builder.Services.AddSingleton<TourListPage>();
@@ -70,6 +78,7 @@ public static class MauiProgram
         builder.Services.AddTransient<LanguageSelectionPage>();
         builder.Services.AddTransient<POIDetailPage>();
         builder.Services.AddTransient<TourDetailPage>();
+        builder.Services.AddTransient<QRScannerPage>();
         builder.Services.AddSingleton<SettingsPage>();
 
         return builder.Build();

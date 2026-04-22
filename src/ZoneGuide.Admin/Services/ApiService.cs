@@ -17,6 +17,11 @@ public interface IApiService
     Task<POIDto?> UpdatePOIAsync(string id, UpdatePOIDto dto);
     Task<bool> DeletePOIAsync(string id);
 
+    // POI QR codes
+    Task<List<PoiQrCodeDto>> GetPoiQRCodesAsync(bool includeInactive = false);
+    Task<PoiQrCodeDto?> GeneratePoiQrCodeAsync(string poiId, bool force = false);
+    Task<int> GenerateMissingPoiQRCodesAsync(bool includeInactive = false, bool force = false);
+
     // Tour Operations
     Task<List<TourDto>> GetToursAsync();
     Task<TourDto?> GetTourAsync(string id);
@@ -32,6 +37,8 @@ public interface IApiService
     Task<DashboardAnalyticsDto?> GetDashboardAsync(DateTime? from = null, DateTime? to = null);
     Task<List<TopPOIDto>> GetTopPOIsAsync(int count = 10);
     Task<List<HeatmapPointDto>> GetHeatmapDataAsync(DateTime? from = null, DateTime? to = null);
+    Task<QrMonitoringSnapshotDto?> GetQrMonitoringSnapshotAsync();
+    Task<MobileLiveMonitoringSnapshotDto?> GetMobileMonitoringSnapshotAsync();
 
     // TTS
     Task<string?> GenerateTtsAsync(string text, string language);
@@ -48,6 +55,16 @@ public class ApiService : IApiService
     public ApiService(HttpClient httpClient)
     {
         _httpClient = httpClient;
+    }
+
+    private PoiQrCodeDto NormalizeQrCodeDto(PoiQrCodeDto dto)
+    {
+        if (!string.IsNullOrWhiteSpace(dto.QrUrl) && Uri.TryCreate(_httpClient.BaseAddress, dto.QrUrl, out var absoluteUri))
+        {
+            dto.QrUrl = absoluteUri.ToString();
+        }
+
+        return dto;
     }
 
     // POI Operations
@@ -178,6 +195,57 @@ public class ApiService : IApiService
         catch
         {
             return false;
+        }
+    }
+
+    // POI QR codes
+    public async Task<List<PoiQrCodeDto>> GetPoiQRCodesAsync(bool includeInactive = false)
+    {
+        try
+        {
+            var url = $"api/qrcodes/pois?includeInactive={includeInactive.ToString().ToLowerInvariant()}";
+            var items = await _httpClient.GetFromJsonAsync<List<PoiQrCodeDto>>(url) ?? new List<PoiQrCodeDto>();
+            return items.Select(NormalizeQrCodeDto).ToList();
+        }
+        catch
+        {
+            return new List<PoiQrCodeDto>();
+        }
+    }
+
+    public async Task<PoiQrCodeDto?> GeneratePoiQrCodeAsync(string poiId, bool force = false)
+    {
+        try
+        {
+            var url = $"api/qrcodes/pois/{Uri.EscapeDataString(poiId)}/generate?force={force.ToString().ToLowerInvariant()}";
+            var response = await _httpClient.PostAsync(url, content: null);
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            var dto = await response.Content.ReadFromJsonAsync<PoiQrCodeDto>();
+            return dto == null ? null : NormalizeQrCodeDto(dto);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<int> GenerateMissingPoiQRCodesAsync(bool includeInactive = false, bool force = false)
+    {
+        try
+        {
+            var url = $"api/qrcodes/pois/generate-missing?includeInactive={includeInactive.ToString().ToLowerInvariant()}&force={force.ToString().ToLowerInvariant()}";
+            var response = await _httpClient.PostAsync(url, content: null);
+            if (!response.IsSuccessStatusCode)
+                return 0;
+
+            var value = await response.Content.ReadFromJsonAsync<int>();
+            return value;
+        }
+        catch
+        {
+            return 0;
         }
     }
 
@@ -361,6 +429,30 @@ public class ApiService : IApiService
         }
     }
 
+    public async Task<QrMonitoringSnapshotDto?> GetQrMonitoringSnapshotAsync()
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<QrMonitoringSnapshotDto>("api/qr-monitoring/snapshot");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<MobileLiveMonitoringSnapshotDto?> GetMobileMonitoringSnapshotAsync()
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<MobileLiveMonitoringSnapshotDto>("api/mobile-monitoring/snapshot");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public async Task<T?> GetAsync<T>(string url) where T : class
     {
         try
@@ -419,3 +511,15 @@ public class ApiService : IApiService
 
 // Analytics DTOs are defined in ZoneGuide.API.Services.SyncService
 // We use those definitions through the Shared project
+
+public sealed class QrMonitoringSnapshotDto
+{
+    public int ActiveDeviceCount { get; set; }
+    public int UniqueDeviceCount { get; set; }
+    public long TotalAccessCount { get; set; }
+    public int AccessesLastMinute { get; set; }
+    public DateTime? LastAccessAtUtc { get; set; }
+    public int? LastPoiId { get; set; }
+    public int ActiveWindowSeconds { get; set; }
+    public int LastMinuteWindowSeconds { get; set; }
+}

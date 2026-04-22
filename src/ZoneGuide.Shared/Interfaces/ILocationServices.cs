@@ -102,6 +102,12 @@ public interface IGeofenceService
     /// Xóa tất cả POI
     /// </summary>
     void ClearPOIs();
+
+    /// <summary>
+    /// Initialize geofence states silently from an initial location.
+    /// Sets initial state without firing events to prevent auto-play on app start.
+    /// </summary>
+    void InitializeFromLocation(LocationData initialLocation);
     
     /// <summary>
     /// Cập nhật vị trí và kiểm tra Geofence
@@ -127,6 +133,11 @@ public interface IGeofenceService
     /// Reset cooldown cho POI
     /// </summary>
     void ResetCooldown(int poiId);
+
+    /// <summary>
+    /// Check if geofence has been initialized (first location fix processed)
+    /// </summary>
+    bool IsInitialized { get; }
     
     /// <summary>
     /// Reset tất cả cooldown

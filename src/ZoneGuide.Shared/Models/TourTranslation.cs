@@ -20,6 +20,10 @@ public class TourTranslation
 
     public bool IsOutdated { get; set; }
 
+    public string? AudioUrl { get; set; }
+
+    public bool IsAudioOutdated { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

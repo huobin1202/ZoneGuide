@@ -9,11 +9,11 @@
 
     <TabBar>
         <ShellContent
-            x:Name="PoisTab"
-            Title="{local:Translate tab_pois}"
-            ContentTemplate="{DataTemplate views:POIListPage}"
-            Icon="location.png"
-            Route="pois" />
+            x:Name="HomeTab"
+            Title="{local:Translate tab_home}"
+            ContentTemplate="{DataTemplate views:HomePage}"
+            Icon="location.svg"
+            Route="home" />
 
         <ShellContent
             x:Name="MapTab"
@@ -30,25 +30,11 @@
             Route="tours" />
 
         <ShellContent
-            x:Name="HistoryTab"
-            Title="{local:Translate tab_history}"
-            ContentTemplate="{DataTemplate views:HistoryPage}"
-            Icon="history.png"
-            Route="history" />
-
-        <ShellContent
-            x:Name="OfflineTab"
-            Title="{local:Translate tab_offline}"
-            ContentTemplate="{DataTemplate views:OfflinePage}"
-            Icon="offline.svg"
-            Route="offline" />
-
-        <ShellContent
-            x:Name="SettingsTab"
-            Title="{local:Translate tab_settings}"
-            ContentTemplate="{DataTemplate views:SettingsPage}"
-            Icon="settings.png"
-            Route="settings" />
+            x:Name="MoreTab"
+            Title="{local:Translate tab_more}"
+            ContentTemplate="{DataTemplate views:MorePage}"
+            Icon="settings.svg"
+            Route="more" />
     </TabBar>
 
 </Shell>

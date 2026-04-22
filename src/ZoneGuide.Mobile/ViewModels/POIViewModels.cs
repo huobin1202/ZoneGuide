@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
+using System.Text;
 using ZoneGuide.Mobile.Localization;
 using ZoneGuide.Mobile.Services;
 using ZoneGuide.Shared.Interfaces;
@@ -15,10 +16,14 @@ namespace ZoneGuide.Mobile.ViewModels;
 /// </summary>
 public partial class POIListViewModel : ObservableObject
 {
+    private static readonly TimeSpan SearchDebounceDelay = TimeSpan.FromMilliseconds(300);
+
     private readonly IPOIRepository _poiRepository;
     private readonly IGeofenceService _geofenceService;
     private readonly INarrationService _narrationService;
     private readonly ISyncService _syncService;
+    private readonly Dictionary<int, string> _searchIndex = new();
+    private CancellationTokenSource? _searchDebounceCts;
 
     [ObservableProperty]
     private bool isLoading;
@@ -108,10 +113,12 @@ public partial class POIListViewModel : ObservableObject
 
             POIs.Clear();
             FilteredPOIs.Clear();
+            _searchIndex.Clear();
 
             foreach (var poi in pois.OrderBy(p => p.Name))
             {
                 POIs.Add(poi);
+                _searchIndex[poi.Id] = BuildSearchIndex(poi);
             }
 
             await SearchAsync();
@@ -140,19 +147,18 @@ public partial class POIListViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task SearchAsync()
+    private Task SearchAsync()
     {
         FilteredPOIs.Clear();
 
-        IEnumerable<POI> results;
+        IEnumerable<POI> results = POIs;
+        var normalizedQuery = NormalizeSearchValue(SearchText);
 
-        if (string.IsNullOrWhiteSpace(SearchText))
+        if (!string.IsNullOrWhiteSpace(normalizedQuery))
         {
-            results = POIs;
-        }
-        else
-        {
-            results = await _poiRepository.SearchAsync(SearchText);
+            results = results.Where(p =>
+                _searchIndex.TryGetValue(p.Id, out var indexedValue) &&
+                indexedValue.Contains(normalizedQuery, StringComparison.Ordinal));
         }
 
         if (!string.IsNullOrEmpty(SelectedCategory) && !IsCategoryFilterAll(SelectedCategory))
@@ -167,6 +173,7 @@ public partial class POIListViewModel : ObservableObject
 
         FilteredCount = FilteredPOIs.Count;
         FilteredCountText = $"{FilteredCount} {AppLocalizer.Instance.Translate("pois_count_suffix", "places")}";
+        return Task.CompletedTask;
     }
 
     [RelayCommand]
@@ -182,7 +189,10 @@ public partial class POIListViewModel : ObservableObject
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[POIListVM] ViewDetail error: {ex}");
-            await Shell.Current.DisplayAlert("Lỗi", "Không thể mở chi tiết địa điểm", "OK");
+            await Shell.Current.DisplayAlert(
+                AppLocalizer.Instance.Translate("poi_detail_open_error_title"),
+                AppLocalizer.Instance.Translate("poi_detail_open_error_message"),
+                AppLocalizer.Instance.Translate("alert_ok"));
         }
     }
 
@@ -218,7 +228,10 @@ public partial class POIListViewModel : ObservableObject
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[POIListVM] PlayPOI error: {ex}");
-            await Shell.Current.DisplayAlert("Lỗi", "Không thể phát thuyết minh", "OK");
+            await Shell.Current.DisplayAlert(
+                AppLocalizer.Instance.Translate("poi_detail_play_error_title"),
+                AppLocalizer.Instance.Translate("poi_detail_play_error_message"),
+                AppLocalizer.Instance.Translate("alert_ok"));
         }
     }
 
@@ -252,11 +265,11 @@ public partial class POIListViewModel : ObservableObject
         return new NarrationQueueItem
         {
             POI = poi,
-            AudioPath = poi.AudioFilePath,
             AudioUrl = poi.AudioUrl,
-            TTSText = poi.TTSScript ?? poi.FullDescription,
+            TTSText = poi.TTSScript,
             Language = poi.Language,
             Priority = poi.Priority,
+            IsManualPlayback = true,
             TriggerType = GeofenceEventType.Enter,
             TriggerDistance = 0
         };
@@ -306,12 +319,12 @@ public partial class POIListViewModel : ObservableObject
 
     partial void OnSearchTextChanged(string value)
     {
-        _ = SearchAsync();
+        QueueSearch(SearchDebounceDelay);
     }
 
     partial void OnSelectedCategoryChanged(string? value)
     {
-        _ = SearchAsync();
+        QueueSearch(TimeSpan.Zero);
     }
 
     private void OnLocalizerPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -331,7 +344,7 @@ public partial class POIListViewModel : ObservableObject
                 .FirstOrDefault(c => NormalizeCategoryKey(c) == previousCategoryKey)
                 ?? Categories.FirstOrDefault();
 
-            _ = SearchAsync();
+            QueueSearch(TimeSpan.Zero);
         });
     }
 
@@ -367,6 +380,39 @@ public partial class POIListViewModel : ObservableObject
         IsCurrentNarrationPaused = CurrentNarrationPoiId.HasValue && _narrationService.IsPaused;
     }
 
+    private void QueueSearch(TimeSpan delay)
+    {
+        _searchDebounceCts?.Cancel();
+        _searchDebounceCts?.Dispose();
+
+        var cts = new CancellationTokenSource();
+        _searchDebounceCts = cts;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (delay > TimeSpan.Zero)
+                {
+                    await Task.Delay(delay, cts.Token);
+                }
+
+                if (cts.Token.IsCancellationRequested)
+                    return;
+
+                await MainThread.InvokeOnMainThreadAsync(SearchAsync);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }, cts.Token);
+    }
+
+    private static string BuildSearchIndex(POI poi)
+    {
+        return NormalizeSearchValue($"{poi.Name} {poi.TTSScript} {poi.UniqueCode} {poi.Category}");
+    }
+
     private static bool IsCategoryFilterAll(string? category)
     {
         return NormalizeCategoryKey(category) == "all";
@@ -382,7 +428,26 @@ public partial class POIListViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(category))
             return "other";
 
-        return category.Trim().ToLowerInvariant() switch
+        var normalized = category.Trim().ToLowerInvariant();
+        var localizedAll = AppLocalizer.Instance.Translate("pois_filter_all", "All").Trim().ToLowerInvariant();
+        if (normalized == localizedAll)
+            return "all";
+
+        var localizedTourism = AppLocalizer.Instance.Translate("category_tourism").Trim().ToLowerInvariant();
+        var localizedService = AppLocalizer.Instance.Translate("category_service").Trim().ToLowerInvariant();
+        var localizedFood = AppLocalizer.Instance.Translate("category_food").Trim().ToLowerInvariant();
+        var localizedEntertainment = AppLocalizer.Instance.Translate("category_entertainment").Trim().ToLowerInvariant();
+        var localizedDrinks = AppLocalizer.Instance.Translate("category_drinks").Trim().ToLowerInvariant();
+        var localizedShopping = AppLocalizer.Instance.Translate("category_shopping").Trim().ToLowerInvariant();
+
+        if (normalized == localizedTourism) return "tourism";
+        if (normalized == localizedService) return "service";
+        if (normalized == localizedFood) return "food";
+        if (normalized == localizedEntertainment) return "entertainment";
+        if (normalized == localizedDrinks) return "drinks";
+        if (normalized == localizedShopping) return "shopping";
+
+        return normalized switch
         {
             "all" or "tất cả" => "all",
             "hải sản & ốc" or "hai san & oc" or "seafood & snails" or "seafood" => "tourism",
@@ -400,6 +465,31 @@ public partial class POIListViewModel : ObservableObject
             "shopping" or "mua sắm" or "other" or "khác" => "shopping",
             _ => category.Trim().ToLowerInvariant()
         };
+    }
+
+    private static string NormalizeSearchValue(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        var normalized = value.Trim().Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder(normalized.Length);
+
+        foreach (var character in normalized)
+        {
+            var category = CharUnicodeInfo.GetUnicodeCategory(character);
+            if (category == UnicodeCategory.NonSpacingMark)
+                continue;
+
+            builder.Append(char.ToLowerInvariant(character switch
+            {
+                'đ' => 'd',
+                'Đ' => 'd',
+                _ => character
+            }));
+        }
+
+        return builder.ToString().Normalize(NormalizationForm.FormC);
     }
 }
 
@@ -468,7 +558,7 @@ public partial class POIDetailViewModel : ObservableObject
     private string progressText = "0%";
 
     [ObservableProperty]
-    private string playbackStatusText = "Ready";
+    private string playbackStatusText = AppLocalizer.Instance.Translate("poi_detail_ready");
 
     [ObservableProperty]
     private string imageSource = "location.svg";
@@ -544,7 +634,10 @@ public partial class POIDetailViewModel : ObservableObject
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[POIDetailVM] PlayAsync error: {ex}");
-            await Shell.Current.DisplayAlert("Lỗi", "Không thể phát thuyết minh", "OK");
+            await Shell.Current.DisplayAlert(
+                AppLocalizer.Instance.Translate("poi_detail_play_error_title"),
+                AppLocalizer.Instance.Translate("poi_detail_play_error_message"),
+                AppLocalizer.Instance.Translate("alert_ok"));
         }
     }
 
@@ -638,7 +731,7 @@ public partial class POIDetailViewModel : ObservableObject
             return;
         }
 
-        await Shell.Current.GoToAsync("//pois");
+        await Shell.Current.GoToAsync("//home");
     }
 
     [RelayCommand]
@@ -674,7 +767,7 @@ public partial class POIDetailViewModel : ObservableObject
         if (CurrentPoi == null)
             return;
 
-        await Shell.Current.GoToAsync($"//map?poiId={CurrentPoi.Id}");
+        await Shell.Current.GoToAsync($"//map?poiId={CurrentPoi.Id}&openSearch=true");
     }
 
     [RelayCommand]
@@ -686,7 +779,7 @@ public partial class POIDetailViewModel : ObservableObject
         await Share.RequestAsync(new ShareTextRequest
         {
             Title = CurrentPoi.Name,
-            Text = $"{CurrentPoi.Name}\n{CurrentPoi.TTSScript ?? CurrentPoi.FullDescription ?? CurrentPoi.ShortDescription}\n{CurrentPoi.MapLink}"
+            Text = $"{CurrentPoi.Name}\n{CurrentPoi.TTSScript}\n{CurrentPoi.MapLink}"
         });
     }
 

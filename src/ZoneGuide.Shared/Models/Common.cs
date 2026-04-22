@@ -104,6 +104,7 @@ public class NarrationQueueItem
     public string? TTSText { get; set; }
     public string Language { get; set; } = "vi-VN";
     public int Priority { get; set; }
+    public bool IsManualPlayback { get; set; }
     public GeofenceEventType TriggerType { get; set; }
     public double TriggerDistance { get; set; }
     public DateTime QueuedAt { get; set; } = DateTime.UtcNow;
@@ -183,30 +184,6 @@ public class AppSettings
     /// </summary>
     public bool NotifyOnApproach { get; set; } = true;
     
-    /// <summary>
-    /// Chế độ tiết kiệm pin
-    /// </summary>
-    public bool BatterySaverMode { get; set; } = false;
-    
-    /// <summary>
-    /// Theo dõi GPS ở background
-    /// </summary>
-    public bool BackgroundTracking { get; set; } = true;
-    
-    /// <summary>
-    /// Chế độ offline
-    /// </summary>
-    public bool OfflineMode { get; set; } = false;
-    
-    /// <summary>
-    /// Tự động tải nội dung offline
-    /// </summary>
-    public bool AutoDownloadOffline { get; set; } = true;
-
-    /// <summary>
-    /// Đơn vị khoảng cách hiển thị (m/km)
-    /// </summary>
-    public string DistanceUnit { get; set; } = "m";
 }
 
 /// <summary>

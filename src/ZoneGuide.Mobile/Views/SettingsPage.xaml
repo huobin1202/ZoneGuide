@@ -3,21 +3,43 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
              xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
+             xmlns:views="clr-namespace:ZoneGuide.Mobile.Views"
              x:Class="ZoneGuide.Mobile.Views.SettingsPage"
              x:DataType="vm:SettingsViewModel"
              Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
              BackgroundColor="#F6F7FB">
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="Auto,*,Auto">
         <Border Grid.Row="0"
                 BackgroundColor="{StaticResource Primary}"
                 StrokeThickness="0"
                 StrokeShape="RoundRectangle 0,0,28,28"
                 Padding="20,28,20,22">
-            <Label Text="{local:Translate settings_title}"
-                   FontSize="30"
-                   FontAttributes="Bold"
-                   TextColor="White" />
+            <Grid ColumnDefinitions="Auto,*"
+                  ColumnSpacing="14">
+                <Border WidthRequest="48"
+                        HeightRequest="48"
+                        BackgroundColor="#33FFFFFF"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 24">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnBackTapped" />
+                    </Border.GestureRecognizers>
+                    <Label Text="‹"
+                           FontSize="28"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"
+                           TextColor="White" />
+                </Border>
+
+                <Label Grid.Column="1"
+                       Text="{local:Translate settings_title}"
+                       VerticalOptions="Center"
+                       FontSize="30"
+                       FontAttributes="Bold"
+                       TextColor="White" />
+            </Grid>
         </Border>
 
         <ScrollView Grid.Row="1">
@@ -105,71 +127,14 @@
                         <VerticalStackLayout Spacing="16">
                             <Grid RowDefinitions="Auto,Auto"
                                   RowSpacing="6">
-                                                        <Label Text="{local:Translate settings_gps_accuracy}"
+                                <Label Text="{local:Translate settings_gps_accuracy}"
                                        FontSize="14"
                                        TextColor="{StaticResource Gray500}" />
                                 <Picker Grid.Row="1"
-                                                                      SelectedIndex="{Binding GpsAccuracyIndex}"
-                                                                      ItemsSource="{Binding GpsAccuracyOptions}" />
+                                        SelectedIndex="{Binding GpsAccuracyIndex}"
+                                        ItemsSource="{Binding GpsAccuracyOptions}" />
                             </Grid>
 
-                            <Grid RowDefinitions="Auto,Auto"
-                                  RowSpacing="6">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <Label Text="{local:Translate settings_trigger_radius}"
-                                           FontSize="14" />
-                                    <Label Grid.Column="1"
-                                           Text="{Binding TriggerRadius, StringFormat='{0:F0}m'}"
-                                           FontSize="14"
-                                           FontAttributes="Bold" />
-                                </Grid>
-                                <Slider Grid.Row="1"
-                                        Minimum="10"
-                                   Maximum="5000"
-                                        Value="{Binding TriggerRadius}" />
-                            </Grid>
-
-                            <Grid RowDefinitions="Auto,Auto"
-                                  RowSpacing="6">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <Label Text="{local:Translate settings_approach_radius}"
-                                           FontSize="14" />
-                                    <Label Grid.Column="1"
-                                           Text="{Binding ApproachRadius, StringFormat='{0:F0}m'}"
-                                           FontSize="14"
-                                           FontAttributes="Bold" />
-                                </Grid>
-                                <Slider Grid.Row="1"
-                                        Minimum="50"
-                                   Maximum="5000"
-                                        Value="{Binding ApproachRadius}" />
-                            </Grid>
-
-                            <Grid RowDefinitions="Auto,Auto"
-                                  RowSpacing="6">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <Label Text="{local:Translate settings_cooldown}"
-                                           FontSize="14" />
-                                    <Label Grid.Column="1"
-                                           Text="{Binding CooldownSeconds, StringFormat='{0}s'}"
-                                           FontSize="14"
-                                           FontAttributes="Bold" />
-                                </Grid>
-                                <Slider Grid.Row="1"
-                                        Minimum="1"
-                                        Maximum="600"
-                                        Value="{Binding CooldownSeconds}" />
-                            </Grid>
-
-                            <Grid RowDefinitions="Auto,Auto"
-                                  RowSpacing="6">
-                                <Label Text="Đơn vị khoảng cách"
-                                       FontSize="14"
-                                       TextColor="{StaticResource Gray500}" />
-                                <Picker Grid.Row="1"
-                                        SelectedIndex="{Binding DistanceUnitIndex}"
-                                        ItemsSource="{Binding DistanceUnitOptions}" />
-                            </Grid>
                         </VerticalStackLayout>
                     </Frame>
                 </VerticalStackLayout>
@@ -196,27 +161,6 @@
                                 <Switch Grid.Column="1"
                                         IsToggled="{Binding NotifyOnApproach}" />
                             </Grid>
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="{local:Translate settings_background_tracking}"
-                                       FontSize="14"
-                                       VerticalOptions="Center" />
-                                <Switch Grid.Column="1"
-                                        IsToggled="{Binding BackgroundTracking}" />
-                            </Grid>
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="{local:Translate settings_battery_saver}"
-                                       FontSize="14"
-                                       VerticalOptions="Center" />
-                                <Switch Grid.Column="1"
-                                        IsToggled="{Binding BatterySaverMode}" />
-                            </Grid>
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="{local:Translate settings_offline_mode}"
-                                       FontSize="14"
-                                       VerticalOptions="Center" />
-                                <Switch Grid.Column="1"
-                                        IsToggled="{Binding OfflineMode}" />
-                            </Grid>
                         </VerticalStackLayout>
                     </Frame>
                 </VerticalStackLayout>
@@ -241,19 +185,6 @@
                     </Frame>
                 </VerticalStackLayout>
 
-                <Frame Padding="16"
-                       CornerRadius="18"
-                       BackgroundColor="White">
-                    <VerticalStackLayout Spacing="12">
-                     <Label Text="{local:Translate settings_other}"
-                               FontSize="18"
-                               FontAttributes="Bold" />
-                     <Button Text="{local:Translate settings_clear_cache}"
-                                BackgroundColor="{StaticResource Gray500}"
-                                Command="{Binding ClearCacheCommand}" />
-                    </VerticalStackLayout>
-                </Frame>
-
               <Button Text="{local:Translate settings_save}"
                         HeightRequest="56"
                         CornerRadius="24"
@@ -262,6 +193,8 @@
                         Command="{Binding SaveSettingsCommand}" />
             </VerticalStackLayout>
         </ScrollView>
+
+        <views:MiniPlayerView Grid.Row="2" />
     </Grid>
 
 </ContentPage>

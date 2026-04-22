@@ -161,8 +161,6 @@ public class POIEntity
     public string UniqueCode { get; set; } = string.Empty;
     public string? Address { get; set; }
     public string Name { get; set; } = string.Empty;
-    public string? ShortDescription { get; set; }
-    public string? FullDescription { get; set; }
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public double TriggerRadius { get; set; } = 50;
@@ -193,8 +191,6 @@ public class POITranslationEntity
     public int POIId { get; set; }
     public string LanguageCode { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
-    public string ShortDescription { get; set; } = string.Empty;
-    public string FullDescription { get; set; } = string.Empty;
     public string? TTSScript { get; set; }
     public string? AudioUrl { get; set; }
     public bool IsOutdated { get; set; }
@@ -211,6 +207,7 @@ public class TourEntity
     public string UniqueCode { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string? AudioUrl { get; set; }
     public int EstimatedDurationMinutes { get; set; }
     public double DistanceKm { get; set; }
     public double EstimatedDistanceMeters { get; set; }
@@ -218,8 +215,6 @@ public class TourEntity
     public string? ImageUrl { get; set; }
     public string? ThumbnailUrl { get; set; }
     public string Language { get; set; } = "vi-VN";
-    public string Difficulty { get; set; } = "Easy";
-    public int DifficultyLevel { get; set; } = 1;
     public bool WheelchairAccessible { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
@@ -237,6 +232,8 @@ public class TourTranslationEntity
     public string LanguageCode { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public bool IsOutdated { get; set; }
+    public string? AudioUrl { get; set; }
+    public bool IsAudioOutdated { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
@@ -329,8 +326,6 @@ public class POIContributionEntity
     public int? OriginalPOIId { get; set; }
     public int ContributorId { get; set; }
     public string Name { get; set; } = string.Empty;
-    public string ShortDescription { get; set; } = string.Empty;
-    public string FullDescription { get; set; } = string.Empty;
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public double TriggerRadius { get; set; } = 50;

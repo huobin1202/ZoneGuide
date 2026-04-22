@@ -8,6 +8,9 @@ namespace ZoneGuide.Mobile.Services;
 /// </summary>
 public class AudioService : IAudioService, IDisposable
 {
+    private static readonly TimeSpan ProgressUpdateInterval = TimeSpan.FromMilliseconds(250);
+    private const double ProgressChangeThreshold = 0.01;
+
     public event EventHandler? PlaybackStarted;
     public event EventHandler? PlaybackCompleted;
     public event EventHandler? PlaybackPaused;
@@ -19,7 +22,10 @@ public class AudioService : IAudioService, IDisposable
     private IAudioPlayer? _player;
     private Stream? _activeStream;
     private CancellationTokenSource? _progressCts;
+    private readonly SemaphoreSlim _playbackGate = new(1, 1);
     private float _volume = 1.0f;
+    private bool _isStopping;
+    private double _lastReportedProgress = -1;
 
     public bool IsPlaying => _player?.IsPlaying ?? false;
     public bool IsPaused { get; private set; }
@@ -33,9 +39,11 @@ public class AudioService : IAudioService, IDisposable
 
     public async Task PlayAsync(string filePath)
     {
+        await _playbackGate.WaitAsync();
         try
         {
-            await StopAsync();
+            // Clean up old player first
+            await CleanupPlayerAsync();
 
             if (!File.Exists(filePath))
             {
@@ -43,108 +51,190 @@ public class AudioService : IAudioService, IDisposable
                 return;
             }
 
-            _activeStream = File.OpenRead(filePath);
-            _player = _audioManager.CreatePlayer(_activeStream);
-            
-            SetupPlayer();
-            _player.Play();
+            var stream = File.OpenRead(filePath);
+            IAudioPlayer? player = null;
+
+            try
+            {
+                player = _audioManager.CreatePlayer(stream);
+                _activeStream = stream;
+                _player = player;
+            }
+            catch
+            {
+                player?.Dispose();
+                stream.Dispose();
+                throw;
+            }
+
+            SetupPlayer(player);
+            player.Play();
             
             IsPaused = false;
             PlaybackStarted?.Invoke(this, EventArgs.Empty);
             
-            StartProgressTracking();
+            StartProgressTracking(player);
         }
         catch (Exception ex)
         {
             PlaybackError?.Invoke(this, ex.Message);
+            await CleanupPlayerAsync();
+        }
+        finally
+        {
+            _playbackGate.Release();
         }
     }
 
     public async Task PlayFromUrlAsync(string url)
     {
+        await _playbackGate.WaitAsync();
         try
         {
-            await StopAsync();
+            // Clean up old player first
+            await CleanupPlayerAsync();
 
-            _activeStream = await _httpClient.GetStreamAsync(url);
+            Stream stream = await _httpClient.GetStreamAsync(url);
+            IAudioPlayer? player = null;
 
             try
             {
-                _player = _audioManager.CreatePlayer(_activeStream);
+                player = _audioManager.CreatePlayer(stream);
             }
             catch (Exception)
             {
-                DisposeActiveStream();
+                stream.Dispose();
 
                 using var sourceStream = await _httpClient.GetStreamAsync(url);
                 var memoryStream = new MemoryStream();
                 await sourceStream.CopyToAsync(memoryStream);
                 memoryStream.Position = 0;
 
-                _activeStream = memoryStream;
-                _player = _audioManager.CreatePlayer(_activeStream);
+                stream = memoryStream;
+                player = _audioManager.CreatePlayer(stream);
             }
+
+            _activeStream = stream;
+            _player = player;
             
-            SetupPlayer();
-            _player.Play();
+            SetupPlayer(player);
+            player.Play();
             
             IsPaused = false;
             PlaybackStarted?.Invoke(this, EventArgs.Empty);
             
-            StartProgressTracking();
+            StartProgressTracking(player);
         }
         catch (Exception ex)
         {
             PlaybackError?.Invoke(this, ex.Message);
+            await CleanupPlayerAsync();
         }
-    }
-
-    public Task PauseAsync()
-    {
-        if (_player?.IsPlaying == true)
+        finally
         {
-            _player.Pause();
-            IsPaused = true;
-            StopProgressTracking();
-            PlaybackPaused?.Invoke(this, EventArgs.Empty);
+            _playbackGate.Release();
         }
-        return Task.CompletedTask;
     }
 
-    public Task ResumeAsync()
+    public async Task PauseAsync()
     {
-        if (_player != null && IsPaused)
+        await _playbackGate.WaitAsync();
+        try
         {
-            _player.Play();
-            IsPaused = false;
-            StartProgressTracking();
-            PlaybackStarted?.Invoke(this, EventArgs.Empty);
+            if (_player?.IsPlaying == true)
+            {
+                _player.Pause();
+                IsPaused = true;
+                StopProgressTracking();
+                PlaybackPaused?.Invoke(this, EventArgs.Empty);
+            }
         }
-        return Task.CompletedTask;
+        finally
+        {
+            _playbackGate.Release();
+        }
     }
 
-    public Task StopAsync()
+    public async Task ResumeAsync()
+    {
+        await _playbackGate.WaitAsync();
+        try
+        {
+            if (_player != null && IsPaused)
+            {
+                _player.Play();
+                IsPaused = false;
+                StartProgressTracking(_player);
+                PlaybackStarted?.Invoke(this, EventArgs.Empty);
+            }
+        }
+        finally
+        {
+            _playbackGate.Release();
+        }
+    }
+
+    public async Task StopAsync()
+    {
+        await _playbackGate.WaitAsync();
+        try
+        {
+            await CleanupPlayerAsync();
+        }
+        finally
+        {
+            _playbackGate.Release();
+        }
+    }
+
+    private Task CleanupPlayerAsync()
     {
         StopProgressTracking();
-        
-        if (_player != null)
+
+        var player = _player;
+        _player = null;
+
+        if (player != null)
         {
-            _player.Stop();
-            _player.Dispose();
-            _player = null;
+            try
+            {
+                player.PlaybackEnded -= OnPlaybackEnded;
+                player.Stop();
+            }
+            catch { /* Ignore disposal errors */ }
+            finally
+            {
+                try
+                {
+                    player.Dispose();
+                }
+                catch
+                {
+                    // Ignore disposal errors from native backends
+                }
+            }
         }
 
         DisposeActiveStream();
         
         IsPaused = false;
+        _isStopping = false;
         return Task.CompletedTask;
     }
 
     public Task SeekAsync(double position)
     {
-        if (_player != null)
+        var player = _player;
+        if (player != null)
         {
-            _player.Seek(position);
+            try
+            {
+                player.Seek(position);
+            }
+            catch (ObjectDisposedException)
+            {
+                // Ignore seek on a player that was just cleaned up
+            }
         }
         return Task.CompletedTask;
     }
@@ -158,46 +248,79 @@ public class AudioService : IAudioService, IDisposable
         }
     }
 
-    private void SetupPlayer()
+    private void SetupPlayer(IAudioPlayer player)
     {
-        if (_player == null) return;
-
-        _player.Volume = _volume;
-        _player.PlaybackEnded += OnPlaybackEnded;
+        player.Volume = _volume;
+        player.PlaybackEnded += OnPlaybackEnded;
     }
 
     private void OnPlaybackEnded(object? sender, EventArgs e)
     {
+        if (sender != null && !ReferenceEquals(sender, _player))
+            return;
+
         StopProgressTracking();
         IsPaused = false;
+        _lastReportedProgress = 1;
         DisposeActiveStream();
         PlaybackCompleted?.Invoke(this, EventArgs.Empty);
     }
 
-    private void StartProgressTracking()
+    private void StartProgressTracking(IAudioPlayer player)
     {
         StopProgressTracking();
         
         _progressCts = new CancellationTokenSource();
+        var token = _progressCts.Token;
         
         _ = Task.Run(async () =>
         {
-            while (!_progressCts.Token.IsCancellationRequested && _player?.IsPlaying == true)
+            try
             {
-                if (_player.Duration > 0)
+                while (!token.IsCancellationRequested && ReferenceEquals(player, _player) && player.IsPlaying)
                 {
-                    var progress = _player.CurrentPosition / _player.Duration;
-                    ProgressChanged?.Invoke(this, progress);
+                    try
+                    {
+                        if (player.Duration > 0)
+                        {
+                            var progress = player.CurrentPosition / player.Duration;
+                            ProgressChanged?.Invoke(this, progress);
+                        }
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        break;
+                    }
+
+                    await Task.Delay(100, token);
                 }
-                await Task.Delay(100);
             }
-        }, _progressCts.Token);
+            catch (OperationCanceledException)
+            {
+                // Ignore cancellation from stop/restart
+            }
+            catch (ObjectDisposedException)
+            {
+                // Native audio backend may dispose while the progress loop is exiting
+            }
+        }, token);
     }
 
     private void StopProgressTracking()
     {
-        _progressCts?.Cancel();
-        _progressCts?.Dispose();
+        if (_progressCts == null)
+            return;
+
+        try
+        {
+            _progressCts.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Ignore races with shutdown
+        }
+
+        _progressCts.Dispose();
         _progressCts = null;
     }
 
@@ -213,5 +336,6 @@ public class AudioService : IAudioService, IDisposable
         _player?.Dispose();
         DisposeActiveStream();
         _httpClient.Dispose();
+        _playbackGate.Dispose();
     }
 }

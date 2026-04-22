@@ -30,7 +30,6 @@ public partial class TourDetailPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
-
         ApplySheetState(SheetExpandedHeight, animate: false);
         RenderMiniMap();
     }
@@ -78,10 +77,7 @@ public partial class TourDetailPage : ContentPage
                     nextHeight = SheetExpandedHeight;
 
                 PoiBottomSheet.HeightRequest = nextHeight;
-                if (PoiCollectionView != null)
-                {
-                    PoiCollectionView.IsVisible = nextHeight > (SheetCollapsedHeight + 16);
-                }
+                UpdateSheetContentVisibility(nextHeight);
                 break;
 
             case GestureStatus.Completed:
@@ -121,10 +117,7 @@ public partial class TourDetailPage : ContentPage
         if (!animate || Math.Abs(startHeight - targetHeight) < 0.5d)
         {
             PoiBottomSheet.HeightRequest = targetHeight;
-            if (PoiCollectionView != null)
-            {
-                PoiCollectionView.IsVisible = targetHeight > (SheetCollapsedHeight + 8);
-            }
+            UpdateSheetContentVisibility(targetHeight);
 
             return;
         }
@@ -133,14 +126,18 @@ public partial class TourDetailPage : ContentPage
         var animation = new Animation(v =>
         {
             PoiBottomSheet.HeightRequest = v;
-
-            if (PoiCollectionView != null)
-            {
-                PoiCollectionView.IsVisible = v > (SheetCollapsedHeight + 8);
-            }
+            UpdateSheetContentVisibility(v);
         }, startHeight, targetHeight);
 
         animation.Commit(this, "PoiBottomSheetSnap", 16, SheetSnapAnimationMs, Easing.SinOut);
+    }
+
+    private void UpdateSheetContentVisibility(double currentHeight)
+    {
+        if (PoiSheetContent == null)
+            return;
+
+        PoiSheetContent.IsVisible = currentHeight > (SheetCollapsedHeight + 8);
     }
 
     private async void OnMiniMapTapped(object? sender, EventArgs e)
@@ -148,7 +145,7 @@ public partial class TourDetailPage : ContentPage
         if (_viewModel.Tour == null)
             return;
 
-        await Shell.Current.GoToAsync($"//map?tourId={_viewModel.Tour.Id}&startTour=true");
+        await Shell.Current.GoToAsync("//map");
     }
 
     private async void OnMapButtonTapped(object? sender, EventArgs e)
@@ -156,15 +153,21 @@ public partial class TourDetailPage : ContentPage
         if (_viewModel.Tour == null)
             return;
 
-        await Shell.Current.GoToAsync($"//map?tourId={_viewModel.Tour.Id}&startTour=true");
+        await Shell.Current.GoToAsync("//map");
+    }
+
+    private async void OnShowStartTapped(object? sender, EventArgs e)
+    {
+        var command = _viewModel.StartTourCommand;
+        if (command == null || !command.CanExecute(null))
+            return;
+
+        await command.ExecuteAsync(null);
     }
 
     private async void OnSearchTapped(object? sender, EventArgs e)
     {
-        if (_viewModel.Tour == null)
-            return;
-
-        await Shell.Current.GoToAsync($"//map?tourId={_viewModel.Tour.Id}&startTour=true&openSearch=true");
+        await Shell.Current.GoToAsync("//map?openSearch=true");
     }
 
     private async void OnDirectionsTapped(object? sender, EventArgs e)
@@ -172,7 +175,11 @@ public partial class TourDetailPage : ContentPage
         if (_viewModel.Tour == null)
             return;
 
-        await Shell.Current.GoToAsync($"//map?tourId={_viewModel.Tour.Id}&startTour=true");
+        var command = _viewModel.StartTourCommand;
+        if (command == null || !command.CanExecute(null))
+            return;
+
+        await command.ExecuteAsync(null);
     }
 
     private void RenderMiniMap()

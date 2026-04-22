@@ -49,10 +49,13 @@
                 {
                     <!-- Admin Menu -->
                     <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
-                        Bảng điều khiển
+                        Dashboard
                     </MudNavLink>
                     <MudNavLink Href="/pois" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.LocationOn">
                         Quản lý địa điểm
+                    </MudNavLink>
+                    <MudNavLink Href="/poi-qrcodes" Match="NavLinkMatch.Prefix">
+                        Quản lý QR địa điểm
                     </MudNavLink>
                     <MudNavLink Href="/tours" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Route">
                         Quản lý chuyến du lịch
@@ -75,6 +78,7 @@
                     <MudNavLink Href="/heatmap" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Whatshot">
                         Heatmap du khách
                     </MudNavLink>
+                 
                     <MudNavLink Href="/activity-log" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.History">
                         Nhật ký hoạt động
                     </MudNavLink>
@@ -83,15 +87,16 @@
                 {
                     <!-- Contributor Menu -->
                     <MudNavLink Href="/contributor-dashboard" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Dashboard">
-                        Dashboard contributor
+                        Dashboard
                     </MudNavLink>
-                    <MudDivider Class="my-2" />
-                    <MudText Typo="Typo.caption" Class="px-4 mud-text-secondary">Quản lý</MudText>
-                    <MudNavLink Href="/contributor-pois" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Map">
-                        Quản lý POI
+                    <MudNavLink Href="/contributor-pois" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.LocationOn">
+                        Quản lý địa điểm
                     </MudNavLink>
                     <MudNavLink Href="/my-contributions" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.EditLocation">
                         Đóng góp của tôi
+                    </MudNavLink>
+                    <MudNavLink Href="/contributor-poi-translations" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Translate">
+                        Audio / Bản dịch
                     </MudNavLink>
                 }
                 else

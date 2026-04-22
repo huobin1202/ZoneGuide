@@ -1,0 +1,123 @@
+@using System.Text.Json
+@using ZoneGuide.Shared.Models
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Translate" Class="mr-2" />
+            Bản dịch / Audio: @Contribution.Name
+        </MudText>
+    </TitleContent>
+
+    <DialogContent>
+        <MudPaper Class="pa-3 mb-3" Outlined="true">
+            <MudText Typo="Typo.subtitle1" Class="mb-2">Ngôn ngữ gốc (vi-VN)</MudText>
+            <MudText Typo="Typo.body2" Style="white-space: pre-wrap;">@(string.IsNullOrWhiteSpace(Contribution.TTSScript) ? "-" : Contribution.TTSScript)</MudText>
+
+            @if (!string.IsNullOrWhiteSpace(Contribution.AudioUrl))
+            {
+                <MudPaper Class="pa-2 mt-2" Outlined="true">
+                    <audio controls preload="metadata" style="width:100%">
+                        <source src="@Contribution.AudioUrl" />
+                    </audio>
+                </MudPaper>
+            }
+        </MudPaper>
+
+        <MudText Typo="Typo.subtitle1" Class="mb-2">Các bản dịch</MudText>
+
+        @if (Translations.Count == 0)
+        {
+            <MudAlert Severity="Severity.Info">Đóng góp này chưa có bản dịch nào.</MudAlert>
+        }
+        else
+        {
+            @foreach (var tr in Translations.OrderBy(t => t.LanguageCode))
+            {
+                <MudPaper Class="pa-3 mb-2" Outlined="true">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-1">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info">@GetLanguageLabel(tr.LanguageCode)</MudChip>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@(string.IsNullOrWhiteSpace(tr.AudioUrl) ? "No audio" : "Ready")</MudText>
+                    </MudStack>
+
+                    <MudText Typo="Typo.body2" Style="white-space: pre-wrap;">@(string.IsNullOrWhiteSpace(tr.TTSScript) ? "-" : tr.TTSScript)</MudText>
+
+                    @if (!string.IsNullOrWhiteSpace(tr.AudioUrl))
+                    {
+                        <MudPaper Class="pa-2 mt-2" Outlined="true">
+                            <audio controls preload="metadata" style="width:100%">
+                                <source src="@tr.AudioUrl" />
+                            </audio>
+                        </MudPaper>
+                    }
+                </MudPaper>
+            }
+        }
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Close">Đóng</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance? MudDialog { get; set; }
+    [Parameter] public POIContributionDto Contribution { get; set; } = null!;
+
+    private const string TranslationMetaPrefix = "[ZG_I18N]";
+
+    private List<ContributionTranslationInput> Translations => ExtractTranslations(Contribution.ContributorNotes);
+
+    private void Close() => MudDialog?.Close();
+
+    private static string GetLanguageLabel(string code)
+    {
+        return code switch
+        {
+            "vi-VN" => "🇻🇳 Tiếng Việt",
+            "en-US" => "🇺🇸 English",
+            "ja-JP" => "🇯🇵 日本語",
+            "ko-KR" => "🇰🇷 한국어",
+            "zh-CN" => "🇨🇳 中文",
+            "fr-FR" => "🇫🇷 Français",
+            _ => code
+        };
+    }
+
+    private static List<ContributionTranslationInput> ExtractTranslations(string? notes)
+    {
+        if (string.IsNullOrWhiteSpace(notes))
+            return new List<ContributionTranslationInput>();
+
+        var idx = notes.IndexOf(TranslationMetaPrefix, StringComparison.Ordinal);
+        if (idx < 0)
+            return new List<ContributionTranslationInput>();
+
+        var json = notes[(idx + TranslationMetaPrefix.Length)..].Trim();
+        if (string.IsNullOrWhiteSpace(json))
+            return new List<ContributionTranslationInput>();
+
+        try
+        {
+            var payload = JsonSerializer.Deserialize<ContributionMetaPayload>(json);
+            return payload?.Translations ?? new List<ContributionTranslationInput>();
+        }
+        catch
+        {
+            return new List<ContributionTranslationInput>();
+        }
+    }
+
+    private sealed class ContributionMetaPayload
+    {
+        public List<ContributionTranslationInput> Translations { get; set; } = new();
+    }
+
+    private sealed class ContributionTranslationInput
+    {
+        public string LanguageCode { get; set; } = "vi-VN";
+        public string Name { get; set; } = string.Empty;
+        public string TTSScript { get; set; } = string.Empty;
+        public string? AudioUrl { get; set; }
+    }
+}

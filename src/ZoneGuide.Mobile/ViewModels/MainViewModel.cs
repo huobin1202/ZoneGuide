@@ -1,5 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ZoneGuide.Mobile.Services;
+using ZoneGuide.Mobile.Localization;
 using ZoneGuide.Shared.Interfaces;
 using ZoneGuide.Shared.Models;
 using System.Collections.ObjectModel;
@@ -9,16 +11,22 @@ namespace ZoneGuide.Mobile.ViewModels;
 /// <summary>
 /// ViewModel chính - Quản lý GPS, Geofence, Narration
 /// </summary>
-public partial class MainViewModel : ObservableObject
+public partial class MainViewModel : ObservableObject, IDisposable
 {
+    /// <summary>
+    /// Bán kính tìm POI gần trên màn hình Home/List
+    /// </summary>
+    private const double NearbyPoiRangeMeters = 240;
     private readonly ILocationService _locationService;
     private readonly IGeofenceService _geofenceService;
     private readonly INarrationService _narrationService;
     private readonly IPOIRepository _poiRepository;
     private readonly IAnalyticsRepository _analyticsRepository;
     private readonly ISettingsService _settingsService;
-
+    private readonly IMobilePresenceService _mobilePresenceService;
     private string _sessionId = string.Empty;
+    private bool _isFirstLocationFix = true;
+    private readonly HashSet<int> _playedPoiIdsInCurrentVisit = new();
 
     [ObservableProperty]
     private bool isTracking;
@@ -42,7 +50,7 @@ public partial class MainViewModel : ObservableObject
     private double narrationProgress;
 
     [ObservableProperty]
-    private string statusMessage = "Sẵn sàng";
+    private string statusMessage = AppLocalizer.Instance.Translate("main_status_ready");
 
     public ObservableCollection<POI> NearbyPOIs { get; } = new();
 
@@ -52,7 +60,8 @@ public partial class MainViewModel : ObservableObject
         INarrationService narrationService,
         IPOIRepository poiRepository,
         IAnalyticsRepository analyticsRepository,
-        ISettingsService settingsService)
+        ISettingsService settingsService,
+        IMobilePresenceService mobilePresenceService)
     {
         _locationService = locationService;
         _geofenceService = geofenceService;
@@ -60,6 +69,7 @@ public partial class MainViewModel : ObservableObject
         _poiRepository = poiRepository;
         _analyticsRepository = analyticsRepository;
         _settingsService = settingsService;
+        _mobilePresenceService = mobilePresenceService;
 
         // Subscribe events
         _locationService.LocationChanged += OnLocationChanged;
@@ -77,7 +87,6 @@ public partial class MainViewModel : ObservableObject
         // Tải POIs từ database
         var pois = await _poiRepository.GetActiveAsync();
         _geofenceService.AddPOIs(pois);
-
         _sessionId = Guid.NewGuid().ToString("N");
     }
 
@@ -90,11 +99,13 @@ public partial class MainViewModel : ObservableObject
         if (started)
         {
             IsTracking = true;
-            StatusMessage = "Đang theo dõi vị trí...";
+            StatusMessage = AppLocalizer.Instance.Translate("main_status_tracking");
+            _mobilePresenceService.UpdateStatus(StatusMessage);
         }
         else
         {
-            StatusMessage = "Không thể bắt đầu theo dõi vị trí";
+            StatusMessage = AppLocalizer.Instance.Translate("main_status_tracking_failed");
+            _mobilePresenceService.UpdateStatus(StatusMessage);
         }
     }
 
@@ -103,7 +114,8 @@ public partial class MainViewModel : ObservableObject
     {
         await _locationService.StopTrackingAsync();
         IsTracking = false;
-        StatusMessage = "Đã dừng theo dõi";
+        StatusMessage = AppLocalizer.Instance.Translate("main_status_tracking_stopped");
+        _mobilePresenceService.UpdateStatus(StatusMessage);
     }
 
     [RelayCommand]
@@ -144,6 +156,7 @@ public partial class MainViewModel : ObservableObject
     {
         try
         {
+            _playedPoiIdsInCurrentVisit.Add(poi.Id);
             _geofenceService.ResetCooldown(poi.Id);
 
             var item = CreateNarrationItem(poi, GeofenceEventType.Enter, 0);
@@ -159,6 +172,13 @@ public partial class MainViewModel : ObservableObject
     {
         CurrentLocation = location;
 
+        // On first location fix, initialize geofence states silently to prevent auto-play
+        if (_isFirstLocationFix)
+        {
+            _isFirstLocationFix = false;
+            _geofenceService.InitializeFromLocation(location);
+        }
+
         // Xử lý Geofence
         await _geofenceService.ProcessLocationUpdateAsync(location);
 
@@ -167,7 +187,7 @@ public partial class MainViewModel : ObservableObject
         NearestDistance = _geofenceService.NearestPOIDistance;
 
         // Cập nhật danh sách POI gần
-        var nearby = _geofenceService.GetPOIsInRange(_settingsService.Settings.DefaultApproachRadius * 2);
+        var nearby = _geofenceService.GetPOIsInRange(NearbyPoiRangeMeters);
         
         MainThread.BeginInvokeOnMainThread(() =>
         {
@@ -189,24 +209,40 @@ public partial class MainViewModel : ObservableObject
         switch (evt.EventType)
         {
             case GeofenceEventType.Enter:
+                if (_playedPoiIdsInCurrentVisit.Contains(evt.POI.Id))
+                {
+                    break;
+                }
+
                 if (settings.AutoPlayOnEnter)
                 {
-                    StatusMessage = $"Đã vào vùng: {evt.POI.Name}";
+                    StatusMessage = string.Format(
+                        AppLocalizer.Instance.Translate("main_status_enter_region"),
+                        evt.POI.Name);
+                    _mobilePresenceService.UpdateStatus(StatusMessage);
                     var item = CreateNarrationItem(evt.POI, evt.EventType, evt.Distance);
                     await _narrationService.PlayImmediatelyAsync(item);
+                    _playedPoiIdsInCurrentVisit.Add(evt.POI.Id);
                 }
                 break;
 
             case GeofenceEventType.Approach:
                 if (settings.NotifyOnApproach)
                 {
-                    StatusMessage = $"Đang đến gần: {evt.POI.Name}";
+                    StatusMessage = string.Format(
+                        AppLocalizer.Instance.Translate("main_status_approach_region"),
+                        evt.POI.Name);
+                    _mobilePresenceService.UpdateStatus(StatusMessage);
                     // Có thể thêm notification ở đây
                 }
                 break;
 
             case GeofenceEventType.Exit:
-                StatusMessage = $"Đã rời khỏi: {evt.POI.Name}";
+                _playedPoiIdsInCurrentVisit.Remove(evt.POI.Id);
+                StatusMessage = string.Format(
+                    AppLocalizer.Instance.Translate("main_status_exit_region"),
+                    evt.POI.Name);
+                _mobilePresenceService.UpdateStatus(StatusMessage);
                 break;
         }
     }
@@ -217,20 +253,26 @@ public partial class MainViewModel : ObservableObject
         {
             IsPlaying = true;
             CurrentNarration = item;
-            StatusMessage = $"Đang phát: {item.POI.Name}";
+            StatusMessage = string.Format(
+                AppLocalizer.Instance.Translate("main_status_now_playing"),
+                item.POI.Name);
+            _mobilePresenceService.UpdateStatus(StatusMessage);
         });
     }
 
     private void OnNarrationCompleted(object? sender, NarrationQueueItem item)
     {
-        _geofenceService.ResetCooldown(item.POI.Id);
+        // DO NOT reset cooldown when narration completes naturally.
+        // Cooldown is only reset when user manually stops/skips narration,
+        // or when user exits the POI region (handled by GeofenceService).
 
         MainThread.BeginInvokeOnMainThread(() =>
         {
             IsPlaying = false;
             CurrentNarration = null;
             NarrationProgress = 0;
-            StatusMessage = "Hoàn thành phát";
+            StatusMessage = AppLocalizer.Instance.Translate("main_status_play_completed");
+            _mobilePresenceService.UpdateStatus(StatusMessage);
         });
     }
 
@@ -243,7 +285,8 @@ public partial class MainViewModel : ObservableObject
             IsPlaying = false;
             CurrentNarration = null;
             NarrationProgress = 0;
-            StatusMessage = "Đã dừng phát";
+            StatusMessage = AppLocalizer.Instance.Translate("main_status_play_stopped");
+            _mobilePresenceService.UpdateStatus(StatusMessage);
         });
     }
 
@@ -271,7 +314,7 @@ public partial class MainViewModel : ObservableObject
             POI = poi,
             AudioPath = File.Exists(offlineAudioPath) ? offlineAudioPath : poi.AudioFilePath,
             AudioUrl = poi.AudioUrl,
-            TTSText = poi.TTSScript ?? poi.FullDescription,
+            TTSText = poi.TTSScript,
             Language = settings.PreferredLanguage,
             Priority = poi.Priority,
             TriggerType = triggerType,
@@ -302,9 +345,20 @@ public partial class MainViewModel : ObservableObject
         var deviceId = await _settingsService.GetAsync<string>("anonymous_device_id");
         if (string.IsNullOrEmpty(deviceId))
         {
-            deviceId = Guid.NewGuid().ToString("N")[..16]; // Hash ngắn
+            deviceId = Guid.NewGuid().ToString("N")[..16];
             await _settingsService.SetAsync("anonymous_device_id", deviceId);
         }
+
         return deviceId;
+    }
+
+    public void Dispose()
+    {
+        _locationService.LocationChanged -= OnLocationChanged;
+        _geofenceService.GeofenceTriggered -= OnGeofenceTriggered;
+        _narrationService.NarrationStarted -= OnNarrationStarted;
+        _narrationService.NarrationCompleted -= OnNarrationCompleted;
+        _narrationService.NarrationStopped -= OnNarrationStopped;
+        _narrationService.ProgressUpdated -= OnProgressUpdated;
     }
 }

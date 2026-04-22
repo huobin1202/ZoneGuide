@@ -129,6 +129,14 @@
                         </div>
 
                         <div>
+                            <MudText Typo="Typo.subtitle2" Class="tour-field-label">Audio tour</MudText>
+                            <MudTextField @bind-Value="_model.AudioUrl"
+                                          Placeholder="Dán Audio URL hoặc data:audio..."
+                                          Variant="Variant.Outlined"
+                                          Lines="2" />
+                        </div>
+
+                        <div>
                             <MudText Typo="Typo.subtitle2" Class="tour-field-label">Thời gian</MudText>
                             <div class="tour-time-grid">
                                 <MudNumericField T="int"
@@ -552,7 +560,7 @@
             .Where(p => string.IsNullOrWhiteSpace(_searchKeyword)
                         || p.Name.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase)
                         || (p.Category?.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase) ?? false)
-                        || (p.ShortDescription?.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
+                        || (p.TTSScript?.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
             .OrderByDescending(p => IsPOISelected(p.Id))
             .ThenBy(p => GetSelectedIndex(p.Id) < 0 ? int.MaxValue : GetSelectedIndex(p.Id))
             .ThenBy(p => p.Name);
@@ -577,10 +585,10 @@
             {
                 Name = Tour.Name,
                 Description = Tour.Description,
+                AudioUrl = Tour.AudioUrl,
                 EstimatedDurationMinutes = Tour.EstimatedDurationMinutes,
                 DistanceKm = Tour.DistanceKm,
                 ImageUrl = Tour.ImageUrl,
-                Difficulty = Tour.Difficulty,
                 IsActive = Tour.IsActive
             };
 
@@ -613,9 +621,9 @@
 
     private string GetPOISubtitle(POIDto poi)
     {
-        if (!string.IsNullOrWhiteSpace(poi.ShortDescription))
+        if (!string.IsNullOrWhiteSpace(poi.TTSScript))
         {
-            return poi.ShortDescription;
+            return poi.TTSScript;
         }
 
         if (!string.IsNullOrWhiteSpace(poi.Category))
@@ -757,10 +765,10 @@
                 {
                     Name = _model.Name,
                     Description = _model.Description,
+                    AudioUrl = _model.AudioUrl,
                     EstimatedDurationMinutes = _model.EstimatedDurationMinutes,
                     DistanceKm = _model.DistanceKm,
                     ImageUrl = _model.ImageUrl,
-                    Difficulty = _model.Difficulty,
                     POIIds = ActiveSelectedPOIs.Select(p => p.Id).ToList(),
                     IsActive = _model.IsActive
                 };
@@ -777,10 +785,10 @@
                 {
                     Name = _model.Name,
                     Description = _model.Description,
+                    AudioUrl = _model.AudioUrl,
                     EstimatedDurationMinutes = _model.EstimatedDurationMinutes,
                     DistanceKm = _model.DistanceKm,
                     ImageUrl = _model.ImageUrl,
-                    Difficulty = _model.Difficulty,
                     POIIds = ActiveSelectedPOIs.Select(p => p.Id).ToList()
                 };
 
@@ -866,10 +874,10 @@
     {
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
+        public string? AudioUrl { get; set; }
         public int EstimatedDurationMinutes { get; set; }
         public double DistanceKm { get; set; }
         public string? ImageUrl { get; set; }
-        public string Difficulty { get; set; } = "Easy";
         public bool IsActive { get; set; } = true;
     }
 }

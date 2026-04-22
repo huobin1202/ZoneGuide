@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
+             xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
+             xmlns:views="clr-namespace:ZoneGuide.Mobile.Views"
+             x:Class="ZoneGuide.Mobile.Views.MorePage"
+             x:Name="MoreRoot"
+             x:DataType="vm:MoreViewModel"
+             Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
+             BackgroundColor="#F6F7FB">
+
+    <Grid RowDefinitions="Auto,*,Auto,Auto">
+        <Border Grid.Row="0"
+                BackgroundColor="#0F172A"
+                StrokeThickness="0"
+                StrokeShape="RoundRectangle 0,0,28,28"
+                Padding="20,28,20,22">
+            <VerticalStackLayout Spacing="6">
+                <Label Text="{local:Translate tab_more}"
+                       FontSize="30"
+                       FontAttributes="Bold"
+                       TextColor="White" />
+                <Label Text="{local:Translate more_subtitle}"
+                       FontSize="14"
+                       TextColor="#CBD5E1" />
+            </VerticalStackLayout>
+        </Border>
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="16,16,16,30"
+                                 BindableLayout.ItemsSource="{Binding MenuItems}"
+                                 Spacing="14">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="vm:MoreMenuItemViewModel">
+                        <Border BackgroundColor="White"
+                                Stroke="#E2E8F0"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 22"
+                                Padding="16">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding BindingContext.OpenItemCommand, Source={x:Reference MoreRoot}}"
+                                                      CommandParameter="{Binding .}" />
+                            </Border.GestureRecognizers>
+                            <Grid ColumnDefinitions="48,*,Auto"
+                                  ColumnSpacing="14">
+                                <Border WidthRequest="48"
+                                        HeightRequest="48"
+                                        BackgroundColor="#EEF2FF"
+                                        StrokeThickness="0"
+                                        StrokeShape="RoundRectangle 16">
+                                    <Label Text="{Binding IconGlyph}"
+                                           FontSize="20"
+                                           HorizontalOptions="Center"
+                                           VerticalOptions="Center"
+                                           TextColor="#3730A3" />
+                                </Border>
+
+                                <VerticalStackLayout Grid.Column="1"
+                                                     Spacing="4"
+                                                     VerticalOptions="Center">
+                                    <Label Text="{Binding Title}"
+                                           FontSize="18"
+                                           FontAttributes="Bold"
+                                           TextColor="#0F172A" />
+                                    <Label Text="{Binding Subtitle}"
+                                           FontSize="13"
+                                           TextColor="{StaticResource Gray500}" />
+                                </VerticalStackLayout>
+
+                                <Label Grid.Column="2"
+                                       Text="›"
+                                       FontSize="28"
+                                       VerticalOptions="Center"
+                                       TextColor="#94A3B8" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <views:MiniPlayerView Grid.Row="2" />
+        <views:CustomBottomBarView Grid.Row="3"
+                                   CurrentTab="more" />
+    </Grid>
+
+</ContentPage>

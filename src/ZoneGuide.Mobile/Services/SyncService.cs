@@ -113,11 +113,16 @@ public class SyncService : ISyncService
 
             SyncProgress?.Invoke(this, 0.5);
 
+            var existingPoiMap = await GetExistingPoiMapAsync(syncData.POIs);
+
             // Cập nhật POIs
             foreach (var poiDto in syncData.POIs)
             {
-                var poi = MapToPOI(poiDto);
-                await _poiRepository.InsertOrUpdateAsync(poi);
+                var poiId = int.TryParse(poiDto.Id, out var parsedPoiId) ? parsedPoiId : 0;
+                existingPoiMap.TryGetValue(poiId, out var existingPoi);
+
+                var poi = MapToPOI(poiDto, existingPoi);
+                await SavePoiAsync(poi, existingPoi != null);
                 await SyncPoiTranslationsAsync(poiDto, poi.Id);
             }
 
@@ -129,11 +134,16 @@ public class SyncService : ISyncService
                 await _tourRepository.DeleteAsync(deletedId);
             }
 
+            var existingTourMap = await GetExistingTourMapAsync(syncData.Tours);
+
             // Cập nhật Tours
             foreach (var tourDto in syncData.Tours)
             {
-                var tour = MapToTour(tourDto);
-                await _tourRepository.InsertOrUpdateAsync(tour);
+                var tourId = int.TryParse(tourDto.Id, out var parsedTourId) ? parsedTourId : 0;
+                existingTourMap.TryGetValue(tourId, out var existingTour);
+
+                var tour = MapToTour(tourDto, existingTour);
+                await SaveTourAsync(tour, existingTour != null);
                 await SyncTourTranslationsAsync(tourDto, tour.Id);
             }
 
@@ -220,6 +230,7 @@ public class SyncService : ISyncService
         try
         {
             var tour = await _apiService.GetTourDetailsAsync(tourId);
+            var localTour = await _tourRepository.GetByIdAsync(tourId);
 
             var poisToDownload = tour?.POIs?.ToList() ?? new List<POIDto>();
             if (poisToDownload.Count == 0)
@@ -243,6 +254,28 @@ public class SyncService : ISyncService
 
             var downloadableAssetCount = 0;
             var downloadedAssetCount = 0;
+
+            var resolvedTourAudioUrl = !string.IsNullOrWhiteSpace(localTour?.AudioUrl)
+                ? localTour.AudioUrl
+                : tour?.AudioUrl;
+
+            if (!string.IsNullOrWhiteSpace(resolvedTourAudioUrl))
+            {
+                downloadableAssetCount++;
+                var tourAudioData = await _apiService.DownloadAudioAsync(resolvedTourAudioUrl);
+                if (tourAudioData != null)
+                {
+                    var tourAudioPath = Path.Combine(offlineDir, "tour_audio.mp3");
+                    await File.WriteAllBytesAsync(tourAudioPath, tourAudioData);
+                    downloadedAssetCount++;
+
+                    if (localTour != null)
+                    {
+                        localTour.AudioFilePath = tourAudioPath;
+                        await _tourRepository.UpdateAsync(localTour);
+                    }
+                }
+            }
 
             foreach (var poi in poisToDownload)
             {
@@ -341,6 +374,7 @@ public class SyncService : ISyncService
         try
         {
             var offlineDir = Path.Combine(FileSystem.AppDataDirectory, "offline", tourId.ToString());
+            var localTour = await _tourRepository.GetByIdAsync(tourId);
 
             if (_narrationService.CurrentItem?.POI.TourId == tourId)
             {
@@ -359,6 +393,12 @@ public class SyncService : ISyncService
                 }
 
                 await _poiRepository.UpdateAsync(poi);
+            }
+
+            if (localTour != null)
+            {
+                localTour.AudioFilePath = null;
+                await _tourRepository.UpdateAsync(localTour);
             }
 
             if (Directory.Exists(offlineDir))
@@ -387,28 +427,31 @@ public class SyncService : ISyncService
         return Task.FromResult(hasFiles);
     }
 
-    private static POI MapToPOI(POIDto dto)
+    private static POI MapToPOI(POIDto dto, POI? existing = null)
     {
         return new POI
         {
             Id = int.TryParse(dto.Id, out var id) ? id : 0,
             UniqueCode = dto.UniqueCode,
             Name = dto.Name,
-            ShortDescription = dto.ShortDescription ?? string.Empty,
-            FullDescription = dto.FullDescription ?? string.Empty,
             Latitude = dto.Latitude,
             Longitude = dto.Longitude,
             TriggerRadius = dto.TriggerRadius,
             ApproachRadius = dto.ApproachRadius,
             Priority = dto.Priority,
+            AudioFilePath = existing?.AudioFilePath,
             AudioUrl = dto.AudioUrl,
+            AudioDurationSeconds = existing?.AudioDurationSeconds,
+            AudioFileSizeBytes = existing?.AudioFileSizeBytes,
             TTSScript = dto.TTSScript,
+            ImagePath = existing?.ImagePath,
             ImageUrl = dto.ImageUrl,
             MapLink = dto.MapLink,
             Category = ResolveCategory(dto),
             Language = dto.Language ?? "vi-VN",
             TourId = dto.TourId,
             OrderInTour = dto.OrderInTour,
+            CreatedAt = existing?.CreatedAt ?? DateTime.UtcNow,
             CooldownSeconds = dto.CooldownSeconds,
             IsActive = dto.IsActive,
             UpdatedAt = DateTime.UtcNow
@@ -421,7 +464,7 @@ public class SyncService : ISyncService
         if (!string.IsNullOrWhiteSpace(dto.Category))
             return NormalizeCategory(dto.Category);
 
-        var combined = $"{dto.UniqueCode} {dto.Name} {dto.ShortDescription}".ToLowerInvariant();
+        var combined = $"{dto.UniqueCode} {dto.Name} {dto.TTSScript}".ToLowerInvariant();
 
         if (combined.Contains("ẩm thực") || combined.Contains("food") || combined.Contains("ăn uống") || combined.Contains("restaurant") || combined.Contains("vĩnh khánh"))
             return "food";
@@ -457,7 +500,7 @@ public class SyncService : ISyncService
         };
     }
 
-    private static Tour MapToTour(TourDto dto)
+    private static Tour MapToTour(TourDto dto, Tour? existing = null)
     {
         var thumbnailUrl = !string.IsNullOrWhiteSpace(dto.ThumbnailUrl)
             ? dto.ThumbnailUrl
@@ -469,13 +512,15 @@ public class SyncService : ISyncService
             UniqueCode = dto.UniqueCode,
             Name = dto.Name,
             Description = dto.Description ?? string.Empty,
+            AudioFilePath = existing?.AudioFilePath,
+            AudioUrl = dto.AudioUrl,
             EstimatedDurationMinutes = dto.EstimatedDurationMinutes,
             EstimatedDistanceMeters = dto.DistanceKm * 1000, // Convert km to meters
             POICount = dto.POICount,
             ThumbnailUrl = thumbnailUrl,
             Language = dto.Language,
-            DifficultyLevel = dto.DifficultyLevel,
             WheelchairAccessible = dto.WheelchairAccessible,
+            CreatedAt = existing?.CreatedAt ?? DateTime.UtcNow,
             IsActive = dto.IsActive,
             UpdatedAt = DateTime.UtcNow
         };
@@ -507,18 +552,31 @@ public class SyncService : ISyncService
             if (string.IsNullOrWhiteSpace(translation.LanguageCode))
                 continue;
 
+            var normalizedLanguage = NormalizeLanguage(translation.LanguageCode);
+            var existingEntry = existing.FirstOrDefault(t =>
+                string.Equals(NormalizeLanguage(t.LanguageCode), normalizedLanguage, StringComparison.OrdinalIgnoreCase));
+
             var entry = new POITranslation
             {
+                Id = existingEntry?.Id ?? 0,
                 POIId = poiId,
-                LanguageCode = NormalizeLanguage(translation.LanguageCode),
+                LanguageCode = normalizedLanguage,
                 Name = translation.Name ?? string.Empty,
-                ShortDescription = translation.ShortDescription ?? string.Empty,
-                FullDescription = translation.FullDescription ?? string.Empty,
                 TTSScript = translation.TTSScript,
-                AudioUrl = translation.AudioUrl
+                AudioUrl = translation.AudioUrl,
+                AudioDurationSeconds = existingEntry?.AudioDurationSeconds,
+                AudioFileSizeBytes = existingEntry?.AudioFileSizeBytes,
+                CreatedAt = existingEntry?.CreatedAt ?? DateTime.UtcNow
             };
 
-            await _poiTranslationRepository.InsertOrUpdateAsync(entry);
+            if (existingEntry != null)
+            {
+                await _poiTranslationRepository.UpdateAsync(entry);
+            }
+            else
+            {
+                await _poiTranslationRepository.InsertAsync(entry);
+            }
         }
     }
 
@@ -566,16 +624,77 @@ public class SyncService : ISyncService
             if (string.IsNullOrWhiteSpace(translation.LanguageCode))
                 continue;
 
+            var normalizedLanguage = NormalizeLanguage(translation.LanguageCode);
+            var existingEntry = existing.FirstOrDefault(t =>
+                string.Equals(NormalizeLanguage(t.LanguageCode), normalizedLanguage, StringComparison.OrdinalIgnoreCase));
+
             var entry = new TourTranslation
             {
+                Id = existingEntry?.Id ?? 0,
                 TourId = tourId,
-                LanguageCode = NormalizeLanguage(translation.LanguageCode),
+                LanguageCode = normalizedLanguage,
                 Description = translation.Description ?? string.Empty,
-                IsOutdated = translation.IsOutdated
+                IsOutdated = translation.IsOutdated,
+                AudioUrl = translation.AudioUrl,
+                IsAudioOutdated = translation.IsAudioOutdated,
+                CreatedAt = existingEntry?.CreatedAt ?? DateTime.UtcNow
             };
 
-            await _tourTranslationRepository.InsertOrUpdateAsync(entry);
+            if (existingEntry != null)
+            {
+                await _tourTranslationRepository.UpdateAsync(entry);
+            }
+            else
+            {
+                await _tourTranslationRepository.InsertAsync(entry);
+            }
         }
+    }
+
+    private async Task<Dictionary<int, POI>> GetExistingPoiMapAsync(IEnumerable<POIDto> poiDtos)
+    {
+        var ids = poiDtos
+            .Select(dto => int.TryParse(dto.Id, out var id) ? id : 0)
+            .Where(id => id > 0)
+            .ToHashSet();
+
+        if (ids.Count == 0)
+            return new Dictionary<int, POI>();
+
+        var existing = await _poiRepository.GetAllAsync();
+        return existing
+            .Where(p => ids.Contains(p.Id))
+            .ToDictionary(p => p.Id);
+    }
+
+    private async Task<Dictionary<int, Tour>> GetExistingTourMapAsync(IEnumerable<TourDto> tourDtos)
+    {
+        var ids = tourDtos
+            .Select(dto => int.TryParse(dto.Id, out var id) ? id : 0)
+            .Where(id => id > 0)
+            .ToHashSet();
+
+        if (ids.Count == 0)
+            return new Dictionary<int, Tour>();
+
+        var existing = await _tourRepository.GetAllAsync();
+        return existing
+            .Where(t => ids.Contains(t.Id))
+            .ToDictionary(t => t.Id);
+    }
+
+    private Task SavePoiAsync(POI poi, bool exists)
+    {
+        return exists
+            ? _poiRepository.UpdateAsync(poi)
+            : _poiRepository.InsertAsync(poi);
+    }
+
+    private Task SaveTourAsync(Tour tour, bool exists)
+    {
+        return exists
+            ? _tourRepository.UpdateAsync(tour)
+            : _tourRepository.InsertAsync(tour);
     }
 
     private async Task EnsureSyncStateLoadedAsync()

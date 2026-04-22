@@ -28,10 +28,12 @@ public interface IPOIContributionService
 public class POIContributionService : IPOIContributionService
 {
     private readonly AppDbContext _context;
+    private readonly PoiQrCodeService _poiQrCodeService;
     
-    public POIContributionService(AppDbContext context)
+    public POIContributionService(AppDbContext context, PoiQrCodeService poiQrCodeService)
     {
         _context = context;
+        _poiQrCodeService = poiQrCodeService;
     }
     
     #region Contributor Methods
@@ -43,8 +45,6 @@ public class POIContributionService : IPOIContributionService
             ContributorId = contributorId,
             OriginalPOIId = dto.OriginalPOIId,
             Name = dto.Name,
-            ShortDescription = dto.ShortDescription ?? string.Empty,
-            FullDescription = dto.FullDescription ?? string.Empty,
             Latitude = dto.Latitude ?? 0,
             Longitude = dto.Longitude ?? 0,
             TriggerRadius = dto.TriggerRadius,
@@ -83,8 +83,6 @@ public class POIContributionService : IPOIContributionService
         }
         
         if (dto.Name != null) contribution.Name = dto.Name;
-        if (dto.ShortDescription != null) contribution.ShortDescription = dto.ShortDescription;
-        if (dto.FullDescription != null) contribution.FullDescription = dto.FullDescription;
         if (dto.Latitude.HasValue) contribution.Latitude = dto.Latitude.Value;
         if (dto.Longitude.HasValue) contribution.Longitude = dto.Longitude.Value;
         if (dto.TriggerRadius.HasValue) contribution.TriggerRadius = dto.TriggerRadius.Value;
@@ -265,8 +263,6 @@ public class POIContributionService : IPOIContributionService
             if (poi != null)
             {
                 poi.Name = contribution.Name;
-                poi.ShortDescription = contribution.ShortDescription;
-                poi.FullDescription = contribution.FullDescription;
                 poi.Latitude = contribution.Latitude;
                 poi.Longitude = contribution.Longitude;
                 poi.TriggerRadius = contribution.TriggerRadius;
@@ -286,8 +282,6 @@ public class POIContributionService : IPOIContributionService
                 {
                     UniqueCode = $"POI-{DateTime.UtcNow:yyyyMMddHHmmss}-{contribution.Id}",
                     Name = contribution.Name,
-                    ShortDescription = contribution.ShortDescription,
-                    FullDescription = contribution.FullDescription,
                     Latitude = contribution.Latitude,
                     Longitude = contribution.Longitude,
                     TriggerRadius = contribution.TriggerRadius,
@@ -308,6 +302,9 @@ public class POIContributionService : IPOIContributionService
             }
 
             await _context.SaveChangesAsync();
+
+            // Generate QR code for the approved POI (payload = "POI:{id}").
+            await _poiQrCodeService.EnsureQrCodeGeneratedAsync(poi.Id);
 
             // Persist link so subsequent contributor edits can target the same POI.
             contribution.OriginalPOIId = poi.Id;
@@ -449,8 +446,6 @@ public class POIContributionService : IPOIContributionService
         ContributorId = entity.ContributorId,
         ContributorName = entity.Contributor?.DisplayName ?? "Unknown",
         Name = entity.Name,
-        ShortDescription = entity.ShortDescription,
-        FullDescription = entity.FullDescription,
         Latitude = entity.Latitude,
         Longitude = entity.Longitude,
         TriggerRadius = entity.TriggerRadius,

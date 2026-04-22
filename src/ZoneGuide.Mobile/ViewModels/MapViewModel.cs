@@ -7,6 +7,7 @@ using ZoneGuide.Shared.Models;
 using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Maps;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -26,7 +27,7 @@ public partial class MapViewModel : ObservableObject
     private const double DefaultTriggerRadiusMeters = 60;
     private const double MinTriggerRadiusMeters = 20;
     private const double MaxActivationRadiusMeters = 5000;
-    private const double NarrationStopHysteresisMeters = 28;
+    private const double NarrationStopHysteresisMeters = 45;
     private static readonly TimeSpan AutoNarrationDebounce = TimeSpan.FromSeconds(1.2);
     private static readonly TimeSpan AutoNarrationSamePoiCooldown = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan AutoOpenPoiDetailCooldown = TimeSpan.FromSeconds(20);
@@ -39,8 +40,10 @@ public partial class MapViewModel : ObservableObject
     private readonly IGeofenceService _geofenceService;
     private readonly IPOIRepository _poiRepository;
     private readonly INarrationService _narrationService;
+    private readonly GlobalMiniPlayerViewModel _miniPlayerViewModel;
     private readonly ITourRepository _tourRepository;
     private readonly ISyncService _syncService;
+    private readonly ISettingsService _settingsService;
 
     private bool _startTourRequested;
     private int? _requestedTourId;
@@ -52,13 +55,17 @@ public partial class MapViewModel : ObservableObject
     private int? _replayBlockedPoiId;
     private int? _lastAutoOpenedPoiId;
     private DateTime _lastAutoOpenedAtUtc = DateTime.MinValue;
+    private int? _lockedPoiId;
     private int? _lastAutoNarrationPoiId;
     private DateTime _lastAutoNarrationAtUtc = DateTime.MinValue;
+    private bool _geofenceInitialized;
     private int? _activeInAppNavigationPoiId;
     private Location? _lastInAppNavigationOrigin;
     private DateTime _lastInAppNavigationRouteUpdatedAtUtc = DateTime.MinValue;
     private bool _isUpdatingInAppNavigationRoute;
+    private bool _selectedPoiOverlaySuppressedInTourMode;
     private readonly Dictionary<int, DateTime> _autoNarrationDebounceByPoi = new();
+    private readonly HashSet<int> _playedPoiIdsInCurrentVisit = new();
     private CancellationTokenSource? _routeBuildCts;
 
     [ObservableProperty]
@@ -107,7 +114,13 @@ public partial class MapViewModel : ObservableObject
     private int activeTourPoiCount;
 
     [ObservableProperty]
+    private int? activeTourId;
+
+    [ObservableProperty]
     private bool isTourPoiListVisible;
+
+    [ObservableProperty]
+    private bool isTourSelectionHighlightVisible = true;
 
     public bool IsTourModeActive
     {
@@ -157,47 +170,81 @@ public partial class MapViewModel : ObservableObject
         await ApplyStartTourRouteIfRequestedAsync(_requestedTourId.Value);
     }
 
+    public async Task ActivateTourAsync(int tourId)
+    {
+        SetTourRequest(tourId, startTour: true);
+        await ApplyTourRequestAsync();
+    }
+
     private List<POI> _allPOIs = new();
 
     public ObservableCollection<POI> POIs { get; } = new();
+    public ObservableCollection<POI> TourSheetPOIs { get; } = new();
     public ObservableCollection<Pin> MapPins { get; } = new();
     public ObservableCollection<Location> TourRoutePoints { get; } = new();
 
-    public List<string> Categories { get; } = new()
-    {
-        "Tất cả",
-        "Hải sản & ốc",
-        "Ăn vặt",
-        "Lẩu & nướng",
-        "Nhậu",
-        "Giải khát",
-        "Ăn no"
-    };
+    public ObservableCollection<string> Categories { get; } = new();
 
     public MapViewModel(
         ILocationService locationService,
         IGeofenceService geofenceService,
         IPOIRepository poiRepository,
         INarrationService narrationService,
+        GlobalMiniPlayerViewModel miniPlayerViewModel,
         ITourRepository tourRepository,
-        ISyncService syncService)
+        ISyncService syncService,
+        ISettingsService settingsService)
     {
         _locationService = locationService;
         _geofenceService = geofenceService;
         _poiRepository = poiRepository;
         _narrationService = narrationService;
+        _miniPlayerViewModel = miniPlayerViewModel;
         _tourRepository = tourRepository;
         _syncService = syncService;
+        _settingsService = settingsService;
 
         _locationService.LocationChanged += OnLocationChanged;
         _geofenceService.GeofenceTriggered += OnGeofenceTriggered;
         _narrationService.NarrationStarted += OnNarrationStateChanged;
         _narrationService.NarrationCompleted += OnNarrationStateChanged;
         _narrationService.NarrationStopped += OnNarrationStateChanged;
+        _miniPlayerViewModel.PropertyChanged += OnMiniPlayerPropertyChanged;
+
+        RefreshLocalizedCategories();
+        AppLocalizer.Instance.PropertyChanged += OnLocalizerPropertyChanged;
 
         SelectedCategory = Categories.FirstOrDefault();
 
         UpdateSelectedPoiNarrationState();
+    }
+
+    private void OnLocalizerPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(e.PropertyName))
+            return;
+
+        var previousKey = string.IsNullOrWhiteSpace(SelectedCategory)
+            ? "all"
+            : NormalizeCategoryKey(SelectedCategory);
+
+        RefreshLocalizedCategories();
+
+        SelectedCategory = Categories
+            .FirstOrDefault(c => NormalizeCategoryKey(c) == previousKey)
+            ?? Categories.FirstOrDefault();
+    }
+
+    private void RefreshLocalizedCategories()
+    {
+        Categories.Clear();
+        Categories.Add(AppLocalizer.Instance.Translate("pois_filter_all", "All"));
+        Categories.Add(AppLocalizer.Instance.Translate("category_tourism"));
+        Categories.Add(AppLocalizer.Instance.Translate("category_service"));
+        Categories.Add(AppLocalizer.Instance.Translate("category_food"));
+        Categories.Add(AppLocalizer.Instance.Translate("category_entertainment"));
+        Categories.Add(AppLocalizer.Instance.Translate("category_drinks"));
+        Categories.Add(AppLocalizer.Instance.Translate("category_shopping"));
     }
 
     public async Task InitializeAsync()
@@ -248,6 +295,13 @@ public partial class MapViewModel : ObservableObject
                     {
                         UserLocation = candidate;
                         _hasReliableUserLocation = true;
+
+                        if (!_geofenceInitialized)
+                        {
+                            _geofenceInitialized = true;
+                            _geofenceService.InitializeFromLocation(location);
+                        }
+
                         await _geofenceService.ProcessLocationUpdateAsync(location);
                     }
                     else
@@ -256,18 +310,18 @@ public partial class MapViewModel : ObservableObject
                             $"[MapVM] Ignored startup outlier location: {location.Latitude},{location.Longitude} (acc={location.Accuracy:F0}m)");
                     }
 
-                    // Ưu tiên hiển thị POI trên bản đồ. Chỉ zoom vào vị trí user khi không có POI.
+                    // Ưu tiên hiển thị cụm POI trên bản đồ. Chỉ zoom vào user khi không có POI nào.
                     if (TourRoutePoints.Count > 1)
                     {
                         ApplyMapSpanForTourAndUser(POIs.ToList());
                     }
-                    else if (_hasReliableUserLocation && UserLocation != null)
-                    {
-                        MapSpan = MapSpan.FromCenterAndRadius(UserLocation, Distance.FromKilometers(0.8));
-                    }
                     else if (_allPOIs.Count > 0)
                     {
                         ApplyMapSpanForPoiCollection(_allPOIs);
+                    }
+                    else if (_hasReliableUserLocation && UserLocation != null)
+                    {
+                        MapSpan = MapSpan.FromCenterAndRadius(UserLocation, Distance.FromKilometers(0.8));
                     }
                     else
                     {
@@ -296,15 +350,41 @@ public partial class MapViewModel : ObservableObject
         }
     }
 
+    public async Task SuppressAutoNarrationForCurrentInRangePoisAsync()
+    {
+        var current = _locationService.CurrentLocation;
+        if (current == null || !IsValidLocation(current))
+        {
+            return;
+        }
+
+        var monitored = _geofenceService.MonitoredPOIs;
+        if (monitored.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var poi in monitored)
+        {
+            var approachRadius = GetEffectiveApproachRadiusMeters(poi);
+            var distance = current.DistanceTo(poi.Latitude, poi.Longitude);
+            if (distance <= approachRadius)
+            {
+                _playedPoiIdsInCurrentVisit.Add(poi.Id);
+            }
+        }
+
+        await Task.CompletedTask;
+    }
+
     [RelayCommand]
     private async Task LoadPOIsAsync()
     {
         try
         {
-            var activePois = await _poiRepository.GetActiveAsync();
-            var sourcePois = activePois.Count > 0 ? activePois : await _poiRepository.GetAllAsync();
+            var sourcePois = await LoadSourcePoisAsync();
 
-            if (activePois.Count == 0)
+            if (!sourcePois.Any(p => p.IsActive))
             {
                 System.Diagnostics.Debug.WriteLine("[MapVM] Active POIs are empty, fallback to all POIs for map rendering.");
             }
@@ -347,12 +427,22 @@ public partial class MapViewModel : ObservableObject
             var pin = new Pin
             {
                 Label = poi.Name,
-                Address = poi.TTSScript ?? poi.FullDescription ?? poi.ShortDescription,
+                Address = poi.TTSScript,
                 Location = new Location(poi.Latitude, poi.Longitude),
                 Type = PinType.Place
             };
             
             MapPins.Add(pin);
+        }
+    }
+
+    private void PopulateTourSheetPois(IEnumerable<POI> pois)
+    {
+        TourSheetPOIs.Clear();
+
+        foreach (var poi in pois)
+        {
+            TourSheetPOIs.Add(poi);
         }
     }
 
@@ -368,7 +458,10 @@ public partial class MapViewModel : ObservableObject
         {
             ClearTourRoute();
             _currentTourPois.Clear();
+            PopulateTourSheetPois([]);
             IsTourModeActive = false;
+            _selectedPoiOverlaySuppressedInTourMode = false;
+            ActiveTourId = null;
             ActiveTourName = string.Empty;
             ActiveTourPoiCount = 0;
             IsTourPoiListVisible = false;
@@ -382,17 +475,21 @@ public partial class MapViewModel : ObservableObject
 
         _currentTourPois.Clear();
         _currentTourPois.AddRange(tourPois);
+        PopulateTourSheetPois(tourPois);
         _replayBlockedPoiId = null;
         ResetAutoNarrationTracking();
 
         ActiveTourName = !string.IsNullOrWhiteSpace(tour?.Name)
             ? tour!.Name
-            : "Tour";
+            : AppLocalizer.Instance.Translate("map_tour_fallback");
+        ActiveTourId = tourId;
         ActiveTourPoiCount = tourPois.Count;
 
         PopulatePins(tourPois);
         SetMonitoredPois(tourPois);
+        _selectedPoiOverlaySuppressedInTourMode = false;
         IsTourModeActive = true;
+        IsTourSelectionHighlightVisible = true;
         IsTourPoiListVisible = true;
 
         await SetTourRouteAsync(tourPois);
@@ -600,46 +697,52 @@ public partial class MapViewModel : ObservableObject
     [RelayCommand]
     private void PerformSearch()
     {
-        _activeInAppNavigationPoiId = null;
-        _lastInAppNavigationOrigin = null;
-        ClearTourRoute();
-        IsTourModeActive = false;
-        ActiveTourName = string.Empty;
-        ActiveTourPoiCount = 0;
-        IsTourPoiListVisible = false;
-        _currentTourPois.Clear();
-        _lastInRangePoiId = null;
-        _replayBlockedPoiId = null;
-        _lastAutoOpenedPoiId = null;
-        ResetAutoNarrationTracking();
+        var normalizedQuery = NormalizeSearchText(SearchQuery);
+        var hasCategoryFilter = !string.IsNullOrWhiteSpace(SelectedCategory) && !IsAllCategorySelection(SelectedCategory);
+        var source = IsTourModeActive && _currentTourPois.Count > 0
+            ? _currentTourPois.ToList()
+            : _allPOIs.ToList();
 
-        _ = _narrationService.StopAsync();
-        SetMonitoredPois(_allPOIs);
-
-        if (string.IsNullOrWhiteSpace(SearchQuery) && string.IsNullOrWhiteSpace(SelectedCategory))
+        if (string.IsNullOrWhiteSpace(normalizedQuery) && !hasCategoryFilter)
         {
-            PopulatePins(_allPOIs);
+            PopulatePins(source);
+
+            if (IsTourModeActive)
+            {
+                IsTourPoiListVisible = true;
+                SetMonitoredPois(_currentTourPois);
+            }
+            else
+            {
+                SetMonitoredPois(source);
+            }
+
             return;
         }
 
-        var normalizedQuery = NormalizeSearchText(SearchQuery);
-
-        var results = _allPOIs
+        var results = source
             .Where(p =>
                 MatchesSearchQuery(p, normalizedQuery) &&
-                (string.IsNullOrWhiteSpace(SelectedCategory) || IsAllCategorySelection(SelectedCategory) || IsCategoryMatch(p.Category, SelectedCategory)))
+                (!hasCategoryFilter || IsCategoryMatch(p.Category, SelectedCategory)))
             .OrderBy(p => GetSearchRank(p, normalizedQuery))
             .ThenBy(p => p.Name)
             .ToList();
 
         PopulatePins(results);
 
-        if (results.Count > 0)
+        if (IsTourModeActive)
         {
-            SelectedPOI = results.First();
-            MapSpan = MapSpan.FromCenterAndRadius(
-                new Location(SelectedPOI.Latitude, SelectedPOI.Longitude), 
-                Distance.FromKilometers(1)); // Zoom out a bit to show searched area
+            IsTourPoiListVisible = true;
+            SetMonitoredPois(_currentTourPois);
+        }
+        else
+        {
+            SetMonitoredPois(results);
+        }
+
+        if (SelectedPOI != null && results.All(p => p.Id != SelectedPOI.Id))
+        {
+            SelectedPOI = null;
         }
     }
 
@@ -675,7 +778,7 @@ public partial class MapViewModel : ObservableObject
         }
         else
         {
-            ErrorMessage = "Không thể lấy vị trí hiện tại. Vui lòng kiểm tra quyền truy cập vị trí.";
+            ErrorMessage = AppLocalizer.Instance.Translate("map_error_location");
             if (_allPOIs.Count > 0)
             {
                 ApplyMapSpanForPoiCollection(_allPOIs);
@@ -686,8 +789,25 @@ public partial class MapViewModel : ObservableObject
     [RelayCommand]
     private void SelectPOI(POI poi)
     {
+        SelectPoiCore(poi, revealOverlayInTourMode: false);
+    }
+
+    [RelayCommand]
+    private void SelectTourSheetPOI(POI poi)
+    {
+        SelectPoiCore(poi, revealOverlayInTourMode: true);
+    }
+
+    private void SelectPoiCore(POI poi, bool revealOverlayInTourMode)
+    {
         if (poi == null)
             return;
+
+        if (IsTourModeActive && revealOverlayInTourMode)
+        {
+            _selectedPoiOverlaySuppressedInTourMode = false;
+            IsTourSelectionHighlightVisible = true;
+        }
 
         if (!IsTourModeActive)
         {
@@ -710,7 +830,7 @@ public partial class MapViewModel : ObservableObject
         }
     }
 
-    public async Task<bool> FocusPOIByIdAsync(int poiId)
+    public async Task<bool> FocusPOIByIdAsync(int poiId, bool allowServerSync = false)
     {
         if (poiId <= 0)
             return false;
@@ -718,6 +838,25 @@ public partial class MapViewModel : ObservableObject
         var poi = _allPOIs.FirstOrDefault(p => p.Id == poiId)
                   ?? POIs.FirstOrDefault(p => p.Id == poiId)
                   ?? await _poiRepository.GetByIdAsync(poiId);
+
+        var shouldRefreshFromServer = allowServerSync &&
+                                      (poi == null || NeedsAudioSourceRefresh(poi));
+
+        if (shouldRefreshFromServer)
+        {
+            try
+            {
+                // QR có thể được tạo ngay sau khi POI được approve (trên server),
+                // trong lúc app chưa kịp sync -> fallback sync rồi thử lại.
+                await _syncService.SyncFromServerAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MapVM] SyncFromServerAsync failed while focusing POI {poiId}: {ex.Message}");
+            }
+
+            poi = await _poiRepository.GetByIdAsync(poiId);
+        }
 
         if (poi == null)
             return false;
@@ -732,8 +871,36 @@ public partial class MapViewModel : ObservableObject
             POIs.Add(poi);
         }
 
-        SelectPOI(poi);
+        SelectPoiCore(poi, revealOverlayInTourMode: false);
         return true;
+    }
+
+    private static bool NeedsAudioSourceRefresh(POI poi)
+    {
+        if (!string.IsNullOrWhiteSpace(poi.AudioFilePath) && File.Exists(poi.AudioFilePath))
+            return false;
+
+        if (string.IsNullOrWhiteSpace(poi.AudioUrl))
+            return true;
+
+        if (!Uri.TryCreate(poi.AudioUrl, UriKind.Absolute, out var audioUri))
+            return true;
+
+        if (!string.Equals(audioUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(audioUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return IsLoopbackLikeHost(audioUri.Host);
+    }
+
+    private static bool IsLoopbackLikeHost(string host)
+    {
+        return string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(host, "::1", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(host, "10.0.2.2", StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<bool> PrepareInAppNavigationToPoiAsync(int poiId)
@@ -829,28 +996,44 @@ public partial class MapViewModel : ObservableObject
         if (SelectedPOI == null)
             return;
 
-        var isCurrentPoi = _narrationService.CurrentItem?.POI.Id == SelectedPOI.Id;
-        if (isCurrentPoi && _narrationService.IsPaused)
+        await _geofencePlaybackGate.WaitAsync();
+
+        try
         {
+            // Lock to prevent geofence trigger from interrupting during QR autoplay
+            _lockedPoiId = SelectedPOI.Id;
+
+            var isCurrentPoi = _narrationService.CurrentItem?.POI.Id == SelectedPOI.Id;
+            if (isCurrentPoi && _narrationService.IsPaused)
+            {
+                _replayBlockedPoiId = null;
+                await _narrationService.ResumeAsync();
+                UpdateSelectedPoiNarrationState();
+                _lockedPoiId = null; // Release lock after manual resume
+                return;
+            }
+
+            if (isCurrentPoi && _narrationService.IsPlaying)
+            {
+                UpdateSelectedPoiNarrationState();
+                _lockedPoiId = null; // Release lock - already playing
+                return;
+            }
+
             _replayBlockedPoiId = null;
-            await _narrationService.ResumeAsync();
-            UpdateSelectedPoiNarrationState();
-            return;
-        }
+            _playedPoiIdsInCurrentVisit.Add(SelectedPOI.Id);
+            _geofenceService.ResetCooldown(SelectedPOI.Id);
 
-        if (isCurrentPoi && _narrationService.IsPlaying)
+            var item = BuildNarrationItem(SelectedPOI, GeofenceEventType.Enter, 0);
+            item.IsManualPlayback = true;
+
+            await _narrationService.PlayImmediatelyAsync(item);
+            UpdateSelectedPoiNarrationState();
+        }
+        finally
         {
-            UpdateSelectedPoiNarrationState();
-            return;
+            _geofencePlaybackGate.Release();
         }
-
-        _replayBlockedPoiId = null;
-        _geofenceService.ResetCooldown(SelectedPOI.Id);
-
-        var item = BuildNarrationItem(SelectedPOI, GeofenceEventType.Enter, 0);
-
-        await _narrationService.PlayImmediatelyAsync(item);
-        UpdateSelectedPoiNarrationState();
     }
 
     [RelayCommand]
@@ -923,6 +1106,9 @@ public partial class MapViewModel : ObservableObject
         _ = _narrationService.StopAsync();
         SetMonitoredPois(_allPOIs);
         PopulatePins(_allPOIs);
+        PopulateTourSheetPois([]);
+        _selectedPoiOverlaySuppressedInTourMode = false;
+        IsTourSelectionHighlightVisible = true;
 
         if (_allPOIs.Count > 0)
         {
@@ -942,6 +1128,7 @@ public partial class MapViewModel : ObservableObject
         SelectedPOI = null;
         PopulatePins(_currentTourPois);
         SetMonitoredPois(_currentTourPois);
+        PopulateTourSheetPois(_currentTourPois);
         ApplyMapSpanForTourAndUser(_currentTourPois);
     }
 
@@ -960,8 +1147,11 @@ public partial class MapViewModel : ObservableObject
 
         IsTourPoiListVisible = true;
         IsTourModeActive = true;
+        _selectedPoiOverlaySuppressedInTourMode = false;
+        IsTourSelectionHighlightVisible = true;
 
         PopulatePins(orderedTourPois);
+        PopulateTourSheetPois(orderedTourPois);
         SetMonitoredPois(orderedTourPois);
         await SetTourRouteAsync(orderedTourPois);
 
@@ -980,7 +1170,11 @@ public partial class MapViewModel : ObservableObject
         SelectedPOI = null;
         ClearTourRoute();
         _currentTourPois.Clear();
+        PopulateTourSheetPois([]);
         IsTourModeActive = false;
+        _selectedPoiOverlaySuppressedInTourMode = false;
+        IsTourSelectionHighlightVisible = true;
+        ActiveTourId = null;
         ActiveTourName = string.Empty;
         ActiveTourPoiCount = 0;
         IsTourPoiListVisible = false;
@@ -1025,8 +1219,75 @@ public partial class MapViewModel : ObservableObject
             _hasReliableUserLocation = true;
         });
 
+        // Initialize geofence states silently on first location fix to prevent auto-play
+        var initializedFromThisUpdate = false;
+        if (!_geofenceInitialized)
+        {
+            _geofenceInitialized = true;
+            _geofenceService.InitializeFromLocation(location);
+            initializedFromThisUpdate = true;
+        }
+
         _ = _geofenceService.ProcessLocationUpdateAsync(location);
-        _ = EnsureNarrationByCurrentLocationAsync(location);
+        if (!initializedFromThisUpdate)
+        {
+            _ = EnsureNarrationByCurrentLocationAsync(location);
+        }
+    }
+
+    public async Task RefreshVisibleDataAsync(bool syncFirst = false)
+    {
+        if (IsLoading)
+            return;
+
+        try
+        {
+            if (syncFirst)
+            {
+                try
+                {
+                    await _syncService.SyncFromServerAsync();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MapVM] Refresh sync failed (non-fatal): {ex.Message}");
+                }
+            }
+
+            var sourcePois = await LoadSourcePoisAsync();
+            _allPOIs = sourcePois
+                .Where(p => p.Latitude is >= -90 and <= 90 && p.Longitude is >= -180 and <= 180)
+                .ToList();
+
+            if (IsTourModeActive && _currentTourPois.Count > 0)
+            {
+                var refreshedTourPois = _currentTourPois
+                    .Select(poi => _allPOIs.FirstOrDefault(candidate => candidate.Id == poi.Id) ?? poi)
+                    .OrderBy(p => p.OrderInTour)
+                    .ToList();
+
+                _currentTourPois.Clear();
+                _currentTourPois.AddRange(refreshedTourPois);
+                PopulateTourSheetPois(refreshedTourPois);
+                PopulatePins(refreshedTourPois);
+                SetMonitoredPois(refreshedTourPois);
+            }
+            else
+            {
+                PopulatePins(_allPOIs);
+                SetMonitoredPois(_allPOIs);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MapVM] RefreshVisibleDataAsync error: {ex}");
+        }
+    }
+
+    private async Task<List<POI>> LoadSourcePoisAsync()
+    {
+        var activePois = await _poiRepository.GetActiveAsync();
+        return activePois.Count > 0 ? activePois : await _poiRepository.GetAllAsync();
     }
 
     private async void OnGeofenceTriggered(object? sender, GeofenceEvent evt)
@@ -1035,12 +1296,21 @@ public partial class MapViewModel : ObservableObject
 
         try
         {
-            var autoPlayEnabled = IsTourModeActive;
+            // Skip auto-play on first geofence initialization (when user opens app inside a POI zone)
+            if (!_geofenceInitialized)
+            {
+                return;
+            }
+
+            var autoPlayEnabled = _settingsService.Settings.AutoPlayOnEnter;
             var currentItemPoiId = _narrationService.CurrentItem?.POI.Id;
+            var isManualPlayback = _narrationService.CurrentItem?.IsManualPlayback == true;
             var hasActiveNarration = _narrationService.IsPlaying || _narrationService.IsPaused;
 
             if (evt.EventType == GeofenceEventType.Exit)
             {
+                _playedPoiIdsInCurrentVisit.Remove(evt.POI.Id);
+
                 if (_replayBlockedPoiId == evt.POI.Id)
                 {
                     _replayBlockedPoiId = null;
@@ -1054,6 +1324,12 @@ public partial class MapViewModel : ObservableObject
                 if (_lastAutoOpenedPoiId == evt.POI.Id)
                 {
                     _lastAutoOpenedPoiId = null;
+                }
+
+                // Clear POI lock when user exits the locked POI's zone
+                if (_lockedPoiId == evt.POI.Id)
+                {
+                    _lockedPoiId = null;
                 }
 
                 return;
@@ -1093,7 +1369,25 @@ public partial class MapViewModel : ObservableObject
                 _replayBlockedPoiId = null;
             }
 
+            // POI LOCKING: If a POI is locked, only that POI can trigger auto-play
+            if (_lockedPoiId.HasValue)
+            {
+                if (_lockedPoiId != evt.POI.Id)
+                {
+                    // Different POI - ignore to prevent switching
+                    _lastInRangePoiId = evt.POI.Id;
+                    return;
+                }
+                // Same POI as locked - allow to proceed
+            }
+
             if (hasActiveNarration && currentItemPoiId == evt.POI.Id)
+            {
+                _lastInRangePoiId = evt.POI.Id;
+                return;
+            }
+
+            if (isManualPlayback)
             {
                 _lastInRangePoiId = evt.POI.Id;
                 return;
@@ -1116,6 +1410,9 @@ public partial class MapViewModel : ObservableObject
                 evt.Distance));
 
             MarkAutoNarrationPlayed(evt.POI.Id);
+
+            // Lock to this POI - prevents switching to other POIs while this one is active
+            _lockedPoiId = evt.POI.Id;
 
             _lastInRangePoiId = evt.POI.Id;
         }
@@ -1251,7 +1548,7 @@ public partial class MapViewModel : ObservableObject
 
         try
         {
-            var autoPlayEnabled = IsTourModeActive;
+            var autoPlayEnabled = _settingsService.Settings.AutoPlayOnEnter;
             var monitored = _geofenceService.MonitoredPOIs;
             if (monitored.Count == 0)
                 return;
@@ -1284,12 +1581,13 @@ public partial class MapViewModel : ObservableObject
                     ApproachRadius = GetEffectiveApproachRadiusMeters(p)
                 })
                 .Where(x => x.Distance <= x.ApproachRadius)
-                .OrderBy(x => x.Distance)
-                .ThenByDescending(x => x.Poi.Priority)
+                .OrderByDescending(x => x.Poi.Priority)
+                .ThenBy(x => x.Distance)
                 .FirstOrDefault();
 
             var activeItem = _narrationService.CurrentItem;
             var hasActiveNarration = _narrationService.IsPlaying || _narrationService.IsPaused;
+            var isManualPlayback = activeItem?.IsManualPlayback == true;
 
             if (inRange == null)
             {
@@ -1298,9 +1596,12 @@ public partial class MapViewModel : ObservableObject
 
                 if (autoPlayEnabled && hasActiveNarration && activeItem != null)
                 {
+                    if (isManualPlayback)
+                        return;
+
                     var currentDistance = location.DistanceTo(activeItem.POI.Latitude, activeItem.POI.Longitude);
-                    var currentTriggerRadius = GetEffectiveTriggerRadiusMeters(activeItem.POI);
-                    var stopRadius = currentTriggerRadius + NarrationStopHysteresisMeters;
+                    var currentApproachRadius = GetEffectiveApproachRadiusMeters(activeItem.POI);
+                    var stopRadius = currentApproachRadius + NarrationStopHysteresisMeters;
 
                     if (currentDistance > stopRadius)
                     {
@@ -1341,6 +1642,12 @@ public partial class MapViewModel : ObservableObject
             if (hasActiveNarration && activeItem != null)
             {
                 if (activeItem.POI.Id == candidatePoi.Id)
+                {
+                    _lastInRangePoiId = candidatePoi.Id;
+                    return;
+                }
+
+                if (isManualPlayback)
                 {
                     _lastInRangePoiId = candidatePoi.Id;
                     return;
@@ -1425,6 +1732,11 @@ public partial class MapViewModel : ObservableObject
 
     private bool ShouldSkipAutoNarration(int poiId)
     {
+        if (_playedPoiIdsInCurrentVisit.Contains(poiId))
+        {
+            return true;
+        }
+
         var now = DateTime.UtcNow;
 
         if (_autoNarrationDebounceByPoi.TryGetValue(poiId, out var lastAttemptAt) &&
@@ -1441,12 +1753,14 @@ public partial class MapViewModel : ObservableObject
 
     private void MarkAutoNarrationPlayed(int poiId)
     {
+        _playedPoiIdsInCurrentVisit.Add(poiId);
         _lastAutoNarrationPoiId = poiId;
         _lastAutoNarrationAtUtc = DateTime.UtcNow;
     }
 
     private void ResetAutoNarrationTracking()
     {
+        _playedPoiIdsInCurrentVisit.Clear();
         _lastAutoNarrationPoiId = null;
         _lastAutoNarrationAtUtc = DateTime.MinValue;
         _autoNarrationDebounceByPoi.Clear();
@@ -1471,12 +1785,6 @@ public partial class MapViewModel : ObservableObject
     {
         if (!string.IsNullOrWhiteSpace(poi.TTSScript))
             return poi.TTSScript;
-
-        if (!string.IsNullOrWhiteSpace(poi.FullDescription))
-            return poi.FullDescription;
-
-        if (!string.IsNullOrWhiteSpace(poi.ShortDescription))
-            return poi.ShortDescription;
 
         return poi.Name;
     }
@@ -1571,6 +1879,46 @@ public partial class MapViewModel : ObservableObject
         MainThread.BeginInvokeOnMainThread(UpdateSelectedPoiNarrationState);
     }
 
+    private void OnNarrationCompleted(object? sender, NarrationQueueItem item)
+    {
+        // Clear POI lock when narration completes naturally
+        // This allows re-entry to trigger the same POI again later
+        _lockedPoiId = null;
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            UpdateSelectedPoiNarrationState();
+        });
+    }
+
+    private void OnNarrationStopped(object? sender, NarrationQueueItem item)
+    {
+        // Clear POI lock when user manually stops narration
+        _lockedPoiId = null;
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            UpdateSelectedPoiNarrationState();
+        });
+    }
+
+    private void OnMiniPlayerPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(GlobalMiniPlayerViewModel.HasActiveTourAudio) ||
+            e.PropertyName == nameof(GlobalMiniPlayerViewModel.IsVisible))
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                if (IsTourModeActive && _miniPlayerViewModel.IsVisible)
+                {
+                    _selectedPoiOverlaySuppressedInTourMode = true;
+                    IsTourSelectionHighlightVisible = false;
+                }
+                UpdateSelectedPoiNarrationState();
+            });
+        }
+    }
+
     private void UpdateSelectedPoiNarrationState()
     {
         CurrentNarrationPoiId = _narrationService.CurrentItem?.POI.Id;
@@ -1582,7 +1930,9 @@ public partial class MapViewModel : ObservableObject
 
         IsSelectedPoiNarrationActive = isCurrentSelected && _narrationService.IsPlaying;
         IsSelectedPoiNarrationPaused = isCurrentSelected && _narrationService.IsPaused;
-        IsSelectedPoiPlayerVisible = SelectedPOI != null;
+        var shouldHideForPlayback = IsTourModeActive && _miniPlayerViewModel.IsVisible;
+        var shouldStayHiddenAfterPlayback = IsTourModeActive && _selectedPoiOverlaySuppressedInTourMode;
+        IsSelectedPoiPlayerVisible = SelectedPOI != null && !shouldHideForPlayback && !shouldStayHiddenAfterPlayback;
     }
 
     private void UpdateSelectedPoiDistanceDisplay()
@@ -1595,7 +1945,7 @@ public partial class MapViewModel : ObservableObject
 
         if (UserLocation == null)
         {
-            SelectedPoiDistanceDisplay = "Đang định vị";
+            SelectedPoiDistanceDisplay = AppLocalizer.Instance.Translate("map_locating");
             return;
         }
 
@@ -1605,7 +1955,7 @@ public partial class MapViewModel : ObservableObject
             SelectedPOI.Latitude,
             SelectedPOI.Longitude);
 
-        SelectedPoiDistanceDisplay = DistanceUnitService.FormatAsKilometers(km * 1000d);
+        SelectedPoiDistanceDisplay = DistanceUnitService.FormatFromMeters(km * 1000d);
     }
 
     public POI? FindNearestPOI()
@@ -1650,14 +2000,6 @@ public partial class MapViewModel : ObservableObject
         if (ContainsAllTerms(normalizedName, terms))
             return true;
 
-        var normalizedShort = NormalizeSearchText(poi.ShortDescription);
-        if (ContainsAllTerms(normalizedShort, terms))
-            return true;
-
-        var normalizedFull = NormalizeSearchText(poi.FullDescription);
-        if (ContainsAllTerms(normalizedFull, terms))
-            return true;
-
         var normalizedTts = NormalizeSearchText(poi.TTSScript);
         return ContainsAllTerms(normalizedTts, terms);
     }
@@ -1681,17 +2023,9 @@ public partial class MapViewModel : ObservableObject
         if (ContainsAllTerms(normalizedName, terms))
             return 2;
 
-        var normalizedShort = NormalizeSearchText(poi.ShortDescription);
-        if (ContainsAllTerms(normalizedShort, terms))
-            return 3;
-
-        var normalizedFull = NormalizeSearchText(poi.FullDescription);
-        if (ContainsAllTerms(normalizedFull, terms))
-            return 4;
-
         var normalizedTts = NormalizeSearchText(poi.TTSScript);
         if (ContainsAllTerms(normalizedTts, terms))
-            return 5;
+            return 3;
 
         return 99;
     }
@@ -1764,7 +2098,26 @@ public partial class MapViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(category))
             return "other";
 
-        return category.Trim().ToLowerInvariant() switch
+        var normalized = category.Trim().ToLowerInvariant();
+        var localizedAll = AppLocalizer.Instance.Translate("pois_filter_all", "All").Trim().ToLowerInvariant();
+        if (normalized == localizedAll)
+            return "all";
+
+        var localizedTourism = AppLocalizer.Instance.Translate("category_tourism").Trim().ToLowerInvariant();
+        var localizedService = AppLocalizer.Instance.Translate("category_service").Trim().ToLowerInvariant();
+        var localizedFood = AppLocalizer.Instance.Translate("category_food").Trim().ToLowerInvariant();
+        var localizedEntertainment = AppLocalizer.Instance.Translate("category_entertainment").Trim().ToLowerInvariant();
+        var localizedDrinks = AppLocalizer.Instance.Translate("category_drinks").Trim().ToLowerInvariant();
+        var localizedShopping = AppLocalizer.Instance.Translate("category_shopping").Trim().ToLowerInvariant();
+
+        if (normalized == localizedTourism) return "tourism";
+        if (normalized == localizedService) return "service";
+        if (normalized == localizedFood) return "food";
+        if (normalized == localizedEntertainment) return "entertainment";
+        if (normalized == localizedDrinks) return "drinks";
+        if (normalized == localizedShopping) return "shopping";
+
+        return normalized switch
         {
             "all" or "tất cả" => "all",
             "tourism" or "du lịch" => "tourism",
@@ -1778,3 +2131,6 @@ public partial class MapViewModel : ObservableObject
         };
     }
 }
+
+
+

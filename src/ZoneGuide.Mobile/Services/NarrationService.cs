@@ -82,6 +82,13 @@ public class NarrationService : INarrationService, IDisposable
 
     public async Task PlayImmediatelyAsync(NarrationQueueItem item)
     {
+        // Chặn trùng lặp - nếu đang phát hoặc đã queued cùng POI, bỏ qua
+        if (_currentItem?.POI.Id == item.POI.Id || _queue.Any(q => q.POI.Id == item.POI.Id))
+        {
+            System.Diagnostics.Debug.WriteLine($"[NarrationService] PlayImmediatelyAsync: skip duplicate POI {item.POI.Id}");
+            return;
+        }
+
         // Dừng cái hiện tại
         await StopAsync();
 
@@ -323,7 +330,9 @@ public class NarrationService : INarrationService, IDisposable
                     {
                         item.Status = NarrationStatus.Completed;
                         await CloseHistoryRecordAsync(true);
-                        _geofenceService.ResetCooldown(item.POI.Id);
+                        // DO NOT reset cooldown when narration completes naturally.
+                        // Cooldown should only be reset when user manually stops/skips,
+                        // or when user exits the POI region.
 
                         // Update state before raising completion event so ViewModels
                         // don't read stale IsPlaying=true and keep pause icon.
@@ -606,18 +615,10 @@ public class NarrationService : INarrationService, IDisposable
 
             item.TTSText = !string.IsNullOrWhiteSpace(translation.TTSScript)
                 ? translation.TTSScript
-                : !string.IsNullOrWhiteSpace(translation.FullDescription)
-                    ? translation.FullDescription
-                    : item.TTSText;
+                : item.TTSText;
 
             if (!string.IsNullOrWhiteSpace(translation.Name))
                 item.POI.Name = translation.Name;
-
-            if (!string.IsNullOrWhiteSpace(translation.ShortDescription))
-                item.POI.ShortDescription = translation.ShortDescription;
-
-            if (!string.IsNullOrWhiteSpace(translation.FullDescription))
-                item.POI.FullDescription = translation.FullDescription;
 
             item.POI.Language = preferredLanguage;
         }
@@ -629,6 +630,7 @@ public class NarrationService : INarrationService, IDisposable
 
     private static string? ResolveAvailableOfflineAudioPath(NarrationQueueItem item)
     {
+        var preferredLanguage = NormalizeLanguage(item.Language);
         var candidates = new List<string?>
         {
             item.AudioPath,
@@ -642,9 +644,29 @@ public class NarrationService : INarrationService, IDisposable
                 candidates.Add(Path.Combine(
                     FileSystem.AppDataDirectory,
                     "offline",
+                    "packs",
+                    item.POI.Id.ToString(),
+                    $"audio_{preferredLanguage.Replace('-', '_')}.mp3"));
+
+                candidates.Add(Path.Combine(
+                    FileSystem.AppDataDirectory,
+                    "offline",
+                    item.POI.TourId.Value.ToString(),
+                    $"audio_{preferredLanguage.Replace('-', '_')}.mp3"));
+
+                candidates.Add(Path.Combine(
+                    FileSystem.AppDataDirectory,
+                    "offline",
                     item.POI.TourId.Value.ToString(),
                     $"audio_{item.POI.Id}.mp3"));
             }
+
+            candidates.Add(Path.Combine(
+                FileSystem.AppDataDirectory,
+                "offline",
+                "packs",
+                item.POI.Id.ToString(),
+                $"audio_{preferredLanguage.Replace('-', '_')}.mp3"));
 
             candidates.Add(Path.Combine(
                 FileSystem.AppDataDirectory,

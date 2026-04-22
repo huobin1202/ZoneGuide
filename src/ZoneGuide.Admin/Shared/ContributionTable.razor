@@ -118,10 +118,7 @@
 
     private string GetDescriptionText(POIContributionDto contribution)
     {
-        return contribution.TTSScript
-            ?? contribution.FullDescription
-            ?? contribution.ShortDescription
-            ?? "-";
+        return contribution.TTSScript ?? "-";
     }
 
     private bool MatchesSearchKeyword(POIContributionDto contribution)

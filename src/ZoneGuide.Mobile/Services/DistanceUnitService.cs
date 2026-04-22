@@ -5,40 +5,19 @@ namespace ZoneGuide.Mobile.Services;
 /// </summary>
 public static class DistanceUnitService
 {
-    private static string _preferredUnit = "km";
-
-    public static string PreferredUnit => _preferredUnit;
-
-    public static void SetPreferredUnit(string? unit)
-    {
-        _preferredUnit = NormalizeUnit(unit);
-    }
-
-    public static string NormalizeUnit(string? unit)
-    {
-        return string.Equals(unit, "m", StringComparison.OrdinalIgnoreCase) ? "m" : "km";
-    }
-
-    public static string FormatFromMeters(double meters, string? unitOverride = null)
+    public static string FormatFromMeters(double meters)
     {
         var safeMeters = Math.Max(0, meters);
-        var unit = string.IsNullOrWhiteSpace(unitOverride)
-            ? _preferredUnit
-            : NormalizeUnit(unitOverride);
 
-        if (string.Equals(unit, "m", StringComparison.OrdinalIgnoreCase))
+        if (safeMeters < 1000d)
             return $"{Math.Round(safeMeters):0} m";
 
         var km = safeMeters / 1000d;
-
-        if (km < 1)
-            return $"{km:0.##} km";
-
         return $"{km:0.#} km";
     }
 
     public static string FormatAsKilometers(double meters)
     {
-        return FormatFromMeters(meters, "km");
+        return FormatFromMeters(meters);
     }
 }

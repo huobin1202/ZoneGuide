@@ -55,8 +55,6 @@
                 <MudTd DataLabel="Hành động">
                     <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
                                    OnClick="@(() => OpenUserFormDialog(context))" title="Sửa người dùng" />
-                    <MudIconButton Icon="@Icons.Material.Filled.History" Color="Color.Info" Size="Size.Small"
-                                   OnClick="@(() => OpenUserHistory())" title="Lịch sử" />
                 </MudTd>
             </RowTemplate>
             <NoRecordsContent>
@@ -149,11 +147,6 @@
         }
     }
 
-    private void OpenUserHistory()
-    {
-        Navigation.NavigateTo("/activity-log?entityType=User");
-    }
-    
     private Color GetRoleColor(string role) => role switch
     {
         "Admin" => Color.Error,

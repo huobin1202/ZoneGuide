@@ -3,22 +3,40 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
              xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
+             xmlns:views="clr-namespace:ZoneGuide.Mobile.Views"
              x:Class="ZoneGuide.Mobile.Views.OfflinePage"
              x:Name="OfflineRoot"
              x:DataType="vm:OfflineViewModel"
              Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
              BackgroundColor="#F6F7FB">
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="Auto,*,Auto">
         <Border Grid.Row="0"
                 BackgroundColor="#6D28D9"
                 StrokeThickness="0"
                 StrokeShape="RoundRectangle 0,0,28,28"
                 Padding="20,28,20,20">
             <VerticalStackLayout Spacing="18">
-                <Grid ColumnDefinitions="*,Auto"
+                <Grid ColumnDefinitions="Auto,*,Auto"
                       ColumnSpacing="12">
-                    <VerticalStackLayout Spacing="6">
+                    <Border WidthRequest="48"
+                            HeightRequest="48"
+                            BackgroundColor="#33FFFFFF"
+                            StrokeThickness="0"
+                            StrokeShape="RoundRectangle 24">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnBackTapped" />
+                        </Border.GestureRecognizers>
+                        <Label Text="‹"
+                               FontSize="28"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center"
+                               TextColor="White" />
+                    </Border>
+
+                    <VerticalStackLayout Grid.Column="1"
+                                         Spacing="6">
                         <Label Text="{local:Translate offline_title}"
                                FontSize="30"
                                FontAttributes="Bold"
@@ -28,7 +46,7 @@
                                TextColor="#E9D5FF" />
                     </VerticalStackLayout>
 
-                    <Button Grid.Column="1"
+                    <Button Grid.Column="2"
                             Text="{local:Translate offline_download_all}"
                             Padding="14,8"
                             BackgroundColor="#44FFFFFF"
@@ -262,16 +280,11 @@
                                                             Margin="0,0,0,8">
                                                         <Grid ColumnDefinitions="*,Auto,Auto"
                                                               ColumnSpacing="12">
-                                                            <VerticalStackLayout Spacing="2">
-                                                                <Label Text="{Binding Title}"
-                                                                       FontSize="14"
-                                                                       FontAttributes="Bold"
-                                                                       TextColor="#111827"
-                                                                       MaxLines="2" />
-                                                                <Label Text="{Binding Language}"
-                                                                       FontSize="12"
-                                                                       TextColor="#94A3B8" />
-                                                            </VerticalStackLayout>
+                                                            <Label Text="{Binding LanguageDisplay}"
+                                                                   FontSize="14"
+                                                                   FontAttributes="Bold"
+                                                                   TextColor="#111827"
+                                                                   VerticalTextAlignment="Center" />
 
                                                             <Label Grid.Column="1"
                                                                    Text="{Binding DurationText}"
@@ -297,6 +310,8 @@
                 </CollectionView>
             </Grid>
         </RefreshView>
+
+        <views:MiniPlayerView Grid.Row="2" />
     </Grid>
 
 </ContentPage>

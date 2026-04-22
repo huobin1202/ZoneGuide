@@ -1,6 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Plugin.Maui.Audio;
 using System.Collections.ObjectModel;
+using Android.Media;
 using System.Text.Json;
 using ZoneGuide.Mobile.Localization;
 using ZoneGuide.Mobile.Services;
@@ -12,8 +14,12 @@ namespace ZoneGuide.Mobile.ViewModels;
 public partial class OfflineViewModel : ObservableObject
 {
     private readonly IPOIRepository _poiRepository;
+    private readonly IPOITranslationRepository _poiTranslationRepository;
     private readonly ApiService _apiService;
     private readonly ISyncService _syncService;
+    private readonly IAudioManager _audioManager;
+    private readonly HttpClient _httpClient = new();
+    private readonly Dictionary<string, RemoteAudioMetadata> _metadataCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly AppLocalizer _localizer = AppLocalizer.Instance;
 
     [ObservableProperty]
@@ -26,7 +32,7 @@ public partial class OfflineViewModel : ObservableObject
     private OfflineFilterType selectedFilter = OfflineFilterType.All;
 
     [ObservableProperty]
-    private string downloadedSummaryText = "0/0 pack";
+    private string downloadedSummaryText = string.Empty;
 
     [ObservableProperty]
     private string storageSummaryText = "0 B";
@@ -46,12 +52,18 @@ public partial class OfflineViewModel : ObservableObject
 
     public OfflineViewModel(
         IPOIRepository poiRepository,
+        IPOITranslationRepository poiTranslationRepository,
         ApiService apiService,
-        ISyncService syncService)
+        ISyncService syncService,
+        IAudioManager audioManager)
     {
         _poiRepository = poiRepository;
+        _poiTranslationRepository = poiTranslationRepository;
         _apiService = apiService;
         _syncService = syncService;
+        _audioManager = audioManager;
+
+        AppLocalizer.Instance.PropertyChanged += OnLocalizerPropertyChanged;
     }
 
     public async Task InitializeAsync()
@@ -86,13 +98,16 @@ public partial class OfflineViewModel : ObservableObject
                 System.Diagnostics.Debug.WriteLine($"[OfflineVM] Sync failed (non-fatal): {ex.Message}");
             }
 
-            var pois = await _poiRepository.GetActiveAsync();
+            var pois = await _poiRepository.GetActiveRawAsync();
             var items = new List<OfflinePackItemViewModel>();
 
             foreach (var poi in pois.OrderByDescending(BuildSortScore).ThenBy(p => p.Name))
             {
                 var item = await BuildPackItemAsync(poi);
-                items.Add(item);
+                if (item != null)
+                {
+                    items.Add(item);
+                }
             }
 
             AllItems.Clear();
@@ -255,22 +270,32 @@ public partial class OfflineViewModel : ObservableObject
         }
     }
 
-    private async Task<OfflinePackItemViewModel> BuildPackItemAsync(POI poi)
+    private async Task<OfflinePackItemViewModel?> BuildPackItemAsync(POI poi)
     {
         var manifest = await ReadManifestAsync(poi.Id);
-        var totalBytes = manifest?.TotalBytes ?? await CalculatePackSizeAsync(poi.Id);
-        var isDownloaded = manifest != null || await HasOfflineAssetsAsync(poi.Id, poi);
+        var tracks = await BuildAudioTracksAsync(poi, manifest);
+        if (tracks.Count == 0)
+            return null;
+
+        var estimatedTrackBytes = tracks
+            .Where(t => t.SizeBytes.HasValue && t.SizeBytes.Value > 0)
+            .Sum(t => t.SizeBytes!.Value);
+        var totalBytes = manifest?.TotalBytes
+            ?? (estimatedTrackBytes > 0 ? estimatedTrackBytes : await CalculatePackSizeAsync(poi.Id));
+        var isDownloaded = await IsPackDownloadedAsync(poi.Id, tracks, manifest, poi);
+        var totalDurationSeconds = tracks.Where(t => t.DurationSeconds.HasValue).Sum(t => t.DurationSeconds!.Value);
 
         var item = new OfflinePackItemViewModel
         {
             POIId = poi.Id,
             Title = poi.Name,
+            CategoryKey = NormalizeCategory(poi.Category),
             CategoryText = _localizer.TranslateCategory(poi.Category),
             CategoryBackground = GetCategoryBackground(poi.Category),
             CategoryTextColor = GetCategoryForeground(poi.Category),
             ImageSource = POIListViewModel.ResolveImageSource(poi.ImagePath ?? poi.ImageUrl),
-            TrackCountText = $"1 {_localizer.Translate("offline_audio_unit", "audio")}",
-            DurationText = EstimateDurationText(poi),
+            TrackCountText = $"{tracks.Count} {_localizer.Translate("offline_audio_unit", "audio")}",
+            DurationText = FormatDuration(totalDurationSeconds),
             SizeText = FormatBytes(totalBytes),
             DownloadedAtText = manifest != null ? manifest.DownloadedAt.ToLocalTime().ToString("d/M/yyyy") : string.Empty,
             DownloadedStatusText = manifest != null
@@ -281,13 +306,17 @@ public partial class OfflineViewModel : ObservableObject
             TotalBytes = totalBytes
         };
 
-        item.Tracks.Add(new OfflineTrackItemViewModel
+        foreach (var track in tracks)
         {
-            Title = !string.IsNullOrWhiteSpace(poi.ShortDescription) ? poi.ShortDescription : poi.Name,
-            Language = _localizer.TranslateLanguageName(poi.Language),
-            DurationText = EstimateDurationText(poi),
-            IsDownloaded = isDownloaded
-        });
+            item.Tracks.Add(new OfflineTrackItemViewModel
+            {
+                LanguageCode = track.LanguageCode,
+                Language = GetNativeLanguageName(track.LanguageCode),
+                FlagEmoji = GetLanguageFlag(track.LanguageCode),
+                DurationText = FormatDuration(track.DurationSeconds),
+                IsDownloaded = IsTrackDownloaded(poi.Id, track)
+            });
+        }
 
         return item;
     }
@@ -298,10 +327,88 @@ public partial class OfflineViewModel : ObservableObject
         var totalCount = AllItems.Count;
         var totalBytes = AllItems.Where(x => x.IsDownloaded).Sum(x => x.TotalBytes);
 
-        DownloadedSummaryText = $"{downloadedCount}/{totalCount} pack";
+        DownloadedSummaryText = $"{downloadedCount}/{totalCount} {_localizer.Translate("offline_pack_unit", "pack")}";
         StorageSummaryText = FormatBytes(totalBytes);
         HasDownloadedItems = downloadedCount > 0;
         HasPendingItems = downloadedCount < totalCount;
+    }
+
+    private void OnLocalizerPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(e.PropertyName))
+            return;
+
+        RelocalizeItems();
+        RefreshSummary();
+        ApplyFilter();
+    }
+
+    private void RelocalizeItems()
+    {
+        foreach (var item in AllItems)
+        {
+            if (!string.IsNullOrWhiteSpace(item.CategoryKey))
+            {
+                item.CategoryText = TranslateCategoryKey(item.CategoryKey);
+            }
+
+            item.TrackCountText = $"{item.Tracks.Count} {_localizer.Translate("offline_audio_unit", "audio")}";
+
+            if (!string.IsNullOrWhiteSpace(item.DownloadedAtText))
+            {
+                item.DownloadedStatusText = string.Format(
+                    _localizer.Translate("offline_downloaded_at", "Downloaded {0}"),
+                    item.DownloadedAtText);
+            }
+
+            foreach (var track in item.Tracks)
+            {
+                if (!string.IsNullOrWhiteSpace(track.LanguageCode))
+                {
+                    track.Language = GetNativeLanguageName(track.LanguageCode);
+                    track.FlagEmoji = GetLanguageFlag(track.LanguageCode);
+                }
+            }
+        }
+    }
+
+    private string TranslateCategoryKey(string key) => key switch
+    {
+        "tourism" => _localizer.Translate("category_tourism"),
+        "service" => _localizer.Translate("category_service"),
+        "food" => _localizer.Translate("category_food"),
+        "entertainment" => _localizer.Translate("category_entertainment"),
+        "drinks" => _localizer.Translate("category_drinks"),
+        "shopping" => _localizer.Translate("category_shopping"),
+        _ => _localizer.Translate("category_other")
+    };
+
+    private static string GetNativeLanguageName(string? code)
+    {
+        return code?.Trim().ToLowerInvariant() switch
+        {
+            "vi-vn" => "Tiếng Việt",
+            "en-us" => "English",
+            "zh-cn" => "中文",
+            "ja-jp" => "日本語",
+            "ko-kr" => "한국어",
+            "fr-fr" => "Français",
+            _ => code ?? string.Empty
+        };
+    }
+
+    private static string GetLanguageFlag(string? code)
+    {
+        return code?.Trim().ToLowerInvariant() switch
+        {
+            "vi-vn" => "🇻🇳",
+            "en-us" => "🇺🇸",
+            "zh-cn" => "🇨🇳",
+            "ja-jp" => "🇯🇵",
+            "ko-kr" => "🇰🇷",
+            "fr-fr" => "🇫🇷",
+            _ => string.Empty
+        };
     }
 
     private void ApplyFilter()
@@ -321,24 +428,40 @@ public partial class OfflineViewModel : ObservableObject
 
     private async Task UpdatePackStateAsync(OfflinePackItemViewModel item)
     {
-        var poi = await _poiRepository.GetByIdAsync(item.POIId);
+        var poi = await _poiRepository.GetByIdRawAsync(item.POIId);
         if (poi == null)
             return;
 
         var manifest = await ReadManifestAsync(item.POIId);
-        var hasOfflineAssets = manifest != null || await HasOfflineAssetsAsync(item.POIId, poi);
-        var totalBytes = manifest?.TotalBytes ?? await CalculatePackSizeAsync(item.POIId);
+        var tracks = await BuildAudioTracksAsync(poi, manifest);
+        var hasOfflineAssets = tracks.Count > 0 && await IsPackDownloadedAsync(item.POIId, tracks, manifest, poi);
+        var estimatedTrackBytes = tracks
+            .Where(t => t.SizeBytes.HasValue && t.SizeBytes.Value > 0)
+            .Sum(t => t.SizeBytes!.Value);
+        var totalBytes = manifest?.TotalBytes
+            ?? (estimatedTrackBytes > 0 ? estimatedTrackBytes : await CalculatePackSizeAsync(item.POIId));
+        var totalDurationSeconds = tracks.Where(t => t.DurationSeconds.HasValue).Sum(t => t.DurationSeconds!.Value);
 
         item.IsDownloaded = hasOfflineAssets;
         item.TotalBytes = totalBytes;
+        item.TrackCountText = $"{tracks.Count} {_localizer.Translate("offline_audio_unit", "audio")}";
+        item.DurationText = FormatDuration(totalDurationSeconds);
         item.SizeText = FormatBytes(totalBytes);
         item.DownloadedAtText = manifest != null ? manifest.DownloadedAt.ToLocalTime().ToString("d/M/yyyy") : string.Empty;
         item.DownloadedStatusText = manifest != null
             ? string.Format(_localizer.Translate("offline_downloaded_at", "Downloaded {0}"), manifest.DownloadedAt.ToLocalTime().ToString("d/M/yyyy"))
             : string.Empty;
 
-        foreach (var track in item.Tracks)
-            track.IsDownloaded = hasOfflineAssets;
+        item.Tracks.Clear();
+        foreach (var track in tracks)
+        {
+            item.Tracks.Add(new OfflineTrackItemViewModel
+            {
+                Language = _localizer.TranslateLanguageName(track.LanguageCode),
+                DurationText = FormatDuration(track.DurationSeconds),
+                IsDownloaded = IsTrackDownloaded(item.POIId, track)
+            });
+        }
 
         if (!hasOfflineAssets)
             item.IsExpanded = false;
@@ -349,26 +472,42 @@ public partial class OfflineViewModel : ObservableObject
 
     private async Task<bool> DownloadPackFilesAsync(int poiId)
     {
-        var poi = await _poiRepository.GetByIdAsync(poiId);
+        var poi = await _poiRepository.GetByIdRawAsync(poiId);
         if (poi == null)
+            return false;
+
+        var tracks = await BuildAudioTracksAsync(poi, null);
+        if (tracks.Count == 0)
             return false;
 
         var packDir = GetPackDirectory(poiId);
         Directory.CreateDirectory(packDir);
 
         long totalBytes = 0;
-        var hasOfflineContent = false;
+        var downloadedTracks = new List<OfflineAudioTrackManifest>();
 
-        if (!string.IsNullOrWhiteSpace(poi.AudioUrl))
+        foreach (var track in tracks)
         {
-            var audioData = await _apiService.DownloadAudioAsync(poi.AudioUrl);
+            var audioData = await _apiService.DownloadAudioAsync(track.AudioUrl);
             if (audioData != null && audioData.Length > 0)
             {
-                var audioPath = Path.Combine(packDir, $"audio_{poiId}.mp3");
+                var audioPath = GetTrackAudioPath(poiId, track.LanguageCode);
                 await File.WriteAllBytesAsync(audioPath, audioData);
-                poi.AudioFilePath = audioPath;
                 totalBytes += audioData.LongLength;
-                hasOfflineContent = true;
+                var durationSeconds = GetAudioDurationSeconds(audioData);
+                downloadedTracks.Add(new OfflineAudioTrackManifest
+                {
+                    LanguageCode = track.LanguageCode,
+                    AudioUrl = track.AudioUrl,
+                    FileName = Path.GetFileName(audioPath),
+                    DurationSeconds = durationSeconds,
+                    SizeBytes = audioData.LongLength
+                });
+
+                if (string.Equals(NormalizeLanguageCode(track.LanguageCode), NormalizeLanguageCode(poi.Language), StringComparison.OrdinalIgnoreCase))
+                {
+                    poi.AudioFilePath = audioPath;
+                }
             }
         }
 
@@ -381,14 +520,10 @@ public partial class OfflineViewModel : ObservableObject
                 await File.WriteAllBytesAsync(imagePath, imageData);
                 poi.ImagePath = imagePath;
                 totalBytes += imageData.LongLength;
-                hasOfflineContent = true;
             }
         }
 
-        if (!hasOfflineContent && !string.IsNullOrWhiteSpace(poi.TTSScript))
-            hasOfflineContent = true;
-
-        if (!hasOfflineContent)
+        if (downloadedTracks.Count == 0)
         {
             if (Directory.Exists(packDir) && !Directory.EnumerateFileSystemEntries(packDir).Any())
                 Directory.Delete(packDir, false);
@@ -402,7 +537,8 @@ public partial class OfflineViewModel : ObservableObject
         {
             POIId = poiId,
             DownloadedAt = DateTime.UtcNow,
-            TotalBytes = totalBytes
+            TotalBytes = totalBytes,
+            Tracks = downloadedTracks
         });
 
         await File.WriteAllTextAsync(GetManifestPath(poiId), manifestJson);
@@ -411,7 +547,7 @@ public partial class OfflineViewModel : ObservableObject
 
     private async Task DeletePackFilesAsync(int poiId)
     {
-        var poi = await _poiRepository.GetByIdAsync(poiId);
+        var poi = await _poiRepository.GetByIdRawAsync(poiId);
         if (poi != null)
         {
             poi.AudioFilePath = null;
@@ -429,21 +565,6 @@ public partial class OfflineViewModel : ObservableObject
         var directory = GetPackDirectory(poiId);
         if (Directory.Exists(directory))
             Directory.Delete(directory, true);
-    }
-
-    private Task<bool> HasOfflineAssetsAsync(int poiId, POI poi)
-    {
-        if (!string.IsNullOrWhiteSpace(poi.AudioFilePath) && File.Exists(poi.AudioFilePath))
-            return Task.FromResult(true);
-
-        if (!string.IsNullOrWhiteSpace(poi.ImagePath) &&
-            poi.ImagePath.StartsWith(GetPackDirectory(poiId), StringComparison.OrdinalIgnoreCase) &&
-            File.Exists(poi.ImagePath))
-        {
-            return Task.FromResult(true);
-        }
-
-        return Task.FromResult(File.Exists(GetManifestPath(poiId)));
     }
 
     private Task<long> CalculatePackSizeAsync(int poiId)
@@ -483,17 +604,13 @@ public partial class OfflineViewModel : ObservableObject
     private static string GetManifestPath(int poiId) =>
         Path.Combine(GetPackDirectory(poiId), "manifest.json");
 
-    private static string EstimateDurationText(POI poi)
+    private static string GetTrackAudioPath(int poiId, string languageCode)
     {
-        var source = poi.TTSScript ?? poi.FullDescription ?? poi.ShortDescription ?? poi.Name;
-        var wordCount = source
-            .Split([' ', '\r', '\n', '\t'], StringSplitOptions.RemoveEmptyEntries)
-            .Length;
-        var minutes = Math.Max(1, wordCount / 130.0);
-        var duration = TimeSpan.FromMinutes(minutes);
-        return duration.TotalHours >= 1
-            ? duration.ToString(@"h\:mm\:ss")
-            : duration.ToString(@"m\:ss");
+        var safeLanguage = NormalizeLanguageCode(languageCode)
+            .Replace("-", "_", StringComparison.Ordinal)
+            .Replace(" ", string.Empty, StringComparison.Ordinal);
+
+        return Path.Combine(GetPackDirectory(poiId), $"audio_{safeLanguage}.mp3");
     }
 
     private static int BuildSortScore(POI poi)
@@ -522,6 +639,243 @@ public partial class OfflineViewModel : ObservableObject
 
         var format = index == 0 ? "0" : "0.#";
         return $"{size.ToString(format)} {units[index]}";
+    }
+
+    private static string FormatDuration(int? totalSeconds)
+    {
+        if (!totalSeconds.HasValue || totalSeconds.Value <= 0)
+            return "--:--";
+
+        var duration = TimeSpan.FromSeconds(totalSeconds.Value);
+        return duration.TotalHours >= 1
+            ? duration.ToString(@"h\:mm\:ss")
+            : duration.ToString(@"m\:ss");
+    }
+
+    private async Task<List<OfflineAudioTrackCandidate>> BuildAudioTracksAsync(POI poi, OfflinePackManifest? manifest)
+    {
+        var result = new List<OfflineAudioTrackCandidate>();
+        var seenLanguages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        async Task AddTrackAsync(
+            string? languageCode,
+            string? audioUrl,
+            int? durationSeconds,
+            long? sizeBytes,
+            Func<int?, long?, Task>? persistMetadata)
+        {
+            if (string.IsNullOrWhiteSpace(audioUrl))
+                return;
+
+            var normalizedLanguage = NormalizeLanguageCode(languageCode);
+            if (!seenLanguages.Add(normalizedLanguage))
+                return;
+
+            var manifestTrack = manifest?.Tracks
+                .FirstOrDefault(t => string.Equals(NormalizeLanguageCode(t.LanguageCode), normalizedLanguage, StringComparison.OrdinalIgnoreCase));
+
+            var resolvedDuration = manifestTrack?.DurationSeconds ?? durationSeconds;
+            var resolvedSize = manifestTrack?.SizeBytes > 0
+                ? manifestTrack.SizeBytes
+                : sizeBytes;
+
+            if ((!resolvedDuration.HasValue || !resolvedSize.HasValue || resolvedSize.Value <= 0)
+                && !string.IsNullOrWhiteSpace(audioUrl))
+            {
+                var metadata = await TryGetRemoteAudioMetadataAsync(audioUrl);
+                if (!resolvedDuration.HasValue)
+                {
+                    resolvedDuration = metadata.DurationSeconds;
+                }
+
+                if (!resolvedSize.HasValue || resolvedSize.Value <= 0)
+                {
+                    resolvedSize = metadata.SizeBytes;
+                }
+
+                if (persistMetadata != null && (resolvedDuration.HasValue || (resolvedSize.HasValue && resolvedSize.Value > 0)))
+                {
+                    await persistMetadata(resolvedDuration, resolvedSize);
+                }
+            }
+
+            result.Add(new OfflineAudioTrackCandidate
+            {
+                LanguageCode = normalizedLanguage,
+                AudioUrl = audioUrl,
+                DurationSeconds = resolvedDuration,
+                SizeBytes = resolvedSize
+            });
+        }
+
+        await AddTrackAsync(
+            poi.Language,
+            poi.AudioUrl,
+            poi.AudioDurationSeconds,
+            poi.AudioFileSizeBytes,
+            async (duration, size) =>
+            {
+                if (poi.AudioDurationSeconds == duration && poi.AudioFileSizeBytes == size)
+                    return;
+
+                poi.AudioDurationSeconds = duration;
+                poi.AudioFileSizeBytes = size;
+                await _poiRepository.UpdateAsync(poi);
+            });
+
+        var translations = await _poiTranslationRepository.GetByPOIIdAsync(poi.Id);
+        foreach (var translation in translations)
+        {
+            await AddTrackAsync(
+                translation.LanguageCode,
+                translation.AudioUrl,
+                translation.AudioDurationSeconds,
+                translation.AudioFileSizeBytes,
+                async (duration, size) =>
+                {
+                    if (translation.AudioDurationSeconds == duration && translation.AudioFileSizeBytes == size)
+                        return;
+
+                    translation.AudioDurationSeconds = duration;
+                    translation.AudioFileSizeBytes = size;
+                    await _poiTranslationRepository.UpdateAsync(translation);
+                });
+        }
+
+        if (result.Count == 0)
+        {
+            var legacyAudioPath = poi.AudioFilePath;
+            if (!string.IsNullOrWhiteSpace(legacyAudioPath) && File.Exists(legacyAudioPath))
+            {
+                result.Add(new OfflineAudioTrackCandidate
+                {
+                    LanguageCode = NormalizeLanguageCode(poi.Language),
+                    AudioUrl = string.Empty,
+                    DurationSeconds = GetAudioDurationSeconds(await File.ReadAllBytesAsync(legacyAudioPath)),
+                    SizeBytes = new FileInfo(legacyAudioPath).Length
+                });
+            }
+        }
+
+        return result;
+    }
+
+    private async Task<bool> IsPackDownloadedAsync(int poiId, IReadOnlyCollection<OfflineAudioTrackCandidate> tracks, OfflinePackManifest? manifest, POI poi)
+    {
+        if (tracks.Count == 0)
+            return false;
+
+        foreach (var track in tracks)
+        {
+            if (!IsTrackDownloaded(poiId, track))
+                return false;
+        }
+
+        if (manifest != null)
+            return true;
+
+        return !string.IsNullOrWhiteSpace(poi.AudioFilePath) && File.Exists(poi.AudioFilePath);
+    }
+
+    private static bool IsTrackDownloaded(int poiId, OfflineAudioTrackCandidate track)
+    {
+        var path = GetTrackAudioPath(poiId, track.LanguageCode);
+        return File.Exists(path);
+    }
+
+    private int? GetAudioDurationSeconds(byte[] audioData)
+    {
+        try
+        {
+            using var stream = new MemoryStream(audioData, writable: false);
+            using var player = _audioManager.CreatePlayer(stream);
+            if (player.Duration <= 0)
+                return null;
+
+            return Math.Max(1, (int)Math.Round(player.Duration));
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task<RemoteAudioMetadata> TryGetRemoteAudioMetadataAsync(string audioUrl)
+    {
+        if (_metadataCache.TryGetValue(audioUrl, out var cached))
+            return cached;
+
+        var metadata = new RemoteAudioMetadata
+        {
+            SizeBytes = await TryGetRemoteFileSizeAsync(audioUrl),
+            DurationSeconds = TryGetRemoteDurationSeconds(audioUrl)
+        };
+
+        _metadataCache[audioUrl] = metadata;
+        return metadata;
+    }
+
+    private async Task<long?> TryGetRemoteFileSizeAsync(string url)
+    {
+        try
+        {
+            using var headRequest = new HttpRequestMessage(HttpMethod.Head, url);
+            using var headResponse = await _httpClient.SendAsync(headRequest, HttpCompletionOption.ResponseHeadersRead);
+            if (headResponse.IsSuccessStatusCode && headResponse.Content.Headers.ContentLength.HasValue)
+                return headResponse.Content.Headers.ContentLength.Value;
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            using var getRequest = new HttpRequestMessage(HttpMethod.Get, url);
+            using var getResponse = await _httpClient.SendAsync(getRequest, HttpCompletionOption.ResponseHeadersRead);
+            if (getResponse.IsSuccessStatusCode && getResponse.Content.Headers.ContentLength.HasValue)
+                return getResponse.Content.Headers.ContentLength.Value;
+        }
+        catch
+        {
+        }
+
+        return null;
+    }
+
+    private static int? TryGetRemoteDurationSeconds(string url)
+    {
+        try
+        {
+            using var retriever = new MediaMetadataRetriever();
+            retriever.SetDataSource(url, new Dictionary<string, string>());
+            var durationMs = retriever.ExtractMetadata(MetadataKey.Duration);
+            if (!long.TryParse(durationMs, out var durationInMs) || durationInMs <= 0)
+                return null;
+
+            return Math.Max(1, (int)Math.Round(durationInMs / 1000d));
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string NormalizeLanguageCode(string? languageCode)
+    {
+        if (string.IsNullOrWhiteSpace(languageCode))
+            return "vi-VN";
+
+        var value = languageCode.Trim().Replace('_', '-');
+        return value.ToLowerInvariant() switch
+        {
+            var c when c.StartsWith("vi") => "vi-VN",
+            var c when c.StartsWith("en") => "en-US",
+            var c when c.StartsWith("zh") => "zh-CN",
+            var c when c.StartsWith("ja") => "ja-JP",
+            var c when c.StartsWith("ko") => "ko-KR",
+            var c when c.StartsWith("fr") => "fr-FR",
+            _ => value
+        };
     }
 
     private static Color GetCategoryBackground(string? category) =>
@@ -579,6 +933,7 @@ public partial class OfflinePackItemViewModel : ObservableObject
 {
     public int POIId { get; set; }
     public string Title { get; set; } = string.Empty;
+    public string CategoryKey { get; set; } = string.Empty;
     public string CategoryText { get; set; } = string.Empty;
     public Color CategoryBackground { get; set; } = Colors.LightGray;
     public Color CategoryTextColor { get; set; } = Colors.Black;
@@ -632,8 +987,14 @@ public partial class OfflinePackItemViewModel : ObservableObject
 
 public partial class OfflineTrackItemViewModel : ObservableObject
 {
-    public string Title { get; set; } = string.Empty;
-    public string Language { get; set; } = string.Empty;
+    public string LanguageCode { get; set; } = string.Empty;
+    [ObservableProperty]
+    private string language = string.Empty;
+
+    [ObservableProperty]
+    private string flagEmoji = string.Empty;
+
+    public string LanguageDisplay => string.IsNullOrWhiteSpace(FlagEmoji) ? Language : $"{FlagEmoji} {Language}";
     public string DurationText { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -642,6 +1003,8 @@ public partial class OfflineTrackItemViewModel : ObservableObject
     public string TrackStatusIcon => IsDownloaded ? "○" : "◌";
 
     partial void OnIsDownloadedChanged(bool value) => OnPropertyChanged(nameof(TrackStatusIcon));
+    partial void OnLanguageChanged(string value) => OnPropertyChanged(nameof(LanguageDisplay));
+    partial void OnFlagEmojiChanged(string value) => OnPropertyChanged(nameof(LanguageDisplay));
 }
 
 public sealed class OfflinePackManifest
@@ -649,4 +1012,28 @@ public sealed class OfflinePackManifest
     public int POIId { get; set; }
     public DateTime DownloadedAt { get; set; }
     public long TotalBytes { get; set; }
+    public List<OfflineAudioTrackManifest> Tracks { get; set; } = new();
+}
+
+public sealed class OfflineAudioTrackManifest
+{
+    public string LanguageCode { get; set; } = string.Empty;
+    public string AudioUrl { get; set; } = string.Empty;
+    public string FileName { get; set; } = string.Empty;
+    public int? DurationSeconds { get; set; }
+    public long SizeBytes { get; set; }
+}
+
+internal sealed class OfflineAudioTrackCandidate
+{
+    public string LanguageCode { get; set; } = string.Empty;
+    public string AudioUrl { get; set; } = string.Empty;
+    public int? DurationSeconds { get; set; }
+    public long? SizeBytes { get; set; }
+}
+
+internal sealed class RemoteAudioMetadata
+{
+    public int? DurationSeconds { get; set; }
+    public long? SizeBytes { get; set; }
 }
