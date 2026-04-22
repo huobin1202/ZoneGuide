@@ -996,30 +996,44 @@ public partial class MapViewModel : ObservableObject
         if (SelectedPOI == null)
             return;
 
-        var isCurrentPoi = _narrationService.CurrentItem?.POI.Id == SelectedPOI.Id;
-        if (isCurrentPoi && _narrationService.IsPaused)
+        await _geofencePlaybackGate.WaitAsync();
+
+        try
         {
+            // Lock to prevent geofence trigger from interrupting during QR autoplay
+            _lockedPoiId = SelectedPOI.Id;
+
+            var isCurrentPoi = _narrationService.CurrentItem?.POI.Id == SelectedPOI.Id;
+            if (isCurrentPoi && _narrationService.IsPaused)
+            {
+                _replayBlockedPoiId = null;
+                await _narrationService.ResumeAsync();
+                UpdateSelectedPoiNarrationState();
+                _lockedPoiId = null; // Release lock after manual resume
+                return;
+            }
+
+            if (isCurrentPoi && _narrationService.IsPlaying)
+            {
+                UpdateSelectedPoiNarrationState();
+                _lockedPoiId = null; // Release lock - already playing
+                return;
+            }
+
             _replayBlockedPoiId = null;
-            await _narrationService.ResumeAsync();
-            UpdateSelectedPoiNarrationState();
-            return;
-        }
+            _playedPoiIdsInCurrentVisit.Add(SelectedPOI.Id);
+            _geofenceService.ResetCooldown(SelectedPOI.Id);
 
-        if (isCurrentPoi && _narrationService.IsPlaying)
+            var item = BuildNarrationItem(SelectedPOI, GeofenceEventType.Enter, 0);
+            item.IsManualPlayback = true;
+
+            await _narrationService.PlayImmediatelyAsync(item);
+            UpdateSelectedPoiNarrationState();
+        }
+        finally
         {
-            UpdateSelectedPoiNarrationState();
-            return;
+            _geofencePlaybackGate.Release();
         }
-
-        _replayBlockedPoiId = null;
-        _playedPoiIdsInCurrentVisit.Add(SelectedPOI.Id);
-        _geofenceService.ResetCooldown(SelectedPOI.Id);
-
-        var item = BuildNarrationItem(SelectedPOI, GeofenceEventType.Enter, 0);
-        item.IsManualPlayback = true;
-
-        await _narrationService.PlayImmediatelyAsync(item);
-        UpdateSelectedPoiNarrationState();
     }
 
     [RelayCommand]
