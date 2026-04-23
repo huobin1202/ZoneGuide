@@ -276,17 +276,32 @@ public class GeofenceService : IGeofenceService
                 GeofenceTriggered?.Invoke(this, evt);
             }
 
-            // For Enter events, only fire the best candidate:
-            // - Highest priority first
-            // - If tie, nearest distance
+            // For Enter events, only fire the highest scoring candidate.
             if (enterEvents.Any())
             {
                 var bestEnter = enterEvents
-                    .OrderByDescending(e => e.POI.Priority)      // Highest priority first
-                    .ThenBy(e => e.Distance)                     // Nearest first
+                    .Select(e => new
+                    {
+                        Event = e,
+                        FinalScore = PoiScoringService.CalculateFinalScore(new PoiScoreContext
+                        {
+                            BasePriority = e.POI.Priority,
+                            DistanceMeters = e.Distance,
+                            TriggerRadiusMeters = e.POI.TriggerRadius,
+                            ApproachRadiusMeters = e.POI.ApproachRadius,
+                            TourOrderScore = 0,
+                            HasOfflineAudio = !string.IsNullOrWhiteSpace(e.POI.AudioFilePath),
+                            HasOnlineAudio = !string.IsNullOrWhiteSpace(e.POI.AudioUrl),
+                            HasTtsContent = !string.IsNullOrWhiteSpace(e.POI.TTSScript),
+                            ListenCountLast30Days = 0,
+                            IsCooldownActive = false
+                        })
+                    })
+                    .OrderByDescending(x => x.FinalScore)
+                    .ThenBy(x => x.Event.Distance)
                     .First();
-                
-                GeofenceTriggered?.Invoke(this, bestEnter);
+
+                GeofenceTriggered?.Invoke(this, bestEnter.Event);
             }
         });
     }
