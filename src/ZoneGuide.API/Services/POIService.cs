@@ -1,12 +1,13 @@
 using ZoneGuide.API.Data;
 using ZoneGuide.Shared.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace ZoneGuide.API.Services;
 
 public interface IPOIService
 {
-    Task<List<POIDto>> GetAllAsync(bool includeInactive = false, string? category = null);
+    Task<List<POIDto>> GetAllAsync(bool includeInactive = false, string? category = null, int page = 1, int pageSize = 50);
     Task<POIDto?> GetByIdAsync(string id);
     Task<List<POITranslationDto>> GetTranslationsAsync(string poiId);
     Task<POITranslationDto?> UpsertTranslationAsync(string poiId, string languageCode, POITranslationDto dto);
@@ -18,18 +19,23 @@ public interface IPOIService
     Task<POIDto> CreateAsync(CreatePOIDto dto);
     Task<POIDto?> UpdateAsync(string id, UpdatePOIDto dto);
     Task<bool> DeleteAsync(string id);
+    Task<int> GetCountAsync(bool includeInactive = false, string? category = null);
 }
 
     public class POIService : IPOIService
     {
         private readonly AppDbContext _context;
+        private readonly IMemoryCache _cache;
+        private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
+        private readonly HashSet<string> _cacheKeys = new(); // Track keys for invalidation
 
-        public POIService(AppDbContext context)
+        public POIService(AppDbContext context, IMemoryCache cache)
         {
             _context = context;
+            _cache = cache;
         }
 
-        public async Task<List<POIDto>> GetAllAsync(bool includeInactive = false, string? category = null)
+        public async Task<List<POIDto>> GetAllAsync(bool includeInactive = false, string? category = null, int page = 1, int pageSize = 50)
         {
             var query = _context.POIs
                 .Include(p => p.Translations)
@@ -46,8 +52,12 @@ public interface IPOIService
                 query = query.Where(p => p.Category == category);
             }
 
-            var entities = await query.OrderBy(p => p.Name).ToListAsync();
-
+            var entities = await query
+                .OrderBy(p => p.Name)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+            
             return entities.Select(MapToDto).ToList();
         }
 
@@ -55,13 +65,30 @@ public interface IPOIService
     {
         if (!int.TryParse(id, out var intId))
             return null;
-            
+        
+        var cacheKey = $"poi_{intId}";
+        
+        // Try cache first
+        if (_cache.TryGetValue(cacheKey, out POIDto? cachedPoi))
+        {
+            return cachedPoi;
+        }
+        
         var entity = await _context.POIs
             .Include(p => p.Translations)
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == intId);
 
-        return entity != null ? MapToDto(entity) : null;
+        var result = entity != null ? MapToDto(entity) : null;
+        
+        if (result != null)
+        {
+            // Cache for 10 minutes
+            _cache.Set(cacheKey, result, TimeSpan.FromMinutes(10));
+            lock (_cacheKeys) { _cacheKeys.Add(cacheKey); }
+        }
+        
+        return result;
     }
 
     public async Task<List<POITranslationDto>> GetTranslationsAsync(string poiId)
@@ -310,6 +337,9 @@ public interface IPOIService
         _context.POIs.Add(entity);
         await _context.SaveChangesAsync();
 
+        // Invalidate cache
+        InvalidatePOICache();
+        
         return MapToDto(entity);
     }
 
@@ -403,6 +433,10 @@ public interface IPOIService
         }
 
         await _context.SaveChangesAsync();
+        
+        // Invalidate cache
+        InvalidatePOICache();
+        
         return MapToDto(entity);
     }
 
@@ -440,7 +474,28 @@ public interface IPOIService
         }
 
         await _context.SaveChangesAsync();
+        
+        // Invalidate cache
+        InvalidatePOICache();
+        
         return true;
+    }
+
+    public async Task<int> GetCountAsync(bool includeInactive = false, string? category = null)
+    {
+        var query = _context.POIs.AsNoTracking().AsQueryable();
+        
+        if (!includeInactive)
+        {
+            query = query.Where(p => p.IsActive);
+        }
+        
+        if (!string.IsNullOrWhiteSpace(category))
+        {
+            query = query.Where(p => p.Category == category);
+        }
+        
+        return await query.CountAsync();
     }
 
     private async Task DetachPOIFromToursAsync(POIEntity poi, DateTime changedAt)
@@ -546,5 +601,24 @@ public interface IPOIService
                 IsAudioOutdated = t.IsAudioOutdated
             }).ToList()
         };
+    }
+    
+    /// <summary>
+    /// Invalidates all POI-related cache entries.
+    /// Call this after any POI create/update/delete operation.
+    /// </summary>
+    private void InvalidatePOICache()
+    {
+        List<string> keysToRemove;
+        lock (_cacheKeys)
+        {
+            keysToRemove = _cacheKeys.ToList();
+            _cacheKeys.Clear();
+        }
+        
+        foreach (var key in keysToRemove)
+        {
+            _cache.Remove(key);
+        }
     }
 }

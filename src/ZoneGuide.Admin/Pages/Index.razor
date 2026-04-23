@@ -167,33 +167,32 @@ else if (_dashboard != null)
         </MudItem>
     </MudGrid>
 
-    @if (_dashboard.DailyStats.Any())
-    {
-        <MudPaper Class="pa-4 mt-6" Elevation="1">
-            <MudText Typo="Typo.h6" Class="mb-4">Hoạt động theo ngày (30 ngày gần nhất)</MudText>
-            <MudSimpleTable Dense="true" Bordered="true" Style="max-height: 400px; overflow-y: auto;">
-                <thead>
-                    <tr>
-                        <th>Ngày</th>
-                        <th>Lượt nghe</th>
-                        <th>Người dùng duy nhất</th>
-                        <th>Thời lượng TB</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var stat in _dashboard.DailyStats.OrderByDescending(s => s.Date).Take(30))
-                    {
-                        <tr>
-                            <td>@stat.Date.ToString("dd/MM/yyyy")</td>
-                            <td>@stat.ListenCount</td>
-                            <td>@stat.UniqueUsers</td>
-                            <td>@FormatDuration(stat.AvgDurationSeconds)</td>
-                        </tr>
-                    }
-                </tbody>
-            </MudSimpleTable>
-        </MudPaper>
-    }
+     @if (_dashboard.DailyStats.Any())
+     {
+         <MudPaper Class="pa-4 mt-6" Elevation="1">
+             <MudText Typo="Typo.h6" Class="mb-4">Hoạt động theo ngày (30 ngày gần nhất)</MudText>
+             <div style="max-height: 400px; overflow-y: auto;">
+                 <MudVirtualize Items="@_dashboard.DailyStats.OrderByDescending(s => s.Date).Take(30)" Context="stat">
+                     <MudPaper Elevation="0" Class="pa-2 mb-1" Style="border-bottom: 1px solid #e0e0e0;">
+                         <MudGrid>
+                             <MudItem xs="3">
+                                 <MudText Typo="Typo.body2">@stat.Date.ToString("dd/MM/yyyy")</MudText>
+                             </MudItem>
+                             <MudItem xs="2">
+                                 <MudText Typo="Typo.body2">@stat.ListenCount</MudText>
+                             </MudItem>
+                             <MudItem xs="2">
+                                 <MudText Typo="Typo.body2">@stat.UniqueUsers</MudText>
+                             </MudItem>
+                             <MudItem xs="5">
+                                 <MudText Typo="Typo.body2">@FormatDuration(stat.AvgDurationSeconds)</MudText>
+                             </MudItem>
+                         </MudGrid>
+                     </MudPaper>
+                 </MudVirtualize>
+             </div>
+         </MudPaper>
+     }
 }
 else
 {
@@ -211,6 +210,8 @@ else
     private HubConnection? _mobileHubConnection;
     private bool _mobileRealtimeConnected;
     private bool _loading = true;
+    private DateTime _lastRenderTime = DateTime.MinValue;
+    private readonly TimeSpan _minRenderInterval = TimeSpan.FromMilliseconds(500);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -369,6 +370,20 @@ else
         return ts.TotalMinutes >= 1 
             ? $"{(int)ts.TotalMinutes}m {ts.Seconds}s" 
             : $"{ts.Seconds}s";
+    }
+    
+    /// <summary>
+    /// Throttles re-renders to prevent UI lag during real-time updates.
+    /// </summary>
+    protected override bool ShouldRender()
+    {
+        var now = DateTime.UtcNow;
+        if (now - _lastRenderTime < _minRenderInterval)
+        {
+            return false; // Skip render if too soon
+        }
+        _lastRenderTime = now;
+        return true;
     }
 
     public async ValueTask DisposeAsync()

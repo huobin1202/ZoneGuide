@@ -37,6 +37,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IGeofenceService, GeofenceService>();
         builder.Services.AddSingleton<ITTSService, TTSService>();
         builder.Services.AddSingleton<IAudioService, AudioService>();
+        builder.Services.AddSingleton<IImageService, ImageService>();
         builder.Services.AddSingleton<INarrationService, NarrationService>();
         builder.Services.AddSingleton<ISettingsService, SettingsService>();
         builder.Services.AddSingleton<ISyncService, SyncService>();

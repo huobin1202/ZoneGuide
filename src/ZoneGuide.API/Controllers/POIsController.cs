@@ -50,14 +50,18 @@ public class POIsController : ControllerBase
     }
 
     /// <summary>
-    /// Get all active POIs
+    /// Get all active POIs (with pagination)
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<List<POIDto>>> GetAll([FromQuery] string? category = null)
+    [ResponseCache(Duration = 300, VaryByQueryKeys = new[] { "category", "page", "pageSize" })]
+    public async Task<ActionResult<List<POIDto>>> GetAll(
+        [FromQuery] string? category = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50)
     {
         try
         {
-            var pois = await _poiService.GetAllAsync(category: category);
+            var pois = await _poiService.GetAllAsync(category: category, page: page, pageSize: pageSize);
             return Ok(pois);
         }
         catch (Exception ex)
@@ -66,11 +70,31 @@ public class POIsController : ControllerBase
             return StatusCode(500, "An error occurred while retrieving POIs");
         }
     }
+    
+    /// <summary>
+    /// Get total count of POIs
+    /// </summary>
+    [HttpGet("count")]
+    [ResponseCache(Duration = 60)]
+    public async Task<ActionResult<int>> GetCount([FromQuery] string? category = null)
+    {
+        try
+        {
+            var count = await _poiService.GetCountAsync(category: category);
+            return Ok(count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting POI count");
+            return StatusCode(500, "An error occurred while retrieving POI count");
+        }
+    }
 
     /// <summary>
     /// Get POI by ID
     /// </summary>
     [HttpGet("{id}")]
+    [ResponseCache(Duration = 600, Location = ResponseCacheLocation.Any)]
     public async Task<ActionResult<POIDto>> GetById(string id)
     {
         try

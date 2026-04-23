@@ -40,6 +40,11 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.Tour)
                   .WithMany(t => t.POIs)
                   .HasForeignKey(e => e.TourId);
+            
+            // Performance indexes
+            entity.HasIndex(e => e.UpdatedAt);
+            entity.HasIndex(e => new { e.IsActive, e.Category });
+            entity.HasIndex(e => new { e.Latitude, e.Longitude });
         });
 
         // POI Translation
@@ -47,6 +52,7 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.POIId, e.LanguageCode }).IsUnique();
+            entity.HasIndex(e => e.UpdatedAt);
             entity.HasOne(e => e.POI)
                   .WithMany(p => p.Translations)
                   .HasForeignKey(e => e.POIId);

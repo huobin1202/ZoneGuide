@@ -22,10 +22,26 @@ public class POIRepository : IPOIRepository
         _settingsService = settingsService;
     }
 
-    public async Task<List<POI>> GetAllAsync()
+    public async Task<List<POI>> GetAllAsync(int page = 1, int pageSize = 0, bool includeInactive = false)
     {
         var db = await _database.GetConnectionAsync();
-        var pois = await db.Table<POI>().ToListAsync();
+        var query = db.Table<POI>().AsQueryable();
+
+        if (!includeInactive)
+        {
+            query = query.Where(p => p.IsActive);
+        }
+
+        // Sắp xếp theo tên
+        query = query.OrderBy(p => p.Name);
+
+        // Phân trang nếu pageSize > 0
+        if (pageSize > 0)
+        {
+            query = query.Skip((page - 1) * pageSize).Take(pageSize);
+        }
+
+        var pois = await query.ToListAsync();
         return await ApplyPreferredLanguageAsync(pois);
     }
 
@@ -81,10 +97,20 @@ public class POIRepository : IPOIRepository
 
     public async Task<List<POI>> SearchAsync(string keyword)
     {
-        var all = await GetAllAsync();
-        return all.Where(p =>
-            p.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
-            (p.TTSScript?.Contains(keyword, StringComparison.OrdinalIgnoreCase) ?? false)).ToList();
+        if (string.IsNullOrWhiteSpace(keyword))
+            return await GetActiveAsync();
+
+        var db = await _database.GetConnectionAsync();
+        var lowerKeyword = $"%{keyword.ToLowerInvariant()}%";
+
+        // Tìm kiếm trực tiếp trong SQLite sử dụng LIKE (hiệu quả hơn load tất cả vào memory)
+        var pois = await db.Table<POI>()
+            .Where(p => p.IsActive &&
+                (p.Name.ToLower().Contains(keyword.ToLower()) ||
+                 (p.TTSScript != null && p.TTSScript.ToLower().Contains(keyword.ToLower()))))
+            .ToListAsync();
+
+        return await ApplyPreferredLanguageAsync(pois);
     }
 
     public async Task<int> InsertAsync(POI poi)
@@ -120,8 +146,28 @@ public class POIRepository : IPOIRepository
 
     public async Task<List<POI>> GetByLocationAsync(double lat, double lon, double radiusMeters)
     {
-        var all = await GetActiveAsync();
-        return all.Where(p => p.CalculateDistance(lat, lon) <= radiusMeters)
+        var db = await _database.GetConnectionAsync();
+
+        // Sử dụng bounding box để giảm số lượng POI cần load từ database
+        var latDelta = radiusMeters / 111000.0;
+        var lonDelta = radiusMeters / (111000.0 * Math.Cos(lat * Math.PI / 180));
+
+        var minLat = lat - latDelta;
+        var maxLat = lat + latDelta;
+        var minLon = lon - lonDelta;
+        var maxLon = lon + lonDelta;
+
+        // Query với bounding box trước (SQLite không hỗ trợ tính khoảng cách trực tiếp)
+        var poisInBox = await db.Table<POI>()
+            .Where(p => p.IsActive &&
+                        p.Latitude >= minLat && p.Latitude <= maxLat &&
+                        p.Longitude >= minLon && p.Longitude <= maxLon)
+            .ToListAsync();
+
+        // Sau đó mới lọc chính xác bằng khoảng cách thực tế
+        var result = await ApplyPreferredLanguageAsync(poisInBox);
+        return result
+            .Where(p => p.CalculateDistance(lat, lon) <= radiusMeters)
             .OrderBy(p => p.CalculateDistance(lat, lon))
             .ToList();
     }

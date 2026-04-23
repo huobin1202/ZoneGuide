@@ -2,6 +2,7 @@
 @inject IJSRuntime JS
 @inject WebTtsService WebTts
 @inject ISnackbar Snackbar
+@inject IHttpClientFactory HttpClientFactory
 @implements IDisposable
 
 <MudDialog Style="max-width: 900px;">
@@ -381,7 +382,7 @@
 
         try
         {
-            using var client = new HttpClient();
+            var client = HttpClientFactory.CreateClient();
             var request = new HttpRequestMessage(HttpMethod.Get, $"https://nominatim.openstreetmap.org/search?format=json&q={Uri.EscapeDataString(value)}&limit=5");
             request.Headers.Add("User-Agent", "ZoneGuide-Admin/1.0");
             

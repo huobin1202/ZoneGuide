@@ -11,13 +11,19 @@ public class GeofenceService : IGeofenceService
 {
     private const int MinEffectiveCooldownSeconds = 1;
     private const int MaxEffectiveCooldownSeconds = 3600;
+    private const double GridCellSize = 0.001; // ~100m grid cells for spatial indexing
 
     public event EventHandler<GeofenceEvent>? GeofenceTriggered;
 
     private readonly List<POI> _monitoredPOIs = new();
+    private readonly Dictionary<string, List<POI>> _gridCellIndex = new();
     private readonly ConcurrentDictionary<int, DateTime> _cooldowns = new();
     private readonly ConcurrentDictionary<int, GeofenceState> _poiStates = new();
     private readonly object _lock = new();
+    
+    // Throttling to prevent excessive processing
+    private DateTime _lastProcessedTime = DateTime.MinValue;
+    private readonly TimeSpan _minProcessInterval = TimeSpan.FromMilliseconds(500); // Max 2Hz
 
     // Debounce settings
     private readonly TimeSpan _debounceTime = TimeSpan.FromMilliseconds(700);
@@ -36,6 +42,7 @@ public class GeofenceService : IGeofenceService
             {
                 _monitoredPOIs.Add(poi);
                 _poiStates[poi.Id] = new GeofenceState();
+                IndexPoiForSpatialQuery(poi);
             }
         }
     }
@@ -46,6 +53,7 @@ public class GeofenceService : IGeofenceService
         {
             AddPOI(poi);
         }
+        RebuildSpatialIndex();
     }
 
     public void RemovePOI(int poiId)
@@ -59,6 +67,7 @@ public class GeofenceService : IGeofenceService
                 _poiStates.TryRemove(poiId, out _);
                 _cooldowns.TryRemove(poiId, out _);
                 _lastTriggerTime.TryRemove(poiId, out _);
+                RemoveFromSpatialIndex(poi);
             }
         }
     }
@@ -71,6 +80,7 @@ public class GeofenceService : IGeofenceService
             _poiStates.Clear();
             _cooldowns.Clear();
             _lastTriggerTime.Clear();
+            _gridCellIndex.Clear();
         }
     }
 
@@ -83,7 +93,10 @@ public class GeofenceService : IGeofenceService
     {
         lock (_lock)
         {
-            foreach (var poi in _monitoredPOIs.Where(p => p.IsActive))
+            // Use spatial index for faster initialization
+            var candidatePOIs = GetPOIsInBoundingBox(initialLocation.Latitude, initialLocation.Longitude, 1000);
+            
+            foreach (var poi in candidatePOIs)
             {
                 var distance = initialLocation.DistanceTo(poi.Latitude, poi.Longitude);
                 // Only use admin-configured radii - no fallback defaults
@@ -122,13 +135,24 @@ public class GeofenceService : IGeofenceService
     {
         await Task.Run(() =>
         {
+            // Throttle: skip if processed too recently to prevent UI lag
+            var now = DateTime.UtcNow;
+            if (now - _lastProcessedTime < _minProcessInterval)
+            {
+                return;
+            }
+            _lastProcessedTime = now;
+            
             POI? nearest = null;
             double nearestDistance = double.MaxValue;
             var events = new List<GeofenceEvent>();
 
+            // Use spatial index to get only nearby POIs (dramatically reduces iteration)
+            var candidatePOIs = GetPOIsInBoundingBox(location.Latitude, location.Longitude, 1000);
+            
             lock (_lock)
             {
-                foreach (var poi in _monitoredPOIs.Where(p => p.IsActive))
+                foreach (var poi in candidatePOIs)
                 {
                     var distance = location.DistanceTo(poi.Latitude, poi.Longitude);
                     // Only use admin-configured radii - no fallback defaults
@@ -310,7 +334,13 @@ public class GeofenceService : IGeofenceService
     {
         lock (_lock)
         {
-            return _monitoredPOIs
+            // Use spatial index to get candidates, then filter by actual distance
+            var candidates = GetPOIsInBoundingBox(
+                NearestPOI?.Latitude ?? 0, 
+                NearestPOI?.Longitude ?? 0, 
+                radius);
+            
+            return candidates
                 .Where(p => p.IsActive && _poiStates.TryGetValue(p.Id, out var state) && state.Distance <= radius)
                 .OrderBy(p => _poiStates[p.Id].Distance)
                 .ToList();
@@ -349,6 +379,121 @@ public class GeofenceService : IGeofenceService
         }
         return true;
     }
+
+    #region Spatial Indexing Optimization
+    
+    /// <summary>
+    /// Adds a POI to the spatial grid index for fast bounding-box queries.
+    /// </summary>
+    private void IndexPoiForSpatialQuery(POI poi)
+    {
+        var cellKey = GetGridCellKey(poi.Latitude, poi.Longitude);
+        lock (_lock)
+        {
+            if (!_gridCellIndex.TryGetValue(cellKey, out var list))
+            {
+                list = new List<POI>();
+                _gridCellIndex[cellKey] = list;
+            }
+            list.Add(poi);
+        }
+    }
+    
+    /// <summary>
+    /// Removes a POI from the spatial grid index.
+    /// </summary>
+    private void RemoveFromSpatialIndex(POI poi)
+    {
+        var cellKey = GetGridCellKey(poi.Latitude, poi.Longitude);
+        lock (_lock)
+        {
+            if (_gridCellIndex.TryGetValue(cellKey, out var list))
+            {
+                list.Remove(poi);
+                if (list.Count == 0)
+                {
+                    _gridCellIndex.Remove(cellKey);
+                }
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Gets POIs within a bounding box using spatial index (much faster than linear scan).
+    /// </summary>
+    private List<POI> GetPOIsInBoundingBox(double lat, double lon, double radiusMeters)
+    {
+        var latDelta = radiusMeters / 111000.0;
+        var lonDelta = radiusMeters / (111000.0 * Math.Cos(lat * Math.PI / 180));
+        
+        var minLat = lat - latDelta;
+        var maxLat = lat + latDelta;
+        var minLon = lon - lonDelta;
+        var maxLon = lon + lonDelta;
+        
+        var result = new List<POI>();
+        
+        lock (_lock)
+        {
+            // Calculate grid cell range
+            var minCellX = (int)Math.Floor(minLon / GridCellSize);
+            var maxCellX = (int)Math.Floor(maxLon / GridCellSize);
+            var minCellY = (int)Math.Floor(minLat / GridCellSize);
+            var maxCellY = (int)Math.Floor(maxLat / GridCellSize);
+            
+            // Check all overlapping grid cells
+            for (int cellX = minCellX; cellX <= maxCellX; cellX++)
+            {
+                for (int cellY = minCellY; cellY <= maxCellY; cellY++)
+                {
+                    var cellKey = $"{cellX}:{cellY}";
+                    if (_gridCellIndex.TryGetValue(cellKey, out var cellPOIs))
+                    {
+                        // Filter by actual bounding box (grid is approximate)
+                        foreach (var poi in cellPOIs)
+                        {
+                            if (poi.Latitude >= minLat && poi.Latitude <= maxLat &&
+                                poi.Longitude >= minLon && poi.Longitude <= maxLon &&
+                                poi.IsActive)
+                            {
+                                result.Add(poi);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        return result;
+    }
+    
+    /// <summary>
+    /// Rebuilds the entire spatial index from _monitoredPOIs.
+    /// Call this after bulk operations.
+    /// </summary>
+    private void RebuildSpatialIndex()
+    {
+        _gridCellIndex.Clear();
+        lock (_lock)
+        {
+            foreach (var poi in _monitoredPOIs)
+            {
+                IndexPoiForSpatialQuery(poi);
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Generates a grid cell key for given coordinates.
+    /// </summary>
+    private static string GetGridCellKey(double lat, double lon)
+    {
+        var cellX = (int)Math.Floor(lon / GridCellSize);
+        var cellY = (int)Math.Floor(lat / GridCellSize);
+        return $"{cellX}:{cellY}";
+    }
+    
+    #endregion
 
     private class GeofenceState
     {

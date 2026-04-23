@@ -36,6 +36,9 @@ public class DatabaseService
         await _database.CreateTableAsync<NarrationHistory>();
         await _database.CreateTableAsync<POIStatistics>();
 
+        // Tạo indexes để tối ưu hiệu năng truy vấn
+        await CreateIndexesAsync(_database);
+
         return _database;
     }
 
@@ -117,6 +120,59 @@ public class DatabaseService
         if (!columns.Any(c => string.Equals(c.Name, nameof(TourTranslation.IsAudioOutdated), StringComparison.OrdinalIgnoreCase)))
         {
             await database.ExecuteAsync($"ALTER TABLE {nameof(TourTranslation)} ADD COLUMN {nameof(TourTranslation.IsAudioOutdated)} INTEGER NOT NULL DEFAULT 0");
+        }
+    }
+
+    /// <summary>
+    /// Tạo các indexes để tối ưu hiệu năng truy vấn SQLite
+    /// </summary>
+    private static async Task CreateIndexesAsync(SQLiteAsyncConnection database)
+    {
+        var indexes = new[]
+        {
+            // POI indexes
+            "CREATE INDEX IF NOT EXISTS idx_poi_isactive ON POI(IsActive)",
+            "CREATE INDEX IF NOT EXISTS idx_poi_tourid ON POI(TourId)",
+            "CREATE INDEX IF NOT EXISTS idx_poi_unique_code ON POI(UniqueCode)",
+            "CREATE INDEX IF NOT EXISTS idx_poi_latitude_longitude ON POI(Latitude, Longitude)",
+            "CREATE INDEX IF NOT EXISTS idx_poi_category ON POI(Category)",
+            
+            // POITranslation indexes
+            "CREATE INDEX IF NOT EXISTS idx_poi_translation_poiid ON POITranslation(POIId)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_poi_translation_unique ON POITranslation(POIId, LanguageCode)",
+            
+            // Tour indexes
+            "CREATE INDEX IF NOT EXISTS idx_tour_isactive ON Tour(IsActive)",
+            "CREATE INDEX IF NOT EXISTS idx_tour_unique_code ON Tour(UniqueCode)",
+            
+            // TourTranslation indexes
+            "CREATE INDEX IF NOT EXISTS idx_tour_translation_tourid ON TourTranslation(TourId)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_tour_translation_unique ON TourTranslation(TourId, LanguageCode)",
+            
+            // LocationHistory indexes
+            "CREATE INDEX IF NOT EXISTS idx_location_session ON LocationHistory(SessionId)",
+            "CREATE INDEX IF NOT EXISTS idx_location_timestamp ON LocationHistory(Timestamp)",
+            
+            // NarrationHistory indexes
+            "CREATE INDEX IF NOT EXISTS idx_narration_poiid ON NarrationHistory(POIId)",
+            "CREATE INDEX IF NOT EXISTS idx_narration_starttime ON NarrationHistory(StartTime)",
+            "CREATE INDEX IF NOT EXISTS idx_narration_session ON NarrationHistory(SessionId)",
+            
+            // POIStatistics indexes
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_poi_stats_unique ON POIStatistics(POIId, Date)",
+            "CREATE INDEX IF NOT EXISTS idx_poi_stats_date ON POIStatistics(Date)"
+        };
+
+        foreach (var indexSql in indexes)
+        {
+            try
+            {
+                await database.ExecuteAsync(indexSql);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to create index: {indexSql}, Error: {ex.Message}");
+            }
         }
     }
 }

@@ -3,9 +3,11 @@ using ZoneGuide.API.Data;
 using ZoneGuide.API.Hubs;
 using ZoneGuide.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.IO.Compression;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +25,14 @@ builder.WebHost.ConfigureKestrel(options =>
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddMemoryCache();
+
+// Add response compression for better performance
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    // MinimumResponseSize defaults to 1024 bytes, which is fine
+});
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() 
@@ -125,6 +135,7 @@ else
 
 app.UseStaticFiles();
 app.UseCors("AllowAll");
+app.UseResponseCompression(); // Add compression middleware
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
