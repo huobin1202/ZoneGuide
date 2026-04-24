@@ -25,7 +25,7 @@ public class POIRepository : IPOIRepository
     public async Task<List<POI>> GetAllAsync(int page = 1, int pageSize = 0, bool includeInactive = false)
     {
         var db = await _database.GetConnectionAsync();
-        var query = db.Table<POI>().AsQueryable();
+        var query = db.Table<POI>();
 
         if (!includeInactive)
         {

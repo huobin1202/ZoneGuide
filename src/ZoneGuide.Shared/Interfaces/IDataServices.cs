@@ -7,7 +7,7 @@ namespace ZoneGuide.Shared.Interfaces;
 /// </summary>
 public interface IPOIRepository
 {
-    Task<List<POI>> GetAllAsync();
+    Task<List<POI>> GetAllAsync(int page = 1, int pageSize = 0, bool includeInactive = false);
     Task<POI?> GetByIdAsync(int id);
     Task<POI?> GetByIdRawAsync(int id);
     Task<POI?> GetByCodeAsync(string code);
