@@ -138,10 +138,10 @@ public partial class QRScannerPage : ContentPage
             if (string.IsNullOrWhiteSpace(text))
                 return;
 
-            //Doc payload QR va tach poiid   
+            //Doc payload QR  
             text = text.Trim();
             ApiService.TrySetPreferredBaseUrlFromQrPayload(text);
-            // QR khong hop le
+            // QR khong hop le --> bo qua
             if (!TryExtractPoiId(text, out var poiId))
                 return;
             //QR hop le -> chuyen sang map

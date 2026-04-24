@@ -62,7 +62,7 @@ public class NarrationService : INarrationService, IDisposable
         _audioService.ProgressChanged += OnProgressChanged;
     }
 
-    #region Sequence Diagram - Nhieu du khach cung nghe audio / Hang doi theo tung thiet bi
+    #region Nhieu du khach cung nghe audio / Hang doi theo tung thiet bi
 
     public Task EnqueueAsync(NarrationQueueItem item)
     {
@@ -289,7 +289,7 @@ public class NarrationService : INarrationService, IDisposable
                 IsPlaying = true;
                 IsPaused = false;
                 CurrentProgress = 0;
-
+                //ViewModel/UI nhan event de hien thi dang phat
                 NarrationStarted?.Invoke(this, item);
 
                 try

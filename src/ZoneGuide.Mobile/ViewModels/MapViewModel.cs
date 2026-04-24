@@ -846,14 +846,13 @@ public partial class MapViewModel : ObservableObject
     {
         if (poiId <= 0)
             return false;
-
+        //Tim POI theo poiId
         var poi = _allPOIs.FirstOrDefault(p => p.Id == poiId)
                   ?? POIs.FirstOrDefault(p => p.Id == poiId)
                   ?? await _poiRepository.GetByIdAsync(poiId);
 
         var shouldRefreshFromServer = allowServerSync &&
                                       (poi == null || NeedsAudioSourceRefresh(poi));
-
         if (shouldRefreshFromServer)
         {
             try
@@ -886,8 +885,8 @@ public partial class MapViewModel : ObservableObject
 
 
 
-
-
+        
+        //Chon POI can mở
         SelectPoiCore(poi, revealOverlayInTourMode: false);
         return true;
     }
