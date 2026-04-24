@@ -148,7 +148,7 @@ Tai lieu nay map tung message trong 3 sequence diagram vao code hien tai de de d
   - Vi tri: [MauiProgram.cs](../src/ZoneGuide.Mobile/MauiProgram.cs)
   - Y nghia: moi app instance tren moi thiet bi co 1 `NarrationService` rieng.
 
-- `Them vao hang doi hoac phat ngay`
+- `Them vao hang doi hoac phat ngay`  
   - Code:
     ```csharp
     public Task EnqueueAsync(...)
@@ -199,7 +199,7 @@ Tai lieu nay map tung message trong 3 sequence diagram vao code hien tai de de d
 ## 4. Quet QR dia diem va tu phat audio
 
 - `Quet ma QR dia diem`
-  - Code:
+  - Code: 
     ```csharp
     private void OnBarcodesDetected(object? sender, object e)
     ```

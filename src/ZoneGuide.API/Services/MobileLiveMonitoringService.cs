@@ -86,6 +86,7 @@ public sealed class MobileLiveMonitoringService : IMobileLiveMonitoringService, 
     {
         if (!string.IsNullOrWhiteSpace(sessionId))
         {
+            //huy dang ky phien 
             _sessions.TryRemove(sessionId.Trim(), out _);
         }
 
