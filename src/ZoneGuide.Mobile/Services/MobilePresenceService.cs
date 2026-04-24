@@ -57,6 +57,7 @@ public sealed class MobilePresenceService : IMobilePresenceService, IDisposable
             _isRunning = true;
 
             _heartbeatTimer?.Dispose();
+            //Gửi tín hiệu định kỳ
             _heartbeatTimer = new Timer(async _ => await SendHeartbeatAsync(), null, HeartbeatIntervalMs, HeartbeatIntervalMs);
         }
         finally
@@ -64,6 +65,7 @@ public sealed class MobilePresenceService : IMobilePresenceService, IDisposable
             _lifecycleGate.Release();
         }
 
+//báo tín hiệu bắt đầu cho api
         await SendHeartbeatAsync();
     }
 

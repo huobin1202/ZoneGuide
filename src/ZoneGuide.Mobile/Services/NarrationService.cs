@@ -69,6 +69,7 @@ public class NarrationService : INarrationService, IDisposable
         // Kiểm tra trùng lặp
         if (_currentItem?.POI.Id == item.POI.Id || _queue.Any(q => q.POI.Id == item.POI.Id))
         {
+            // bo qua yeu cau
             return Task.CompletedTask; // Đã có trong queue hoặc đang phát
         }
 
@@ -103,6 +104,7 @@ public class NarrationService : INarrationService, IDisposable
         _queue.Enqueue(item);
 
         // Chạy nền, không chờ phát xong để caller tiếp tục luồng UI/geofence.
+        // dua vao hang doi rieng cua thiet bi
         EnsureQueueProcessingStarted();
     }
 
@@ -294,7 +296,8 @@ public class NarrationService : INarrationService, IDisposable
                 {
                     var played = false;
 
-                    // Ưu tiên phát file audio nếu có
+                    // Ưu tiên phát file audio nếu có,
+                    // Phat AudioPath hoac AudioUrl 
                     if (!string.IsNullOrEmpty(item.AudioPath) && File.Exists(item.AudioPath))
                     {
                         try
@@ -304,6 +307,7 @@ public class NarrationService : INarrationService, IDisposable
                                 _cancellationTokenSource.Token);
                             played = true;
                         }
+                        // chuyen sang doc bang TTS
                         catch (Exception ex) when (ex is not OperationCanceledException && !string.IsNullOrWhiteSpace(item.TTSText))
                         {
                             await PlayTtsAndWaitAsync(item, _cancellationTokenSource.Token);

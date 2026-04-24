@@ -60,7 +60,7 @@ public sealed class MobileLiveMonitoringService : IMobileLiveMonitoringService, 
         var deviceId = string.IsNullOrWhiteSpace(heartbeat.DeviceId)
             ? "unknown-device"
             : heartbeat.DeviceId.Trim();
-
+//dang ky cap nhat phien dang va gui cap nhat cho cac client dang lang nghe
         _sessions.AddOrUpdate(
             sessionId,
             _ => MobileLiveSessionState.FromHeartbeat(heartbeat, sessionId, deviceId, now, userId, userDisplayName, userEmail),
@@ -86,6 +86,7 @@ public sealed class MobileLiveMonitoringService : IMobileLiveMonitoringService, 
     {
         if (!string.IsNullOrWhiteSpace(sessionId))
         {
+            //huy dang ky phien 
             _sessions.TryRemove(sessionId.Trim(), out _);
         }
 
@@ -153,7 +154,7 @@ public sealed class MobileLiveMonitoringService : IMobileLiveMonitoringService, 
                 return;
             }
         }
-
+// đẩy trạng thái hiện tại/ mới nếu có thay đổi
         try
         {
             await _hubContext.Clients.All.SendAsync("MobileMonitorUpdated", snapshot);
