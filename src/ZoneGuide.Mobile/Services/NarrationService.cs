@@ -62,6 +62,8 @@ public class NarrationService : INarrationService, IDisposable
         _audioService.ProgressChanged += OnProgressChanged;
     }
 
+    #region Sequence Diagram - Nhieu du khach cung nghe audio / Hang doi theo tung thiet bi
+
     public Task EnqueueAsync(NarrationQueueItem item)
     {
         // Kiểm tra trùng lặp
@@ -224,6 +226,8 @@ public class NarrationService : INarrationService, IDisposable
         CurrentProgress = 0;
     }
 
+    #endregion
+
     public async Task SkipAsync()
     {
         await StopAsync();
@@ -256,6 +260,8 @@ public class NarrationService : INarrationService, IDisposable
         _ttsService.SetVoice(voiceId);
         await Task.CompletedTask;
     }
+
+    #region Hang doi phat audio/TTS va fallback noi dung
 
     private async Task ProcessQueueAsync()
     {
@@ -457,6 +463,8 @@ public class NarrationService : INarrationService, IDisposable
         }
     }
 
+    #endregion
+
     private void OnTTSCompleted(object? sender, EventArgs e)
     {
         CurrentProgress = 1.0;
@@ -474,6 +482,8 @@ public class NarrationService : INarrationService, IDisposable
         CurrentProgress = progress;
         ProgressUpdated?.Invoke(this, progress);
     }
+
+    #region Sequence Diagram - Analytics sau khi nghe xong
 
     private async Task StartHistoryRecordAsync(NarrationQueueItem item)
     {
@@ -587,6 +597,10 @@ public class NarrationService : INarrationService, IDisposable
         }
     }
 
+    #endregion
+
+    #region Sequence Diagram - Chon nguon noi dung audio hay TTS
+
     private async Task ApplyPreferredLanguageContentAsync(NarrationQueueItem item)
     {
         var preferredLanguage = NormalizeLanguage(_settingsService.Settings.PreferredLanguage);
@@ -698,6 +712,8 @@ public class NarrationService : INarrationService, IDisposable
             _ => value
         };
     }
+
+    #endregion
 
     public void Dispose()
     {

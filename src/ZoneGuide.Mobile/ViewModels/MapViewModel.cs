@@ -840,6 +840,8 @@ public partial class MapViewModel : ObservableObject
         }
     }
 
+    #region Scan QR & Play audio
+
     public async Task<bool> FocusPOIByIdAsync(int poiId, bool allowServerSync = false)
     {
         if (poiId <= 0)
@@ -880,6 +882,11 @@ public partial class MapViewModel : ObservableObject
         {
             POIs.Add(poi);
         }
+
+
+
+
+
 
         SelectPoiCore(poi, revealOverlayInTourMode: false);
         return true;
@@ -959,6 +966,8 @@ public partial class MapViewModel : ObservableObject
         return UserLocation;
     }
 
+    #endregion
+
     private async Task SetInAppNavigationRouteAsync(Location? from, POI toPoi)
     {
         if (from == null)
@@ -999,6 +1008,12 @@ public partial class MapViewModel : ObservableObject
             System.Diagnostics.Debug.WriteLine($"[MapVM] BuildAndApplyNavigationRouteAsync failed: {ex.Message}");
         }
     }
+    
+
+
+
+
+
 
     [RelayCommand]
     private async Task PlaySelectedPOI()
@@ -1300,6 +1315,8 @@ public partial class MapViewModel : ObservableObject
         return activePois.Count > 0 ? activePois : await _poiRepository.GetAllAsync();
     }
 
+    #region Sequence Diagram - Xu ly trung khi dung giua 2 POI co khoang cach bang nhau
+
     private async void OnGeofenceTriggered(object? sender, GeofenceEvent evt)
     {
         await _geofencePlaybackGate.WaitAsync();
@@ -1435,6 +1452,8 @@ public partial class MapViewModel : ObservableObject
             _geofencePlaybackGate.Release();
         }
     }
+
+    #endregion
 
     private static bool IsValidLocation(LocationData location)
     {
@@ -1765,6 +1784,8 @@ public partial class MapViewModel : ObservableObject
         });
     }
 
+    #region Sequence Diagram - Tinh diem uu tien narration va cap nhat trang thai phat
+
     private int GetPopularityListenCount(int poiId)
     {
         return _popularityByPoiId.TryGetValue(poiId, out var listenCount) ? listenCount : 0;
@@ -2009,6 +2030,8 @@ public partial class MapViewModel : ObservableObject
             UpdateSelectedPoiNarrationState();
         });
     }
+
+    #endregion
 
     private void OnMiniPlayerPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {

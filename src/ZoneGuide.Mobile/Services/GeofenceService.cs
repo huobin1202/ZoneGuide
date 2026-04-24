@@ -74,6 +74,8 @@ public class GeofenceService : IGeofenceService
         }
     }
 
+    #region Sequence Diagram - Khoi tao geofence va tranh tu phat luc mo app
+
     /// <summary>
     /// Initialize geofence states silently from an initial location.
     /// This sets the initial Enter/Approach/Exit state WITHOUT firing events,
@@ -117,6 +119,10 @@ public class GeofenceService : IGeofenceService
             IsInitialized = true;
         }
     }
+
+    #endregion
+
+    #region Sequence Diagram - Xu ly trung khi dung giua 2 POI co khoang cach bang nhau
 
     public async Task ProcessLocationUpdateAsync(LocationData location)
     {
@@ -306,6 +312,8 @@ public class GeofenceService : IGeofenceService
         });
     }
 
+    #endregion
+
     public List<POI> GetPOIsInRange(double radius)
     {
         lock (_lock)
@@ -317,6 +325,8 @@ public class GeofenceService : IGeofenceService
         }
     }
 
+    #region Cooldown va debounce geofence
+        
     public void SetCooldown(int poiId, TimeSpan duration)
     {
         _cooldowns[poiId] = DateTime.UtcNow.Add(duration);
@@ -349,6 +359,8 @@ public class GeofenceService : IGeofenceService
         }
         return true;
     }
+
+    #endregion
 
     private class GeofenceState
     {
