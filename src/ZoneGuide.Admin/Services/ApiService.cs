@@ -441,6 +441,8 @@ public class ApiService : IApiService
         }
     }
 
+    #region Sequence Diagram - Dashboard monitoring QR va mobile
+
     public async Task<MobileLiveMonitoringSnapshotDto?> GetMobileMonitoringSnapshotAsync()
     {
         try
@@ -452,6 +454,8 @@ public class ApiService : IApiService
             return null;
         }
     }
+
+    #endregion
 
     public async Task<T?> GetAsync<T>(string url) where T : class
     {

@@ -1,205 +1,10 @@
 # Mapping Sequence -> Code
 
 Tai lieu nay map tung message trong 3 sequence diagram vao code hien tai de de doi chieu.
-
-## 1. Xu ly trung khi dung giua 2 POI
-
-- `Di chuyen vao vung giao nhau`
-  - Nguon su kien la cap nhat vi tri, sau do `MapViewModel`/`GeofenceService` xu ly.
-  - Tham chieu: [MapViewModel.cs](../src/ZoneGuide.Mobile/ViewModels/MapViewModel.cs), [GeofenceService.cs](../src/ZoneGuide.Mobile/Services/GeofenceService.cs)
-
-- `Xu ly cap nhat vi tri`
-  - Code: `await _geofenceService.ProcessLocationUpdateAsync(location);`
-  - Vi tri: [MapViewModel.cs](../src/ZoneGuide.Mobile/ViewModels/MapViewModel.cs)
-  - Y nghia: `MapViewModel` day vi tri moi vao `GeofenceService`.
-
-- `Tinh khoang cach den tung POI`
-  - Code:
-    ```csharp
-    var distance = location.DistanceTo(poi.Latitude, poi.Longitude);
-    ```
-  - Vi tri: [GeofenceService.cs](../src/ZoneGuide.Mobile/Services/GeofenceService.cs)
-  - Y nghia: moi POI dang monitor deu duoc tinh khoang cach tu vi tri hien tai.
-
-- `Tao danh sach su kien Enter hop le`
-  - Code:
-    ```csharp
-    if (newState.HasValue)
-    {
-        events.Add(new GeofenceEvent { ... });
-    }
-    ```
-  - Vi tri: [GeofenceService.cs](../src/ZoneGuide.Mobile/Services/GeofenceService.cs)
-  - Y nghia: chi cac POI vuot qua dieu kien state/cooldown/debounce moi duoc dua vao danh sach event.
-
-- `Co nhieu Enter cung luc`
-  - Code:
-    ```csharp
-    var enterEvents = events.Where(e => e.EventType == GeofenceEventType.Enter).ToList();
-    ```
-  - Vi tri: [GeofenceService.cs](../src/ZoneGuide.Mobile/Services/GeofenceService.cs)
-
-- `Sap xep theo Priority ... / neu cung Priority thi chon Distance nho hon`
-  - Code:
-    ```csharp
-    .OrderByDescending(x => x.FinalScore)
-    .ThenBy(x => x.Event.Distance)
-    .First();
-    ```
-  - Vi tri: [GeofenceService.cs](../src/ZoneGuide.Mobile/Services/GeofenceService.cs)
-  - Y nghia: code hien tai dung `FinalScore` thong qua `PoiScoringService`, trong do `Priority` va `Distance` la 2 thanh phan quan trong.
-
-- `Phat POI duoc chon`
-  - Code:
-    ```csharp
-    GeofenceTriggered?.Invoke(this, bestEnter.Event);
-    ```
-  - Vi tri: [GeofenceService.cs](../src/ZoneGuide.Mobile/Services/GeofenceService.cs)
-  - Y nghia: service chi fire 1 event Enter tot nhat.
-
-- `Phat ngay voi POI duoc chon`
-  - Code:
-    ```csharp
-    await _narrationService.PlayImmediatelyAsync(BuildNarrationItem(
-        evt.POI,
-        evt.EventType,
-        evt.Distance));
-    ```
-  - Vi tri: [MapViewModel.cs](../src/ZoneGuide.Mobile/ViewModels/MapViewModel.cs)
-  - Y nghia: `MapViewModel` nhan event geofence roi goi `NarrationService`.
-
-- `Neu trung POI dang phat/da trong queue thi bo qua`
-  - Code:
-    ```csharp
-    if (_currentItem?.POI.Id == item.POI.Id || _queue.Any(q => q.POI.Id == item.POI.Id))
-    {
-        return;
-    }
-    ```
-  - Vi tri: [NarrationService.cs](../src/ZoneGuide.Mobile/Services/NarrationService.cs)
-
-## 2. Monitoring app mobile
-
-- `Mo app`
-  - Code:
-    ```csharp
-    window.Created += async (...) => await _mobilePresenceService.StartAsync();
-    ```
-  - Vi tri: [App.xaml.cs](../src/ZoneGuide.Mobile/App.xaml.cs)
-
-- `Bao tin hieu bat dau cho api`
-  - Code:
-    ```csharp
-    await SendHeartbeatAsync();
-    ```
-  - Vi tri: [MobilePresenceService.cs](../src/ZoneGuide.Mobile/Services/MobilePresenceService.cs)
-  - Y nghia: ngay khi bat dau session, app gui heartbeat dau tien len API.
-
-- `Gui tin hieu dinh ky (moi 5 giay)`
-  - Code:
-    ```csharp
-    _heartbeatTimer = new Timer(async _ => await SendHeartbeatAsync(), null, HeartbeatIntervalMs, HeartbeatIntervalMs);
-    ```
-  - Vi tri: [MobilePresenceService.cs](../src/ZoneGuide.Mobile/Services/MobilePresenceService.cs)
-
-- `Dang ky hoac cap nhat phien`
-  - Code:
-    ```csharp
-    _sessions.AddOrUpdate(...)
-    ```
-  - Vi tri: [MobileLiveMonitoringService.cs](../src/ZoneGuide.API/Services/MobileLiveMonitoringService.cs)
-  - Y nghia: session moi duoc tao, session cu duoc cap nhat state.
-
-- `Day trang thai hien tai / moi neu thay doi`
-  - Code:
-    ```csharp
-    await _hubContext.Clients.All.SendAsync("MobileMonitorUpdated", snapshot);
-    ```
-  - Vi tri: [MobileLiveMonitoringService.cs](../src/ZoneGuide.API/Services/MobileLiveMonitoringService.cs)
-
-- `Bang dieu khien admin nhan trang thai`
-  - Code:
-    ```csharp
-    _mobileHubConnection.On<MobileLiveMonitoringSnapshotDto>("MobileMonitorUpdated", snapshot => ...)
-    ```
-  - Vi tri: [Index.razor](../src/ZoneGuide.Admin/Pages/Index.razor)
-
-- `Gui offline`
-  - Code:
-    ```csharp
-    await _apiService.UploadMobileOfflineAsync(sessionIdToClose);
-    ```
-  - Vi tri: [MobilePresenceService.cs](../src/ZoneGuide.Mobile/Services/MobilePresenceService.cs)
-
-- `Huy dang ky phien`
-  - Code:
-    ```csharp
-    _sessions.TryRemove(sessionId.Trim(), out _);
-    ```
-  - Vi tri: [MobileLiveMonitoringService.cs](../src/ZoneGuide.API/Services/MobileLiveMonitoringService.cs)
-
-## 3. Nhieu du khach cung nghe audio - Hang doi
-
-- `Moi thiet bi co hang doi rieng`
-  - Code:
-    ```csharp
-    builder.Services.AddSingleton<INarrationService, NarrationService>();
-    ```
-  - Vi tri: [MauiProgram.cs](../src/ZoneGuide.Mobile/MauiProgram.cs)
-  - Y nghia: moi app instance tren moi thiet bi co 1 `NarrationService` rieng.
-
-- `Them vao hang doi hoac phat ngay`  
-  - Code:
-    ```csharp
-    public Task EnqueueAsync(...)
-    public async Task PlayImmediatelyAsync(...)
-    ```
-  - Vi tri: [NarrationService.cs](../src/ZoneGuide.Mobile/Services/NarrationService.cs)
-
-- `Kiem tra trung lap POI.Id`
-  - Code:
-    ```csharp
-    if (_currentItem?.POI.Id == item.POI.Id || _queue.Any(q => q.POI.Id == item.POI.Id))
-    ```
-  - Vi tri: [NarrationService.cs](../src/ZoneGuide.Mobile/Services/NarrationService.cs)
-
-- `Khong trung lap -> dua vao queue rieng cua thiet bi`
-  - Code:
-    ```csharp
-    _queue.Enqueue(item);
-    EnsureQueueProcessingStarted();
-    ```
-  - Vi tri: [NarrationService.cs](../src/ZoneGuide.Mobile/Services/NarrationService.cs)
-
-- `Trung lap -> bo qua yeu cau`
-  - Code:
-    ```csharp
-    return Task.CompletedTask;
-    ```
-  - Vi tri: [NarrationService.cs](../src/ZoneGuide.Mobile/Services/NarrationService.cs)
-
-- `Phat AudioPath hoac AudioUrl`
-  - Code:
-    ```csharp
-    await _audioService.PlayAsync(item.AudioPath)
-    await _audioService.PlayFromUrlAsync(item.AudioUrl)
-    ```
-  - Vi tri: [NarrationService.cs](../src/ZoneGuide.Mobile/Services/NarrationService.cs)
-
-- `Loi audio -> chuyen sang doc bang TTS`
-  - Code:
-    ```csharp
-    catch (...) when (... && !string.IsNullOrWhiteSpace(item.TTSText))
-    {
-        await PlayTtsAndWaitAsync(item, _cancellationTokenSource.Token);
-    }
-    ```
-  - Vi tri: [NarrationService.cs](../src/ZoneGuide.Mobile/Services/NarrationService.cs)
-
-## 4. Quet QR dia diem va tu phat audio
+## 1. Quet QR dia diem va tu phat audio
 
 - `Quet ma QR dia diem`
-  - Code: 
+  - Code:
     ```csharp
     private void OnBarcodesDetected(object? sender, object e)
     ```
@@ -348,3 +153,257 @@ Tai lieu nay map tung message trong 3 sequence diagram vao code hien tai de de d
     ```
   - Vi tri: [MapViewModel.cs](../src/ZoneGuide.Mobile/ViewModels/MapViewModel.cs)
   - Y nghia: `MapViewModel` clear lock va cap nhat lai state cho overlay/miniplayer.
+           
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## 2. Monitoring app mobile
+
+- `Mo app`
+  - Code:
+    ```csharp
+    window.Created += async (...) => await _mobilePresenceService.StartAsync();
+    ```
+  - Vi tri: [App.xaml.cs](../src/ZoneGuide.Mobile/App.xaml.cs)
+
+- `Bao tin hieu bat dau cho api`
+  - Code:
+    ```csharp
+    await SendHeartbeatAsync();
+    ```
+  - Vi tri: [MobilePresenceService.cs](../src/ZoneGuide.Mobile/Services/MobilePresenceService.cs)
+  - Y nghia: ngay khi bat dau session, app gui heartbeat dau tien len API.
+
+- `Gui tin hieu dinh ky (moi 5 giay)`
+  - Code:
+    ```csharp
+    _heartbeatTimer = new Timer(async _ => await SendHeartbeatAsync(), null, HeartbeatIntervalMs, HeartbeatIntervalMs);
+    ```
+  - Vi tri: [MobilePresenceService.cs](../src/ZoneGuide.Mobile/Services/MobilePresenceService.cs)
+
+- `Dang ky hoac cap nhat phien`
+  - Code:
+    ```csharp
+    _sessions.AddOrUpdate(...)
+    ```
+  - Vi tri: [MobileLiveMonitoringService.cs](../src/ZoneGuide.API/Services/MobileLiveMonitoringService.cs)
+  - Y nghia: session moi duoc tao, session cu duoc cap nhat state.
+
+- `Day trang thai hien tai / moi neu thay doi`
+  - Code:
+    ```csharp
+    await _hubContext.Clients.All.SendAsync("MobileMonitorUpdated", snapshot);
+    ```
+  - Vi tri: [MobileLiveMonitoringService.cs](../src/ZoneGuide.API/Services/MobileLiveMonitoringService.cs)
+
+- `Bang dieu khien admin nhan trang thai`
+  - Code:
+    ```csharp
+    _mobileHubConnection.On<MobileLiveMonitoringSnapshotDto>("MobileMonitorUpdated", snapshot => ...)
+    ```
+  - Vi tri: [Index.razor](../src/ZoneGuide.Admin/Pages/Index.razor)
+
+- `Gui offline`
+  - Code:
+    ```csharp
+    await _apiService.UploadMobileOfflineAsync(sessionIdToClose);
+    ```
+  - Vi tri: [MobilePresenceService.cs](../src/ZoneGuide.Mobile/Services/MobilePresenceService.cs)
+
+- `Huy dang ky phien`
+  - Code:
+    ```csharp
+    _sessions.TryRemove(sessionId.Trim(), out _);
+    ```
+  - Vi tri: [MobileLiveMonitoringService.cs](../src/ZoneGuide.API/Services/MobileLiveMonitoringService.cs)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## 3. Nhieu du khach cung nghe audio - Hang doi
+
+- `Moi thiet bi co hang doi rieng`
+  - Code:
+    ```csharp
+    builder.Services.AddSingleton<INarrationService, NarrationService>();
+    ```
+  - Vi tri: [MauiProgram.cs](../src/ZoneGuide.Mobile/MauiProgram.cs)
+  - Y nghia: moi app instance tren moi thiet bi co 1 `NarrationService` rieng.
+
+- `Them vao hang doi hoac phat ngay`
+  - Code:
+    ```csharp
+    public Task EnqueueAsync(...)
+    public async Task PlayImmediatelyAsync(...)
+    ```
+  - Vi tri: [NarrationService.cs](../src/ZoneGuide.Mobile/Services/NarrationService.cs)
+
+- `Kiem tra trung lap POI.Id`
+  - Code:
+    ```csharp
+    if (_currentItem?.POI.Id == item.POI.Id || _queue.Any(q => q.POI.Id == item.POI.Id))
+    ```
+  - Vi tri: [NarrationService.cs](../src/ZoneGuide.Mobile/Services/NarrationService.cs)
+
+- `Khong trung lap -> dua vao queue rieng cua thiet bi`
+  - Code:
+    ```csharp
+    _queue.Enqueue(item);
+    EnsureQueueProcessingStarted();
+    ```
+  - Vi tri: [NarrationService.cs](../src/ZoneGuide.Mobile/Services/NarrationService.cs)
+
+- `Trung lap -> bo qua yeu cau`
+  - Code:
+    ```csharp
+    return Task.CompletedTask;
+    ```
+  - Vi tri: [NarrationService.cs](../src/ZoneGuide.Mobile/Services/NarrationService.cs)
+
+- `Phat AudioPath hoac AudioUrl`
+  - Code:
+    ```csharp
+    await _audioService.PlayAsync(item.AudioPath)
+    await _audioService.PlayFromUrlAsync(item.AudioUrl)
+    ```
+  - Vi tri: [NarrationService.cs](../src/ZoneGuide.Mobile/Services/NarrationService.cs)
+
+- `Loi audio -> chuyen sang doc bang TTS`
+  - Code:
+    ```csharp
+    catch (...) when (... && !string.IsNullOrWhiteSpace(item.TTSText))
+    {
+        await PlayTtsAndWaitAsync(item, _cancellationTokenSource.Token);
+    }
+    ```
+  - Vi tri: [NarrationService.cs](../src/ZoneGuide.Mobile/Services/NarrationService.cs)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## 4. Xu ly trung khi dung giua 2 POI
+
+- `Di chuyen vao vung giao nhau`
+  - Nguon su kien la cap nhat vi tri, sau do `MapViewModel`/`GeofenceService` xu ly.
+  - Tham chieu: [MapViewModel.cs](../src/ZoneGuide.Mobile/ViewModels/MapViewModel.cs), [GeofenceService.cs](../src/ZoneGuide.Mobile/Services/GeofenceService.cs)
+
+- `Xu ly cap nhat vi tri`
+  - Code: `await _geofenceService.ProcessLocationUpdateAsync(location);`
+  - Vi tri: [MapViewModel.cs](../src/ZoneGuide.Mobile/ViewModels/MapViewModel.cs)
+  - Y nghia: `MapViewModel` day vi tri moi vao `GeofenceService`.
+
+- `Tinh khoang cach den tung POI`
+  - Code:
+    ```csharp
+    var distance = location.DistanceTo(poi.Latitude, poi.Longitude);
+    ```
+  - Vi tri: [GeofenceService.cs](../src/ZoneGuide.Mobile/Services/GeofenceService.cs)
+  - Y nghia: moi POI dang monitor deu duoc tinh khoang cach tu vi tri hien tai.
+
+- `Tao danh sach su kien Enter hop le`
+  - Code:
+    ```csharp
+    if (newState.HasValue)
+    {
+        events.Add(new GeofenceEvent { ... });
+    }
+    ```
+  - Vi tri: [GeofenceService.cs](../src/ZoneGuide.Mobile/Services/GeofenceService.cs)
+  - Y nghia: chi cac POI vuot qua dieu kien state/cooldown/debounce moi duoc dua vao danh sach event.
+
+- `Co nhieu Enter cung luc`
+  - Code:
+    ```csharp
+    var enterEvents = events.Where(e => e.EventType == GeofenceEventType.Enter).ToList();
+    ```
+  - Vi tri: [GeofenceService.cs](../src/ZoneGuide.Mobile/Services/GeofenceService.cs)
+
+- `Sap xep theo Priority ... / neu cung Priority thi chon Distance nho hon`
+  - Code:
+    ```csharp
+    .OrderByDescending(x => x.FinalScore)
+    .ThenBy(x => x.Event.Distance)
+    .First();
+    ```
+  - Vi tri: [GeofenceService.cs](../src/ZoneGuide.Mobile/Services/GeofenceService.cs)
+  - Y nghia: code hien tai dung `FinalScore` thong qua `PoiScoringService`, trong do `Priority` va `Distance` la 2 thanh phan quan trong.
+
+- `Phat POI duoc chon`
+  - Code:
+    ```csharp
+    GeofenceTriggered?.Invoke(this, bestEnter.Event);
+    ```
+  - Vi tri: [GeofenceService.cs](../src/ZoneGuide.Mobile/Services/GeofenceService.cs)
+  - Y nghia: service chi fire 1 event Enter tot nhat.
+
+- `Phat ngay voi POI duoc chon`
+  - Code:
+    ```csharp
+    await _narrationService.PlayImmediatelyAsync(BuildNarrationItem(
+        evt.POI,
+        evt.EventType,
+        evt.Distance));
+    ```
+  - Vi tri: [MapViewModel.cs](../src/ZoneGuide.Mobile/ViewModels/MapViewModel.cs)
+  - Y nghia: `MapViewModel` nhan event geofence roi goi `NarrationService`.
+
+- `Neu trung POI dang phat/da trong queue thi bo qua`
+  - Code:
+    ```csharp
+    if (_currentItem?.POI.Id == item.POI.Id || _queue.Any(q => q.POI.Id == item.POI.Id))
+    {
+        return;
+    }
+    ```
+  - Vi tri: [NarrationService.cs](../src/ZoneGuide.Mobile/Services/NarrationService.cs)

@@ -60,35 +60,7 @@ else if (_dashboard != null)
                 </MudStack>
             </MudPaper>
         </MudItem>
-        <MudItem xs="12" sm="6" md="6">
-            <MudPaper Class="pa-4" Elevation="1">
-                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-                    <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Realtime QR Monitoring</MudText>
-                    <MudChip T="string" Color="@(_qrRealtimeConnected ? Color.Success : Color.Warning)" Variant="Variant.Filled" Size="Size.Small">
-                        @(_qrRealtimeConnected ? "LIVE" : "OFFLINE")
-                    </MudChip>
-                </MudStack>
-
-                <MudGrid Class="mt-2">
-                    <MudItem xs="6" sm="3">
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Thiết bị active</MudText>
-                        <MudText Typo="Typo.h5">@(_qrRealtime?.ActiveDeviceCount ?? 0)</MudText>
-                    </MudItem>
-                    <MudItem xs="6" sm="3">
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Thiết bị duy nhất</MudText>
-                        <MudText Typo="Typo.h5">@(_qrRealtime?.UniqueDeviceCount ?? 0)</MudText>
-                    </MudItem>
-                    <MudItem xs="6" sm="3">
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Lượt truy cập QR</MudText>
-                        <MudText Typo="Typo.h5">@(_qrRealtime?.TotalAccessCount ?? 0)</MudText>
-                    </MudItem>
-                </MudGrid>
-
-                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">
-                    @GetRealtimeFooterText()
-                </MudText>
-            </MudPaper>
-        </MudItem>
+        
         <MudItem xs="12" sm="6" md="6">
             <MudPaper Class="pa-4" Elevation="1">
                 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">

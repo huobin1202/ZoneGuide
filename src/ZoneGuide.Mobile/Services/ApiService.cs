@@ -594,6 +594,8 @@ public class ApiService
         return false;
     }
 
+    #region Sequence Diagram - Mobile monitoring heartbeat va offline
+
     public async Task<bool> UploadMobileHeartbeatAsync(MobileLiveHeartbeatDto data)
     {
         foreach (var baseUrl in GetOrderedBaseUrls())
@@ -673,6 +675,8 @@ public class ApiService
 
         return false;
     }
+
+    #endregion
 
     #endregion
 

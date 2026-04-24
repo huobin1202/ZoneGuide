@@ -39,6 +39,7 @@ public partial class MapViewModel : ObservableObject
     private readonly ILocationService _locationService;
     private readonly IGeofenceService _geofenceService;
     private readonly IPOIRepository _poiRepository;
+    private readonly IAnalyticsRepository _analyticsRepository;
     private readonly INarrationService _narrationService;
     private readonly GlobalMiniPlayerViewModel _miniPlayerViewModel;
     private readonly ITourRepository _tourRepository;
@@ -66,7 +67,11 @@ public partial class MapViewModel : ObservableObject
     private bool _selectedPoiOverlaySuppressedInTourMode;
     private readonly Dictionary<int, DateTime> _autoNarrationDebounceByPoi = new();
     private readonly HashSet<int> _playedPoiIdsInCurrentVisit = new();
+    private readonly Dictionary<int, int> _popularityByPoiId = new();
     private CancellationTokenSource? _routeBuildCts;
+    private DateTime _popularityLoadedAtUtc = DateTime.MinValue;
+
+    private static readonly TimeSpan PopularityCacheLifetime = TimeSpan.FromMinutes(10);
 
     [ObservableProperty]
     private Location? userLocation;
@@ -189,6 +194,7 @@ public partial class MapViewModel : ObservableObject
         ILocationService locationService,
         IGeofenceService geofenceService,
         IPOIRepository poiRepository,
+        IAnalyticsRepository analyticsRepository,
         INarrationService narrationService,
         GlobalMiniPlayerViewModel miniPlayerViewModel,
         ITourRepository tourRepository,
@@ -198,6 +204,7 @@ public partial class MapViewModel : ObservableObject
         _locationService = locationService;
         _geofenceService = geofenceService;
         _poiRepository = poiRepository;
+        _analyticsRepository = analyticsRepository;
         _narrationService = narrationService;
         _miniPlayerViewModel = miniPlayerViewModel;
         _tourRepository = tourRepository;
@@ -393,6 +400,8 @@ public partial class MapViewModel : ObservableObject
                 .Where(p => p.Latitude is >= -90 and <= 90 && p.Longitude is >= -180 and <= 180)
                 .ToList();
 
+            await RefreshPopularityScoresAsync(pois, forceRefresh: true);
+
             _allPOIs = pois;
             PopulatePins(_allPOIs);
             if (!IsTourModeActive)
@@ -478,6 +487,7 @@ public partial class MapViewModel : ObservableObject
         PopulateTourSheetPois(tourPois);
         _replayBlockedPoiId = null;
         ResetAutoNarrationTracking();
+        await RefreshPopularityScoresAsync(tourPois, forceRefresh: true);
 
         ActiveTourName = !string.IsNullOrWhiteSpace(tour?.Name)
             ? tour!.Name
@@ -830,6 +840,8 @@ public partial class MapViewModel : ObservableObject
         }
     }
 
+    #region Scan QR & Play audio
+
     public async Task<bool> FocusPOIByIdAsync(int poiId, bool allowServerSync = false)
     {
         if (poiId <= 0)
@@ -870,6 +882,11 @@ public partial class MapViewModel : ObservableObject
         {
             POIs.Add(poi);
         }
+
+
+
+
+
 
         SelectPoiCore(poi, revealOverlayInTourMode: false);
         return true;
@@ -949,6 +966,8 @@ public partial class MapViewModel : ObservableObject
         return UserLocation;
     }
 
+    #endregion
+
     private async Task SetInAppNavigationRouteAsync(Location? from, POI toPoi)
     {
         if (from == null)
@@ -989,6 +1008,12 @@ public partial class MapViewModel : ObservableObject
             System.Diagnostics.Debug.WriteLine($"[MapVM] BuildAndApplyNavigationRouteAsync failed: {ex.Message}");
         }
     }
+    
+
+
+
+
+
 
     [RelayCommand]
     private async Task PlaySelectedPOI()
@@ -1290,6 +1315,8 @@ public partial class MapViewModel : ObservableObject
         return activePois.Count > 0 ? activePois : await _poiRepository.GetAllAsync();
     }
 
+    #region Sequence Diagram - Xu ly trung khi dung giua 2 POI co khoang cach bang nhau
+
     private async void OnGeofenceTriggered(object? sender, GeofenceEvent evt)
     {
         await _geofencePlaybackGate.WaitAsync();
@@ -1425,6 +1452,8 @@ public partial class MapViewModel : ObservableObject
             _geofencePlaybackGate.Release();
         }
     }
+
+    #endregion
 
     private static bool IsValidLocation(LocationData location)
     {
@@ -1581,7 +1610,15 @@ public partial class MapViewModel : ObservableObject
                     ApproachRadius = GetEffectiveApproachRadiusMeters(p)
                 })
                 .Where(x => x.Distance <= x.ApproachRadius)
-                .OrderByDescending(x => x.Poi.Priority)
+                .Select(x => new
+                {
+                    x.Poi,
+                    x.Distance,
+                    x.TriggerRadius,
+                    x.ApproachRadius,
+                    FinalPriority = CalculatePoiFinalPriority(x.Poi, x.Distance, x.TriggerRadius, x.ApproachRadius)
+                })
+                .OrderByDescending(x => x.FinalPriority)
                 .ThenBy(x => x.Distance)
                 .FirstOrDefault();
 
@@ -1728,6 +1765,98 @@ public partial class MapViewModel : ObservableObject
         var triggerRadius = GetEffectiveTriggerRadiusMeters(poi);
         var approachRadius = poi.ApproachRadius > 0 ? poi.ApproachRadius : triggerRadius * 2;
         return Math.Clamp(approachRadius, triggerRadius, MaxActivationRadiusMeters);
+    }
+
+    private double CalculatePoiFinalPriority(POI poi, double distanceMeters, double triggerRadiusMeters, double approachRadiusMeters)
+    {
+        return PoiScoringService.CalculateFinalPriority(new PoiScoreContext
+        {
+            BasePriority = poi.Priority,
+            DistanceMeters = distanceMeters,
+            TriggerRadiusMeters = triggerRadiusMeters,
+            ApproachRadiusMeters = approachRadiusMeters,
+            TourOrderScore = ResolveTourOrderScore(poi),
+            HasOfflineAudio = !string.IsNullOrWhiteSpace(poi.AudioFilePath),
+            HasOnlineAudio = !string.IsNullOrWhiteSpace(poi.AudioUrl),
+            HasTtsContent = !string.IsNullOrWhiteSpace(poi.TTSScript),
+            ListenCountLast30Days = GetPopularityListenCount(poi.Id),
+            IsCooldownActive = _geofenceService.IsCooldownActive(poi.Id)
+        });
+    }
+
+    #region Sequence Diagram - Tinh diem uu tien narration va cap nhat trang thai phat
+
+    private int GetPopularityListenCount(int poiId)
+    {
+        return _popularityByPoiId.TryGetValue(poiId, out var listenCount) ? listenCount : 0;
+    }
+
+    private int ResolveTourOrderScore(POI poi)
+    {
+        if (!IsTourModeActive || _currentTourPois.Count == 0 || poi.OrderInTour <= 0)
+            return 0;
+
+        var orderedTourPois = _currentTourPois
+            .Where(p => p.OrderInTour > 0)
+            .OrderBy(p => p.OrderInTour)
+            .ToList();
+
+        if (orderedTourPois.Count == 0)
+            return 0;
+
+        var nextExpectedPoi = orderedTourPois.FirstOrDefault(p => !_playedPoiIdsInCurrentVisit.Contains(p.Id))
+            ?? orderedTourPois[^1];
+
+        var orderGap = Math.Abs(poi.OrderInTour - nextExpectedPoi.OrderInTour);
+
+        if (orderGap == 0)
+            return 120;
+
+        if (orderGap == 1)
+            return 60;
+
+        return 0;
+    }
+
+    private async Task RefreshPopularityScoresAsync(IEnumerable<POI> pois, bool forceRefresh = false)
+    {
+        var poiIds = pois
+            .Select(p => p.Id)
+            .Distinct()
+            .ToList();
+
+        if (poiIds.Count == 0)
+        {
+            _popularityByPoiId.Clear();
+            _popularityLoadedAtUtc = DateTime.UtcNow;
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        var cacheStillValid = !forceRefresh
+            && now - _popularityLoadedAtUtc < PopularityCacheLifetime
+            && poiIds.All(id => _popularityByPoiId.ContainsKey(id));
+
+        if (cacheStillValid)
+            return;
+
+        var startDate = now.Date.AddDays(-30);
+
+        foreach (var poiId in poiIds)
+        {
+            try
+            {
+                var stats = await _analyticsRepository.GetStatisticsByPOIAsync(poiId, startDate, now);
+                _popularityByPoiId[poiId] = stats.Sum(s => s.ListenCount);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[MapVM] Failed to refresh popularity for POI {poiId}: {ex.Message}");
+                _popularityByPoiId[poiId] = 0;
+            }
+        }
+
+        _popularityLoadedAtUtc = now;
     }
 
     private bool ShouldSkipAutoNarration(int poiId)
@@ -1901,6 +2030,8 @@ public partial class MapViewModel : ObservableObject
             UpdateSelectedPoiNarrationState();
         });
     }
+
+    #endregion
 
     private void OnMiniPlayerPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
