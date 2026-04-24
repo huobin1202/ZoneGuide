@@ -1597,9 +1597,9 @@ public partial class MapViewModel : ObservableObject
                     x.Distance,
                     x.TriggerRadius,
                     x.ApproachRadius,
-                    FinalScore = CalculatePoiFinalScore(x.Poi, x.Distance, x.TriggerRadius, x.ApproachRadius)
+                    FinalPriority = CalculatePoiFinalPriority(x.Poi, x.Distance, x.TriggerRadius, x.ApproachRadius)
                 })
-                .OrderByDescending(x => x.FinalScore)
+                .OrderByDescending(x => x.FinalPriority)
                 .ThenBy(x => x.Distance)
                 .FirstOrDefault();
 
@@ -1748,9 +1748,9 @@ public partial class MapViewModel : ObservableObject
         return Math.Clamp(approachRadius, triggerRadius, MaxActivationRadiusMeters);
     }
 
-    private double CalculatePoiFinalScore(POI poi, double distanceMeters, double triggerRadiusMeters, double approachRadiusMeters)
+    private double CalculatePoiFinalPriority(POI poi, double distanceMeters, double triggerRadiusMeters, double approachRadiusMeters)
     {
-        return PoiScoringService.CalculateFinalScore(new PoiScoreContext
+        return PoiScoringService.CalculateFinalPriority(new PoiScoreContext
         {
             BasePriority = poi.Priority,
             DistanceMeters = distanceMeters,

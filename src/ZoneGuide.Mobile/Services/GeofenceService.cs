@@ -283,7 +283,7 @@ public class GeofenceService : IGeofenceService
                     .Select(e => new
                     {
                         Event = e,
-                        FinalScore = PoiScoringService.CalculateFinalScore(new PoiScoreContext
+                        FinalPriority = PoiScoringService.CalculateFinalPriority(new PoiScoreContext
                         {
                             BasePriority = e.POI.Priority,
                             DistanceMeters = e.Distance,
@@ -297,7 +297,7 @@ public class GeofenceService : IGeofenceService
                             IsCooldownActive = false
                         })
                     })
-                    .OrderByDescending(x => x.FinalScore)
+                    .OrderByDescending(x => x.FinalPriority)
                     .ThenBy(x => x.Event.Distance)
                     .First();
 

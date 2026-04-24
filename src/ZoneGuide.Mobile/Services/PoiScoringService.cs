@@ -7,7 +7,7 @@ public static class PoiScoringService
 {
     public const double CooldownPenaltyScore = 100000;
 
-    public static double CalculateFinalScore(PoiScoreContext context)
+    public static double CalculateFinalPriority(PoiScoreContext context)
     {
         return (context.BasePriority * 100)
             + CalculateDistanceScore(context.DistanceMeters, context.ApproachRadiusMeters)
