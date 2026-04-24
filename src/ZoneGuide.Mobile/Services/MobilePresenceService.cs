@@ -55,7 +55,7 @@ public sealed class MobilePresenceService : IMobilePresenceService, IDisposable
             _isRunning = true;
 
             _heartbeatTimer?.Dispose();
-            //Gửi tín hiệu định kỳ
+            // Sequence mapping: "Gui tin hieu dinh ky (moi 5 giay)".
             _heartbeatTimer = new Timer(async _ => await SendHeartbeatAsync(), null, HeartbeatIntervalMs, HeartbeatIntervalMs);
         }
         finally
@@ -63,7 +63,7 @@ public sealed class MobilePresenceService : IMobilePresenceService, IDisposable
             _lifecycleGate.Release();
         }
 
-//báo tín hiệu bắt đầu cho api
+        // Sequence mapping: "Bao tin hieu bat dau cho api".
         await SendHeartbeatAsync();
     }
 
@@ -93,6 +93,7 @@ public sealed class MobilePresenceService : IMobilePresenceService, IDisposable
 
         try
         {
+            // Sequence mapping: "Gui offline".
             await _apiService.UploadMobileOfflineAsync(sessionIdToClose);
         }
         catch (Exception ex)

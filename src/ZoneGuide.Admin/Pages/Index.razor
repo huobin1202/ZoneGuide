@@ -335,6 +335,7 @@ else
             return InvokeAsync(StateHasChanged);
         };
 
+        // Sequence mapping: "Bang dieu khien admin nhan trang thai".
         _mobileHubConnection.On<MobileLiveMonitoringSnapshotDto>("MobileMonitorUpdated", snapshot =>
         {
             _mobileRealtime = snapshot;

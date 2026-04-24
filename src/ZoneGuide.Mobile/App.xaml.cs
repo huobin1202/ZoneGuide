@@ -47,6 +47,7 @@ public partial class App : Application
         {
             System.Diagnostics.Debug.WriteLine("[App] Window Created successfully");
             await InitializeRootPageAsync(window);
+            // Sequence mapping: "Mo app".
             await _mobilePresenceService.StartAsync();
         };
 

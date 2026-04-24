@@ -252,6 +252,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
                         allowServerSync: _autoPlayRequestedOnNavigation);
                 }
 
+                // Sequence mapping: "Hien thi POI va tu phat audio".
                 if (_autoPlayRequestedOnNavigation && focused && _viewModel.PlaySelectedPOICommand.CanExecute(null))
                 {
                     await _viewModel.PlaySelectedPOICommand.ExecuteAsync(null);
@@ -306,6 +307,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
     {
         try
         {
+            // Sequence mapping: "Map nhan query QR".
             _focusPoiIdRequestedOnNavigation = TryGetIntQueryValue(query, "poiId");
 
             var tourId = TryGetIntQueryValue(query, "tourId");
@@ -341,6 +343,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
                                 allowServerSync: _autoPlayRequestedOnNavigation);
                         }
 
+                        // Sequence mapping: "Hien thi POI va tu phat audio".
                         if (_autoPlayRequestedOnNavigation && focused && _viewModel.PlaySelectedPOICommand.CanExecute(null))
                         {
                             await _viewModel.PlaySelectedPOICommand.ExecuteAsync(null);
@@ -375,6 +378,7 @@ public partial class MapPage : ContentPage, IQueryAttributable
                             allowServerSync: _autoPlayRequestedOnNavigation);
                     }
 
+                    // Sequence mapping: "Hien thi POI va tu phat audio".
                     if (_autoPlayRequestedOnNavigation && focused && _viewModel.PlaySelectedPOICommand.CanExecute(null))
                     {
                         await _viewModel.PlaySelectedPOICommand.ExecuteAsync(null);

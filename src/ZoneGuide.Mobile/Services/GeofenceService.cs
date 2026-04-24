@@ -130,6 +130,7 @@ public class GeofenceService : IGeofenceService
             {
                 foreach (var poi in _monitoredPOIs.Where(p => p.IsActive))
                 {
+                    // Sequence mapping: "Tinh khoang cach den tung POI".
                     var distance = location.DistanceTo(poi.Latitude, poi.Longitude);
                     // Only use admin-configured radii - no fallback defaults
                     var triggerRadius = poi.TriggerRadius;
@@ -190,7 +191,8 @@ public class GeofenceService : IGeofenceService
                         }
                     }
 
-                    // Tạo event nếu có thay đổi
+                    // Sequence mapping: "Tao danh sach su kien Enter hop le".
+                    // Chi cac POI vuot qua dieu kien state/cooldown/debounce moi duoc dua vao danh sach event.
                     if (newState.HasValue)
                     {
                         // Enter chịu cooldown + debounce, còn Exit phải được phát ngay để dừng audio đúng lúc.
@@ -256,6 +258,7 @@ public class GeofenceService : IGeofenceService
                 return;
             }
 
+            // Sequence mapping: "Co nhieu Enter cung luc".
             var enterEvents = events.Where(e => e.EventType == GeofenceEventType.Enter).ToList();
             var nonEnterEvents = events.Where(e => e.EventType != GeofenceEventType.Enter);
 
@@ -270,11 +273,13 @@ public class GeofenceService : IGeofenceService
             // - If tie, nearest distance
             if (enterEvents.Any())
             {
+                // Sequence mapping: "Sap xep theo Priority ... / neu cung Priority thi chon Distance nho hon".
                 var bestEnter = enterEvents
                     .OrderByDescending(e => e.POI.Priority)      // Highest priority first
                     .ThenBy(e => e.Distance)                     // Nearest first
                     .First();
-                
+
+                // Sequence mapping: "Phat POI duoc chon".
                 GeofenceTriggered?.Invoke(this, bestEnter);
             }
         });

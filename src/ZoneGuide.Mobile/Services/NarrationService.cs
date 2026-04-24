@@ -64,16 +64,19 @@ public class NarrationService : INarrationService, IDisposable
 
     public Task EnqueueAsync(NarrationQueueItem item)
     {
+        // Sequence mapping: "Them vao hang doi hoac phat ngay" / "Kiem tra trung lap POI.Id".
         // Kiểm tra trùng lặp
         if (_currentItem?.POI.Id == item.POI.Id || _queue.Any(q => q.POI.Id == item.POI.Id))
         {
+            // Sequence mapping: "Trung lap -> bo qua yeu cau".
             // bo qua yeu cau
             return Task.CompletedTask; // Đã có trong queue hoặc đang phát
         }
 
         item.Status = NarrationStatus.Queued;
         item.QueuedAt = DateTime.UtcNow;
-        
+
+        // Sequence mapping: "Khong trung lap -> dua vao queue rieng cua thiet bi".
         _queue.Enqueue(item);
 
         // Chạy nền để không block UI thread và không phụ thuộc caller await.
@@ -83,9 +86,11 @@ public class NarrationService : INarrationService, IDisposable
 
     public async Task PlayImmediatelyAsync(NarrationQueueItem item)
     {
+        // Sequence mapping: "Them vao hang doi hoac phat ngay" / "Kiem tra trung lap POI.Id".
         // Chặn trùng lặp - nếu đang phát hoặc đã queued cùng POI, bỏ qua
         if (_currentItem?.POI.Id == item.POI.Id || _queue.Any(q => q.POI.Id == item.POI.Id))
         {
+            // Sequence mapping: "Trung lap -> bo qua yeu cau".
             System.Diagnostics.Debug.WriteLine($"[NarrationService] PlayImmediatelyAsync: skip duplicate POI {item.POI.Id}");
             return;
         }
@@ -98,7 +103,8 @@ public class NarrationService : INarrationService, IDisposable
         
         item.Status = NarrationStatus.Queued;
         item.QueuedAt = DateTime.UtcNow;
-        
+
+        // Sequence mapping: "Khong trung lap -> dua vao queue rieng cua thiet bi".
         _queue.Enqueue(item);
 
         // Chạy nền, không chờ phát xong để caller tiếp tục luồng UI/geofence.
@@ -284,14 +290,15 @@ public class NarrationService : INarrationService, IDisposable
                 IsPaused = false;
                 CurrentProgress = 0;
 
+                // Sequence mapping: "NarrationStarted".
                 NarrationStarted?.Invoke(this, item);
 
                 try
                 {
                     var played = false;
 
-                    // Ưu tiên phát file audio nếu có,
-                    // Phat AudioPath hoac AudioUrl 
+                    // Sequence mapping: "Phat AudioPath hoac AudioUrl" / "Co audio".
+                    // Ưu tiên phát file audio nếu có.
                     if (!string.IsNullOrEmpty(item.AudioPath) && File.Exists(item.AudioPath))
                     {
                         try
@@ -301,7 +308,7 @@ public class NarrationService : INarrationService, IDisposable
                                 _cancellationTokenSource.Token);
                             played = true;
                         }
-                        // chuyen sang doc bang TTS
+                        // Sequence mapping: "Loi audio -> chuyen sang doc bang TTS".
                         catch (Exception ex) when (ex is not OperationCanceledException && !string.IsNullOrWhiteSpace(item.TTSText))
                         {
                             await PlayTtsAndWaitAsync(item, _cancellationTokenSource.Token);
@@ -320,11 +327,13 @@ public class NarrationService : INarrationService, IDisposable
                         }
                         catch (Exception ex) when (ex is not OperationCanceledException && !string.IsNullOrWhiteSpace(item.TTSText))
                         {
+                            // Sequence mapping: "Loi audio -> chuyen sang doc bang TTS".
                             await PlayTtsAndWaitAsync(item, _cancellationTokenSource.Token);
                             played = true;
                         }
                     }
 
+                    // Sequence mapping: "Khong co audio".
                     if (!played && !string.IsNullOrWhiteSpace(item.TTSText))
                     {
                         await PlayTtsAndWaitAsync(item, _cancellationTokenSource.Token);
@@ -344,6 +353,7 @@ public class NarrationService : INarrationService, IDisposable
                         IsPaused = false;
                         CurrentProgress = 1.0;
 
+                        // Sequence mapping: "NarrationCompleted".
                         NarrationCompleted?.Invoke(this, item);
                     }
                 }

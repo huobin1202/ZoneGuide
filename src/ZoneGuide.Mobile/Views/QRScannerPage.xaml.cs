@@ -108,6 +108,7 @@ public partial class QRScannerPage : ContentPage
     // (it may be internal/not referenced directly). We then read `Results` via reflection.
     private void OnBarcodesDetected(object? sender, object e)
     {
+        // Sequence mapping: "Quet ma QR dia diem".
         if (_handled)
             return;
 
@@ -133,12 +134,15 @@ public partial class QRScannerPage : ContentPage
             if (string.IsNullOrWhiteSpace(text))
                 return;
 
+            // Sequence mapping: "Doc payload QR va tach poiId".
             text = text.Trim();
             ApiService.TrySetPreferredBaseUrlFromQrPayload(text);
 
+            // Sequence mapping: "QR khong hop le".
             if (!TryExtractPoiId(text, out var poiId))
                 return;
 
+            // Sequence mapping: "QR hop le".
             _handled = true;
 
             if (_reader != null)
@@ -201,6 +205,7 @@ public partial class QRScannerPage : ContentPage
     {
         try
         {
+            // Sequence mapping: "Mo map voi poiId + autoplay=true".
             await Shell.Current.GoToAsync($"//map?poiId={poiId}&autoplay=true");
             return;
         }

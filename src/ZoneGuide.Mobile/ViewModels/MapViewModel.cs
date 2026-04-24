@@ -803,6 +803,7 @@ public partial class MapViewModel : ObservableObject
         if (poi == null)
             return;
 
+        // Sequence mapping: "Chon POI can mo".
         if (IsTourModeActive && revealOverlayInTourMode)
         {
             _selectedPoiOverlaySuppressedInTourMode = false;
@@ -835,6 +836,7 @@ public partial class MapViewModel : ObservableObject
         if (poiId <= 0)
             return false;
 
+        // Sequence mapping: "Tim POI theo poiId".
         var poi = _allPOIs.FirstOrDefault(p => p.Id == poiId)
                   ?? POIs.FirstOrDefault(p => p.Id == poiId)
                   ?? await _poiRepository.GetByIdAsync(poiId);
@@ -846,6 +848,7 @@ public partial class MapViewModel : ObservableObject
         {
             try
             {
+                // Sequence mapping: "Neu thieu du lieu local thi sync server roi lay lai POI".
                 // QR có thể được tạo ngay sau khi POI được approve (trên server),
                 // trong lúc app chưa kịp sync -> fallback sync rồi thử lại.
                 await _syncService.SyncFromServerAsync();
@@ -1024,6 +1027,7 @@ public partial class MapViewModel : ObservableObject
             _playedPoiIdsInCurrentVisit.Add(SelectedPOI.Id);
             _geofenceService.ResetCooldown(SelectedPOI.Id);
 
+            // Sequence mapping: "PlayImmediatelyAsync(item)".
             var item = BuildNarrationItem(SelectedPOI, GeofenceEventType.Enter, 0);
             item.IsManualPlayback = true;
 
@@ -1228,6 +1232,7 @@ public partial class MapViewModel : ObservableObject
             initializedFromThisUpdate = true;
         }
 
+        // Sequence mapping: "Di chuyen vao vung giao nhau" / "Xu ly cap nhat vi tri".
         _ = _geofenceService.ProcessLocationUpdateAsync(location);
         if (!initializedFromThisUpdate)
         {
@@ -1404,6 +1409,7 @@ public partial class MapViewModel : ObservableObject
                 await _narrationService.StopAsync();
             }
 
+            // Sequence mapping: "Phat ngay voi POI duoc chon".
             await _narrationService.PlayImmediatelyAsync(BuildNarrationItem(
                 evt.POI,
                 evt.EventType,
@@ -1881,6 +1887,7 @@ public partial class MapViewModel : ObservableObject
 
     private void OnNarrationCompleted(object? sender, NarrationQueueItem item)
     {
+        // Sequence mapping: "Cap nhat trang thai hoan tat".
         // Clear POI lock when narration completes naturally
         // This allows re-entry to trigger the same POI again later
         _lockedPoiId = null;
