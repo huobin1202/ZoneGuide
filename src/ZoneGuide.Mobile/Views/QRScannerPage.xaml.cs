@@ -19,6 +19,7 @@ public partial class QRScannerPage : ContentPage
         InitializeComponent();
     }
 
+
     protected override void OnAppearing()
     {
         base.OnAppearing();
@@ -106,6 +107,10 @@ public partial class QRScannerPage : ContentPage
     // ZXing.Net.MAUI.Controls: BarcodesDetected callback.
     // We intentionally accept `object` for the event args to avoid relying on the event args type
     // (it may be internal/not referenced directly). We then read `Results` via reflection.
+
+
+    #region Scan QR dia diem va tu phat audio
+    //Quet mã QR địa điểm
     private void OnBarcodesDetected(object? sender, object e)
     {
         // Sequence mapping: "Quet ma QR dia diem".
@@ -134,6 +139,7 @@ public partial class QRScannerPage : ContentPage
             if (string.IsNullOrWhiteSpace(text))
                 return;
 
+<<<<<<< HEAD
             // Sequence mapping: "Doc payload QR va tach poiId".
             text = text.Trim();
             ApiService.TrySetPreferredBaseUrlFromQrPayload(text);
@@ -143,8 +149,16 @@ public partial class QRScannerPage : ContentPage
                 return;
 
             // Sequence mapping: "QR hop le".
+=======
+            //Doc payload QR va tach poiid   
+            text = text.Trim();
+            ApiService.TrySetPreferredBaseUrlFromQrPayload(text);
+            // QR khong hop le
+            if (!TryExtractPoiId(text, out var poiId))
+                return;
+            //QR hop le -> chuyen sang map
+>>>>>>> d0fb22a018b118314c808f3e09182d1c03e2c816
             _handled = true;
-
             if (_reader != null)
                 _reader.IsDetecting = false;
 
@@ -200,7 +214,7 @@ public partial class QRScannerPage : ContentPage
 
         return false;
     }
-
+   
     private async Task NavigateToPoiAsync(int poiId)
     {
         try
@@ -226,5 +240,7 @@ public partial class QRScannerPage : ContentPage
                 _reader.IsDetecting = true;
         }
     }
+
+    #endregion
 }
 

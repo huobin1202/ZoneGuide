@@ -302,6 +302,17 @@ public partial class MapPage : ContentPage, IQueryAttributable
             System.Diagnostics.Debug.WriteLine($"[MapPage] OnAppearing Error: {ex}");
         }
     }
+    
+
+
+
+
+
+
+
+
+
+
 
     public void ApplyQueryAttributes(IDictionary<string, object> query)
     {

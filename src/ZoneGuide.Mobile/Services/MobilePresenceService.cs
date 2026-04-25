@@ -38,6 +38,8 @@ public sealed class MobilePresenceService : IMobilePresenceService, IDisposable
         _geofenceService = geofenceService;
     }
 
+    #region Sequence Diagram - Monitoring mobile session va heartbeat moi 5 giay
+
     public async Task StartAsync()
     {
         await _lifecycleGate.WaitAsync();
@@ -55,7 +57,7 @@ public sealed class MobilePresenceService : IMobilePresenceService, IDisposable
             _isRunning = true;
 
             _heartbeatTimer?.Dispose();
-            // Sequence mapping: "Gui tin hieu dinh ky (moi 5 giay)".
+            // Sequence mapping: "Gui tin hieu dinh ky
             _heartbeatTimer = new Timer(async _ => await SendHeartbeatAsync(), null, HeartbeatIntervalMs, HeartbeatIntervalMs);
         }
         finally
@@ -152,6 +154,10 @@ public sealed class MobilePresenceService : IMobilePresenceService, IDisposable
         }
     }
 
+    #endregion
+
+    #region Sequence Diagram - Dinh danh thiet bi cho mobile monitoring
+
     private async Task<string> GetAnonymousDeviceIdAsync()
     {
         var deviceId = await _settingsService.GetAsync<string>(DeviceIdKey);
@@ -163,6 +169,8 @@ public sealed class MobilePresenceService : IMobilePresenceService, IDisposable
 
         return deviceId;
     }
+
+    #endregion
 
     public void Dispose()
     {
