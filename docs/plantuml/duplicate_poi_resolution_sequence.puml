@@ -1,0 +1,63 @@
+@startuml
+title Xu ly trung khi dung giua 2 POI gan nhau
+
+participant LocationService
+participant MapViewModel
+participant GeofenceService
+participant PoiScoringService
+participant NarrationService
+
+LocationService -> MapViewModel: LocationChanged?.Invoke(this, CurrentLocation)
+MapViewModel -> MapViewModel: OnLocationChanged(object? sender, LocationData location)
+MapViewModel -> GeofenceService: ProcessLocationUpdateAsync(location)
+GeofenceService -> GeofenceService: events.Add(new GeofenceEvent { POI = poi, EventType = newState.Value, Distance = distance, Location = location, Timestamp = DateTime.UtcNow })
+GeofenceService -> GeofenceService: enterEvents = events.Where(e => e.EventType == GeofenceEventType.Enter).ToList()
+GeofenceService -> GeofenceService: nonEnterEvents = events.Where(e => e.EventType != GeofenceEventType.Enter)
+
+loop foreach (var evt in nonEnterEvents)
+  GeofenceService --> MapViewModel: GeofenceTriggered?.Invoke(this, evt)
+end
+
+opt enterEvents.Any()
+  loop enterEvents.Select(e => new { Event = e, FinalPriority = PoiScoringService.CalculateFinalPriority(new PoiScoreContext { BasePriority = e.POI.Priority, DistanceMeters = e.Distance, TriggerRadiusMeters = e.POI.TriggerRadius, ApproachRadiusMeters = e.POI.ApproachRadius, TourOrderScore = 0, HasOfflineAudio = !string.IsNullOrWhiteSpace(e.POI.AudioFilePath), HasOnlineAudio = !string.IsNullOrWhiteSpace(e.POI.AudioUrl), HasTtsContent = !string.IsNullOrWhiteSpace(e.POI.TTSScript), ListenCountLast30Days = 0, IsCooldownActive = false }) })
+    GeofenceService -> PoiScoringService: CalculateFinalPriority(new PoiScoreContext { BasePriority = e.POI.Priority, DistanceMeters = e.Distance, TriggerRadiusMeters = e.POI.TriggerRadius, ApproachRadiusMeters = e.POI.ApproachRadius, TourOrderScore = 0, HasOfflineAudio = !string.IsNullOrWhiteSpace(e.POI.AudioFilePath), HasOnlineAudio = !string.IsNullOrWhiteSpace(e.POI.AudioUrl), HasTtsContent = !string.IsNullOrWhiteSpace(e.POI.TTSScript), ListenCountLast30Days = 0, IsCooldownActive = false })
+    PoiScoringService --> GeofenceService: CalculateFinalPriority(context)
+  end
+  GeofenceService --> MapViewModel: GeofenceTriggered?.Invoke(this, bestEnter.Event)
+end
+
+alt evt.EventType == GeofenceEventType.Exit
+  MapViewModel -> MapViewModel: _playedPoiIdsInCurrentVisit.Remove(evt.POI.Id)\n_replayBlockedPoiId = null\n_lastInRangePoiId = null\n_lastAutoOpenedPoiId = null\n_lockedPoiId = null
+else evt.EventType is GeofenceEventType.Approach or GeofenceEventType.Enter
+  opt _replayBlockedPoiId != evt.POI.Id
+    MapViewModel -> MapViewModel: TryAutoOpenPoiDetailAsync(evt.POI)
+  end
+
+  alt !autoPlayEnabled
+    MapViewModel -> MapViewModel: _lastInRangePoiId = evt.POI.Id\nreturn
+  else _replayBlockedPoiId == evt.POI.Id
+    MapViewModel --> MapViewModel: return
+  else _lockedPoiId.HasValue && _lockedPoiId != evt.POI.Id
+    MapViewModel --> MapViewModel: return
+  else hasActiveNarration && currentItemPoiId == evt.POI.Id
+    MapViewModel --> MapViewModel: return
+  else isManualPlayback
+    MapViewModel --> MapViewModel: return
+  else !hasActiveNarration && ShouldSkipAutoNarration(evt.POI.Id)
+    MapViewModel --> MapViewModel: return
+  else
+    opt hasActiveNarration
+      MapViewModel -> NarrationService: StopAsync()
+    end
+
+    MapViewModel -> NarrationService: PlayImmediatelyAsync(BuildNarrationItem(evt.POI, evt.EventType, evt.Distance))
+
+    alt _currentItem?.POI.Id == item.POI.Id || _queue.Any(q => q.POI.Id == item.POI.Id)
+      NarrationService --> MapViewModel: return
+    else
+      NarrationService -> NarrationService: StopAsync()\nClearQueue()\n_queue.Enqueue(item)\nEnsureQueueProcessingStarted()
+    end
+  end
+end
+
+@enduml

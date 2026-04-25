@@ -1,0 +1,51 @@
+@startuml
+title Mobile monitoring realtime
+
+actor "NguoiDung" as User
+participant App
+participant MobilePresenceService
+participant "ZoneGuide.Mobile.Services.ApiService" as MobileApiService
+participant MobileMonitoringController
+participant MobileLiveMonitoringService
+participant MobileMonitoringHub
+participant "ZoneGuide.Admin.Services.ApiService" as AdminApiService
+participant "Index.razor" as AdminDashboard
+
+User -> App: CreateWindow() / window.Created / window.Activated / window.Resumed
+App -> MobilePresenceService: StartAsync()
+MobilePresenceService -> MobilePresenceService: LoadAsync()\nGetAnonymousDeviceIdAsync()\nnew Timer(async _ => await SendHeartbeatAsync(), null, HeartbeatIntervalMs, HeartbeatIntervalMs)
+MobilePresenceService -> MobileApiService: UploadMobileHeartbeatAsync(dto)
+MobileApiService -> MobileMonitoringController: RegisterHeartbeat([FromBody] heartbeat)
+MobileMonitoringController -> MobileLiveMonitoringService: RegisterHeartbeatAsync(heartbeat, userId, userDisplayName, userEmail)
+MobileLiveMonitoringService --> MobileMonitoringController: return snapshot
+MobileMonitoringController --> MobileApiService: Ok(snapshot)
+opt !string.Equals(signature, _lastBroadcastSignature, StringComparison.Ordinal)
+  MobileLiveMonitoringService -> MobileMonitoringHub: Clients.All.SendAsync("MobileMonitorUpdated", snapshot)
+end
+
+AdminDashboard -> AdminApiService: GetMobileMonitoringSnapshotAsync()
+AdminApiService -> MobileMonitoringController: GetSnapshot()
+MobileMonitoringController -> MobileLiveMonitoringService: GetSnapshot()
+MobileLiveMonitoringService --> MobileMonitoringController: return snapshot
+MobileMonitoringController --> AdminApiService: Ok(snapshot)
+AdminApiService --> AdminDashboard: GetFromJsonAsync<MobileLiveMonitoringSnapshotDto>("api/mobile-monitoring/snapshot")
+AdminDashboard -> MobileMonitoringHub: _mobileHubConnection.On<MobileLiveMonitoringSnapshotDto>("MobileMonitorUpdated", snapshot => { ... })
+AdminDashboard -> MobileMonitoringHub: StartAsync()
+
+note over MobileLiveMonitoringService,MobileMonitoringHub
+RunSnapshotLoopAsync(_loopCts.Token)
+end note
+
+loop _heartbeatTimer.Elapsed
+  MobilePresenceService -> MobileApiService: UploadMobileHeartbeatAsync(dto)
+  MobileApiService -> MobileMonitoringController: RegisterHeartbeat([FromBody] heartbeat)
+  MobileMonitoringController -> MobileLiveMonitoringService: RegisterHeartbeatAsync(heartbeat, userId, userDisplayName, userEmail)
+  MobileLiveMonitoringService --> MobileMonitoringController: return snapshot
+  MobileMonitoringController --> MobileApiService: Ok(snapshot)
+  opt !string.Equals(signature, _lastBroadcastSignature, StringComparison.Ordinal)
+    MobileLiveMonitoringService -> MobileMonitoringHub: Clients.All.SendAsync("MobileMonitorUpdated", snapshot)
+    MobileMonitoringHub --> AdminDashboard: MobileMonitorUpdated(snapshot)
+  end
+end
+
+@enduml

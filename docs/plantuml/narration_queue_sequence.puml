@@ -1,0 +1,52 @@
+@startuml
+title Hang doi narration theo tung thiet bi
+
+participant "ViewModel/UI 1" as Caller1
+participant "ViewModel/UI 2" as Caller2
+participant "ViewModel/UI 3" as Caller3
+participant NarrationService1
+participant NarrationService2
+participant NarrationService3
+participant AudioService1
+participant TTSService1
+
+note over NarrationService1,NarrationService3
+Moi app instance co 1 NarrationService singleton rieng.
+Moi thiet bi co queue rieng, khong dung chung.
+end note
+
+par Device 1
+  Caller1 -> NarrationService1: PlayImmediatelyAsync(item)
+
+  alt _currentItem?.POI.Id == item.POI.Id || _queue.Any(q => q.POI.Id == item.POI.Id)
+    NarrationService1 --> Caller1: return
+  else
+    NarrationService1 -> NarrationService1: StopAsync()\nClearQueue()\nitem.Status = NarrationStatus.Queued\nitem.QueuedAt = DateTime.UtcNow\n_queue.Enqueue(item)\nEnsureQueueProcessingStarted()
+    NarrationService1 --> Caller1: return
+
+    NarrationService1 -> NarrationService1: ProcessQueueAsync()
+    NarrationService1 --> Caller1: NarrationStarted?.Invoke(this, item)
+
+    alt !string.IsNullOrEmpty(item.AudioPath) && File.Exists(item.AudioPath)
+      NarrationService1 -> AudioService1: PlayAsync(item.AudioPath)
+    else !string.IsNullOrEmpty(item.AudioUrl)
+      NarrationService1 -> AudioService1: PlayFromUrlAsync(item.AudioUrl)
+    else !string.IsNullOrWhiteSpace(item.TTSText)
+      NarrationService1 -> TTSService1: SpeakAsync(item.TTSText, item.Language)
+    end
+
+    opt catch (Exception ex) when (ex is not OperationCanceledException && !string.IsNullOrWhiteSpace(item.TTSText))
+      NarrationService1 -> TTSService1: SpeakAsync(item.TTSText, item.Language)
+    end
+
+    NarrationService1 --> Caller1: NarrationCompleted?.Invoke(this, item)
+  end
+
+else Device 2
+  Caller2 -> NarrationService2: PlayImmediatelyAsync(item)
+
+else Device 3
+  Caller3 -> NarrationService3: PlayImmediatelyAsync(item)
+end
+
+@enduml

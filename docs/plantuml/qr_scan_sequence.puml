@@ -1,0 +1,71 @@
+@startuml
+title QR scan -> mo map -> autoplay narration
+
+actor "NguoiDung" as User
+participant QRScannerPage
+participant ApiService
+participant Shell
+participant MapPage
+participant MapViewModel
+participant NarrationService
+participant AudioService
+participant TTSService
+
+User -> QRScannerPage: OnBarcodesDetected(results)
+QRScannerPage -> QRScannerPage: text = valueProp?.GetValue(r) as string
+QRScannerPage -> QRScannerPage: text = text.Trim()
+QRScannerPage -> ApiService: TrySetPreferredBaseUrlFromQrPayload(text)
+
+alt !TryExtractPoiId(text, out var poiId)
+  QRScannerPage --> QRScannerPage: return
+else TryExtractPoiId(text, out var poiId)
+  QRScannerPage -> QRScannerPage: _handled = true\n_reader.IsDetecting = false
+  QRScannerPage -> QRScannerPage: MainThread.BeginInvokeOnMainThread(() => _ = NavigateToPoiAsync(poiId))
+  QRScannerPage -> Shell: GoToAsync($"//map?poiId={poiId}&autoplay=true")
+  alt catch
+    QRScannerPage -> Shell: GoToAsync($"map?poiId={poiId}&autoplay=true")
+    alt catch
+      QRScannerPage -> User: DisplayAlert("Khong mo duoc trang POI", "Da quet ma QR nhung khong the dieu huong den trang ban do.", "OK")
+      QRScannerPage -> QRScannerPage: _handled = false\n_reader.IsDetecting = true
+    end
+  end
+
+  Shell -> MapPage: ApplyQueryAttributes(query)
+  MapPage -> MapViewModel: FocusPOIByIdAsync(_focusPoiIdRequestedOnNavigation.Value, allowServerSync: _autoPlayRequestedOnNavigation)
+
+  opt shouldRefreshFromServer
+    MapViewModel -> MapViewModel: SyncFromServerAsync()\nGetByIdAsync(poiId)
+  end
+
+  alt poi == null
+    MapViewModel --> MapPage: return false
+  else poi != null
+    MapViewModel -> MapViewModel: SelectPoiCore(poi, revealOverlayInTourMode: false)
+    MapViewModel --> MapPage: return true
+    MapPage -> MapViewModel: PlaySelectedPOICommand.ExecuteAsync(null)
+    MapViewModel -> NarrationService: PlayImmediatelyAsync(item)
+
+    alt _currentItem?.POI.Id == item.POI.Id || _queue.Any(q => q.POI.Id == item.POI.Id)
+      NarrationService --> MapViewModel: return
+    else
+      NarrationService -> NarrationService: StopAsync()\nClearQueue()\n_queue.Enqueue(item)\nEnsureQueueProcessingStarted()
+      NarrationService --> MapViewModel: NarrationStarted?.Invoke(this, item)
+
+      alt !string.IsNullOrEmpty(item.AudioPath) && File.Exists(item.AudioPath)
+        NarrationService -> AudioService: PlayAsync(item.AudioPath)
+      else !string.IsNullOrEmpty(item.AudioUrl)
+        NarrationService -> AudioService: PlayFromUrlAsync(item.AudioUrl)
+      else !string.IsNullOrWhiteSpace(item.TTSText)
+        NarrationService -> TTSService: SpeakAsync(item.TTSText, item.Language)
+      end
+
+      opt catch (Exception ex) when (ex is not OperationCanceledException && !string.IsNullOrWhiteSpace(item.TTSText))
+        NarrationService -> TTSService: SpeakAsync(item.TTSText, item.Language)
+      end
+
+      NarrationService --> MapViewModel: NarrationCompleted?.Invoke(this, item)
+    end
+  end
+end
+
+@enduml

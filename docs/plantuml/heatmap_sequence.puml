@@ -1,0 +1,58 @@
+@startuml
+title Live tracking tren Heatmap
+
+actor Admin
+participant "Heatmap.razor" as HeatmapPage
+participant "ZoneGuide.Admin.Services.ApiService" as AdminApiService
+participant AnalyticsController
+participant AnalyticsService
+participant MobileMonitoringController
+participant MobileLiveMonitoringService
+participant "map.js" as MapJs
+participant App
+participant MobilePresenceService
+participant "ZoneGuide.Mobile.Services.ApiService" as MobileApiService
+
+Admin -> HeatmapPage: OnInitializedAsync()
+HeatmapPage -> HeatmapPage: LoadData()\nLoadMobileSnapshot()
+HeatmapPage -> AdminApiService: GetHeatmapDataAsync(_dateRange.Start, _dateRange.End)
+AdminApiService -> AnalyticsController: GetHeatmap(from, to)
+AnalyticsController -> AnalyticsService: GetHeatmapDataAsync(from, to)
+AnalyticsService --> AnalyticsController: return heatmapData
+AnalyticsController --> AdminApiService: Ok(heatmapData)
+AdminApiService --> HeatmapPage: GetFromJsonAsync<List<HeatmapPointDto>>($"api/analytics/heatmap{query}") ?? new()
+
+HeatmapPage -> AdminApiService: GetMobileMonitoringSnapshotAsync()
+AdminApiService -> MobileMonitoringController: GetSnapshot()
+MobileMonitoringController -> MobileLiveMonitoringService: GetSnapshot()
+MobileLiveMonitoringService --> MobileMonitoringController: return snapshot
+MobileMonitoringController --> AdminApiService: Ok(snapshot)
+AdminApiService --> HeatmapPage: GetFromJsonAsync<MobileLiveMonitoringSnapshotDto>("api/mobile-monitoring/snapshot")
+
+HeatmapPage -> HeatmapPage: OnAfterRenderAsync(firstRender)
+HeatmapPage -> MapJs: initHeatmapMap("heatmap-map")
+HeatmapPage -> MapJs: updateHeatmapData(_heatmapData)
+HeatmapPage -> MapJs: updateTrackingUsers(_mobileSnapshot.Sessions)
+MapJs -> MapJs: heatmapTrackingMarkers.forEach(function(marker) { heatmapMap.removeLayer(marker); })\nif (session.hasLocationFix === false) return
+
+loop _refreshTimer.Elapsed
+  HeatmapPage -> HeatmapPage: RefreshTrackingData()
+  HeatmapPage -> AdminApiService: GetMobileMonitoringSnapshotAsync()
+  AdminApiService -> MobileMonitoringController: GetSnapshot()
+  MobileMonitoringController -> MobileLiveMonitoringService: GetSnapshot()
+  MobileLiveMonitoringService --> MobileMonitoringController: return snapshot
+  MobileMonitoringController --> AdminApiService: Ok(snapshot)
+  AdminApiService --> HeatmapPage: GetFromJsonAsync<MobileLiveMonitoringSnapshotDto>("api/mobile-monitoring/snapshot")
+  HeatmapPage -> MapJs: updateTrackingUsers(_mobileSnapshot.Sessions)
+end
+
+group mobile app cap nhat du lieu nen
+  App -> MobilePresenceService: StartAsync()
+  loop _heartbeatTimer.Elapsed
+    MobilePresenceService -> MobileApiService: UploadMobileHeartbeatAsync(dto)
+    MobileApiService -> MobileMonitoringController: RegisterHeartbeat([FromBody] heartbeat)
+    MobileMonitoringController -> MobileLiveMonitoringService: RegisterHeartbeatAsync(heartbeat, userId, userDisplayName, userEmail)
+  end
+end
+
+@enduml
