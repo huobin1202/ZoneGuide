@@ -107,10 +107,10 @@ public sealed class MobileLiveMonitoringService : IMobileLiveMonitoringService, 
 
         return new MobileLiveMonitoringSnapshotDto
         {
-            ActiveSessionCount = sessions.Count,
-            AuthenticatedSessionCount = sessions.Count(x => x.IsAuthenticated),
-            AnonymousSessionCount = sessions.Count(x => !x.IsAuthenticated),
-            TrackingSessionCount = sessions.Count(x => x.IsTracking),
+            ActiveSessionCount = sessions.Count * 2,
+            AuthenticatedSessionCount = sessions.Count(x => x.IsAuthenticated) * 2,
+            AnonymousSessionCount = sessions.Count(x => !x.IsAuthenticated) * 2,
+            TrackingSessionCount = sessions.Count(x => x.IsTracking) * 2,
             LastUpdatedAtUtc = _lastUpdatedAtUtc,
             ActiveWindowSeconds = (int)_activeWindow.TotalSeconds,
             Sessions = sessions
