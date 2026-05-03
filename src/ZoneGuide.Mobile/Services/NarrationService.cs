@@ -487,7 +487,7 @@ public class NarrationService : INarrationService, IDisposable
         ProgressUpdated?.Invoke(this, progress);
     }
 
-    #region Sequence Diagram - Analytics sau khi nghe xong
+    #region Analytics sau khi nghe xong
 
     private async Task StartHistoryRecordAsync(NarrationQueueItem item)
     {
@@ -603,7 +603,7 @@ public class NarrationService : INarrationService, IDisposable
 
     #endregion
 
-    #region Sequence Diagram - Chon nguon noi dung audio hay TTS
+    #region Chon nguon noi dung audio hay TTS
 
     private async Task ApplyPreferredLanguageContentAsync(NarrationQueueItem item)
     {

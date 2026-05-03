@@ -38,7 +38,7 @@ public sealed class MobilePresenceService : IMobilePresenceService, IDisposable
         _geofenceService = geofenceService;
     }
 
-    #region Sequence Diagram - Monitoring mobile session va heartbeat moi 5 giay
+    #region Monitoring mobile session
 
     public async Task StartAsync()
     {
@@ -155,7 +155,7 @@ public sealed class MobilePresenceService : IMobilePresenceService, IDisposable
 
     #endregion
 
-    #region Sequence Diagram - Dinh danh thiet bi cho mobile monitoring
+    #region Dinh danh thiet bi cho mobile monitoring
 
     private async Task<string> GetAnonymousDeviceIdAsync()
     {

@@ -380,7 +380,7 @@ Tai lieu nay map tung message trong 3 sequence diagram vao code hien tai de de d
   - Y nghia: code hien tai dung `FinalScore` thong qua `PoiScoringService`, trong do `Priority` va `Distance` la 2 thanh phan quan trong.
 
 - `Phat POI duoc chon`
-  - Code:
+  - Code:     
     ```csharp
     GeofenceTriggered?.Invoke(this, bestEnter.Event);
     ```

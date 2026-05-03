@@ -74,7 +74,7 @@ public class GeofenceService : IGeofenceService
         }
     }
 
-    #region Sequence Diagram - Khoi tao geofence va tranh tu phat luc mo app
+    #region Khoi tao geofence va tranh tu phat luc mo app
 
     /// <summary>
     /// Initialize geofence states silently from an initial location.
@@ -122,7 +122,7 @@ public class GeofenceService : IGeofenceService
 
     #endregion
 
-    #region Sequence Diagram - Xu ly trung khi dung giua 2 POI co khoang cach bang nhau
+    #region Xu ly trung khi dung giua 2 POI
 
     public async Task ProcessLocationUpdateAsync(LocationData location)
     {
@@ -270,7 +270,7 @@ public class GeofenceService : IGeofenceService
             {
                 GeofenceTriggered?.Invoke(this, evt);
             }
-
+        
             // For Enter events, only fire the highest scoring candidate.
             if (enterEvents.Any())
             {
@@ -315,7 +315,7 @@ public class GeofenceService : IGeofenceService
     }
 
     #region Cooldown va debounce geofence
-        
+
     public void SetCooldown(int poiId, TimeSpan duration)
     {
         _cooldowns[poiId] = DateTime.UtcNow.Add(duration);

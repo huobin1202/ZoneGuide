@@ -885,7 +885,7 @@ public partial class MapViewModel : ObservableObject
 
 
 
-        
+
         //Chon POI can mở
         SelectPoiCore(poi, revealOverlayInTourMode: false);
         return true;
@@ -1314,7 +1314,7 @@ public partial class MapViewModel : ObservableObject
         return activePois.Count > 0 ? activePois : await _poiRepository.GetAllAsync();
     }
 
-    #region Sequence Diagram - Xu ly trung khi dung giua 2 POI co khoang cach bang nhau
+    #region Xu ly trung khi dung giua 2 POI
 
     private async void OnGeofenceTriggered(object? sender, GeofenceEvent evt)
     {
@@ -1429,6 +1429,12 @@ public partial class MapViewModel : ObservableObject
             {
                 await _narrationService.StopAsync();
             }
+
+
+
+
+
+
 
             await _narrationService.PlayImmediatelyAsync(BuildNarrationItem(
                 evt.POI,

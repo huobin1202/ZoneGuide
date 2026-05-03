@@ -60,7 +60,7 @@ public sealed class MobileLiveMonitoringService : IMobileLiveMonitoringService, 
         var deviceId = string.IsNullOrWhiteSpace(heartbeat.DeviceId)
             ? "unknown-device"
             : heartbeat.DeviceId.Trim();
-//dang ky cap nhat phien dang va gui cap nhat cho cac client dang lang nghe
+        //dang ky cap nhat phien dang va gui cap nhat cho cac client dang lang nghe
         _sessions.AddOrUpdate(
             sessionId,
             _ => MobileLiveSessionState.FromHeartbeat(heartbeat, sessionId, deviceId, now, userId, userDisplayName, userEmail),
@@ -117,7 +117,7 @@ public sealed class MobileLiveMonitoringService : IMobileLiveMonitoringService, 
     }
 
     private void CleanupExpiredSessions(DateTime now)
-    {
+    {  
         var threshold = now - _activeWindow;
         foreach (var entry in _sessions)
         {
