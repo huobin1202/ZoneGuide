@@ -441,7 +441,7 @@ public class ApiService : IApiService
         }
     }
 
-    #region Sequence Diagram - Dashboard monitoring QR va mobile
+    #region Dashboard monitoring QR va mobile
 
     public async Task<MobileLiveMonitoringSnapshotDto?> GetMobileMonitoringSnapshotAsync()
     {

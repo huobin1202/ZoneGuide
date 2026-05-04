@@ -130,6 +130,8 @@ else
     private bool _loading = true;
     private bool _mapInitialized = false;
     private System.Timers.Timer? _refreshTimer;
+    private int _mapInitAttempts = 0;
+    private bool _needsMapInit = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -139,28 +141,42 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && !_mapInitialized)
+        if (_loading)
         {
-            await Task.Delay(200); // Wait for DOM to be ready
-            try
+            return;
+        }
+
+        if (_mapInitialized && !_needsMapInit)
+        {
+            return;
+        }
+
+        await Task.Delay(200); // Wait for DOM to be ready
+        try
+        {
+            await JS.InvokeVoidAsync("initHeatmapMap", "heatmap-map");
+            _mapInitialized = true;
+            _mapInitAttempts = 0;
+            _needsMapInit = false;
+
+            // Update heatmap data on map
+            await UpdateHeatmapLayer();
+
+            // Update tracking users on map
+            await UpdateTrackingLayer();
+
+            // Start auto-refresh timer for live tracking (every 10 seconds)
+            _refreshTimer = new System.Timers.Timer(10000);
+            _refreshTimer.Elapsed += async (s, e) => await RefreshTrackingData();
+            _refreshTimer.Start();
+        }
+        catch
+        {
+            _mapInitAttempts++;
+            if (_mapInitAttempts <= 5)
             {
-                await JS.InvokeVoidAsync("initHeatmapMap", "heatmap-map");
-                _mapInitialized = true;
-
-                // Update heatmap data on map
-                await UpdateHeatmapLayer();
-
-                // Update tracking users on map
-                await UpdateTrackingLayer();
-
-                // Start auto-refresh timer for live tracking (every 10 seconds)
-                _refreshTimer = new System.Timers.Timer(10000);
-                _refreshTimer.Elapsed += async (s, e) => await RefreshTrackingData();
-                _refreshTimer.Start();
-            }
-            catch
-            {
-                // Map initialization failed, will retry on next render
+                await Task.Delay(500);
+                await InvokeAsync(StateHasChanged);
             }
         }
     }
@@ -170,6 +186,7 @@ else
         _loading = true;
         _heatmapData = await ApiService.GetHeatmapDataAsync(_dateRange.Start, _dateRange.End);
         _loading = false;
+        _needsMapInit = true;
         
         if (_mapInitialized)
         {

@@ -802,8 +802,15 @@ window.renderTourPlannerMap = async function (elementId, points) {
 var heatmapMap = null;
 var heatmapHeatLayer = null;
 var heatmapTrackingMarkers = [];
+var lastHeatmapPoints = null;
+var heatmapRenderAttempts = 0;
 
 window.initHeatmapMap = function(elementId) {
+    if (typeof L === 'undefined') {
+        console.warn('Leaflet is not loaded yet; heatmap map init skipped.');
+        return;
+    }
+
     var container = document.getElementById(elementId);
     if (!container) {
         console.warn('Heatmap container not found:', elementId);
@@ -821,6 +828,11 @@ window.initHeatmapMap = function(elementId) {
         maxBounds: [[-90, -180], [90, 180]],
         maxBoundsViscosity: 1.0
     }).setView([16.0544, 108.2022], 13);
+
+    console.info('Heatmap init: container size', {
+        width: container.offsetWidth,
+        height: container.offsetHeight
+    });
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap',
@@ -829,10 +841,53 @@ window.initHeatmapMap = function(elementId) {
     }).addTo(heatmapMap);
     
     setTimeout(function() { heatmapMap.invalidateSize(); }, 100);
+    if (lastHeatmapPoints && lastHeatmapPoints.length > 0) {
+        setTimeout(function() { window.updateHeatmapData(lastHeatmapPoints); }, 200);
+    }
 };
 
 window.updateHeatmapData = function(heatmapPoints) {
+    if (typeof L === 'undefined') {
+        console.warn('Leaflet is not loaded yet; heatmap update skipped.');
+        return;
+    }
+
     if (!heatmapMap) return;
+
+    if (heatmapPoints) {
+        lastHeatmapPoints = heatmapPoints;
+    }
+
+    if (heatmapPoints && heatmapPoints.length > 0) {
+        console.info('Heatmap points received', {
+            count: heatmapPoints.length,
+            sample: heatmapPoints[0]
+        });
+    }
+
+    var size = heatmapMap.getSize();
+    var container = heatmapMap.getContainer();
+    var containerWidth = container ? container.offsetWidth : 0;
+    var containerHeight = container ? container.offsetHeight : 0;
+    console.info('Heatmap map size', {
+        mapWidth: size ? size.x : 0,
+        mapHeight: size ? size.y : 0,
+        containerWidth: containerWidth,
+        containerHeight: containerHeight
+    });
+    if (!size || size.x <= 0 || size.y <= 0 || containerWidth <= 0 || containerHeight <= 0) {
+        heatmapMap.invalidateSize();
+        if (heatmapRenderAttempts < 8) {
+            heatmapRenderAttempts++;
+            setTimeout(function() {
+                if (lastHeatmapPoints) {
+                    window.updateHeatmapData(lastHeatmapPoints);
+                }
+            }, 250);
+        }
+        return;
+    }
+    heatmapRenderAttempts = 0;
     
     if (heatmapHeatLayer) {
         heatmapMap.removeLayer(heatmapHeatLayer);
@@ -840,19 +895,56 @@ window.updateHeatmapData = function(heatmapPoints) {
     }
     
     if (heatmapPoints && heatmapPoints.length > 0) {
-        var heatData = heatmapPoints.map(function(point) {
-            var intensity = Math.min(point.weight / 10, 1);
-            return [point.latitude, point.longitude, intensity];
-        });
+        var heatData = heatmapPoints
+            .map(function(point) {
+                var rawLatitude = point.latitude ?? point.Latitude;
+                var rawLongitude = point.longitude ?? point.Longitude;
+                var rawWeight = point.weight ?? point.Weight;
+
+                var latitude = typeof rawLatitude === 'number' ? rawLatitude : parseFloat(rawLatitude);
+                var longitude = typeof rawLongitude === 'number' ? rawLongitude : parseFloat(rawLongitude);
+                var weight = typeof rawWeight === 'number' ? rawWeight : parseFloat(rawWeight);
+
+                if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+                    return null;
+                }
+
+                if (!Number.isFinite(weight) || weight <= 0) {
+                    weight = 1;
+                }
+
+                var intensity = Math.min(weight / 5, 1);
+                intensity = Math.max(intensity, 0.25);
+                return [latitude, longitude, intensity];
+            })
+            .filter(function(entry) { return entry !== null; });
+
+        if (heatData.length > 0) {
+            var bounds = L.latLngBounds(heatData.map(function(entry) {
+                return [entry[0], entry[1]];
+            }));
+            if (bounds.isValid()) {
+                heatmapMap.fitBounds(bounds, { padding: [40, 40] });
+            }
+        }
         
-        heatmapHeatLayer = L.heatLayer(heatData, {
-            radius: 25, blur: 15, maxZoom: 17,
-            gradient: {0.2: 'blue', 0.4: 'lime', 0.6: 'yellow', 0.8: 'orange', 1.0: 'red'}
-        }).addTo(heatmapMap);
+        try {
+            heatmapHeatLayer = L.heatLayer(heatData, {
+                radius: 30, blur: 18, maxZoom: 17,
+                gradient: {0.1: 'blue', 0.3: 'lime', 0.5: 'yellow', 0.7: 'orange', 1.0: 'red'}
+            }).addTo(heatmapMap);
+        } catch (err) {
+            console.warn('Heatmap draw failed', err);
+        }
     }
 };
 
 window.updateTrackingUsers = function(trackingSessions) {
+    if (typeof L === 'undefined') {
+        console.warn('Leaflet is not loaded yet; tracking update skipped.');
+        return;
+    }
+
     if (!heatmapMap) return;
     
     heatmapTrackingMarkers.forEach(function(marker) {
