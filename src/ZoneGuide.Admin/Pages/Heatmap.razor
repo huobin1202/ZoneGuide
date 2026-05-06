@@ -159,7 +159,8 @@ else
             _mapInitAttempts = 0;
             _needsMapInit = false;
 
-            // Update heatmap data on map
+            // Update heatmap data on map (delay slightly to allow layout to stabilize)
+            await Task.Delay(250);
             await UpdateHeatmapLayer();
 
             // Update tracking users on map

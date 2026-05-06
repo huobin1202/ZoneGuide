@@ -11,6 +11,23 @@ var pickerMap = null;
 var pickerMarker = null;
 var dotNetRef = null;
 
+// ==========================================
+// PERFORMANCE OPTIMIZATION: Icon Cache
+// ==========================================
+var iconCache = {
+    seafood: L.icon({iconUrl: '/images/markers/marker-icon-2x-blue.png', shadowUrl: '/images/markers/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]}),
+    snack: L.icon({iconUrl: '/images/markers/marker-icon-2x-yellow.png', shadowUrl: '/images/markers/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]}),
+    hotpot: L.icon({iconUrl: '/images/markers/marker-icon-2x-violet.png', shadowUrl: '/images/markers/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]}),
+    drinking: L.icon({iconUrl: '/images/markers/marker-icon-2x-orange.png', shadowUrl: '/images/markers/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]}),
+    drinks: L.icon({iconUrl: '/images/markers/marker-icon-2x-yellow.png', shadowUrl: '/images/markers/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]}),
+    fullmeal: L.icon({iconUrl: '/images/markers/marker-icon-2x-green.png', shadowUrl: '/images/markers/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]}),
+    default: L.icon({iconUrl: '/images/markers/food-dish-svgrepo-com.svg', shadowUrl: '/images/markers/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]}),
+    contribution: L.icon({iconUrl: '/images/markers/marker-icon-2x-red.png', shadowUrl: '/images/markers/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]})
+};
+
+// Marker cluster group for performance
+var poiClusterGroup = null;
+
 window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetReference, readOnlyMode, focusPoiId, compactPopupMode) {
     // Destroy existing map if any
     if (poiMap) {
@@ -42,6 +59,19 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
         maxZoom: 19,
         noWrap: true // Ngăn tile lặp lại theo chiều ngang
     }).addTo(poiMap);
+
+        // Initialize marker cluster group for better performance with many markers
+        if (poiClusterGroup) {
+            poiMap.removeLayer(poiClusterGroup);
+        }
+        poiClusterGroup = L.markerClusterGroup({
+            maxClusterRadius: 80,
+            disableClusteringAtZoom: 17,
+            spiderLegPolylineOptions: { weight: 1.5, color: '#999', opacity: 0.7 },
+            zoomToBoundsOnClick: true,
+            showCoverageOnHover: false
+        });
+        poiMap.addLayer(poiClusterGroup);
 
     // Add markers for each POI
     if (poiData && poiData.length > 0) {
@@ -124,6 +154,60 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
                     return defaultFoodIcon; // Mặc định cho các loại khác hoặc không xác định
             }
         }
+            function normalizeCategoryKey(category) {
+                return (category || '')
+                    .toString()
+                    .trim()
+                    .toLowerCase()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .replace(/đ/g, 'd')
+                    .replace(/&/g, ' va ')
+                    .replace(/[^a-z0-9]+/g, ' ')
+                    .trim();
+            }
+
+            function getCustomIcon(category, isContribution) {
+                if (isContribution) {
+                    return iconCache.contribution;
+                }
+
+                var key = normalizeCategoryKey(category);
+                switch(key) {
+                    case 'hai san va oc':
+                        return iconCache.seafood;
+                    case 'an vat':
+                        return iconCache.snack;
+                    case 'lau va nuong':
+                        return iconCache.hotpot;
+                    case 'nhau':
+                        return iconCache.drinking;
+                    case 'giai khat':
+                    case 'drink':
+                    case 'drinks':
+                    case 'beverage':
+                    case 'beverages':
+                        return iconCache.drinks;
+                    case 'an no':
+                        return iconCache.fullmeal;
+                    case 'food':
+                    case 'an uong':
+                        return iconCache.fullmeal;
+                    case 'entertainment':
+                        return iconCache.drinking;
+                    case 'travel':
+                        return iconCache.seafood;
+                    case 'services':
+                        return iconCache.hotpot;
+                    case 'shopping':
+                        return iconCache.snack;
+                    case 'other':
+                    case 'khac':
+                        return iconCache.default;
+                    default:
+                        return iconCache.default;
+                }
+            }
 
         poiData.forEach(function (poi) {
             var fallbackImageUrl = '/images/placeholder.png';
@@ -172,6 +256,28 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
                         closeButton: false
                     }
                 );
+                var marker = L.marker([poi.lat, poi.lng], { icon: getCustomIcon(poi.category, poi.isContribution) })
+                    .addTo(poiClusterGroup)
+                    .bindPopup(
+                        '<div style="width: 250px; max-width: 250px; padding: 0; overflow: hidden;">' +
+                        '<div style="position:relative;padding-top:14px;margin-bottom:8px;">' +
+                        actionBar +
+                        '<img src="' + imageUrl + '" onerror="this.onerror=null;this.src=\'' + fallbackImageUrl + '\';" style="width: 100%; height: 120px; object-fit: cover; border-top-left-radius: 8px; border-top-right-radius: 8px; display: block;" />' +
+                        '</div>' +
+                        '<div style="padding: 4px 8px 8px 8px;">' +
+                        '<h4 style="margin:0 0 6px 0;color:#333;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + poi.name + '</h4>' +
+                        '<div style="display: flex; align-items: center; margin-bottom: 8px;">' +
+                            '<span style="background-color: #E3F2FD; color: #1976D2; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">' +
+                                '🏛 ' + poi.category + 
+                            '</span>' +
+                        '</div>' +
+                        popupDetailHtml +
+                        '</div></div>', {
+                            className: 'custom-poi-popup',
+                            minWidth: 250,
+                            closeButton: false
+                        }
+                    );
 
             if (poi.triggerRadius && poi.triggerRadius > 0) {
                 L.circle([poi.lat, poi.lng], {
@@ -183,6 +289,16 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
                     fillOpacity: 0.08
                 }).addTo(poiMap);
             }
+                if (poi.triggerRadius && poi.triggerRadius > 0) {
+                    L.circle([poi.lat, poi.lng], {
+                        radius: poi.triggerRadius,
+                        color: '#4caf50',
+                        weight: 1.5,
+                        opacity: 0.65,
+                        fillColor: '#81c784',
+                        fillOpacity: 0.08
+                    }).addTo(poiClusterGroup);
+                }
 
             marker.poiId = poi.id;
             marker.poiName = poi.name;
@@ -276,6 +392,16 @@ window.addMarkerToMap = function (lat, lng, name, description) {
         marker.openPopup();
     }
 };
+    window.addMarkerToMap = function (lat, lng, name, description) {
+        if (poiMap) {
+            var marker = L.marker([lat, lng])
+                .addTo(poiClusterGroup || poiMap)
+                .bindPopup('<strong>' + name + '</strong><br>' + description);
+            markers.push(marker);
+            poiMap.setView([lat, lng], 16);
+            marker.openPopup();
+        }
+    };
 
 function updateTempRadiusCircle(lat, lng, radiusMeters) {
     if (!poiMap) {
@@ -876,14 +1002,17 @@ window.updateHeatmapData = function(heatmapPoints) {
         containerHeight: containerHeight
     });
     if (!size || size.x <= 0 || size.y <= 0 || containerWidth <= 0 || containerHeight <= 0) {
-        heatmapMap.invalidateSize();
+        // Container or map size is not ready yet. Don't call invalidateSize() here
+        // because it can trigger immediate layer redraws with zero dimensions
         if (heatmapRenderAttempts < 8) {
             heatmapRenderAttempts++;
             setTimeout(function() {
                 if (lastHeatmapPoints) {
                     window.updateHeatmapData(lastHeatmapPoints);
                 }
-            }, 250);
+            }, 300);
+        } else {
+            console.warn('Heatmap: container remained zero-size after retries');
         }
         return;
     }
@@ -929,6 +1058,17 @@ window.updateHeatmapData = function(heatmapPoints) {
         }
         
         try {
+            // Ensure map size still valid before creating layer
+            var currentSize = heatmapMap.getSize();
+            if (!currentSize || currentSize.x <= 0 || currentSize.y <= 0) {
+                console.warn('Heatmap: map size zero before drawing, retrying');
+                if (heatmapRenderAttempts < 8) {
+                    heatmapRenderAttempts++;
+                    setTimeout(function() { window.updateHeatmapData(lastHeatmapPoints); }, 300);
+                }
+                return;
+            }
+
             heatmapHeatLayer = L.heatLayer(heatData, {
                 radius: 30, blur: 18, maxZoom: 17,
                 gradient: {0.1: 'blue', 0.3: 'lime', 0.5: 'yellow', 0.7: 'orange', 1.0: 'red'}
