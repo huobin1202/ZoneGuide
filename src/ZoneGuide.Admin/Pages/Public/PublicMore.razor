@@ -1,0 +1,134 @@
+@page "/more"
+@layout PublicLayout
+@inject NavigationManager Navigation
+
+<PageTitle>Thêm - ZoneGuide</PageTitle>
+
+<div class="more-page">
+    <div class="more-section">
+        <MudText Typo="Typo.h6" Class="section-label">Tài khoản</MudText>
+        <MudPaper Class="more-menu" Elevation="0">
+            <div class="more-menu-item" @onclick="@((MouseEventArgs _) => GoToLogin())">
+                <MudIcon Icon="@Icons.Material.Filled.Login" Color="Color.Primary" />
+                <span>Đăng nhập</span>
+                <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Class="ml-auto" />
+            </div>
+            <div class="more-menu-item" @onclick="@((MouseEventArgs _) => GoToRegister())">
+                <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Primary" />
+                <span>Đăng ký</span>
+                <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Class="ml-auto" />
+            </div>
+        </MudPaper>
+    </div>
+
+    <div class="more-section">
+        <MudText Typo="Typo.h6" Class="section-label">Khám phá</MudText>
+        <MudPaper Class="more-menu" Elevation="0">
+            <div class="more-menu-item" @onclick="@((MouseEventArgs _) => GoToMap())">
+                <MudIcon Icon="@Icons.Material.Filled.Map" Color="Color.Primary" />
+                <span>Bản đồ</span>
+                <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Class="ml-auto" />
+            </div>
+            <div class="more-menu-item" @onclick="@((MouseEventArgs _) => GoToPOIList())">
+                <MudIcon Icon="@Icons.Material.Filled.List" Color="Color.Primary" />
+                <span>Danh sách địa điểm</span>
+                <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Class="ml-auto" />
+            </div>
+            <div class="more-menu-item" @onclick="@((MouseEventArgs _) => GoToTourList())">
+                <MudIcon Icon="@Icons.Material.Filled.Route" Color="Color.Primary" />
+                <span>Tour du lịch</span>
+                <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Class="ml-auto" />
+            </div>
+        </MudPaper>
+    </div>
+
+    <div class="more-section">
+        <MudText Typo="Typo.h6" Class="section-label">Lịch sử</MudText>
+        <MudPaper Class="more-menu" Elevation="0">
+            <div class="more-menu-item" @onclick="@((MouseEventArgs _) => GoToHistory())">
+                <MudIcon Icon="@Icons.Material.Filled.History" Color="Color.Primary" />
+                <span>Lịch sử nghe</span>
+                <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Class="ml-auto" />
+            </div>
+        </MudPaper>
+    </div>
+
+    <div class="more-section">
+        <MudText Typo="Typo.h6" Class="section-label">Cài đặt</MudText>
+        <MudPaper Class="more-menu" Elevation="0">
+            <div class="more-menu-item" @onclick="@((MouseEventArgs _) => GoToSettings())">
+                <MudIcon Icon="@Icons.Material.Filled.Settings" Color="Color.Primary" />
+                <span>Cài đặt</span>
+                <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Class="ml-auto" />
+            </div>
+            <div class="more-menu-item" @onclick="@((MouseEventArgs _) => ChangeLanguage())">
+                <MudIcon Icon="@Icons.Material.Filled.Language" Color="Color.Primary" />
+                <span>Ngôn ngữ</span>
+                <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Class="ml-auto" />
+            </div>
+        </MudPaper>
+    </div>
+
+    <div class="more-section">
+        <MudText Typo="Typo.h6" Class="section-label">Thông tin</MudText>
+        <MudPaper Class="more-menu" Elevation="0">
+            <div class="more-menu-item">
+                <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Primary" />
+                <span>Phiên bản 1.0.0</span>
+            </div>
+        </MudPaper>
+    </div>
+</div>
+
+<style>
+@@media (prefers-color-scheme: dark) {
+    .more-menu { background: var(--bg-card); }
+    .more-menu-item { border-color: var(--border-color); color: var(--text-primary); }
+}
+.more-page {
+    padding: 12px 16px 24px;
+}
+.more-section {
+    margin-bottom: 20px;
+}
+.section-label {
+    font-weight: 600;
+    margin-bottom: 8px;
+    padding: 0 4px;
+}
+.more-menu {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+}
+.more-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.2s;
+    font-size: 14px;
+}
+.more-menu-item:last-child {
+    border-bottom: none;
+}
+.more-menu-item:hover {
+    background: #f8f9fa;
+}
+.ml-auto {
+    margin-left: auto;
+}
+</style>
+
+@code {
+    private void GoToLogin() => Navigation.NavigateTo("/login");
+    private void GoToRegister() => Navigation.NavigateTo("/register");
+    private void GoToMap() => Navigation.NavigateTo("/map");
+    private void GoToPOIList() => Navigation.NavigateTo("/poi-list");
+    private void GoToTourList() => Navigation.NavigateTo("/tour-list");
+    private void GoToHistory() => Navigation.NavigateTo("/history");
+    private void GoToSettings() => Navigation.NavigateTo("/settings");
+    private void ChangeLanguage() => Navigation.NavigateTo("/language");
+}

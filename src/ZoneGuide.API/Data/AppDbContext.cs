@@ -24,6 +24,7 @@ public class AppDbContext : DbContext
     public DbSet<POIContributionEntity> POIContributions { get; set; }
     public DbSet<POIApprovalHistoryEntity> POIApprovalHistories { get; set; }
     public DbSet<ActivityLogEntity> ActivityLogs { get; set; }
+    public DbSet<NotificationEntity> Notifications { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -148,6 +149,22 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.User)
                   .WithMany()
                   .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Notification
+        modelBuilder.Entity<NotificationEntity>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.IsRead);
+            entity.HasIndex(e => e.IsDeleted);
+            entity.HasIndex(e => e.CreatedAt);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Message).HasMaxLength(1000);
+            entity.Property(e => e.Type).IsRequired().HasMaxLength(50);
+            entity.HasOne(e => e.Sender)
+                  .WithMany()
+                  .HasForeignKey(e => e.SenderId)
                   .OnDelete(DeleteBehavior.SetNull);
         });
     }
@@ -379,6 +396,24 @@ public class ActivityLogEntity
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public UserEntity? User { get; set; }
+}
+
+public class NotificationEntity
+{
+    public int Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+    public string Type { get; set; } = string.Empty;
+    public int? ReferenceId { get; set; }
+    public string? ReferenceType { get; set; }
+    public int? SenderId { get; set; }
+    public bool IsRead { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? ReadAt { get; set; }
+    public DateTime? DeletedAt { get; set; }
+
+    public UserEntity? Sender { get; set; }
 }
 
 #endregion

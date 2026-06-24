@@ -91,49 +91,72 @@ else if (_dashboard != null)
     <MudGrid Class="mt-6">
         <MudItem xs="12" md="6">
             <MudPaper Class="pa-4" Elevation="1">
-                <MudText Typo="Typo.h6" Class="mb-4">Chỉ số chính</MudText>
-                <MudSimpleTable Dense="true" Bordered="true">
-                    <tbody>
-                        <tr>
-                            <td>Thời lượng nghe trung bình</td>
-                            <td>@FormatDuration(_dashboard.AverageListenDurationSeconds)</td>
-                        </tr>
-                        <tr>
-                            <td>Tỷ lệ hoàn thành</td>
-                            <td>@(_dashboard.CompletionRate.ToString("P1"))</td>
-                        </tr>
-                    </tbody>
-                </MudSimpleTable>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+                    <MudText Typo="Typo.h6">Chỉ số hoàn thành</MudText>
+                    <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small">
+                        @(_dashboard.CompletionRate.ToString("P1"))
+                    </MudChip>
+                </MudStack>
+
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        @if (_dashboard.TotalListens > 0)
+                        {
+                            <MudChart ChartType="ChartType.Donut"
+                                      InputData="@_completionChartData"
+                                      InputLabels="@_completionChartLabels"
+                                      Width="100%"
+                                      Height="240px"
+                                      ChartOptions="@_donutChartOptions" />
+                        }
+                        else
+                        {
+                            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Chưa có dữ liệu lượt nghe</MudAlert>
+                        }
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudStack Class="dashboard-metric-stack" Spacing="2">
+                            <MudPaper Class="dashboard-metric-tile pa-3" Elevation="0">
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Thời lượng nghe trung bình</MudText>
+                                <MudText Typo="Typo.h5">@FormatDuration(_dashboard.AverageListenDurationSeconds)</MudText>
+                            </MudPaper>
+                            <MudPaper Class="dashboard-metric-tile pa-3" Elevation="0">
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Tổng lượt nghe hoàn thành</MudText>
+                                <MudText Typo="Typo.h5">@_estimatedCompletedListens</MudText>
+                            </MudPaper>
+                            <MudPaper Class="dashboard-metric-tile pa-3" Elevation="0">
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Lượt nghe chưa hoàn thành</MudText>
+                                <MudText Typo="Typo.h5">@_estimatedIncompleteListens</MudText>
+                            </MudPaper>
+                        </MudStack>
+                    </MudItem>
+                </MudGrid>
             </MudPaper>
         </MudItem>
         <MudItem xs="12" md="6">
             <MudPaper Class="pa-4" Elevation="1">
-                <MudText Typo="Typo.h6" Class="mb-4">Địa điểm nổi bật</MudText>
+                <MudText Typo="Typo.h6" Class="mb-4">Top địa điểm theo lượt nghe</MudText>
                 @if (_dashboard.TopPOIs.Any())
                 {
-                    <MudSimpleTable Dense="true" Bordered="true">
-                        <thead>
-                            <tr>
-                                <th>Tên địa điểm</th>
-                                <th>Lượt nghe</th>
-                                <th>Thời lượng TB</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var poi in _dashboard.TopPOIs.Take(5))
-                            {
-                                <tr>
-                                    <td>@poi.Name</td>
-                                    <td>@poi.ListenCount</td>
-                                    <td>@FormatDuration(poi.AvgDurationSeconds)</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </MudSimpleTable>
+                    <MudChart ChartType="ChartType.Bar"
+                              ChartSeries="@_topPoiListenSeries"
+                              XAxisLabels="@_topPoiLabels"
+                              Width="100%"
+                              Height="300px"
+                              ChartOptions="@_barChartOptions" />
+
+                    <MudStack Row="true" Class="mt-3 flex-wrap" Spacing="1">
+                        @foreach (var poi in _dashboard.TopPOIs.Take(5))
+                        {
+                            <MudChip T="string" Color="Color.Primary" Variant="Variant.Text" Size="Size.Small">
+                                @poi.Name: @FormatDuration(poi.AvgDurationSeconds) TB
+                            </MudChip>
+                        }
+                    </MudStack>
                 }
                 else
                 {
-                    <MudText>Chưa có dữ liệu</MudText>
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Chưa có dữ liệu địa điểm nổi bật</MudAlert>
                 }
             </MudPaper>
         </MudItem>
@@ -143,27 +166,12 @@ else if (_dashboard != null)
     {
         <MudPaper Class="pa-4 mt-6" Elevation="1">
             <MudText Typo="Typo.h6" Class="mb-4">Hoạt động theo ngày (30 ngày gần nhất)</MudText>
-            <MudSimpleTable Dense="true" Bordered="true" Style="max-height: 400px; overflow-y: auto;">
-                <thead>
-                    <tr>
-                        <th>Ngày</th>
-                        <th>Lượt nghe</th>
-                        <th>Người dùng duy nhất</th>
-                        <th>Thời lượng TB</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var stat in _dashboard.DailyStats.OrderByDescending(s => s.Date).Take(30))
-                    {
-                        <tr>
-                            <td>@stat.Date.ToString("dd/MM/yyyy")</td>
-                            <td>@stat.ListenCount</td>
-                            <td>@stat.UniqueUsers</td>
-                            <td>@FormatDuration(stat.AvgDurationSeconds)</td>
-                        </tr>
-                    }
-                </tbody>
-            </MudSimpleTable>
+            <MudChart ChartType="ChartType.Line"
+                      ChartSeries="@_dailyActivitySeries"
+                      XAxisLabels="@_dailyActivityLabels"
+                      Width="100%"
+                      Height="360px"
+                      ChartOptions="@_lineChartOptions" />
         </MudPaper>
     }
 }
@@ -183,6 +191,37 @@ else
     private HubConnection? _mobileHubConnection;
     private bool _mobileRealtimeConnected;
     private bool _loading = true;
+    private int _estimatedCompletedListens;
+    private int _estimatedIncompleteListens;
+    private double[] _completionChartData = [];
+    private string[] _completionChartLabels = [];
+    private string[] _topPoiLabels = [];
+    private string[] _dailyActivityLabels = [];
+    private List<ChartSeries> _topPoiListenSeries = [];
+    private List<ChartSeries> _dailyActivitySeries = [];
+    private readonly ChartOptions _donutChartOptions = new()
+    {
+        ShowLegend = true,
+        ChartPalette = ["#16a34a", "#f59e0b"]
+    };
+    private readonly ChartOptions _barChartOptions = new()
+    {
+        ShowLegend = false,
+        YAxisLines = true,
+        XAxisLines = false,
+        MaxNumYAxisTicks = 6,
+        ChartPalette = ["#2563eb"]
+    };
+    private readonly ChartOptions _lineChartOptions = new()
+    {
+        ShowLegend = true,
+        YAxisLines = true,
+        XAxisLines = true,
+        MaxNumYAxisTicks = 6,
+        LineStrokeWidth = 3,
+        InterpolationOption = InterpolationOption.NaturalSpline,
+        ChartPalette = ["#2563eb", "#16a34a"]
+    };
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -215,7 +254,52 @@ else
     {
         _loading = true;
         _dashboard = await ApiService.GetDashboardAsync();
+        BuildDashboardCharts();
         _loading = false;
+    }
+
+    private void BuildDashboardCharts()
+    {
+        if (_dashboard == null)
+        {
+            return;
+        }
+
+        _estimatedCompletedListens = (int)Math.Round(_dashboard.TotalListens * Math.Clamp(_dashboard.CompletionRate, 0, 1));
+        _estimatedIncompleteListens = Math.Max(0, _dashboard.TotalListens - _estimatedCompletedListens);
+        _completionChartData = [_estimatedCompletedListens, _estimatedIncompleteListens];
+        _completionChartLabels = ["Hoàn thành", "Chưa hoàn thành"];
+
+        var topPois = _dashboard.TopPOIs.Take(5).ToList();
+        _topPoiLabels = topPois.Select(p => ShortenLabel(p.Name, 18)).ToArray();
+        _topPoiListenSeries =
+        [
+            new ChartSeries
+            {
+                Name = "Lượt nghe",
+                Data = topPois.Select(p => (double)p.ListenCount).ToArray()
+            }
+        ];
+
+        var dailyStats = _dashboard.DailyStats
+            .OrderBy(s => s.Date)
+            .TakeLast(30)
+            .ToList();
+
+        _dailyActivityLabels = dailyStats.Select(s => s.Date.ToString("dd/MM")).ToArray();
+        _dailyActivitySeries =
+        [
+            new ChartSeries
+            {
+                Name = "Lượt nghe",
+                Data = dailyStats.Select(s => (double)s.ListenCount).ToArray()
+            },
+            new ChartSeries
+            {
+                Name = "Người dùng",
+                Data = dailyStats.Select(s => (double)s.UniqueUsers).ToArray()
+            }
+        ];
     }
 
     private async Task InitializeQrRealtimeAsync()
@@ -341,6 +425,16 @@ else
         return ts.TotalMinutes >= 1 
             ? $"{(int)ts.TotalMinutes}m {ts.Seconds}s" 
             : $"{ts.Seconds}s";
+    }
+
+    private static string ShortenLabel(string value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Length <= maxLength)
+        {
+            return value;
+        }
+
+        return $"{value[..Math.Max(0, maxLength - 1)]}…";
     }
 
     public async ValueTask DisposeAsync()

@@ -24,7 +24,7 @@
                                 <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Class="mr-2"/>
                                 Chỉnh sửa đóng góp
                             </MudText>
-                            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="CancelEdit" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="@((MouseEventArgs _) => CancelEdit())" />
                         </div>
                         
                         <MudForm @ref="_editForm" @bind-IsValid="_isValid">
@@ -88,18 +88,27 @@
                                 </MudItem>
                             </MudGrid>
 
-                            <MudGrid Class="mt-1">
-                                <MudItem xs="12" sm="6">
-                                    <MudNumericField T="double?" @bind-Value="_editModel.Latitude"
-                                                     Label="Vĩ độ" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                                     Step="0.000001" Culture="@System.Globalization.CultureInfo.InvariantCulture" />
-                                </MudItem>
-                                <MudItem xs="12" sm="6">
-                                    <MudNumericField T="double?" @bind-Value="_editModel.Longitude"
-                                                     Label="Kinh độ" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                                     Step="0.000001" Culture="@System.Globalization.CultureInfo.InvariantCulture" />
-                                </MudItem>
-                            </MudGrid>
+<MudGrid Class="mt-1">
+    <MudItem xs="12" sm="6">
+        <MudNumericField T="double?" @bind-Value="_editModel.Latitude"
+                         Label="Vĩ độ" Variant="Variant.Outlined" Margin="Margin.Dense"
+                         Step="0.000001" Culture="@System.Globalization.CultureInfo.InvariantCulture" />
+    </MudItem>
+    <MudItem xs="12" sm="6">
+        <MudNumericField T="double?" @bind-Value="_editModel.Longitude"
+                         Label="Kinh độ" Variant="Variant.Outlined" Margin="Margin.Dense"
+                         Step="0.000001" Culture="@System.Globalization.CultureInfo.InvariantCulture" />
+    </MudItem>
+    <MudItem xs="12" Class="d-flex align-center mt-2">
+        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
+                   OnClick="@((MouseEventArgs _) => UseCurrentLocation())" StartIcon="@Icons.Material.Filled.MyLocation">
+            GPS
+        </MudButton>
+        <MudText Typo="Typo.caption" Class="ml-3 mud-text-secondary">
+            Click trên bản đồ hoặc nhập trực tiếp
+        </MudText>
+    </MudItem>
+</MudGrid>
 
                             <MudNumericField T="int" @bind-Value="_editModel.Priority"
                                              Label="Độ ưu tiên" Min="1" Max="10"
@@ -298,18 +307,27 @@
                             </MudItem>
                         </MudGrid>
 
-                        <MudGrid Class="mt-1">
-                            <MudItem xs="12" sm="6">
-                                <MudNumericField T="double?" @bind-Value="_newContrib.Latitude"
-                                                 Label="Vĩ độ" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                                 Step="0.000001" Culture="@System.Globalization.CultureInfo.InvariantCulture" />
-                            </MudItem>
-                            <MudItem xs="12" sm="6">
-                                <MudNumericField T="double?" @bind-Value="_newContrib.Longitude"
-                                                 Label="Kinh độ" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                                 Step="0.000001" Culture="@System.Globalization.CultureInfo.InvariantCulture" />
-                            </MudItem>
-                        </MudGrid>
+<MudGrid Class="mt-1">
+    <MudItem xs="12" sm="6">
+        <MudNumericField T="double?" @bind-Value="_newContrib.Latitude"
+                         Label="Vĩ độ" Variant="Variant.Outlined" Margin="Margin.Dense"
+                         Step="0.000001" Culture="@System.Globalization.CultureInfo.InvariantCulture" />
+    </MudItem>
+    <MudItem xs="12" sm="6">
+        <MudNumericField T="double?" @bind-Value="_newContrib.Longitude"
+                         Label="Kinh độ" Variant="Variant.Outlined" Margin="Margin.Dense"
+                         Step="0.000001" Culture="@System.Globalization.CultureInfo.InvariantCulture" />
+    </MudItem>
+    <MudItem xs="12" Class="d-flex align-center mt-2">
+        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
+                   OnClick="@((MouseEventArgs _) => UseCurrentLocation())" StartIcon="@Icons.Material.Filled.MyLocation">
+            GPS
+        </MudButton>
+        <MudText Typo="Typo.caption" Class="ml-3 mud-text-secondary">
+            Click trên bản đồ hoặc nhập trực tiếp
+        </MudText>
+    </MudItem>
+</MudGrid>
 
                         <MudNumericField T="int" @bind-Value="_newContrib.Priority"
                                          Label="Độ ưu tiên" Min="1" Max="10"
@@ -366,7 +384,7 @@
             <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">Tìm kiếm trên bản đồ</MudText>
             <div class="d-flex align-center gap-2">
                 <MudTextField @bind-Value="_mapSearchQuery" Placeholder="Nhập địa chỉ hoặc địa danh..." Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="flex-grow-1" OnKeyDown="@(async e => { if (e.Key == "Enter") await SearchOnMap(); })" />
-                <MudIconButton Icon="@Icons.Material.Filled.ArrowForward" Color="Color.Primary" Variant="Variant.Filled" OnClick="SearchOnMap" title="Tìm vị trí" />
+                <MudIconButton Icon="@Icons.Material.Filled.ArrowForward" Color="Color.Primary" Variant="Variant.Filled" OnClick="@((MouseEventArgs _) => SearchOnMap())" title="Tìm vị trí" />
             </div>
         </MudPaper>
         
@@ -879,6 +897,37 @@
             await JS.InvokeVoidAsync("addTempMarkerToPOIMap", lat, lng, false);
             await ResolveContributionAddressAsync(lat, lng);
             StateHasChanged();
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnCurrentLocationReceived(double lat, double lng)
+    {
+        lat = Math.Round(lat, 6);
+        lng = Math.Round(lng, 6);
+
+        if (_activeTabIndex == 1)
+        {
+            _newContrib.Latitude = lat;
+            _newContrib.Longitude = lng;
+            await JS.InvokeVoidAsync("addTempMarkerToPOIMap", lat, lng, false);
+            await ResolveContributionAddressAsync(lat, lng);
+        }
+        else if (_activeTabIndex == 0 && _isEditMode && _editModel != null)
+        {
+            _editModel.Latitude = lat;
+            _editModel.Longitude = lng;
+            await JS.InvokeVoidAsync("addTempMarkerToPOIMap", lat, lng, false);
+            await ResolveContributionAddressAsync(lat, lng);
+        }
+        StateHasChanged();
+    }
+
+    private async Task UseCurrentLocation()
+    {
+        if (_dotNetRef != null)
+        {
+            await JS.InvokeVoidAsync("getCurrentLocation", _dotNetRef);
         }
     }
 

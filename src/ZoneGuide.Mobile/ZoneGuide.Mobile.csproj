@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net10.0-android</TargetFrameworks>
+    <TargetFrameworks>net10.0-android36.0</TargetFrameworks>
     <OutputType>Exe</OutputType>
     <RootNamespace>ZoneGuide.Mobile</RootNamespace>
     <UseMaui>true</UseMaui>
@@ -25,7 +25,7 @@
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)'=='Release|net10.0-android'">
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)'=='Release|net10.0-android36.0'">
     <PublishTrimmed>false</PublishTrimmed>
     <RunAOTCompilation>false</RunAOTCompilation>
   </PropertyGroup>
@@ -50,9 +50,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.1" />
     <PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="10.0.1" />
-    <PackageReference Include="Microsoft.Maui.Controls.Maps" Version="10.0.1" />
     <PackageReference Include="Microsoft.Maui.Essentials" Version="10.0.1" />
-    <PackageReference Include="Microsoft.Maui.Maps" Version="10.0.1" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="sqlite-net-pcl" Version="1.9.172" />

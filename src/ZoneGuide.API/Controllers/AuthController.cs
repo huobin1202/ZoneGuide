@@ -3,11 +3,13 @@ using ZoneGuide.API.Services;
 using ZoneGuide.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ZoneGuide.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting("Auth")]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;

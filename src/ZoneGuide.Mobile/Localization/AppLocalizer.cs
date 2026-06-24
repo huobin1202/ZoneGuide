@@ -19,7 +19,7 @@ public sealed class AppLocalizer : INotifyPropertyChanged
             ["fr-FR"] = BuildFrench()
         };
 
-    private string _language = "vi-VN";
+    private string _language = "en-US";
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -92,10 +92,27 @@ public sealed class AppLocalizer : INotifyPropertyChanged
         };
     }
 
+    /// <summary>
+    /// Detects the device's current UI language and returns a supported language code.
+    /// Falls back to "en-US" if the device language is not supported.
+    /// </summary>
+    public static string GetDeviceLanguage()
+    {
+        try
+        {
+            var deviceLanguage = System.Globalization.CultureInfo.CurrentUICulture.Name;
+            return NormalizeLanguage(deviceLanguage);
+        }
+        catch
+        {
+            return "en-US";
+        }
+    }
+
     private static string NormalizeLanguage(string? languageCode)
     {
         if (string.IsNullOrWhiteSpace(languageCode))
-            return "vi-VN";
+            return "en-US";
 
         languageCode = languageCode.Trim();
         if (languageCode.StartsWith("vi", StringComparison.OrdinalIgnoreCase))

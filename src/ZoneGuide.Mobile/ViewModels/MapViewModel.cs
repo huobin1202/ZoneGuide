@@ -4,8 +4,6 @@ using ZoneGuide.Mobile.Localization;
 using ZoneGuide.Mobile.Services;
 using ZoneGuide.Shared.Interfaces;
 using ZoneGuide.Shared.Models;
-using Microsoft.Maui.Controls.Maps;
-using Microsoft.Maui.Maps;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;

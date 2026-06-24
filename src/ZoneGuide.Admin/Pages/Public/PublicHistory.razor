@@ -1,0 +1,273 @@
+@page "/history"
+@layout PublicLayout
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>Lịch sử - ZoneGuide</PageTitle>
+
+<div class="history-page">
+    <div class="filter-chips">
+        <button class="filter-chip @(IsActiveFilter(null))" @onclick="@((MouseEventArgs _) => SelectFilter(null))">
+            <span class="filter-icon">◷</span>
+            <span>Tổng quan</span>
+        </button>
+        @foreach (var f in _filters)
+        {
+            <button class="filter-chip @(IsActiveFilter(f.Value))" @onclick="@((MouseEventArgs _) => SelectFilter(f.Value))">
+                <span>@f.Label</span>
+            </button>
+        }
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="loading-state">Đang tải...</div>
+    }
+    else if (!_groups.Any())
+    {
+        <div class="empty-state">
+            <div class="empty-icon">◷</div>
+            <div class="empty-title">Chưa có lịch sử</div>
+            <div class="empty-subtitle">Các địa điểm bạn đã nghe sẽ xuất hiện ở đây</div>
+        </div>
+    }
+    else
+    {
+        <div class="history-list">
+            @foreach (var group in _groups)
+            {
+                <div class="day-group">
+                    <div class="day-label">@group.DateLabel</div>
+                    @foreach (var item in group.Items)
+                    {
+                        <div class="history-item">
+                            <div class="history-thumb" style="background-image: url('@item.ImageUrl')">
+                                @if (string.IsNullOrEmpty(item.ImageUrl))
+                                {
+                                    <span class="thumb-placeholder">📍</span>
+                                }
+                            </div>
+                            <div class="history-info">
+                                <div class="history-name">@item.Name</div>
+                                <div class="history-meta">
+                                    <span class="history-category">@item.Category</span>
+                                    <span>•</span>
+                                    <span>@item.DurationText</span>
+                                    <span>•</span>
+                                    <span>@item.TimeText</span>
+                                </div>
+                                <div class="history-meta">
+                                    <span>@item.Language</span>
+                                    <span>•</span>
+                                    <span>Đã nghe @item.PlayCount lần</span>
+                                </div>
+                            </div>
+                            <div class="history-actions">
+                                <button class="history-play-btn" @onclick="@((MouseEventArgs _) => Replay(item))">▶</button>
+                                <button class="history-del-btn" @onclick="@((MouseEventArgs _) => DeleteEntry(item))">🗑</button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+@@media (prefers-color-scheme: dark) {
+    .filter-chip { background: #1e3a5f; color: #90caf9; }
+    .filter-chip.active { background: #90caf9; color: #121212; }
+    .history-item { background: var(--bg-card); }
+    .history-name { color: var(--text-primary); }
+    .day-label { color: var(--text-secondary); }
+    .history-category { background: #1e3a5f; color: #90caf9; }
+    .history-del-btn { background: #3e1e1e; color: #ef5350; }
+}
+.history-page { padding: 12px 16px 24px; }
+.filter-chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 12px; scrollbar-width: none; }
+.filter-chips::-webkit-scrollbar { display: none; }
+.filter-chip { display: flex; align-items: center; gap: 4px; padding: 6px 14px; background: #e3f2fd; color: #1976D2; border: none; border-radius: 18px; font-size: 13px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+.filter-chip.active { background: #1976D2; color: white; }
+.filter-icon { font-size: 16px; }
+.loading-state { text-align: center; padding: 60px 0; color: #999; font-size: 14px; }
+.empty-state { text-align: center; padding: 60px 20px; }
+.empty-icon { font-size: 48px; color: #ccc; margin-bottom: 12px; }
+.empty-title { font-size: 18px; font-weight: 600; color: #666; margin-bottom: 6px; }
+.empty-subtitle { font-size: 13px; color: #999; }
+.history-list { display: flex; flex-direction: column; gap: 4px; }
+.day-group { margin-bottom: 16px; }
+.day-label { font-size: 16px; font-weight: 600; color: #444; padding: 0 4px 8px; }
+.history-item { display: flex; align-items: center; gap: 12px; background: white; border-radius: 12px; padding: 10px; margin-bottom: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.history-thumb { width: 56px; height: 56px; border-radius: 10px; background-size: cover; background-position: center; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background-color: #e3f2fd; overflow: hidden; }
+.thumb-placeholder { font-size: 22px; }
+.history-info { flex: 1; overflow: hidden; }
+.history-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-meta { font-size: 11px; color: #999; margin-top: 2px; display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.history-category { background: #e3f2fd; color: #1976D2; padding: 0 6px; border-radius: 8px; font-size: 10px; }
+.history-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+.history-play-btn, .history-del-btn { width: 36px; height: 36px; border-radius: 50%; border: none; cursor: pointer; font-size: 14px; padding: 0; display: flex; align-items: center; justify-content: center; }
+.history-play-btn { background: #1976D2; color: white; }
+.history-del-btn { background: #ffebee; color: #e53935; font-size: 13px; }
+</style>
+
+@code {
+    private record HistoryGroup(string DateLabel, List<HistoryEntry> Items);
+    private record HistoryEntry(
+        int Id, string Name, string Category, string? ImageUrl,
+        string Timestamp, int DurationSeconds, string Language, int PlayCount,
+        string DurationText, string TimeText
+    );
+
+    private record FilterOption(string Label, string Value);
+
+    private List<FilterOption> _filters = new();
+    private List<HistoryGroup> _groups = new();
+    private bool _isLoading = true;
+    private string? _activeFilter;
+
+    protected override void OnInitialized()
+    {
+        _filters = new()
+        {
+            new("Hôm nay", "today"),
+            new("Hôm qua", "yesterday"),
+            new("Tuần này", "week"),
+            new("Tháng này", "month"),
+            new("Cũ hơn", "earlier"),
+        };
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await LoadHistory();
+    }
+
+    private async Task LoadHistory()
+    {
+        _isLoading = true;
+        StateHasChanged();
+
+        var json = await JS.InvokeAsync<string>("ZoneGuideApp.getHistoryJson");
+        var items = ParseHistory(json);
+        _groups = BuildGroups(items, _activeFilter);
+        _isLoading = false;
+        StateHasChanged();
+    }
+
+    private List<HistoryEntry> ParseHistory(string raw)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(raw);
+            var list = new List<HistoryEntry>();
+            foreach (var e in doc.RootElement.EnumerateArray())
+            {
+                var id = e.GetProperty("id").GetInt32();
+                var name = e.GetProperty("name").GetString() ?? "";
+                var category = e.GetProperty("category").GetString() ?? "";
+                var img = e.TryGetProperty("imageUrl", out var imgEl) ? imgEl.GetString() : null;
+                var ts = e.GetProperty("timestamp").GetString() ?? "";
+                var dur = e.TryGetProperty("durationSeconds", out var durEl) ? durEl.GetInt32() : 0;
+                var lang = e.TryGetProperty("language", out var langEl) ? langEl.GetString() : "vi";
+                var playCount = e.TryGetProperty("playCount", out var pcEl) ? pcEl.GetInt32() : 1;
+
+                list.Add(new HistoryEntry(
+                    id, name, category, img, ts, dur, lang ?? "vi", playCount,
+                    FormatDuration(dur), FormatTimeAgo(ts)
+                ));
+            }
+            return list;
+        }
+        catch { return new(); }
+    }
+
+    private List<HistoryGroup> BuildGroups(List<HistoryEntry> items, string? filter)
+    {
+        var now = DateTime.Now;
+        var today = now.Date;
+        var yesterday = today.AddDays(-1);
+        var weekStart = today.AddDays(-(int)today.DayOfWeek);
+        var monthStart = new DateTime(now.Year, now.Month, 1);
+
+        var filtered = items.Where(i =>
+        {
+            if (filter == null) return true;
+            if (!DateTime.TryParse(i.Timestamp, out var dt)) return false;
+            return filter switch
+            {
+                "today" => dt.Date == today,
+                "yesterday" => dt.Date == yesterday,
+                "week" => dt.Date >= weekStart && dt.Date < today,
+                "month" => dt.Date >= monthStart && dt.Date < weekStart,
+                "earlier" => dt.Date < monthStart,
+                _ => true
+            };
+        }).ToList();
+
+        var dayGroups = filtered
+            .GroupBy(i =>
+            {
+                if (!DateTime.TryParse(i.Timestamp, out var dt)) return "Khác";
+                if (dt.Date == today) return "Hôm nay";
+                if (dt.Date == yesterday) return "Hôm qua";
+                return dt.ToString("dd/MM/yyyy");
+            })
+            .OrderByDescending(g =>
+            {
+                if (g.Key == "Hôm nay") return DateTime.MaxValue;
+                if (g.Key == "Hôm qua") return DateTime.MaxValue.AddDays(-1);
+                return DateTime.TryParse(g.Key, out var dt) ? dt : DateTime.MinValue;
+            });
+
+        var groups = new List<HistoryGroup>();
+        foreach (var g in dayGroups)
+            groups.Add(new HistoryGroup(g.Key, g.ToList()));
+
+        return groups;
+    }
+
+    private bool IsActiveFilter(string? value) => _activeFilter == value;
+
+    private async Task SelectFilter(string? value)
+    {
+        _activeFilter = value;
+        await LoadHistory();
+    }
+
+    private void Replay(HistoryEntry item)
+    {
+        Navigation.NavigateTo($"/poi/{item.Id}");
+    }
+
+    private async Task DeleteEntry(HistoryEntry item)
+    {
+        await JS.InvokeVoidAsync("ZoneGuideApp.deleteHistoryEntry", item.Id, item.Timestamp);
+        await LoadHistory();
+    }
+
+    private static string FormatDuration(int seconds)
+    {
+        if (seconds <= 0) return "< 1 phút";
+        var ts = TimeSpan.FromSeconds(seconds);
+        if (ts.TotalMinutes < 1) return "< 1 phút";
+        if (ts.TotalMinutes < 60) return $"{(int)ts.TotalMinutes} phút";
+        return $"{(int)ts.TotalHours}h {ts.Minutes}m";
+    }
+
+    private static string FormatTimeAgo(string timestamp)
+    {
+        if (!DateTime.TryParse(timestamp, out var dt)) return "";
+        var diff = DateTime.Now - dt;
+        if (diff.TotalMinutes < 1) return "Vừa xong";
+        if (diff.TotalHours < 1) return $"{(int)diff.TotalMinutes} phút trước";
+        if (diff.TotalDays < 1) return $"{(int)diff.TotalHours} giờ trước";
+        return dt.ToString("HH:mm");
+    }
+
+    public void Dispose()
+    {
+    }
+}

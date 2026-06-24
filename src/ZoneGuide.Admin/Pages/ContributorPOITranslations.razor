@@ -220,8 +220,8 @@ else
                                 <MudText Typo="Typo.caption" Class="@GetAudioStatusClass(context)">@GetAudioStatusText(context)</MudText>
                             </MudTd>
                             <MudTd Class="text-right">
-                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="() => LoadTranslationToEditor(context)" />
-                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteTranslationAsync(context)" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@((MouseEventArgs _) => LoadTranslationToEditor(context))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@((MouseEventArgs _) => DeleteTranslationAsync(context))" />
                             </MudTd>
                         </RowTemplate>
                     </MudTable>

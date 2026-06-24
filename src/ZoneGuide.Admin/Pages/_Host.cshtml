@@ -4,10 +4,16 @@
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#1e88e5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/images/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/images/icon.svg" />
     <base href="~/" />
     <link href="css/site.css" rel="stylesheet" />
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
@@ -46,6 +52,10 @@
             }
         } catch (e) {
         }
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js');
+        }
     </script>
     <script src="_framework/blazor.server.js"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
@@ -55,6 +65,8 @@
         <!-- Leaflet MarkerCluster JS -->
         <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
     <script src="js/map.js" asp-append-version="true"></script>
+    <script src="js/audio-player.js" asp-append-version="true"></script>
+    <script src="js/webapp.js" asp-append-version="true"></script>
     <script src="js/tts.js" asp-append-version="true"></script>
             <!-- Map Optimization Utilities -->
             <script src="js/map-optimizations.js" asp-append-version="true"></script>

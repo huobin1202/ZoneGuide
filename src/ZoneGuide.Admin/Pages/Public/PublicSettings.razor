@@ -1,0 +1,193 @@
+@page "/settings"
+@layout PublicLayout
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<PageTitle>Cài đặt - ZoneGuide</PageTitle>
+
+<div class="settings-page">
+    <div class="settings-section">
+        <div class="settings-section-title">Âm thanh</div>
+        <div class="settings-card">
+            <div class="setting-row">
+                <div class="setting-label">
+                    <div class="setting-name">Tự động phát</div>
+                    <div class="setting-desc">Tự động phát thuyết minh khi mở địa điểm</div>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" checked="@_autoPlay" @onchange="@((ChangeEventArgs e) => ToggleAutoPlay(e))" />
+                    <span class="switch-slider"></span>
+                </label>
+            </div>
+            <div class="setting-row">
+                <div class="setting-label">
+                    <div class="setting-name">Ngôn ngữ mặc định</div>
+                    <div class="setting-desc">Ngôn ngữ ưu tiên khi phát thuyết minh</div>
+                </div>
+                <select class="setting-select" value="@_language" @onchange="@((ChangeEventArgs e) => ChangeLanguage(e))">
+                    <option value="vi">Tiếng Việt</option>
+                    <option value="en">English</option>
+                    <option value="ja">日本語</option>
+                    <option value="ko">한국어</option>
+                    <option value="zh">中文</option>
+                </select>
+            </div>
+            <div class="setting-row">
+                <div class="setting-label">
+                    <div class="setting-name">Tốc độ phát</div>
+                    <div class="setting-desc">Tốc độ phát âm thanh (chỉ hỗ trợ TTS)</div>
+                </div>
+                <div class="setting-slider-group">
+                    <input type="range" class="setting-slider" min="0.5" max="2.0" step="0.1"
+                           value="@_ttsSpeed" @onchange="@((ChangeEventArgs e) => ChangeTtsSpeed(e))" />
+                    <span class="setting-slider-value">@_ttsSpeed.ToString("F1")x</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-section">
+        <div class="settings-section-title">Dữ liệu</div>
+        <div class="settings-card">
+            <div class="setting-row">
+                <div class="setting-label">
+                    <div class="setting-name">Đồng bộ lịch sử</div>
+                    <div class="setting-desc">Đồng bộ lịch sử nghe lên máy chủ</div>
+                </div>
+                <button class="setting-btn" @onclick="@((MouseEventArgs _) => SyncData())">Đồng bộ</button>
+            </div>
+            <div class="setting-row" style="border-bottom: none;">
+                <div class="setting-label">
+                    <div class="setting-name">Xóa lịch sử</div>
+                    <div class="setting-desc">Xóa toàn bộ lịch sử nghe trên trình duyệt</div>
+                </div>
+                <button class="setting-btn setting-btn-danger" @onclick="@((MouseEventArgs _) => ClearHistory())">Xóa</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-section">
+        <div class="settings-section-title">Thông tin</div>
+        <div class="settings-card">
+            <div class="setting-row" style="border-bottom: none;">
+                <div class="setting-label">
+                    <div class="setting-name">Phiên bản</div>
+                </div>
+                <span class="setting-value">1.0.0</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@@media (prefers-color-scheme: dark) {
+    .settings-card { background: var(--bg-card); }
+    .settings-section-title { color: var(--text-secondary); }
+    .setting-name { color: var(--text-primary); }
+    .setting-desc { color: var(--text-muted); }
+    .setting-select { background: #1e1e1e; color: var(--text-primary); border-color: #333; }
+    .setting-slider { background: #333; }
+    .setting-btn { background: #1e3a5f; color: #90caf9; }
+    .setting-btn-danger { background: #3e1e1e; color: #ef5350; }
+}
+.settings-page { padding: 12px 16px 80px; }
+.settings-section { margin-bottom: 24px; }
+.settings-section-title { font-size: 15px; font-weight: 600; color: #444; margin-bottom: 8px; padding: 0 4px; }
+.settings-card { background: white; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.setting-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #f0f0f0; gap: 12px; }
+.setting-label { flex: 1; overflow: hidden; }
+.setting-name { font-size: 14px; font-weight: 500; }
+.setting-desc { font-size: 12px; color: #999; margin-top: 2px; }
+
+.switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch-slider { position: absolute; cursor: pointer; inset: 0; background: #ccc; border-radius: 24px; transition: .3s; }
+.switch-slider::before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .3s; }
+.switch input:checked + .switch-slider { background: #1976D2; }
+.switch input:checked + .switch-slider::before { transform: translateX(20px); }
+
+.setting-select { padding: 6px 10px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 13px; background: white; outline: none; cursor: pointer; }
+.setting-slider-group { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.setting-slider { width: 100px; height: 4px; -webkit-appearance: none; appearance: none; border-radius: 2px; outline: none; cursor: pointer; }
+.setting-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #1976D2; cursor: pointer; }
+.setting-slider-value { font-size: 13px; font-weight: 600; min-width: 36px; text-align: right; }
+.setting-btn { padding: 6px 16px; border: none; border-radius: 10px; background: #e3f2fd; color: #1976D2; font-size: 13px; font-weight: 500; cursor: pointer; flex-shrink: 0; }
+.setting-btn-danger { background: #ffebee; color: #e53935; }
+.setting-value { font-size: 14px; color: #999; }
+</style>
+
+@code {
+    private bool _autoPlay = true;
+    private string _language = "vi";
+    private double _ttsSpeed = 1.0;
+    private bool _loaded;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadSettings();
+            _loaded = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadSettings()
+    {
+        var json = await JS.InvokeAsync<string>("ZoneGuideApp.getSettingsJson");
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("autoPlay", out var ap)) _autoPlay = ap.GetBoolean();
+            if (root.TryGetProperty("language", out var lang)) _language = lang.GetString() ?? "vi";
+            if (root.TryGetProperty("ttsSpeed", out var speed)) _ttsSpeed = speed.GetDouble();
+        }
+        catch { }
+    }
+
+    private async Task SaveSettings()
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            autoPlay = _autoPlay,
+            language = _language,
+            ttsSpeed = _ttsSpeed
+        });
+        await JS.InvokeVoidAsync("ZoneGuideApp.saveSettings", json);
+    }
+
+    private async Task ToggleAutoPlay(ChangeEventArgs e)
+    {
+        _autoPlay = e.Value as string == "on" || (e.Value as bool?) == true;
+        await SaveSettings();
+    }
+
+    private async Task ChangeLanguage(ChangeEventArgs e)
+    {
+        _language = e.Value?.ToString() ?? "vi";
+        await SaveSettings();
+    }
+
+    private async Task ChangeTtsSpeed(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), out var speed))
+        {
+            _ttsSpeed = speed;
+            await SaveSettings();
+        }
+    }
+
+    private async Task SyncData()
+    {
+        await JS.InvokeVoidAsync("alert", "Tính năng đồng bộ sẽ sớm được hỗ trợ.");
+    }
+
+    private async Task ClearHistory()
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "Xóa toàn bộ lịch sử nghe?"))
+        {
+            await JS.InvokeVoidAsync("ZoneGuideApp.clearHistory");
+        }
+    }
+}

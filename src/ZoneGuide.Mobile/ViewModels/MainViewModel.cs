@@ -21,7 +21,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly IGeofenceService _geofenceService;
     private readonly INarrationService _narrationService;
     private readonly IPOIRepository _poiRepository;
-    private readonly IAnalyticsRepository _analyticsRepository;
     private readonly ISettingsService _settingsService;
     private readonly IMobilePresenceService _mobilePresenceService;
     private string _sessionId = string.Empty;
@@ -59,7 +58,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         IGeofenceService geofenceService,
         INarrationService narrationService,
         IPOIRepository poiRepository,
-        IAnalyticsRepository analyticsRepository,
         ISettingsService settingsService,
         IMobilePresenceService mobilePresenceService)
     {
@@ -67,7 +65,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _geofenceService = geofenceService;
         _narrationService = narrationService;
         _poiRepository = poiRepository;
-        _analyticsRepository = analyticsRepository;
         _settingsService = settingsService;
         _mobilePresenceService = mobilePresenceService;
 
@@ -198,8 +195,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
             }
         });
 
-        // Lưu lịch sử vị trí (ẩn danh)
-        await SaveLocationHistoryAsync(location);
     }
 
     private async void OnGeofenceTriggered(object? sender, GeofenceEvent evt)
@@ -320,36 +315,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
             TriggerType = triggerType,
             TriggerDistance = distance
         };
-    }
-
-    private async Task SaveLocationHistoryAsync(LocationData location)
-    {
-        var history = new LocationHistory
-        {
-            AnonymousDeviceId = await GetAnonymousDeviceIdAsync(),
-            SessionId = _sessionId,
-            Latitude = location.Latitude,
-            Longitude = location.Longitude,
-            Accuracy = location.Accuracy,
-            Speed = location.Speed,
-            Heading = location.Heading,
-            Altitude = location.Altitude,
-            Timestamp = location.Timestamp
-        };
-
-        await _analyticsRepository.InsertLocationAsync(history);
-    }
-
-    private async Task<string> GetAnonymousDeviceIdAsync()
-    {
-        var deviceId = await _settingsService.GetAsync<string>("anonymous_device_id");
-        if (string.IsNullOrEmpty(deviceId))
-        {
-            deviceId = Guid.NewGuid().ToString("N")[..16];
-            await _settingsService.SetAsync("anonymous_device_id", deviceId);
-        }
-
-        return deviceId;
     }
 
     public void Dispose()

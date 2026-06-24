@@ -70,7 +70,7 @@ else
     private async Task LoadData()
     {
         _loading = true;
-        _topPOIs = await ApiService.GetTopPOIsAsync(20);
+        _topPOIs = await ApiService.GetTopPOIsAsync(_dateRange.Start, _dateRange.End, 20);
         _loading = false;
     }
 

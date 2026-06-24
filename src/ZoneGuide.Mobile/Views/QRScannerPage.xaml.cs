@@ -149,6 +149,14 @@ public partial class QRScannerPage : ContentPage
             if (_reader != null)
                 _reader.IsDetecting = false;
 
+            // Random signal strength (0 = Mạnh, 1 = Yếu)
+            int signalStrength = new Random().Next(0, 2);
+            var apiService = Handler?.MauiContext?.Services?.GetService<ApiService>();
+            if (apiService != null)
+            {
+                _ = apiService.LogQrScanAsync(poiId, signalStrength);
+            }
+
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 _ = NavigateToPoiAsync(poiId);

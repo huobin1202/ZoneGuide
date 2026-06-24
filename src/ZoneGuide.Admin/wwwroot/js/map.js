@@ -1120,3 +1120,120 @@ window.updateTrackingUsers = function(trackingSessions) {
 window.resizeHeatmapMap = function() {
     if (heatmapMap) setTimeout(function() { heatmapMap.invalidateSize(); }, 100);
 };
+// Public POI Map
+var publicMap = null;
+var publicMapMarkers = [];
+
+window.initPublicMap = function(elementId, centerLat, centerLng, poiData, dotNetRef) {
+    if (publicMap) {
+        publicMap.remove();
+        publicMap = null;
+    }
+    publicMapMarkers = [];
+
+    publicMap = L.map(elementId, {
+        maxBounds: [[-90, -180], [90, 180]],
+        maxBoundsViscosity: 1.0
+    }).setView([centerLat, centerLng], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19,
+        noWrap: true
+    }).addTo(publicMap);
+
+    if (poiData && poiData.length > 0) {
+        var bounds = [];
+        poiData.forEach(function(p) {
+            var icon = L.divIcon({
+                html: '<div style="background:#1976D2;color:white;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 6px rgba(0,0,0,0.3);">📍</div>',
+                className: 'public-poi-marker',
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            });
+            var marker = L.marker([p.lat, p.lng], { icon: icon })
+                .addTo(publicMap)
+                .on('click', function() {
+                    if (dotNetRef) {
+                        dotNetRef.invokeMethodAsync('OnPoiClick', p.id);
+                    }
+                });
+            publicMapMarkers.push(marker);
+            bounds.push([p.lat, p.lng]);
+        });
+
+        if (bounds.length > 1) {
+            publicMap.fitBounds(bounds, { padding: [40, 40] });
+        }
+    }
+
+    setTimeout(function() { publicMap.invalidateSize(); }, 200);
+};
+
+window.destroyPublicMap = function() {
+    if (publicMap) {
+        publicMap.remove();
+        publicMap = null;
+    }
+    publicMapMarkers = [];
+};
+
+// Mini map for POI detail page
+var poiMiniMap = null;
+
+window.initPoiMiniMap = function(elementId, lat, lng, name) {
+    if (poiMiniMap) poiMiniMap.remove();
+    poiMiniMap = L.map(elementId, {
+        zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+        touchZoom: false, keyboard: false
+    }).setView([lat, lng], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap', maxZoom: 19
+    }).addTo(poiMiniMap);
+    L.marker([lat, lng]).addTo(poiMiniMap)
+        .bindPopup(name || '');
+    setTimeout(function() { poiMiniMap.invalidateSize(); }, 200);
+};
+
+window.destroyPoiMiniMap = function() {
+    if (poiMiniMap) { poiMiniMap.remove(); poiMiniMap = null; }
+};
+
+// Mini map for Tour detail page
+var tourMiniMap = null;
+
+window.initTourMiniMap = function(elementId, waypoints) {
+    if (tourMiniMap) tourMiniMap.remove();
+    if (!waypoints || waypoints.length === 0) return;
+    tourMiniMap = L.map(elementId, {
+        zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+        touchZoom: false, keyboard: false
+    });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap', maxZoom: 19
+    }).addTo(tourMiniMap);
+    var bounds = [], markers = [];
+    waypoints.forEach(function(w, i) {
+        var marker = L.marker([w.lat, w.lng]).addTo(tourMiniMap)
+            .bindPopup((i + 1) + '. ' + (w.name || ''));
+        markers.push(marker);
+        bounds.push([w.lat, w.lng]);
+    });
+    if (bounds.length > 1) {
+        L.polyline(bounds, { color: '#1976D2', weight: 3 }).addTo(tourMiniMap);
+        tourMiniMap.fitBounds(bounds, { padding: [30, 30] });
+    } else {
+        tourMiniMap.setView(bounds[0], 14);
+    }
+    setTimeout(function() { tourMiniMap.invalidateSize(); }, 200);
+};
+
+window.destroyTourMiniMap = function() {
+    if (tourMiniMap) { tourMiniMap.remove(); tourMiniMap = null; }
+};
+
+window.publicMapCenter = function(pos) {
+    if (publicMap) {
+        publicMap.setView([pos.coords.latitude, pos.coords.longitude], 15);
+    }
+};

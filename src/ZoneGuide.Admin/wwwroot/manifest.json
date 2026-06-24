@@ -1,0 +1,19 @@
+{
+  "name": "ZoneGuide",
+  "short_name": "ZoneGuide",
+  "description": "Hệ thống quản lý hướng dẫn du lịch thông minh",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e88e5",
+  "theme_color": "#1e88e5",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/images/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["travel", "navigation"]
+}

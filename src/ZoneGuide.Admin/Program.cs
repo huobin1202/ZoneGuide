@@ -44,6 +44,7 @@ builder.Services.AddScoped(sp =>
 // Configure IApiService to use the Scoped HttpClient
 builder.Services.AddScoped<IApiService, ApiService>();
 builder.Services.AddScoped<WebTtsService>();
+builder.Services.AddScoped<AudioPlayerInterop>();
 
 var app = builder.Build();
 

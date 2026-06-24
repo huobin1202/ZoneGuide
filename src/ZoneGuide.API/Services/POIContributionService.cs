@@ -29,11 +29,13 @@ public class POIContributionService : IPOIContributionService
 {
     private readonly AppDbContext _context;
     private readonly PoiQrCodeService _poiQrCodeService;
+    private readonly INotificationService _notificationService;
     
-    public POIContributionService(AppDbContext context, PoiQrCodeService poiQrCodeService)
+    public POIContributionService(AppDbContext context, PoiQrCodeService poiQrCodeService, INotificationService notificationService)
     {
         _context = context;
         _poiQrCodeService = poiQrCodeService;
+        _notificationService = notificationService;
     }
     
     #region Contributor Methods
@@ -151,6 +153,19 @@ public class POIContributionService : IPOIContributionService
         });
         
         await _context.SaveChangesAsync();
+
+        // Create notification for admin
+        var contributor = await _context.Users.FindAsync(contributorId);
+        var contributorName = contributor?.DisplayName ?? "Unknown";
+        await _notificationService.CreateNotificationAsync(
+            title: "Đóng góp mới",
+            message: $"{contributorName} đã gửi đóng góp mới: {contribution.Name}",
+            type: "Contribution",
+            referenceId: contribution.Id,
+            referenceType: "Contribution",
+            senderId: contributorId
+        );
+
         return true;
     }
     

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#1e88e5"/>
+  <g transform="translate(256,256)" fill="white" text-anchor="middle" font-family="Arial,sans-serif">
+    <text y="-80" font-size="180" font-weight="bold">ZG</text>
+    <circle cx="0" cy="60" r="50" fill="none" stroke="white" stroke-width="8"/>
+    <path d="M0 10 L-25 40 L25 40 Z" fill="#22ffd6"/>
+  </g>
+</svg>

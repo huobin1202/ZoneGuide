@@ -8,13 +8,13 @@ namespace ZoneGuide.API.Services;
 
 public interface IQrRealtimeMonitoringService
 {
-    Task<QrMonitoringSnapshotDto> RegisterAccessAsync(int poiId, string deviceId, string? ipAddress, string? userAgent, bool hasStableCookie);
+    Task<QrMonitoringSnapshotDto> RegisterAccessAsync(int poiId, string deviceId, string? ipAddress, string? userAgent, bool hasStableCookie, int signalStrength = 0);
     Task<QrMonitoringSnapshotDto> RegisterPresenceAsync(int poiId, string sessionId, string deviceId, string? ipAddress, string? userAgent, bool hasStableCookie);
     Task<QrMonitoringSnapshotDto> UnregisterPresenceAsync(string sessionId);
     QrMonitoringSnapshotDto GetSnapshot();
 }
 
-public sealed class QrRealtimeMonitoringService : IQrRealtimeMonitoringService, IDisposable
+public sealed class QrRealtimeMonitoringService : IQrRealtimeMonitoringService, IAsyncDisposable
 {
     private readonly TimeSpan _activeWindow;
     private readonly TimeSpan _lastMinuteWindow;
@@ -23,6 +23,8 @@ public sealed class QrRealtimeMonitoringService : IQrRealtimeMonitoringService, 
     private readonly ConcurrentDictionary<string, QrPresenceSessionState> _activeSessions = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, byte> _uniqueDevices = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentQueue<DateTime> _accessTimestamps = new();
+    private readonly ConcurrentQueue<QrScanLogDto> _recentScansList = new();
+    private readonly int _maxRecentScans = 500;
     private readonly IHubContext<QrMonitoringHub> _hubContext;
     private readonly ILogger<QrRealtimeMonitoringService> _logger;
     private readonly object _broadcastStateLock = new();
@@ -56,13 +58,26 @@ public sealed class QrRealtimeMonitoringService : IQrRealtimeMonitoringService, 
         _snapshotLoopTask = Task.Run(() => RunSnapshotLoopAsync(_loopCts.Token));
     }
 
-    public async Task<QrMonitoringSnapshotDto> RegisterAccessAsync(int poiId, string deviceId, string? ipAddress, string? userAgent, bool hasStableCookie)
+    public async Task<QrMonitoringSnapshotDto> RegisterAccessAsync(int poiId, string deviceId, string? ipAddress, string? userAgent, bool hasStableCookie, int signalStrength = 0)
     {
         var now = DateTime.UtcNow;
         var normalizedDeviceId = ResolveDeviceId(deviceId, ipAddress, userAgent, hasStableCookie);
 
         _uniqueDevices[normalizedDeviceId] = 1;
         _accessTimestamps.Enqueue(now);
+        
+        _recentScansList.Enqueue(new QrScanLogDto
+        {
+            ScannedAtUtc = now,
+            PoiId = poiId,
+            DeviceId = normalizedDeviceId,
+            SignalStrength = signalStrength
+        });
+        
+        while (_recentScansList.Count > _maxRecentScans)
+        {
+            _recentScansList.TryDequeue(out _);
+        }
 
         Interlocked.Increment(ref _totalAccessCount);
         lock (_snapshotLock)
@@ -146,7 +161,8 @@ public sealed class QrRealtimeMonitoringService : IQrRealtimeMonitoringService, 
             LastAccessAtUtc = lastAccessAtUtc,
             LastPoiId = lastPoiId,
             ActiveWindowSeconds = (int)_activeWindow.TotalSeconds,
-            LastMinuteWindowSeconds = (int)_lastMinuteWindow.TotalSeconds
+            LastMinuteWindowSeconds = (int)_lastMinuteWindow.TotalSeconds,
+            RecentScans = _recentScansList.ToArray().OrderByDescending(x => x.ScannedAtUtc).ToList()
         };
     }
 
@@ -288,7 +304,7 @@ public sealed class QrRealtimeMonitoringService : IQrRealtimeMonitoringService, 
         }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         _loopCts.Cancel();
         _snapshotTimer.Dispose();
@@ -296,13 +312,22 @@ public sealed class QrRealtimeMonitoringService : IQrRealtimeMonitoringService, 
 
         try
         {
-            _snapshotLoopTask.GetAwaiter().GetResult();
+            if (_snapshotLoopTask is not null)
+                await _snapshotLoopTask;
         }
         catch (OperationCanceledException)
         {
             // Expected on shutdown.
         }
     }
+}
+
+public sealed class QrScanLogDto
+{
+    public DateTime ScannedAtUtc { get; set; }
+    public int PoiId { get; set; }
+    public string DeviceId { get; set; } = string.Empty;
+    public int SignalStrength { get; set; } // 0 = Mạnh, 1 = Yếu
 }
 
 public sealed class QrMonitoringSnapshotDto
@@ -315,4 +340,5 @@ public sealed class QrMonitoringSnapshotDto
     public int? LastPoiId { get; set; }
     public int ActiveWindowSeconds { get; set; }
     public int LastMinuteWindowSeconds { get; set; }
+    public List<QrScanLogDto> RecentScans { get; set; } = new();
 }

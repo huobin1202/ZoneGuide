@@ -394,6 +394,41 @@ public class QrPresenceHeartbeatDto
 }
 
 /// <summary>
+/// DTO cho Notification
+/// </summary>
+public class NotificationDto
+{
+    public int Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+    public string Type { get; set; } = string.Empty;
+    public int? ReferenceId { get; set; }
+    public string? ReferenceType { get; set; }
+    public int? SenderId { get; set; }
+    public string? SenderName { get; set; }
+    public string? SenderAvatarUrl { get; set; }
+    public bool IsRead { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? ReadAt { get; set; }
+}
+
+/// <summary>
+/// DTO đánh dấu đã đọc
+/// </summary>
+public class MarkReadRequestDto
+{
+    public List<int>? Ids { get; set; }
+}
+
+/// <summary>
+/// DTO đếm thông báo chưa đọc
+/// </summary>
+public class UnreadCountDto
+{
+    public int Count { get; set; }
+}
+
+/// <summary>
 /// DTO cho Activity Log
 /// </summary>
 public class ActivityLogDto

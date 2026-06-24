@@ -12,13 +12,20 @@
     <MudAppBar Elevation="1" Class="topbar-tall">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
             OnClick="@ToggleDrawer" />
-        <MudText Typo="Typo.h5" Class="ml-3">ZoneGuide</MudText>
+        <MudText Typo="Typo.h5" Class="ml-3 app-title">ZoneGuide</MudText>
         <MudSpacer />
 
         @if (_currentUser != null)
         {
-            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="cursor-pointer" @onclick="@(() => Navigation.NavigateTo("/profile"))">
-                <MudAvatar Size="Size.Medium" Color="Color.Primary" Style="background-color: #22ffd6 !important;">
+            @if (_isAdmin || _isContributor)
+            {
+                <MudBadge Color="Color.Error" Content="@_unreadCount.ToString()" Visible="@(_unreadCount > 0)" Class="mr-2">
+                    <MudIconButton Icon="@Icons.Material.Filled.Notifications" Color="Color.Inherit"
+                                   Href="/notifications" />
+                </MudBadge>
+            }
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="cursor-pointer user-info" @onclick="@(() => Navigation.NavigateTo("/profile"))">
+                <MudAvatar Size="Size.Small" Color="Color.Primary" Style="background-color: #22ffd6 !important;">
                     @if (!string.IsNullOrEmpty(_currentUser.AvatarUrl))
                     {
                         <MudImage Src="@_currentUser.AvatarUrl" />
@@ -28,7 +35,7 @@
                         @(_currentUser.DisplayName?.FirstOrDefault())
                     }
                 </MudAvatar>
-                <MudStack Spacing="0">
+                <MudStack Spacing="0" Class="user-details">
                     <MudText Typo="Typo.subtitle2" Class="text-white">@_currentUser.DisplayName</MudText>
                     <MudText Typo="Typo.caption" Class="text-white" Style="color:#fff !important;">@GetRoleDisplayName()</MudText>
                 </MudStack>
@@ -54,7 +61,7 @@
                     <MudNavLink Href="/pois" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.LocationOn">
                         Quản lý địa điểm
                     </MudNavLink>
-                    <MudNavLink Href="/poi-qrcodes" Match="NavLinkMatch.Prefix">
+                    <MudNavLink Href="/poi-qrcodes" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.QrCode">
                         Quản lý QR địa điểm
                     </MudNavLink>
                     <MudNavLink Href="/tours" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Route">
@@ -71,6 +78,9 @@
                     <MudNavLink Href="/users" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.People">
                         Quản lý người dùng
                     </MudNavLink>
+                    <MudNavLink Href="/notifications" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Notifications">
+                        Thông báo
+                    </MudNavLink>
                     <MudDivider Class="my-2" />
                     <MudNavLink Href="/analytics" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Analytics">
                         Analytics
@@ -78,7 +88,9 @@
                     <MudNavLink Href="/heatmap" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Whatshot">
                         Heatmap du khách
                     </MudNavLink>
-                 
+                    <MudNavLink Href="/qr-logs" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.QrCodeScanner">
+                        Nhật ký quét QR
+                    </MudNavLink>
                     <MudNavLink Href="/activity-log" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.History">
                         Nhật ký hoạt động
                     </MudNavLink>
@@ -97,6 +109,9 @@
                     </MudNavLink>
                     <MudNavLink Href="/contributor-poi-translations" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Translate">
                         Audio / Bản dịch
+                    </MudNavLink>
+                    <MudNavLink Href="/notifications" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Notifications">
+                        Thông báo
                     </MudNavLink>
                 }
                 else
@@ -142,15 +157,15 @@ else
 
 <style>
     .layout-tall-appbar {
-        --mud-appbar-height: 78px;
+        --mud-appbar-height: 70px;
     }
 
     .topbar-tall {
-        min-height: 78px !important;
+        min-height: 70px !important;
     }
 
     .topbar-tall .mud-toolbar {
-        min-height: 78px !important;
+        min-height: 70px !important;
     }
 
     .drawer-layout {
@@ -183,7 +198,55 @@ else
     .main-sidebar .mud-nav-link.active .mud-icon-root {
         color: #2b7cd3 !important;
     }
+
+    .unread-count-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #f44336;
+        color: white;
+        font-size: 11px;
+        font-weight: 700;
+        min-width: 20px;
+        height: 20px;
+        border-radius: 10px;
+        padding: 0 6px;
+        margin-left: 6px;
+    }
+
+    /* Mobile responsive */
+    @@media (max-width: 600px) {
+        .layout-tall-appbar {
+            --mud-appbar-height: 56px;
+        }
+
+        .topbar-tall {
+            min-height: 56px !important;
+        }
+
+        .topbar-tall .mud-toolbar {
+            min-height: 56px !important;
+            padding-left: 4px;
+            padding-right: 4px;
+        }
+
+        .app-title {
+            font-size: 1.1rem !important;
+        }
+
+        .user-details {
+            display: none !important;
+        }
+
+        .topbar-tall .mud-avatar-small {
+            width: 32px !important;
+            height: 32px !important;
+        }
+    }
+
 </style>
+
+@implements IDisposable
 
 @code {
     private bool _drawerOpen = true;
@@ -191,6 +254,10 @@ else
     private bool _isAdmin => _currentUser?.Role == "Admin";
     private bool _isContributor => _currentUser?.Role == "Contributor";
     private bool _initialized = false;
+    private int _unreadCount = 0;
+    private int _previousUnreadCount = 0;
+    private bool _disposed = false;
+    private CancellationTokenSource? _pollingCts;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -204,8 +271,89 @@ else
             }
             _initialized = true;
             StateHasChanged();
+
+            if (_isAdmin || _isContributor)
+            {
+                _ = RequestNotificationPermission();
+                _ = PollNotificationsAsync();
+            }
         }
     }
+
+    private async Task RequestNotificationPermission()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("Notification.requestPermission");
+        }
+        catch
+        {
+        }
+    }
+
+    private async Task PollNotificationsAsync()
+    {
+        _pollingCts = new CancellationTokenSource();
+        var token = _pollingCts.Token;
+
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    var result = await Http.GetFromJsonAsync<UnreadCountDto>("api/notifications/unread-count", token);
+                    if (result != null && _unreadCount != result.Count)
+                    {
+                        _previousUnreadCount = _unreadCount;
+                        _unreadCount = result.Count;
+                        if (!_disposed) StateHasChanged();
+
+                        if (_unreadCount > _previousUnreadCount)
+                        {
+                            await ShowBrowserNotification();
+                        }
+                    }
+                }
+                catch
+                {
+                }
+                await Task.Delay(30000, token);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task ShowBrowserNotification()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("eval",
+                @"(function() {
+                    if (Notification.permission === 'granted' && document.hidden) {
+                        new Notification('ZoneGuide', {
+                            body: 'Có thông báo mới',
+                            icon: '/images/icon.svg',
+                            tag: 'zoneguide-notification',
+                            requireInteraction: true
+                        });
+                    }
+                })()");
+        }
+        catch
+        {
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _pollingCts?.Cancel();
+        _pollingCts?.Dispose();
+    }
+
     private async Task LoadCurrentUser()
     {
         try

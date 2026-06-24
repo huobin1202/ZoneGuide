@@ -1,4 +1,5 @@
 @page "/heatmap"
+@implements IDisposable
 @inject IApiService ApiService
 @inject IJSRuntime JS
 
@@ -167,9 +168,13 @@ else
             await UpdateTrackingLayer();
 
             // Start auto-refresh timer for live tracking (every 10 seconds)
-            _refreshTimer = new System.Timers.Timer(10000);
-            _refreshTimer.Elapsed += async (s, e) => await RefreshTrackingData();
-            _refreshTimer.Start();
+            if (_refreshTimer == null)
+            {
+                _refreshTimer = new System.Timers.Timer(10000);
+                _refreshTimer.Elapsed += async (s, e) => { try { await RefreshTrackingData(); } catch { } };
+                _refreshTimer.AutoReset = true;
+                _refreshTimer.Start();
+            }
         }
         catch
         {
@@ -197,7 +202,14 @@ else
 
     private async Task LoadMobileSnapshot()
     {
-        _mobileSnapshot = await ApiService.GetMobileMonitoringSnapshotAsync();
+        try
+        {
+            _mobileSnapshot = await ApiService.GetMobileMonitoringSnapshotAsync();
+        }
+        catch
+        {
+            return;
+        }
         
         if (_mapInitialized)
         {
@@ -224,6 +236,13 @@ else
         {
             await JS.InvokeVoidAsync("updateTrackingUsers", _mobileSnapshot.Sessions);
         }
+    }
+
+    public void Dispose()
+    {
+        _refreshTimer?.Stop();
+        _refreshTimer?.Dispose();
+        _refreshTimer = null;
     }
 }
 }

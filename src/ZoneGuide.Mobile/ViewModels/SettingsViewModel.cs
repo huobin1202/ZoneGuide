@@ -19,7 +19,7 @@ public partial class SettingsViewModel : ObservableObject
     private readonly INarrationService _narrationService;
 
     [ObservableProperty]
-    private string preferredLanguage = "vi-VN";
+    private string preferredLanguage = "en-US";
 
     [ObservableProperty]
     private float ttsSpeed = 1.0f;

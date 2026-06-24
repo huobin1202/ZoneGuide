@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.AspNetCore.RateLimiting;
 using ZoneGuide.API.Data;
 using ZoneGuide.API.Hubs;
 using ZoneGuide.API.Services;
@@ -93,6 +94,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton<PoiQrCodeService>();
 builder.Services.AddScoped<IPOIContributionService, POIContributionService>();
 builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddSingleton<IQrRealtimeMonitoringService, QrRealtimeMonitoringService>();
 builder.Services.AddSingleton<IMobileLiveMonitoringService, MobileLiveMonitoringService>();
 
@@ -110,6 +112,23 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Rate limiting
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddFixedWindowLimiter("Auth", opts =>
+    {
+        opts.PermitLimit = 10;
+        opts.Window = TimeSpan.FromMinutes(1);
+        opts.QueueLimit = 2;
+    });
+    options.AddFixedWindowLimiter("General", opts =>
+    {
+        opts.PermitLimit = 200;
+        opts.Window = TimeSpan.FromMinutes(1);
+    });
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -123,63 +142,83 @@ else
     app.UseHttpsRedirection(); // Chỉ redirect HTTPS ở Production
 }
 
+// Security headers
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "no-referrer";
+    context.Response.Headers["X-Permitted-Cross-Domain-Policies"] = "none";
+    if (!app.Environment.IsDevelopment())
+    {
+        context.Response.Headers["Content-Security-Policy"] = "default-src 'self'";
+    }
+    await next();
+});
+
 app.UseStaticFiles();
 app.UseCors("AllowAll");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<QrMonitoringHub>("/hubs/qr-monitor");
 app.MapHub<MobileMonitoringHub>("/hubs/mobile-monitor");
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 // Auto migrate database
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var qrService = scope.ServiceProvider.GetRequiredService<PoiQrCodeService>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
     db.Database.Migrate();
-    
+
+    var adminEmail = config["SeedAccounts:AdminEmail"] ?? "admin@ZoneGuide.com";
+    var adminPassword = config["SeedAccounts:AdminPassword"];
+    var adminDisplayName = config["SeedAccounts:AdminDisplayName"] ?? "Administrator";
+    var userEmail = config["SeedAccounts:UserEmail"] ?? "user@ZoneGuide.com";
+    var userPassword = config["SeedAccounts:UserPassword"];
+    var userDisplayName = config["SeedAccounts:UserDisplayName"] ?? "Mobile User";
+
     // Seed Admin account if not exists
-    if (!db.Users.Any(u => u.Role == ZoneGuide.Shared.Models.UserRole.Admin))
+    if (!string.IsNullOrEmpty(adminPassword) && !db.Users.Any(u => u.Role == ZoneGuide.Shared.Models.UserRole.Admin))
     {
-        // Create password hash for admin (password: Admin@123)
         using var hmac = new System.Security.Cryptography.HMACSHA512();
         var salt = Convert.ToBase64String(hmac.Key);
-        var hash = Convert.ToBase64String(hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes("Admin@123")));
-        
+        var hash = Convert.ToBase64String(hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(adminPassword)));
+
         var adminUser = new ZoneGuide.API.Data.UserEntity
         {
-            Email = "admin@ZoneGuide.com",
+            Email = adminEmail,
             PasswordHash = hash,
             PasswordSalt = salt,
-            DisplayName = "Administrator",
+            DisplayName = adminDisplayName,
             Role = ZoneGuide.Shared.Models.UserRole.Admin,
             Status = ZoneGuide.Shared.Models.UserStatus.Active,
             CreatedAt = DateTime.UtcNow
         };
-        
+
         db.Users.Add(adminUser);
         db.SaveChanges();
-        
-        Console.WriteLine("===========================================");
-        Console.WriteLine("Admin account created:");
-        Console.WriteLine("Email: admin@ZoneGuide.com");
-        Console.WriteLine("Password: Admin@123");
-        Console.WriteLine("===========================================");
+
+        logger.LogInformation("Admin account created: {Email}", adminEmail);
     }
 
     // Seed default mobile user account if not exists
-    if (!db.Users.Any(u => u.Email == "user@ZoneGuide.com"))
+    if (!string.IsNullOrEmpty(userPassword) && !db.Users.Any(u => u.Email == userEmail))
     {
         using var userHmac = new System.Security.Cryptography.HMACSHA512();
         var userSalt = Convert.ToBase64String(userHmac.Key);
-        var userHash = Convert.ToBase64String(userHmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes("User@123")));
+        var userHash = Convert.ToBase64String(userHmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(userPassword)));
 
         var normalUser = new ZoneGuide.API.Data.UserEntity
         {
-            Email = "user@ZoneGuide.com",
+            Email = userEmail,
             PasswordHash = userHash,
             PasswordSalt = userSalt,
-            DisplayName = "Mobile User",
+            DisplayName = userDisplayName,
             Role = ZoneGuide.Shared.Models.UserRole.User,
             Status = ZoneGuide.Shared.Models.UserStatus.Active,
             CreatedAt = DateTime.UtcNow
@@ -188,11 +227,7 @@ using (var scope = app.Services.CreateScope())
         db.Users.Add(normalUser);
         db.SaveChanges();
 
-        Console.WriteLine("===========================================");
-        Console.WriteLine("Default user account created:");
-        Console.WriteLine("Email: user@ZoneGuide.com");
-        Console.WriteLine("Password: User@123");
-        Console.WriteLine("===========================================");
+        logger.LogInformation("Default user account created: {Email}", userEmail);
     }
 
     var poiIds = db.POIs

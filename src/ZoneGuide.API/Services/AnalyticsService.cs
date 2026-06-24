@@ -40,6 +40,28 @@ public class AnalyticsService : IAnalyticsService
 
         if (locationEntities.Any())
         {
+            var locationSessionIds = locationEntities.Select(l => l.SessionId).Distinct().ToList();
+            var minLocationTime = locationEntities.Min(l => l.Timestamp);
+            var maxLocationTime = locationEntities.Max(l => l.Timestamp);
+            var existingLocationKeys = (await _context.LocationHistories
+                    .AsNoTracking()
+                    .Where(l =>
+                        l.AnonymousDeviceId == data.AnonymousDeviceId &&
+                        locationSessionIds.Contains(l.SessionId) &&
+                        l.Timestamp >= minLocationTime &&
+                        l.Timestamp <= maxLocationTime)
+                    .Select(l => new { l.SessionId, l.Timestamp })
+                    .ToListAsync())
+                .Select(l => $"{l.SessionId}|{l.Timestamp:O}")
+                .ToHashSet(StringComparer.Ordinal);
+
+            locationEntities = locationEntities
+                .Where(l => !existingLocationKeys.Contains($"{l.SessionId}|{l.Timestamp:O}"))
+                .ToList();
+        }
+
+        if (locationEntities.Any())
+        {
             _context.LocationHistories.AddRange(locationEntities);
         }
 
@@ -61,6 +83,28 @@ public class AnalyticsService : IAnalyticsService
             TriggerLatitude = n.TriggerLatitude,
             TriggerLongitude = n.TriggerLongitude
         }).ToList();
+
+        if (narrationEntities.Any())
+        {
+            var narrationSessionIds = narrationEntities.Select(n => n.SessionId).Distinct().ToList();
+            var minNarrationTime = narrationEntities.Min(n => n.StartTime);
+            var maxNarrationTime = narrationEntities.Max(n => n.StartTime);
+            var existingNarrationKeys = (await _context.NarrationHistories
+                    .AsNoTracking()
+                    .Where(n =>
+                        n.AnonymousDeviceId == data.AnonymousDeviceId &&
+                        narrationSessionIds.Contains(n.SessionId) &&
+                        n.StartTime >= minNarrationTime &&
+                        n.StartTime <= maxNarrationTime)
+                    .Select(n => new { n.SessionId, n.POIId, n.StartTime })
+                    .ToListAsync())
+                .Select(n => $"{n.SessionId}|{n.POIId}|{n.StartTime:O}")
+                .ToHashSet(StringComparer.Ordinal);
+
+            narrationEntities = narrationEntities
+                .Where(n => !existingNarrationKeys.Contains($"{n.SessionId}|{n.POIId}|{n.StartTime:O}"))
+                .ToList();
+        }
 
         if (narrationEntities.Any())
         {
@@ -118,6 +162,11 @@ public class AnalyticsService : IAnalyticsService
         var fromDate = from ?? DateTime.UtcNow.AddDays(-30);
         var toDate = to ?? DateTime.UtcNow;
 
+        if (!from.HasValue && !to.HasValue)
+        {
+            (fromDate, toDate) = await ResolveDefaultDashboardRangeAsync(fromDate, toDate);
+        }
+
         var totalPOIs = await _context.POIs.CountAsync(p => p.IsActive);
         var totalTours = await _context.Tours.CountAsync(t => t.IsActive);
         var narrationsQuery = _context.NarrationHistories
@@ -150,6 +199,50 @@ public class AnalyticsService : IAnalyticsService
             HeatmapData = await GetHeatmapDataAsync(fromDate, toDate),
             DailyStats = await GetDailyStatsAsync(fromDate, toDate)
         };
+    }
+
+    private async Task<(DateTime From, DateTime To)> ResolveDefaultDashboardRangeAsync(DateTime fromDate, DateTime toDate)
+    {
+        var hasRecentData =
+            await _context.NarrationHistories
+                .AsNoTracking()
+                .AnyAsync(n => n.StartTime >= fromDate && n.StartTime <= toDate)
+            ||
+            await _context.LocationHistories
+                .AsNoTracking()
+                .AnyAsync(l => l.Timestamp >= fromDate && l.Timestamp <= toDate);
+
+        if (hasRecentData)
+        {
+            return (fromDate, toDate);
+        }
+
+        var minNarration = await _context.NarrationHistories
+            .AsNoTracking()
+            .Select(n => (DateTime?)n.StartTime)
+            .MinAsync();
+        var maxNarration = await _context.NarrationHistories
+            .AsNoTracking()
+            .Select(n => (DateTime?)n.StartTime)
+            .MaxAsync();
+        var minLocation = await _context.LocationHistories
+            .AsNoTracking()
+            .Select(l => (DateTime?)l.Timestamp)
+            .MinAsync();
+        var maxLocation = await _context.LocationHistories
+            .AsNoTracking()
+            .Select(l => (DateTime?)l.Timestamp)
+            .MaxAsync();
+
+        var minDates = new[] { minNarration, minLocation }.Where(d => d.HasValue).Select(d => d!.Value).ToList();
+        var maxDates = new[] { maxNarration, maxLocation }.Where(d => d.HasValue).Select(d => d!.Value).ToList();
+
+        if (minDates.Count == 0 || maxDates.Count == 0)
+        {
+            return (fromDate, toDate);
+        }
+
+        return (minDates.Min(), maxDates.Max());
     }
 
     public async Task<List<TopPOIDto>> GetTopPOIsAsync(DateTime? from, DateTime? to, int count = 10)

@@ -153,6 +153,19 @@ public class SyncService : ISyncService
             await _settingsService.SetAsync("last_sync_time", LastSyncTime);
             await _settingsService.SetAsync(LastSyncLanguageKey, currentLanguage);
 
+            try
+            {
+                var analyticsUploaded = await UploadAnalyticsAsync();
+                System.Diagnostics.Debug.WriteLine(
+                    analyticsUploaded
+                        ? "[SyncService] Auto upload analytics succeeded."
+                        : "[SyncService] Auto upload analytics had no data or failed.");
+            }
+            catch (Exception uploadEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"[SyncService] Auto upload analytics error: {uploadEx.Message}");
+            }
+
             SyncCompleted?.Invoke(this, true);
             return true;
         }

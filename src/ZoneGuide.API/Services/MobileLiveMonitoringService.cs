@@ -17,7 +17,7 @@ public interface IMobileLiveMonitoringService
     MobileLiveMonitoringSnapshotDto GetSnapshot();
 }
 
-public sealed class MobileLiveMonitoringService : IMobileLiveMonitoringService, IDisposable
+public sealed class MobileLiveMonitoringService : IMobileLiveMonitoringService, IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, MobileLiveSessionState> _sessions = new(StringComparer.OrdinalIgnoreCase);
     private readonly IHubContext<MobileMonitoringHub> _hubContext;
@@ -182,7 +182,7 @@ public sealed class MobileLiveMonitoringService : IMobileLiveMonitoringService, 
         return Math.Min(Math.Max(value, min), max);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         _loopCts.Cancel();
         _snapshotTimer.Dispose();
@@ -190,7 +190,8 @@ public sealed class MobileLiveMonitoringService : IMobileLiveMonitoringService, 
 
         try
         {
-            _snapshotLoopTask.GetAwaiter().GetResult();
+            if (_snapshotLoopTask is not null)
+                await _snapshotLoopTask;
         }
         catch (OperationCanceledException)
         {

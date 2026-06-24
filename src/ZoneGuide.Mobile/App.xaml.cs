@@ -64,6 +64,12 @@ public partial class App : Application
         try
         {
             await _settingsService.LoadAsync();
+
+            if (!_settingsService.Settings.HasCompletedLanguageSelection)
+            {
+                _settingsService.Settings.PreferredLanguage = AppLocalizer.GetDeviceLanguage();
+            }
+
             AppLocalizer.Instance.SetLanguage(_settingsService.Settings.PreferredLanguage);
 
             var rootPage = ResolveRootPage(_settingsService.Settings.HasCompletedLanguageSelection);
