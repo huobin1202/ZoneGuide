@@ -62,11 +62,14 @@ public class NarrationService : INarrationService, IDisposable
         _audioService.ProgressChanged += OnProgressChanged;
     }
 
+    #region Nhieu du khach cung nghe audio / Hang doi theo tung thiet bi
+
     public Task EnqueueAsync(NarrationQueueItem item)
     {
         // Kiểm tra trùng lặp
         if (_currentItem?.POI.Id == item.POI.Id || _queue.Any(q => q.POI.Id == item.POI.Id))
         {
+            // bo qua yeu cau
             return Task.CompletedTask; // Đã có trong queue hoặc đang phát
         }
 
@@ -101,6 +104,7 @@ public class NarrationService : INarrationService, IDisposable
         _queue.Enqueue(item);
 
         // Chạy nền, không chờ phát xong để caller tiếp tục luồng UI/geofence.
+        // dua vao hang doi rieng cua thiet bi
         EnsureQueueProcessingStarted();
     }
 
@@ -224,6 +228,8 @@ public class NarrationService : INarrationService, IDisposable
         CurrentProgress = 0;
     }
 
+    #endregion
+
     public async Task SkipAsync()
     {
         await StopAsync();
@@ -257,6 +263,8 @@ public class NarrationService : INarrationService, IDisposable
         await Task.CompletedTask;
     }
 
+    #region Hang doi phat audio/TTS va fallback noi dung
+
     private async Task ProcessQueueAsync()
     {
         await _semaphore.WaitAsync();
@@ -281,14 +289,15 @@ public class NarrationService : INarrationService, IDisposable
                 IsPlaying = true;
                 IsPaused = false;
                 CurrentProgress = 0;
-
+                //ViewModel/UI nhan event de hien thi dang phat
                 NarrationStarted?.Invoke(this, item);
 
                 try
                 {
                     var played = false;
 
-                    // Ưu tiên phát file audio nếu có
+                    // Ưu tiên phát file audio nếu có,
+                    // Phat AudioPath hoac AudioUrl 
                     if (!string.IsNullOrEmpty(item.AudioPath) && File.Exists(item.AudioPath))
                     {
                         try
@@ -298,6 +307,7 @@ public class NarrationService : INarrationService, IDisposable
                                 _cancellationTokenSource.Token);
                             played = true;
                         }
+                        // chuyen sang doc bang TTS
                         catch (Exception ex) when (ex is not OperationCanceledException && !string.IsNullOrWhiteSpace(item.TTSText))
                         {
                             await PlayTtsAndWaitAsync(item, _cancellationTokenSource.Token);
@@ -457,6 +467,8 @@ public class NarrationService : INarrationService, IDisposable
         }
     }
 
+    #endregion
+
     private void OnTTSCompleted(object? sender, EventArgs e)
     {
         CurrentProgress = 1.0;
@@ -474,6 +486,8 @@ public class NarrationService : INarrationService, IDisposable
         CurrentProgress = progress;
         ProgressUpdated?.Invoke(this, progress);
     }
+
+    #region Analytics sau khi nghe xong
 
     private async Task StartHistoryRecordAsync(NarrationQueueItem item)
     {
@@ -587,6 +601,10 @@ public class NarrationService : INarrationService, IDisposable
         }
     }
 
+    #endregion
+
+    #region Chon nguon noi dung audio hay TTS
+
     private async Task ApplyPreferredLanguageContentAsync(NarrationQueueItem item)
     {
         var preferredLanguage = NormalizeLanguage(_settingsService.Settings.PreferredLanguage);
@@ -698,6 +716,8 @@ public class NarrationService : INarrationService, IDisposable
             _ => value
         };
     }
+
+    #endregion
 
     public void Dispose()
     {

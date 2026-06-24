@@ -1,0 +1,158 @@
+@page "/qr-logs"
+@using ZoneGuide.Shared.Models
+@using ZoneGuide.Admin.Services
+@using Microsoft.AspNetCore.SignalR.Client
+@inject IApiService ApiService
+@inject IConfiguration Configuration
+@implements IAsyncDisposable
+
+<MudText Typo="Typo.h5" Class="mb-4">Nhật ký quét mã QR</MudText>
+
+@if (_loading)
+{
+    <div class="d-flex justify-center my-8">
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    </div>
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12">
+            <MudPaper Class="pa-4 mb-4">
+                <MudGrid>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Trạng thái kết nối</MudText>
+                        @if (_connected)
+                        {
+                            <MudChip T="string" Color="Color.Success" Size="Size.Small">Đã kết nối (Live)</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Color="Color.Error" Size="Size.Small">Mất kết nối</MudChip>
+                        }
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Tổng số lượt quét</MudText>
+                        <MudText Typo="Typo.h6">@_snapshot?.TotalAccessCount</MudText>
+                    </MudItem>
+                    
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudText Typo="Typo.subtitle2" Class="mud-text-secondary">Thiết bị đang tương tác</MudText>
+                        <MudText Typo="Typo.h6">@_snapshot?.ActiveDeviceCount</MudText>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudTable Items="@(_snapshot?.RecentScans ?? new List<QrScanLogDto>())" Hover="true" Breakpoint="Breakpoint.Sm" 
+                      Loading="@_loading" LoadingProgressColor="Color.Info" Striped="true">
+                <HeaderContent>
+                    <MudTh>Thời gian (Live)</MudTh>
+                    <MudTh>ID Địa điểm (POI)</MudTh>
+                    <MudTh>Mã thiết bị</MudTh>
+                    <MudTh>Cường độ tín hiệu</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Thời gian">
+                        @context.ScannedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+                    </MudTd>
+                    <MudTd DataLabel="POI">@context.PoiId</MudTd>
+                    <MudTd DataLabel="Thiết bị">
+                        <MudText Typo="Typo.body2" Style="word-break: break-all; max-width: 150px;">
+                            @context.DeviceId
+                        </MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Tín hiệu">
+                        @if (context.SignalStrength == 0)
+                        {
+                            <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.Wifi">Mạnh (0)</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Color="Color.Warning" Size="Size.Small" Icon="@Icons.Material.Filled.Wifi1Bar">Yếu (1)</MudChip>
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body1" Align="Align.Center">Chưa có dữ liệu lượt quét nào gần đây.</MudText>
+                </NoRecordsContent>
+                <PagerContent>
+                    <MudTablePager RowsPerPageString="Số dòng mỗi trang:" InfoFormat="{first_item}-{last_item} trên tổng số {all_items}" />
+                </PagerContent>
+            </MudTable>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private QrMonitoringSnapshotDto? _snapshot;
+    private HubConnection? _hubConnection;
+    private bool _loading = true;
+    private bool _connected = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSnapshot();
+        await InitializeRealtimeAsync();
+    }
+
+    private async Task LoadSnapshot()
+    {
+        _snapshot = await ApiService.GetQrMonitoringSnapshotAsync();
+        _loading = false;
+    }
+
+    private async Task InitializeRealtimeAsync()
+    {
+        var apiBaseUrl = Configuration["ApiBaseUrl"] ?? "https://localhost:56040";
+        var hubUrl = $"{apiBaseUrl.TrimEnd('/')}/hubs/qr-monitor";
+
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(hubUrl)
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hubConnection.Reconnecting += _ =>
+        {
+            _connected = false;
+            return InvokeAsync(StateHasChanged);
+        };
+
+        _hubConnection.Reconnected += _ =>
+        {
+            _connected = true;
+            return InvokeAsync(StateHasChanged);
+        };
+
+        _hubConnection.Closed += _ =>
+        {
+            _connected = false;
+            return InvokeAsync(StateHasChanged);
+        };
+
+        _hubConnection.On<QrMonitoringSnapshotDto>("QrMonitorUpdated", snapshot =>
+        {
+            _snapshot = snapshot;
+            _ = InvokeAsync(StateHasChanged);
+        });
+
+        try
+        {
+            await _hubConnection.StartAsync();
+            _connected = true;
+        }
+        catch
+        {
+            _connected = false;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+}

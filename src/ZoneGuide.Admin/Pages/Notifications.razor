@@ -1,0 +1,362 @@
+@page "/notifications"
+@using ZoneGuide.Shared.Models
+@inject IApiService Api
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject NavigationManager Navigation
+
+<PageTitle>ZoneGuide - Thông báo</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">
+        <MudIcon Icon="@Icons.Material.Filled.Notifications" Class="mr-2" />
+        Thông báo
+    </MudText>
+
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4" @bind-ActivePanelIndex="_activeTab">
+        <MudTabPanel Text="Chưa đọc" BadgeData="@_unreadNotifications.Count" BadgeColor="Color.Error">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mb-4"
+                       Disabled="@(!_unreadNotifications.Any())"
+                       OnClick="@MarkAllAsRead">
+                <MudIcon Icon="@Icons.Material.Filled.DoneAll" Class="mr-1" />
+                Đánh dấu tất cả đã đọc
+            </MudButton>
+            @if (_isLoading)
+            {
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            }
+            else if (!_unreadNotifications.Any())
+            {
+                <MudAlert Severity="Severity.Info" Class="mt-4">Không có thông báo chưa đọc</MudAlert>
+            }
+            else
+            {
+                @foreach (var notification in _unreadNotifications)
+                {
+                    @RenderNotificationItem(notification, showMarkRead: true, showDelete: true)
+                }
+            }
+        </MudTabPanel>
+
+        <MudTabPanel Text="Đã đọc" BadgeData="@_readNotifications.Count" BadgeColor="Color.Tertiary">
+            @if (_isLoading)
+            {
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            }
+            else if (!_readNotifications.Any())
+            {
+                <MudAlert Severity="Severity.Info" Class="mt-4">Không có thông báo đã đọc</MudAlert>
+            }
+            else
+            {
+                @foreach (var notification in _readNotifications)
+                {
+                    @RenderNotificationItem(notification, showMarkRead: false, showDelete: true)
+                }
+            }
+        </MudTabPanel>
+
+        <MudTabPanel Text="Thùng rác" BadgeData="@_trashNotifications.Count" BadgeColor="Color.Warning">
+            @if (_isLoading)
+            {
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            }
+            else if (!_trashNotifications.Any())
+            {
+                <MudAlert Severity="Severity.Info" Class="mt-4">Thùng rác trống</MudAlert>
+            }
+            else
+            {
+                @foreach (var notification in _trashNotifications)
+                {
+                    @RenderTrashItem(notification)
+                }
+            }
+        </MudTabPanel>
+    </MudTabs>
+</MudContainer>
+
+@code {
+    private int _activeTab;
+    private bool _isLoading = true;
+
+    private List<NotificationDto> _unreadNotifications = new();
+    private List<NotificationDto> _readNotifications = new();
+    private List<NotificationDto> _trashNotifications = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var token = await LocalStorage.GetItemAsync<string>("accessToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            var user = await LocalStorage.GetItemAsync<UserDto>("user");
+            if (user?.Role != "Admin" && user?.Role != "Contributor")
+            {
+                Navigation.NavigateTo("/");
+                return;
+            }
+
+            await LoadNotifications();
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadNotifications()
+    {
+        _isLoading = true;
+        try
+        {
+            var unread = await Api.GetNotificationsAsync(isRead: false);
+            var read = await Api.GetNotificationsAsync(isRead: true);
+            var trash = await Api.GetNotificationsAsync(isDeleted: true);
+
+            _unreadNotifications = unread;
+            _readNotifications = read;
+            _trashNotifications = trash;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi tải thông báo: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task ViewNotification(NotificationDto notification)
+    {
+        if (!notification.IsRead)
+        {
+            await Api.MarkAsReadAsync(notification.Id);
+        }
+
+        if (notification.ReferenceType == "Contribution" && notification.ReferenceId.HasValue)
+        {
+            Navigation.NavigateTo($"/contributions");
+        }
+        else
+        {
+            await ShowNotificationDetail(notification);
+        }
+    }
+
+    private async Task ShowNotificationDetail(NotificationDto notification)
+    {
+        var parameters = new DialogParameters
+        {
+            { "Notification", notification }
+        };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        await DialogService.ShowAsync<NotificationDetailDialog>("Chi tiết thông báo", parameters, options);
+    }
+
+    private async Task MarkAsRead(NotificationDto notification)
+    {
+        var result = await Api.MarkAsReadAsync(notification.Id);
+        if (result)
+        {
+            notification.IsRead = true;
+            _unreadNotifications.Remove(notification);
+            _readNotifications.Insert(0, notification);
+            Snackbar.Add("Đã đánh dấu đã đọc", Severity.Success);
+            StateHasChanged();
+        }
+    }
+
+    private async Task MarkAllAsRead()
+    {
+        var result = await Api.MarkAllAsReadAsync();
+        if (result)
+        {
+            _readNotifications.InsertRange(0, _unreadNotifications);
+            foreach (var n in _unreadNotifications)
+                n.IsRead = true;
+            _unreadNotifications.Clear();
+            Snackbar.Add("Đã đánh dấu tất cả đã đọc", Severity.Success);
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeleteNotification(NotificationDto notification)
+    {
+        var confirm = await DialogService.ShowMessageBox(
+            "Xác nhận",
+            "Bạn có chắc chắn muốn xóa thông báo này?",
+            yesText: "Xóa",
+            cancelText: "Hủy"
+        );
+
+        if (confirm != true) return;
+
+        var result = await Api.DeleteNotificationAsync(notification.Id);
+        if (result)
+        {
+            _unreadNotifications.Remove(notification);
+            _readNotifications.Remove(notification);
+            _trashNotifications.Insert(0, notification);
+            Snackbar.Add("Đã xóa thông báo", Severity.Success);
+            StateHasChanged();
+        }
+    }
+
+    private async Task RestoreNotification(NotificationDto notification)
+    {
+        var result = await Api.RestoreNotificationAsync(notification.Id);
+        if (result)
+        {
+            _trashNotifications.Remove(notification);
+            if (notification.IsRead)
+                _readNotifications.Insert(0, notification);
+            else
+                _unreadNotifications.Insert(0, notification);
+            Snackbar.Add("Đã khôi phục thông báo", Severity.Success);
+            StateHasChanged();
+        }
+    }
+
+    private RenderFragment RenderNotificationItem(NotificationDto notification, bool showMarkRead, bool showDelete) => builder =>
+    {
+        var idx = 0;
+        builder.OpenElement(idx++, "div");
+        builder.AddAttribute(idx++, "class", $"notification-item {(notification.IsRead ? "" : "unread")}");
+        builder.AddAttribute(idx++, "style", "display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid #e0e0e0;cursor:pointer;transition:background .15s;");
+        builder.AddAttribute(idx++, "onclick", EventCallback.Factory.Create(this, () => ViewNotification(notification)));
+        builder.AddAttribute(idx++, "onmouseover", "this.style.background='#f5f5f5'");
+        builder.AddAttribute(idx++, "onmouseout", "this.style.background='transparent'");
+
+        // Icon
+        builder.OpenElement(idx++, "div");
+        builder.AddAttribute(idx++, "style", "width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-right:12px;flex-shrink:0;");
+        builder.AddAttribute(idx++, "class", notification.IsRead ? "mud-theme-primary" : "mud-theme-error");
+        builder.OpenComponent<MudBlazor.MudIcon>(idx++);
+        builder.AddAttribute(idx++, "Icon", Icons.Material.Filled.Notifications);
+        builder.AddAttribute(idx++, "Size", MudBlazor.Size.Small);
+        builder.CloseComponent();
+        builder.CloseElement();
+
+        // Content
+        builder.OpenElement(idx++, "div");
+        builder.AddAttribute(idx++, "style", "flex:1;min-width:0;");
+
+        builder.OpenElement(idx++, "div");
+        builder.AddAttribute(idx++, "style", "display:flex;justify-content:space-between;align-items:flex-start;");
+
+        builder.OpenElement(idx++, "div");
+        builder.AddAttribute(idx++, "style", "font-weight:600;font-size:14px;");
+        builder.AddContent(idx++, notification.Title);
+        builder.CloseElement();
+
+        builder.OpenElement(idx++, "div");
+        builder.AddAttribute(idx++, "style", "font-size:12px;color:#888;white-space:nowrap;margin-left:8px;");
+        builder.AddContent(idx++, FormatTime(notification.CreatedAt));
+        builder.CloseElement();
+
+        builder.CloseElement();
+
+        builder.OpenElement(idx++, "div");
+        builder.AddAttribute(idx++, "style", "font-size:13px;color:#666;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:500px;");
+        builder.AddContent(idx++, notification.Message);
+        builder.CloseElement();
+
+        if (notification.SenderName != null)
+        {
+            builder.OpenElement(idx++, "div");
+            builder.AddAttribute(idx++, "style", "font-size:12px;color:#999;margin-top:2px;");
+            builder.AddContent(idx++, $"Từ: {notification.SenderName}");
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+
+        // Actions
+        builder.OpenElement(idx++, "div");
+        builder.AddAttribute(idx++, "style", "display:flex;gap:4px;margin-left:12px;flex-shrink:0;");
+        builder.AddAttribute(idx++, "onclick", EventCallback.Factory.Create(this, () => { })); // stop propagation
+        builder.AddAttribute(idx++, "onclickstop", "true");
+
+        if (showMarkRead)
+        {
+            builder.OpenComponent<MudBlazor.MudIconButton>(idx++);
+            builder.AddAttribute(idx++, "Icon", Icons.Material.Filled.MarkEmailRead);
+            builder.AddAttribute(idx++, "Size", MudBlazor.Size.Small);
+            builder.AddAttribute(idx++, "aria-label", "Đánh dấu đã đọc");
+            builder.AddAttribute(idx++, "OnClick", EventCallback.Factory.Create<MouseEventArgs>(this, async () => { await MarkAsRead(notification); }));
+            builder.CloseComponent();
+        }
+
+        if (showDelete)
+        {
+            builder.OpenComponent<MudBlazor.MudIconButton>(idx++);
+            builder.AddAttribute(idx++, "Icon", Icons.Material.Filled.Delete);
+            builder.AddAttribute(idx++, "Size", MudBlazor.Size.Small);
+            builder.AddAttribute(idx++, "Color", MudBlazor.Color.Error);
+            builder.AddAttribute(idx++, "aria-label", "Xóa");
+            builder.AddAttribute(idx++, "OnClick", EventCallback.Factory.Create<MouseEventArgs>(this, async () => { await DeleteNotification(notification); }));
+            builder.CloseComponent();
+        }
+
+        builder.CloseElement();
+
+        builder.CloseElement();
+    };
+
+    private RenderFragment RenderTrashItem(NotificationDto notification) => builder =>
+    {
+        var idx = 0;
+        builder.OpenElement(idx++, "div");
+        builder.AddAttribute(idx++, "style", "display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid #e0e0e0;opacity:0.6;");
+
+        builder.OpenElement(idx++, "div");
+        builder.AddAttribute(idx++, "style", "width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-right:12px;flex-shrink:0;background:#e0e0e0;");
+        builder.OpenComponent<MudBlazor.MudIcon>(idx++);
+        builder.AddAttribute(idx++, "Icon", Icons.Material.Filled.Delete);
+        builder.AddAttribute(idx++, "Size", MudBlazor.Size.Small);
+        builder.CloseComponent();
+        builder.CloseElement();
+
+        builder.OpenElement(idx++, "div");
+        builder.AddAttribute(idx++, "style", "flex:1;min-width:0;");
+
+        builder.OpenElement(idx++, "div");
+        builder.AddAttribute(idx++, "style", "font-weight:600;font-size:14px;color:#999;");
+        builder.AddContent(idx++, notification.Title);
+        builder.CloseElement();
+
+        builder.OpenElement(idx++, "div");
+        builder.AddAttribute(idx++, "style", "font-size:12px;color:#bbb;margin-top:2px;");
+        builder.AddContent(idx++, FormatTime(notification.CreatedAt));
+        builder.CloseElement();
+
+        builder.CloseElement();
+
+        builder.OpenComponent<MudBlazor.MudIconButton>(idx++);
+        builder.AddAttribute(idx++, "Icon", Icons.Material.Filled.RestoreFromTrash);
+        builder.AddAttribute(idx++, "Size", MudBlazor.Size.Small);
+        builder.AddAttribute(idx++, "aria-label", "Khôi phục");
+            builder.AddAttribute(idx++, "OnClick", EventCallback.Factory.Create<MouseEventArgs>(this, async () => { await RestoreNotification(notification); }));
+            builder.CloseComponent();
+
+        builder.CloseElement();
+    };
+
+    private string FormatTime(DateTime dateTime)
+    {
+        var local = dateTime.ToLocalTime();
+        var now = DateTime.Now;
+        var diff = now - local;
+
+        if (diff.TotalMinutes < 1) return "Vừa xong";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} phút trước";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours} giờ trước";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays} ngày trước";
+        return local.ToString("dd/MM/yyyy HH:mm");
+    }
+}

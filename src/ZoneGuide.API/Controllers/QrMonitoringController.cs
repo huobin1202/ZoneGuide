@@ -25,6 +25,35 @@ public class QrMonitoringController : ControllerBase
         return Ok(_monitoringService.GetSnapshot());
     }
 
+    public class QrScanRequest
+    {
+        public int PoiId { get; set; }
+        public int SignalStrength { get; set; }
+    }
+
+    [HttpPost("scan")]
+    public async Task<ActionResult<QrMonitoringSnapshotDto>> RegisterScan([FromBody] QrScanRequest req)
+    {
+        if (req == null || req.PoiId <= 0)
+        {
+            return BadRequest();
+        }
+
+        var (deviceId, hasStableCookie) = EnsureDeviceIdCookie();
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var userAgent = Request.Headers.UserAgent.ToString();
+        
+        var snapshot = await _monitoringService.RegisterAccessAsync(
+            req.PoiId,
+            deviceId,
+            ipAddress,
+            userAgent,
+            hasStableCookie,
+            req.SignalStrength);
+
+        return Ok(snapshot);
+    }
+
     [HttpPost("presence")]
     public async Task<ActionResult<QrMonitoringSnapshotDto>> RegisterPresence([FromBody] QrPresenceHeartbeatRequest heartbeat)
     {

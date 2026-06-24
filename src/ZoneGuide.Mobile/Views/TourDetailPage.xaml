@@ -3,7 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
              xmlns:models="clr-namespace:ZoneGuide.Shared.Models;assembly=ZoneGuide.Shared"
-             xmlns:maps="clr-namespace:Microsoft.Maui.Controls.Maps;assembly=Microsoft.Maui.Controls.Maps"
              xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
              xmlns:views="clr-namespace:ZoneGuide.Mobile.Views"
              x:Class="ZoneGuide.Mobile.Views.TourDetailPage"
@@ -226,13 +225,10 @@
                                     </Border>
                                 </Grid>
 
-                                <maps:Map x:Name="MiniRouteMap"
-                                          Grid.Row="1"
-                                          Margin="12,10,12,12"
-                                          IsShowingUser="False"
-                                          IsTrafficEnabled="False"
-                                          IsScrollEnabled="False"
-                                          IsZoomEnabled="False" />
+                                <WebView x:Name="MiniRouteMap"
+                                         Grid.Row="1"
+                                         Margin="12,10,12,12"
+                                         Source="leaflet-map.html" />
                             </Grid>
                         </Border>
 

@@ -137,7 +137,7 @@ public class AppSettings
     /// <summary>
     /// Ngôn ngữ ưa thích
     /// </summary>
-    public string PreferredLanguage { get; set; } = "vi-VN";
+    public string PreferredLanguage { get; set; } = "en-US";
     
     /// <summary>
     /// Giọng TTS ưa thích

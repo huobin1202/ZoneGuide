@@ -565,7 +565,29 @@ public class ApiService
 
     #endregion
 
-    #region Analytics
+    #region QR & Analytics
+
+    public async Task<bool> LogQrScanAsync(int poiId, int signalStrength)
+    {
+        foreach (var baseUrl in GetOrderedBaseUrls())
+        {
+            try
+            {
+                var scanUri = new Uri(new Uri(baseUrl), "qr-monitoring/scan");
+                var response = await _httpClient.PostAsJsonAsync(scanUri, new { PoiId = poiId, SignalStrength = signalStrength });
+                if (response.IsSuccessStatusCode)
+                {
+                    SavePreferredBaseUrl(baseUrl);
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ApiService] LogQrScanAsync error via {baseUrl}: {ex.Message}");
+            }
+        }
+        return false;
+    }
 
     public async Task<bool> UploadAnalyticsAsync(AnalyticsUploadDto data)
     {
@@ -593,6 +615,8 @@ public class ApiService
 
         return false;
     }
+
+    #region Sequence Diagram - Mobile monitoring heartbeat va offline
 
     public async Task<bool> UploadMobileHeartbeatAsync(MobileLiveHeartbeatDto data)
     {
@@ -673,6 +697,8 @@ public class ApiService
 
         return false;
     }
+
+    #endregion
 
     #endregion
 

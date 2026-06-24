@@ -1,0 +1,258 @@
+@inject IJSRuntime JS
+@inject AudioPlayerInterop AudioInterop
+@implements IDisposable
+
+@if (_currentTrack != null)
+{
+    <div class="audio-player @(_isExpanded ? "expanded" : "")">
+        <audio @ref="_audioRef"
+               ontimeupdate="AudioPlayer.updateProgress(this)"
+               onended="AudioPlayer.onEnded()"
+               style="display:none" />
+        <div class="audio-player-bar @(_isPlaying ? "playing" : "")" @onclick="ToggleExpand">
+            <div class="audio-player-info">
+                <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Small" Class="mr-1" />
+                <span class="audio-track-name">@_currentTrack.Name</span>
+            </div>
+            <div class="audio-player-controls">
+                <span @onclick:stopPropagation>
+                    <MudIconButton Icon="@(_isPlaying ? Icons.Material.Filled.Pause : Icons.Material.Filled.PlayArrow)"
+                                   Size="Size.Small" Color="Color.Inherit" OnClick="@((MouseEventArgs _) => TogglePlay())" />
+                </span>
+                <span @onclick:stopPropagation>
+                    <MudIconButton Icon="@Icons.Material.Filled.Stop" Size="Size.Small"
+                                   Color="Color.Inherit" OnClick="@((MouseEventArgs _) => StopPlayback())" />
+                </span>
+            </div>
+        </div>
+        @if (_isExpanded)
+        {
+            <div class="audio-player-expanded">
+                <div class="audio-progress">
+                    <input type="range" class="audio-slider" min="0" max="100"
+                           value="@((int)_progress)"
+                           @oninput="@((ChangeEventArgs e) => SeekTo(e))"
+                           @onchange="@((ChangeEventArgs e) => SeekTo(e))" />
+                    <div class="audio-time">
+                        <span>@FormatTime(_currentTime)</span>
+                        <span>@FormatTime(_duration)</span>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<style>
+@@media (prefers-color-scheme: dark) {
+    .audio-player { background: #1e1e1e; border-color: #333; }
+    .audio-time { color: #999; }
+}
+.audio-player {
+    position: fixed;
+    bottom: 64px;
+    left: 0;
+    right: 0;
+    z-index: 99;
+    background: var(--bg-card, white);
+    border-top: 1px solid var(--border-color, #e0e0e0);
+    box-shadow: 0 -4px 12px var(--shadow-color, rgba(0,0,0,0.1));
+    transition: all 0.3s ease;
+}
+.audio-player.expanded {
+    box-shadow: 0 -6px 20px rgba(0,0,0,0.15);
+}
+.audio-player-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    cursor: pointer;
+    min-height: 48px;
+}
+.audio-player-bar.playing {
+    background: linear-gradient(90deg, rgba(25,118,210,0.05) 0%, rgba(25,118,210,0.02) 100%);
+}
+.audio-player-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    overflow: hidden;
+}
+.audio-track-name {
+    font-size: 14px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.audio-player-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.audio-player-expanded {
+    padding: 0 16px 12px;
+}
+.audio-progress {
+    width: 100%;
+}
+.audio-slider {
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: linear-gradient(90deg, #1976D2 @(_progress)%, #e0e0e0 @(_progress)%);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+}
+.audio-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #1976D2;
+    cursor: pointer;
+}
+.audio-time {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #666;
+    margin-top: 2px;
+}
+</style>
+
+@code {
+    private AudioTrack? _currentTrack;
+    private bool _isPlaying;
+    private bool _isExpanded;
+    private double _progress;
+    private double _currentTime;
+    private double _duration;
+
+    private DotNetObjectReference<AudioPlayer>? _dotNetRef;
+    private ElementReference _audioRef;
+    private AudioTrack? _pendingPlay;
+
+    protected override void OnInitialized()
+    {
+        _dotNetRef = DotNetObjectReference.Create(this);
+
+        AudioInterop.OnPlayRequested += HandlePlayRequested;
+        AudioInterop.OnPauseRequested += HandlePauseRequested;
+        AudioInterop.OnStopRequested += HandleStopRequested;
+        AudioInterop.OnSeekRequested += HandleSeekRequested;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && _dotNetRef is not null)
+            await JS.InvokeVoidAsync("AudioPlayer.init", _dotNetRef);
+
+        if (_pendingPlay != null)
+        {
+            var url = _pendingPlay.Url;
+            _pendingPlay = null;
+            await JS.InvokeVoidAsync("AudioPlayer.play", url);
+        }
+    }
+
+    private Task HandlePlayRequested(AudioTrack track)
+    {
+        _currentTrack = track;
+        _isPlaying = true;
+        _isExpanded = true;
+        _pendingPlay = track;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private async Task HandlePauseRequested()
+    {
+        if (!_isPlaying) return;
+        _isPlaying = false;
+        await JS.InvokeVoidAsync("AudioPlayer.pause");
+        StateHasChanged();
+    }
+
+    private async Task HandleStopRequested()
+    {
+        _isPlaying = false;
+        _currentTrack = null;
+        _isExpanded = false;
+        _progress = 0;
+        _currentTime = 0;
+        _duration = 0;
+        await JS.InvokeVoidAsync("AudioPlayer.stop");
+        StateHasChanged();
+    }
+
+    private async Task HandleSeekRequested(double progress)
+    {
+        _progress = progress;
+        await JS.InvokeVoidAsync("AudioPlayer.seek", progress);
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void UpdateProgress(double progress, double currentTime, double duration)
+    {
+        _progress = progress;
+        _currentTime = currentTime;
+        _duration = duration;
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void OnEnded()
+    {
+        _isPlaying = false;
+        _progress = 100;
+        _currentTime = _duration;
+        StateHasChanged();
+    }
+
+    private async Task TogglePlay()
+    {
+        _isPlaying = !_isPlaying;
+        if (_isPlaying)
+            await JS.InvokeVoidAsync("AudioPlayer.play", _currentTrack?.Url ?? "");
+        else
+            await JS.InvokeVoidAsync("AudioPlayer.pause");
+    }
+
+    private async Task StopPlayback()
+    {
+        await AudioInterop.RequestStopAsync();
+    }
+
+    private async Task SeekTo(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), out var val))
+            await AudioInterop.RequestSeekAsync(val);
+    }
+
+    private void ToggleExpand() => _isExpanded = !_isExpanded;
+
+    private static string FormatTime(double seconds)
+    {
+        if (seconds <= 0) return "0:00";
+        var ts = TimeSpan.FromSeconds(seconds);
+        return ts.TotalHours >= 1
+            ? ts.ToString(@"h\:mm\:ss")
+            : ts.ToString(@"m\:ss");
+    }
+
+    public void Dispose()
+    {
+        AudioInterop.OnPlayRequested -= HandlePlayRequested;
+        AudioInterop.OnPauseRequested -= HandlePauseRequested;
+        AudioInterop.OnStopRequested -= HandleStopRequested;
+        AudioInterop.OnSeekRequested -= HandleSeekRequested;
+        _dotNetRef?.Dispose();
+    }
+}

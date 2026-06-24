@@ -74,6 +74,8 @@ public class GeofenceService : IGeofenceService
         }
     }
 
+    #region Khoi tao geofence va tranh tu phat luc mo app
+
     /// <summary>
     /// Initialize geofence states silently from an initial location.
     /// This sets the initial Enter/Approach/Exit state WITHOUT firing events,
@@ -117,6 +119,10 @@ public class GeofenceService : IGeofenceService
             IsInitialized = true;
         }
     }
+
+    #endregion
+
+    #region Xu ly trung khi dung giua 2 POI
 
     public async Task ProcessLocationUpdateAsync(LocationData location)
     {
@@ -216,17 +222,6 @@ public class GeofenceService : IGeofenceService
                         _lastTriggerTime[poi.Id] = DateTime.UtcNow;
 
 
-
-
-
-
-
-
-
-
-
-
-
                         events.Add(new GeofenceEvent
                         {
                             POI = poi,
@@ -275,21 +270,38 @@ public class GeofenceService : IGeofenceService
             {
                 GeofenceTriggered?.Invoke(this, evt);
             }
-
-            // For Enter events, only fire the best candidate:
-            // - Highest priority first
-            // - If tie, nearest distance
+        
+            // For Enter events, only fire the highest scoring candidate.
             if (enterEvents.Any())
             {
                 var bestEnter = enterEvents
-                    .OrderByDescending(e => e.POI.Priority)      // Highest priority first
-                    .ThenBy(e => e.Distance)                     // Nearest first
+                    .Select(e => new
+                    {
+                        Event = e,
+                        FinalPriority = PoiScoringService.CalculateFinalPriority(new PoiScoreContext
+                        {
+                            BasePriority = e.POI.Priority,
+                            DistanceMeters = e.Distance,
+                            TriggerRadiusMeters = e.POI.TriggerRadius,
+                            ApproachRadiusMeters = e.POI.ApproachRadius,
+                            TourOrderScore = 0,
+                            HasOfflineAudio = !string.IsNullOrWhiteSpace(e.POI.AudioFilePath),
+                            HasOnlineAudio = !string.IsNullOrWhiteSpace(e.POI.AudioUrl),
+                            HasTtsContent = !string.IsNullOrWhiteSpace(e.POI.TTSScript),
+                            ListenCountLast30Days = 0,
+                            IsCooldownActive = false
+                        })
+                    })
+                    .OrderByDescending(x => x.FinalPriority)
+                    .ThenBy(x => x.Event.Distance)
                     .First();
-                
-                GeofenceTriggered?.Invoke(this, bestEnter);
+
+                GeofenceTriggered?.Invoke(this, bestEnter.Event);
             }
         });
     }
+
+    #endregion
 
     public List<POI> GetPOIsInRange(double radius)
     {
@@ -301,6 +313,8 @@ public class GeofenceService : IGeofenceService
                 .ToList();
         }
     }
+
+    #region Cooldown va debounce geofence
 
     public void SetCooldown(int poiId, TimeSpan duration)
     {
@@ -334,6 +348,8 @@ public class GeofenceService : IGeofenceService
         }
         return true;
     }
+
+    #endregion
 
     private class GeofenceState
     {

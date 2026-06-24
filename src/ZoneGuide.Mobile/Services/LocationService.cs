@@ -9,14 +9,33 @@ namespace ZoneGuide.Mobile.Services;
 /// </summary>
 public class LocationService : ILocationService, IDisposable
 {
+    private const string AnonymousDeviceIdKey = "anonymous_device_id";
+    private static readonly TimeSpan AnalyticsUploadInterval = TimeSpan.FromMinutes(2);
+
     public event EventHandler<LocationData>? LocationChanged;
     public event EventHandler<string>? LocationError;
 
     public LocationData? CurrentLocation { get; private set; }
     public bool IsTracking { get; private set; }
 
+    private readonly IAnalyticsRepository _analyticsRepository;
+    private readonly ISettingsService _settingsService;
+    private readonly ISyncService _syncService;
+    private readonly string _sessionId = Guid.NewGuid().ToString("N");
+    private readonly SemaphoreSlim _analyticsUploadLock = new(1, 1);
     private CancellationTokenSource? _cancellationTokenSource;
     private GPSAccuracyLevel _accuracyLevel = GPSAccuracyLevel.Medium;
+    private DateTime _lastAnalyticsUploadUtc = DateTime.MinValue;
+
+    public LocationService(
+        IAnalyticsRepository analyticsRepository,
+        ISettingsService settingsService,
+        ISyncService syncService)
+    {
+        _analyticsRepository = analyticsRepository;
+        _settingsService = settingsService;
+        _syncService = syncService;
+    }
 
     public async Task<bool> StartTrackingAsync(GPSAccuracyLevel accuracy = GPSAccuracyLevel.Medium)
     {
@@ -62,6 +81,8 @@ public class LocationService : ILocationService, IDisposable
                             };
 
                             LocationChanged?.Invoke(this, CurrentLocation);
+                            await SaveLocationHistoryAsync(CurrentLocation);
+                            QueueAnalyticsUpload();
                         }
 
                         // Delay dựa trên mức độ chính xác
@@ -176,6 +197,83 @@ public class LocationService : ILocationService, IDisposable
     public void SetAccuracyLevel(GPSAccuracyLevel level)
     {
         _accuracyLevel = level;
+    }
+
+    private async Task SaveLocationHistoryAsync(LocationData location)
+    {
+        try
+        {
+            var history = new LocationHistory
+            {
+                AnonymousDeviceId = await GetAnonymousDeviceIdAsync(),
+                SessionId = _sessionId,
+                Latitude = location.Latitude,
+                Longitude = location.Longitude,
+                Accuracy = location.Accuracy,
+                Speed = location.Speed,
+                Heading = location.Heading,
+                Altitude = location.Altitude,
+                Timestamp = location.Timestamp
+            };
+
+            await _analyticsRepository.InsertLocationAsync(history);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Save location history error: {ex.Message}");
+        }
+    }
+
+    private async Task<string> GetAnonymousDeviceIdAsync()
+    {
+        var deviceId = await _settingsService.GetAsync<string>(AnonymousDeviceIdKey);
+        if (string.IsNullOrEmpty(deviceId))
+        {
+            deviceId = Guid.NewGuid().ToString("N")[..16];
+            await _settingsService.SetAsync(AnonymousDeviceIdKey, deviceId);
+        }
+
+        return deviceId;
+    }
+
+    private void QueueAnalyticsUpload()
+    {
+        if (DateTime.UtcNow - _lastAnalyticsUploadUtc < AnalyticsUploadInterval)
+        {
+            return;
+        }
+
+        _ = Task.Run(UploadAnalyticsIfDueAsync);
+    }
+
+    private async Task UploadAnalyticsIfDueAsync()
+    {
+        if (!await _analyticsUploadLock.WaitAsync(0))
+        {
+            return;
+        }
+
+        try
+        {
+            if (DateTime.UtcNow - _lastAnalyticsUploadUtc < AnalyticsUploadInterval)
+            {
+                return;
+            }
+
+            var uploaded = await _syncService.UploadAnalyticsAsync();
+            if (uploaded)
+            {
+                _lastAnalyticsUploadUtc = DateTime.UtcNow;
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Auto upload analytics error: {ex.Message}");
+        }
+        finally
+        {
+            _analyticsUploadLock.Release();
+        }
     }
 
     private static GeolocationRequest CreateGeolocationRequest(GPSAccuracyLevel accuracy)

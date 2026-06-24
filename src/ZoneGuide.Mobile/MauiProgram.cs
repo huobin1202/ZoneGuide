@@ -16,7 +16,6 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()
-            .UseMauiMaps()
             .UseBarcodeReader()
             .ConfigureFonts(fonts =>
             {
@@ -37,7 +36,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IGeofenceService, GeofenceService>();
         builder.Services.AddSingleton<ITTSService, TTSService>();
         builder.Services.AddSingleton<IAudioService, AudioService>();
-        builder.Services.AddSingleton<INarrationService, NarrationService>();
+        builder.Services.AddSingleton<INarrationService, NarrationService>();//mỗi thiết bị có hàng đợi riêng
         builder.Services.AddSingleton<ISettingsService, SettingsService>();
         builder.Services.AddSingleton<ISyncService, SyncService>();
         builder.Services.AddSingleton<ApiService>();

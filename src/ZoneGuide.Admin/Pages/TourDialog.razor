@@ -52,13 +52,13 @@
                                     <span class="tour-route-actions">
                                         @if (selected)
                                         {
-                                            <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowUp" Size="Size.Small" Disabled="@(selectedIndex == 0)" OnClick="@(() => MovePOIAsync(poi, -1))" />
-                                            <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowDown" Size="Size.Small" Disabled="@(selectedIndex == _selectedPOIs.Count - 1)" OnClick="@(() => MovePOIAsync(poi, 1))" />
-                                            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Color="Color.Error" OnClick="@(() => RemovePOIAsync(poi))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowUp" Size="Size.Small" Disabled="@(selectedIndex == 0)" OnClick="@((MouseEventArgs _) => MovePOIAsync(poi, -1))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.KeyboardArrowDown" Size="Size.Small" Disabled="@(selectedIndex == _selectedPOIs.Count - 1)" OnClick="@((MouseEventArgs _) => MovePOIAsync(poi, 1))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Color="Color.Error" OnClick="@((MouseEventArgs _) => RemovePOIAsync(poi))" />
                                         }
                                         else
                                         {
-                                            <MudIconButton Icon="@Icons.Material.Filled.Add" Size="Size.Small" Color="Color.Primary" OnClick="@(() => TogglePOIAsync(poi))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Add" Size="Size.Small" Color="Color.Primary" OnClick="@((MouseEventArgs _) => TogglePOIAsync(poi))" />
                                         }
                                     </span>
                                 </div>

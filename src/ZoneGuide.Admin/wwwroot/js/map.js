@@ -11,6 +11,23 @@ var pickerMap = null;
 var pickerMarker = null;
 var dotNetRef = null;
 
+// ==========================================
+// PERFORMANCE OPTIMIZATION: Icon Cache
+// ==========================================
+var iconCache = {
+    seafood: L.icon({iconUrl: '/images/markers/marker-icon-2x-blue.png', shadowUrl: '/images/markers/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]}),
+    snack: L.icon({iconUrl: '/images/markers/marker-icon-2x-yellow.png', shadowUrl: '/images/markers/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]}),
+    hotpot: L.icon({iconUrl: '/images/markers/marker-icon-2x-violet.png', shadowUrl: '/images/markers/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]}),
+    drinking: L.icon({iconUrl: '/images/markers/marker-icon-2x-orange.png', shadowUrl: '/images/markers/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]}),
+    drinks: L.icon({iconUrl: '/images/markers/marker-icon-2x-yellow.png', shadowUrl: '/images/markers/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]}),
+    fullmeal: L.icon({iconUrl: '/images/markers/marker-icon-2x-green.png', shadowUrl: '/images/markers/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]}),
+    default: L.icon({iconUrl: '/images/markers/food-dish-svgrepo-com.svg', shadowUrl: '/images/markers/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]}),
+    contribution: L.icon({iconUrl: '/images/markers/marker-icon-2x-red.png', shadowUrl: '/images/markers/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]})
+};
+
+// Marker cluster group for performance
+var poiClusterGroup = null;
+
 window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetReference, readOnlyMode, focusPoiId, compactPopupMode) {
     // Destroy existing map if any
     if (poiMap) {
@@ -42,6 +59,19 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
         maxZoom: 19,
         noWrap: true // Ngăn tile lặp lại theo chiều ngang
     }).addTo(poiMap);
+
+        // Initialize marker cluster group for better performance with many markers
+        if (poiClusterGroup) {
+            poiMap.removeLayer(poiClusterGroup);
+        }
+        poiClusterGroup = L.markerClusterGroup({
+            maxClusterRadius: 80,
+            disableClusteringAtZoom: 17,
+            spiderLegPolylineOptions: { weight: 1.5, color: '#999', opacity: 0.7 },
+            zoomToBoundsOnClick: true,
+            showCoverageOnHover: false
+        });
+        poiMap.addLayer(poiClusterGroup);
 
     // Add markers for each POI
     if (poiData && poiData.length > 0) {
@@ -124,6 +154,60 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
                     return defaultFoodIcon; // Mặc định cho các loại khác hoặc không xác định
             }
         }
+            function normalizeCategoryKey(category) {
+                return (category || '')
+                    .toString()
+                    .trim()
+                    .toLowerCase()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .replace(/đ/g, 'd')
+                    .replace(/&/g, ' va ')
+                    .replace(/[^a-z0-9]+/g, ' ')
+                    .trim();
+            }
+
+            function getCustomIcon(category, isContribution) {
+                if (isContribution) {
+                    return iconCache.contribution;
+                }
+
+                var key = normalizeCategoryKey(category);
+                switch(key) {
+                    case 'hai san va oc':
+                        return iconCache.seafood;
+                    case 'an vat':
+                        return iconCache.snack;
+                    case 'lau va nuong':
+                        return iconCache.hotpot;
+                    case 'nhau':
+                        return iconCache.drinking;
+                    case 'giai khat':
+                    case 'drink':
+                    case 'drinks':
+                    case 'beverage':
+                    case 'beverages':
+                        return iconCache.drinks;
+                    case 'an no':
+                        return iconCache.fullmeal;
+                    case 'food':
+                    case 'an uong':
+                        return iconCache.fullmeal;
+                    case 'entertainment':
+                        return iconCache.drinking;
+                    case 'travel':
+                        return iconCache.seafood;
+                    case 'services':
+                        return iconCache.hotpot;
+                    case 'shopping':
+                        return iconCache.snack;
+                    case 'other':
+                    case 'khac':
+                        return iconCache.default;
+                    default:
+                        return iconCache.default;
+                }
+            }
 
         poiData.forEach(function (poi) {
             var fallbackImageUrl = '/images/placeholder.png';
@@ -172,6 +256,28 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
                         closeButton: false
                     }
                 );
+                var marker = L.marker([poi.lat, poi.lng], { icon: getCustomIcon(poi.category, poi.isContribution) })
+                    .addTo(poiClusterGroup)
+                    .bindPopup(
+                        '<div style="width: 250px; max-width: 250px; padding: 0; overflow: hidden;">' +
+                        '<div style="position:relative;padding-top:14px;margin-bottom:8px;">' +
+                        actionBar +
+                        '<img src="' + imageUrl + '" onerror="this.onerror=null;this.src=\'' + fallbackImageUrl + '\';" style="width: 100%; height: 120px; object-fit: cover; border-top-left-radius: 8px; border-top-right-radius: 8px; display: block;" />' +
+                        '</div>' +
+                        '<div style="padding: 4px 8px 8px 8px;">' +
+                        '<h4 style="margin:0 0 6px 0;color:#333;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + poi.name + '</h4>' +
+                        '<div style="display: flex; align-items: center; margin-bottom: 8px;">' +
+                            '<span style="background-color: #E3F2FD; color: #1976D2; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">' +
+                                '🏛 ' + poi.category + 
+                            '</span>' +
+                        '</div>' +
+                        popupDetailHtml +
+                        '</div></div>', {
+                            className: 'custom-poi-popup',
+                            minWidth: 250,
+                            closeButton: false
+                        }
+                    );
 
             if (poi.triggerRadius && poi.triggerRadius > 0) {
                 L.circle([poi.lat, poi.lng], {
@@ -183,6 +289,16 @@ window.initPOIMap = function (elementId, centerLat, centerLng, poiData, dotNetRe
                     fillOpacity: 0.08
                 }).addTo(poiMap);
             }
+                if (poi.triggerRadius && poi.triggerRadius > 0) {
+                    L.circle([poi.lat, poi.lng], {
+                        radius: poi.triggerRadius,
+                        color: '#4caf50',
+                        weight: 1.5,
+                        opacity: 0.65,
+                        fillColor: '#81c784',
+                        fillOpacity: 0.08
+                    }).addTo(poiClusterGroup);
+                }
 
             marker.poiId = poi.id;
             marker.poiName = poi.name;
@@ -276,6 +392,16 @@ window.addMarkerToMap = function (lat, lng, name, description) {
         marker.openPopup();
     }
 };
+    window.addMarkerToMap = function (lat, lng, name, description) {
+        if (poiMap) {
+            var marker = L.marker([lat, lng])
+                .addTo(poiClusterGroup || poiMap)
+                .bindPopup('<strong>' + name + '</strong><br>' + description);
+            markers.push(marker);
+            poiMap.setView([lat, lng], 16);
+            marker.openPopup();
+        }
+    };
 
 function updateTempRadiusCircle(lat, lng, radiusMeters) {
     if (!poiMap) {
@@ -802,8 +928,15 @@ window.renderTourPlannerMap = async function (elementId, points) {
 var heatmapMap = null;
 var heatmapHeatLayer = null;
 var heatmapTrackingMarkers = [];
+var lastHeatmapPoints = null;
+var heatmapRenderAttempts = 0;
 
 window.initHeatmapMap = function(elementId) {
+    if (typeof L === 'undefined') {
+        console.warn('Leaflet is not loaded yet; heatmap map init skipped.');
+        return;
+    }
+
     var container = document.getElementById(elementId);
     if (!container) {
         console.warn('Heatmap container not found:', elementId);
@@ -821,6 +954,11 @@ window.initHeatmapMap = function(elementId) {
         maxBounds: [[-90, -180], [90, 180]],
         maxBoundsViscosity: 1.0
     }).setView([16.0544, 108.2022], 13);
+
+    console.info('Heatmap init: container size', {
+        width: container.offsetWidth,
+        height: container.offsetHeight
+    });
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap',
@@ -829,10 +967,56 @@ window.initHeatmapMap = function(elementId) {
     }).addTo(heatmapMap);
     
     setTimeout(function() { heatmapMap.invalidateSize(); }, 100);
+    if (lastHeatmapPoints && lastHeatmapPoints.length > 0) {
+        setTimeout(function() { window.updateHeatmapData(lastHeatmapPoints); }, 200);
+    }
 };
 
 window.updateHeatmapData = function(heatmapPoints) {
+    if (typeof L === 'undefined') {
+        console.warn('Leaflet is not loaded yet; heatmap update skipped.');
+        return;
+    }
+
     if (!heatmapMap) return;
+
+    if (heatmapPoints) {
+        lastHeatmapPoints = heatmapPoints;
+    }
+
+    if (heatmapPoints && heatmapPoints.length > 0) {
+        console.info('Heatmap points received', {
+            count: heatmapPoints.length,
+            sample: heatmapPoints[0]
+        });
+    }
+
+    var size = heatmapMap.getSize();
+    var container = heatmapMap.getContainer();
+    var containerWidth = container ? container.offsetWidth : 0;
+    var containerHeight = container ? container.offsetHeight : 0;
+    console.info('Heatmap map size', {
+        mapWidth: size ? size.x : 0,
+        mapHeight: size ? size.y : 0,
+        containerWidth: containerWidth,
+        containerHeight: containerHeight
+    });
+    if (!size || size.x <= 0 || size.y <= 0 || containerWidth <= 0 || containerHeight <= 0) {
+        // Container or map size is not ready yet. Don't call invalidateSize() here
+        // because it can trigger immediate layer redraws with zero dimensions
+        if (heatmapRenderAttempts < 8) {
+            heatmapRenderAttempts++;
+            setTimeout(function() {
+                if (lastHeatmapPoints) {
+                    window.updateHeatmapData(lastHeatmapPoints);
+                }
+            }, 300);
+        } else {
+            console.warn('Heatmap: container remained zero-size after retries');
+        }
+        return;
+    }
+    heatmapRenderAttempts = 0;
     
     if (heatmapHeatLayer) {
         heatmapMap.removeLayer(heatmapHeatLayer);
@@ -840,19 +1024,67 @@ window.updateHeatmapData = function(heatmapPoints) {
     }
     
     if (heatmapPoints && heatmapPoints.length > 0) {
-        var heatData = heatmapPoints.map(function(point) {
-            var intensity = Math.min(point.weight / 10, 1);
-            return [point.latitude, point.longitude, intensity];
-        });
+        var heatData = heatmapPoints
+            .map(function(point) {
+                var rawLatitude = point.latitude ?? point.Latitude;
+                var rawLongitude = point.longitude ?? point.Longitude;
+                var rawWeight = point.weight ?? point.Weight;
+
+                var latitude = typeof rawLatitude === 'number' ? rawLatitude : parseFloat(rawLatitude);
+                var longitude = typeof rawLongitude === 'number' ? rawLongitude : parseFloat(rawLongitude);
+                var weight = typeof rawWeight === 'number' ? rawWeight : parseFloat(rawWeight);
+
+                if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+                    return null;
+                }
+
+                if (!Number.isFinite(weight) || weight <= 0) {
+                    weight = 1;
+                }
+
+                var intensity = Math.min(weight / 5, 1);
+                intensity = Math.max(intensity, 0.25);
+                return [latitude, longitude, intensity];
+            })
+            .filter(function(entry) { return entry !== null; });
+
+        if (heatData.length > 0) {
+            var bounds = L.latLngBounds(heatData.map(function(entry) {
+                return [entry[0], entry[1]];
+            }));
+            if (bounds.isValid()) {
+                heatmapMap.fitBounds(bounds, { padding: [40, 40] });
+            }
+        }
         
-        heatmapHeatLayer = L.heatLayer(heatData, {
-            radius: 25, blur: 15, maxZoom: 17,
-            gradient: {0.2: 'blue', 0.4: 'lime', 0.6: 'yellow', 0.8: 'orange', 1.0: 'red'}
-        }).addTo(heatmapMap);
+        try {
+            // Ensure map size still valid before creating layer
+            var currentSize = heatmapMap.getSize();
+            if (!currentSize || currentSize.x <= 0 || currentSize.y <= 0) {
+                console.warn('Heatmap: map size zero before drawing, retrying');
+                if (heatmapRenderAttempts < 8) {
+                    heatmapRenderAttempts++;
+                    setTimeout(function() { window.updateHeatmapData(lastHeatmapPoints); }, 300);
+                }
+                return;
+            }
+
+            heatmapHeatLayer = L.heatLayer(heatData, {
+                radius: 30, blur: 18, maxZoom: 17,
+                gradient: {0.1: 'blue', 0.3: 'lime', 0.5: 'yellow', 0.7: 'orange', 1.0: 'red'}
+            }).addTo(heatmapMap);
+        } catch (err) {
+            console.warn('Heatmap draw failed', err);
+        }
     }
 };
 
 window.updateTrackingUsers = function(trackingSessions) {
+    if (typeof L === 'undefined') {
+        console.warn('Leaflet is not loaded yet; tracking update skipped.');
+        return;
+    }
+
     if (!heatmapMap) return;
     
     heatmapTrackingMarkers.forEach(function(marker) {
@@ -887,4 +1119,121 @@ window.updateTrackingUsers = function(trackingSessions) {
 
 window.resizeHeatmapMap = function() {
     if (heatmapMap) setTimeout(function() { heatmapMap.invalidateSize(); }, 100);
+};
+// Public POI Map
+var publicMap = null;
+var publicMapMarkers = [];
+
+window.initPublicMap = function(elementId, centerLat, centerLng, poiData, dotNetRef) {
+    if (publicMap) {
+        publicMap.remove();
+        publicMap = null;
+    }
+    publicMapMarkers = [];
+
+    publicMap = L.map(elementId, {
+        maxBounds: [[-90, -180], [90, 180]],
+        maxBoundsViscosity: 1.0
+    }).setView([centerLat, centerLng], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19,
+        noWrap: true
+    }).addTo(publicMap);
+
+    if (poiData && poiData.length > 0) {
+        var bounds = [];
+        poiData.forEach(function(p) {
+            var icon = L.divIcon({
+                html: '<div style="background:#1976D2;color:white;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 6px rgba(0,0,0,0.3);">📍</div>',
+                className: 'public-poi-marker',
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            });
+            var marker = L.marker([p.lat, p.lng], { icon: icon })
+                .addTo(publicMap)
+                .on('click', function() {
+                    if (dotNetRef) {
+                        dotNetRef.invokeMethodAsync('OnPoiClick', p.id);
+                    }
+                });
+            publicMapMarkers.push(marker);
+            bounds.push([p.lat, p.lng]);
+        });
+
+        if (bounds.length > 1) {
+            publicMap.fitBounds(bounds, { padding: [40, 40] });
+        }
+    }
+
+    setTimeout(function() { publicMap.invalidateSize(); }, 200);
+};
+
+window.destroyPublicMap = function() {
+    if (publicMap) {
+        publicMap.remove();
+        publicMap = null;
+    }
+    publicMapMarkers = [];
+};
+
+// Mini map for POI detail page
+var poiMiniMap = null;
+
+window.initPoiMiniMap = function(elementId, lat, lng, name) {
+    if (poiMiniMap) poiMiniMap.remove();
+    poiMiniMap = L.map(elementId, {
+        zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+        touchZoom: false, keyboard: false
+    }).setView([lat, lng], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap', maxZoom: 19
+    }).addTo(poiMiniMap);
+    L.marker([lat, lng]).addTo(poiMiniMap)
+        .bindPopup(name || '');
+    setTimeout(function() { poiMiniMap.invalidateSize(); }, 200);
+};
+
+window.destroyPoiMiniMap = function() {
+    if (poiMiniMap) { poiMiniMap.remove(); poiMiniMap = null; }
+};
+
+// Mini map for Tour detail page
+var tourMiniMap = null;
+
+window.initTourMiniMap = function(elementId, waypoints) {
+    if (tourMiniMap) tourMiniMap.remove();
+    if (!waypoints || waypoints.length === 0) return;
+    tourMiniMap = L.map(elementId, {
+        zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+        touchZoom: false, keyboard: false
+    });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap', maxZoom: 19
+    }).addTo(tourMiniMap);
+    var bounds = [], markers = [];
+    waypoints.forEach(function(w, i) {
+        var marker = L.marker([w.lat, w.lng]).addTo(tourMiniMap)
+            .bindPopup((i + 1) + '. ' + (w.name || ''));
+        markers.push(marker);
+        bounds.push([w.lat, w.lng]);
+    });
+    if (bounds.length > 1) {
+        L.polyline(bounds, { color: '#1976D2', weight: 3 }).addTo(tourMiniMap);
+        tourMiniMap.fitBounds(bounds, { padding: [30, 30] });
+    } else {
+        tourMiniMap.setView(bounds[0], 14);
+    }
+    setTimeout(function() { tourMiniMap.invalidateSize(); }, 200);
+};
+
+window.destroyTourMiniMap = function() {
+    if (tourMiniMap) { tourMiniMap.remove(); tourMiniMap = null; }
+};
+
+window.publicMapCenter = function(pos) {
+    if (publicMap) {
+        publicMap.setView([pos.coords.latitude, pos.coords.longitude], 15);
+    }
 };

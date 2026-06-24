@@ -1,6 +1,4 @@
 using System.ComponentModel;
-using Microsoft.Maui.Controls.Maps;
-using Microsoft.Maui.Maps;
 using ZoneGuide.Mobile.ViewModels;
 
 namespace ZoneGuide.Mobile.Views;
@@ -47,12 +45,10 @@ public partial class POIDetailPage : ContentPage
         MainThread.BeginInvokeOnMainThread(RenderMiniMap);
     }
 
-    private void RenderMiniMap()
+    private async void RenderMiniMap()
     {
         if (MiniPoiMap == null)
             return;
-
-        MiniPoiMap.Pins.Clear();
 
         var poi = _viewModel?.CurrentPoi;
         if (poi == null)
@@ -61,15 +57,11 @@ public partial class POIDetailPage : ContentPage
         if (poi.Latitude is < -90 or > 90 || poi.Longitude is < -180 or > 180)
             return;
 
-        var poiLocation = new Location(poi.Latitude, poi.Longitude);
-        MiniPoiMap.Pins.Add(new Pin
+        try
         {
-            Label = poi.Name,
-            Address = poi.TTSScript,
-            Location = poiLocation,
-            Type = PinType.Place
-        });
-
-        MiniPoiMap.MoveToRegion(MapSpan.FromCenterAndRadius(poiLocation, Distance.FromMeters(220)));
+            var js = $"if (typeof initializeMiniMap !== 'undefined') initializeMiniMap({poi.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}, {poi.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)});";
+            await MiniPoiMap.EvaluateJavaScriptAsync(js);
+        }
+        catch { }
     }
 }

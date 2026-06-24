@@ -3,7 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:ZoneGuide.Mobile.ViewModels"
              xmlns:models="clr-namespace:ZoneGuide.Shared.Models;assembly=ZoneGuide.Shared"
-             xmlns:maps="clr-namespace:Microsoft.Maui.Controls.Maps;assembly=Microsoft.Maui.Controls.Maps"
              xmlns:local="clr-namespace:ZoneGuide.Mobile.Localization"
              xmlns:views="clr-namespace:ZoneGuide.Mobile.Views"
              x:Class="ZoneGuide.Mobile.Views.MapPage"
@@ -14,9 +13,11 @@
              BackgroundColor="#F6F7FB">
 
     <Grid>
-        <maps:Map x:Name="MainMap"
-                  IsShowingUser="False"
-                  MapType="Street" />
+        <!-- WebView renders Leaflet OpenStreetMap -->
+        <WebView x:Name="MapWebView"
+                  Source="leaflet-map.html"
+                  Navigating="OnMapWebViewNavigating"
+                  Navigated="OnMapWebViewNavigated" />
 
         <VerticalStackLayout Margin="14,12,14,0"
                              VerticalOptions="Start"

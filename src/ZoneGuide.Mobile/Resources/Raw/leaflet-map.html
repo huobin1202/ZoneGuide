@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ZoneGuide Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#f0f0f0}
+#map{width:100%;height:100%}
+.custom-poi-popup .leaflet-popup-content-wrapper{border-radius:12px;padding:0;overflow:hidden}
+.custom-poi-popup .leaflet-popup-content{margin:0;width:240px!important}
+.custom-poi-popup .leaflet-popup-close-button{right:8px!important;top:8px!important;width:26px!important;height:26px!important;background:rgba(255,255,255,0.9)!important;border-radius:50%!important;color:#333!important;font-size:18px!important;line-height:26px!important;text-align:center!important;z-index:10!important}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+var map = L.map('map', {
+    zoomControl: false,
+    attributionControl: false,
+    maxBounds: [[-90,-180],[90,180]],
+    maxBoundsViscosity: 1.0
+}).setView([10.8231, 106.6297], 14);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    noWrap: true
+}).addTo(map);
+
+// Custom arrow icon for user location
+var userLocationIcon = L.divIcon({
+    className: '',
+    html: '<div style="width:24px;height:24px;border-radius:50%;background:#2563eb;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);transform:rotate(-45deg);display:flex;align-items:center;justify-content:center"><span style="color:white;font-size:14px;transform:rotate(45deg)">➤</span></div>',
+    iconSize: [24, 24],
+    iconAnchor: [12, 12]
+});
+
+var userMarker = null;
+var poiMarkers = {};
+var routePolyline = null;
+var selectedPoiId = null;
+var markerListenersAttached = false;
+
+function ensureVoicesLoaded() {
+    return new Promise(function(resolve) {
+        var voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+        if (voices.length > 0) { resolve(voices); return; }
+        var done = false;
+        var finish = function() { if (done) return; done = true; window.speechSynthesis.onvoiceschanged = null; resolve(window.speechSynthesis ? window.speechSynthesis.getVoices() : []); };
+        var t = setTimeout(finish, 2000);
+        window.speechSynthesis.onvoiceschanged = function() { clearTimeout(t); finish(); };
+    });
+}
+
+function speakText(text, lang) {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    ensureVoicesLoaded().then(function() {
+        var u = new SpeechSynthesisUtterance(text);
+        u.lang = lang || 'vi-VN';
+        u.rate = 0.9;
+        window.speechSynthesis.speak(u);
+    });
+}
+
+// --- JS functions callable from C# ---
+window.zoneGuideMap = {
+    initMap: function(centerLat, centerLng, zoomLevel) {
+        map.setView([centerLat || 10.8231, centerLng || 106.6297], zoomLevel || 14);
+    },
+
+    setCenter: function(lat, lng, zoomLevel) {
+        map.setView([lat, lng], zoomLevel || 15);
+    },
+
+    updateUserLocation: function(lat, lng) {
+        if (userMarker) {
+            userMarker.setLatLng([lat, lng]);
+        } else {
+            userMarker = L.marker([lat, lng], { icon: userLocationIcon, zIndexOffset: 1000 }).addTo(map);
+        }
+    },
+
+    clearUserLocation: function() {
+        if (userMarker) { map.removeLayer(userMarker); userMarker = null; }
+    },
+
+    updatePois: function(poisJson, isTourMode) {
+        // Clear existing markers
+        for (var key in poiMarkers) {
+            map.removeLayer(poiMarkers[key]);
+        }
+        poiMarkers = {};
+
+        if (!poisJson || poisJson.length === 0) return;
+
+        var pois = typeof poisJson === 'string' ? JSON.parse(poisJson) : poisJson;
+        var defaultIcon = L.icon({
+            iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+            shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+        var currentIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+            shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        pois.forEach(function(p) {
+            var icon = (selectedPoiId && p.id === selectedPoiId) ? currentIcon : defaultIcon;
+            var marker = L.marker([p.lat, p.lng], { icon: icon }).addTo(map);
+            var label = isTourMode && p.order ? (p.order + '. ' + (p.name || '')) : (p.name || '');
+            marker.bindPopup('<b>' + label + '</b>', { className: 'custom-poi-popup', closeButton: true, minWidth: 180 });
+            marker.poiId = p.id;
+            marker.on('click', function() {
+                if (window._poiClickCallback) {
+                    window._poiClickCallback(this.poiId);
+                }
+            });
+            poiMarkers[p.id] = marker;
+        });
+    },
+
+    highlightPoi: function(poiId) {
+        for (var key in poiMarkers) {
+            var m = poiMarkers[key];
+            if (m.poiId == poiId) {
+                m.setZIndexOffset(999);
+                m.openPopup();
+            } else {
+                m.setZIndexOffset(0);
+            }
+        }
+    },
+
+    updateRoute: function(pointsJson) {
+        if (routePolyline) { map.removeLayer(routePolyline); routePolyline = null; }
+        if (!pointsJson || pointsJson.length < 2) return;
+        var points = typeof pointsJson === 'string' ? JSON.parse(pointsJson) : pointsJson;
+        var latLngs = points.map(function(p) { return [p.lat || p[0], p.lng || p[1]]; });
+        routePolyline = L.polyline(latLngs, { color: '#7C3AED', weight: 5, opacity: 0.8 }).addTo(map);
+    },
+
+    clearRoute: function() {
+        if (routePolyline) { map.removeLayer(routePolyline); routePolyline = null; }
+    },
+
+    fitBounds: function(poisJson) {
+        if (!poisJson || poisJson.length === 0) return;
+        var pois = typeof poisJson === 'string' ? JSON.parse(poisJson) : poisJson;
+        var bounds = pois.map(function(p) { return [p.lat, p.lng]; });
+        if (bounds.length === 1) {
+            map.setView(bounds[0], 15);
+        } else if (bounds.length > 1) {
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
+    },
+
+    setPoiClickCallback: function() {
+        // handled via _poiClickCallback
+    },
+
+    isMapReady: function() { return true; },
+
+    speak: function(text, lang) { speakText(text, lang); },
+
+    stopSpeaking: function() { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); }
+};
+
+// Notify .NET that map is loaded
+if (window._mapReadyCallback) {
+    window._mapReadyCallback();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,196 @@
+@page "/home"
+@layout PublicLayout
+@inject IApiService ApiService
+@inject NavigationManager Navigation
+
+<PageTitle>ZoneGuide</PageTitle>
+
+<div class="public-home">
+    <div class="hero-section">
+        <MudText Typo="Typo.h4" Class="hero-title">ZoneGuide</MudText>
+        <MudText Typo="Typo.body2" Class="hero-subtitle">Khám phá ẩm thực địa phương</MudText>
+    </div>
+
+    <div class="section">
+        <MudText Typo="Typo.h6" Class="section-title">Địa điểm nổi bật</MudText>
+        @if (_featuredPOIs is null)
+        {
+            <MudProgressCircular Indeterminate="true" Class="ma-4" />
+        }
+        else if (_featuredPOIs.Count == 0)
+        {
+            <MudText Class="mud-text-secondary ma-4">Chưa có địa điểm nào</MudText>
+        }
+        else
+        {
+            <div class="poi-scroll-horizontal">
+                @foreach (var poi in _featuredPOIs.Take(10))
+                {
+                    <div class="poi-card" @onclick="() => NavigateToPoi(poi.Id)">
+                        @if (!string.IsNullOrEmpty(poi.ImageUrl))
+                        {
+                            <div class="poi-card-img" style="background-image: url('@poi.ImageUrl')"></div>
+                        }
+                        else
+                        {
+                            <div class="poi-card-img poi-card-img-placeholder">
+                                <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Large" />
+                            </div>
+                        }
+                        <div class="poi-card-body">
+                            <MudText Typo="Typo.subtitle2" Class="poi-card-name">@poi.Name</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@poi.Category</MudText>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="section">
+        <MudText Typo="Typo.h6" Class="section-title">Tour du lịch</MudText>
+        @if (_tours is null)
+        {
+            <MudProgressCircular Indeterminate="true" Class="ma-4" />
+        }
+        else if (_tours.Count == 0)
+        {
+            <MudText Class="mud-text-secondary ma-4">Chưa có tour nào</MudText>
+        }
+        else
+        {
+            <div class="tour-scroll-horizontal">
+                @foreach (var tour in _tours.Take(10))
+                {
+                    <div class="tour-card" @onclick="() => NavigateToTour(tour.Id)">
+                        @if (!string.IsNullOrEmpty(tour.ImageUrl))
+                        {
+                            <div class="tour-card-img" style="background-image: url('@tour.ImageUrl')"></div>
+                        }
+                        else
+                        {
+                            <div class="tour-card-img tour-card-img-placeholder">
+                                <MudIcon Icon="@Icons.Material.Filled.Route" Size="Size.Large" />
+                            </div>
+                        }
+                        <div class="tour-card-body">
+                            <MudText Typo="Typo.subtitle2" Class="tour-card-name">@tour.Name</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                @tour.POICount địa điểm · @tour.EstimatedDurationMinutes phút
+                            </MudText>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+@@media (prefers-color-scheme: dark) {
+    .poi-card, .tour-card { background: var(--bg-card); }
+    .poi-card-name, .tour-card-name { color: var(--text-primary); }
+}
+.public-home {
+    padding-bottom: 16px;
+}
+.hero-section {
+    background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%);
+    color: white;
+    padding: 24px 20px 32px;
+    border-radius: 0 0 28px 28px;
+    margin-bottom: 16px;
+}
+.hero-title {
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+.hero-subtitle {
+    opacity: 0.85;
+}
+.section {
+    padding: 0 16px;
+    margin-bottom: 20px;
+}
+.section-title {
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+.poi-scroll-horizontal, .tour-scroll-horizontal {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.poi-scroll-horizontal::-webkit-scrollbar, .tour-scroll-horizontal::-webkit-scrollbar {
+    display: none;
+}
+.poi-card, .tour-card {
+    flex: 0 0 160px;
+    background: var(--bg-card);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px var(--shadow-color);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.poi-card:hover, .tour-card:hover {
+    transform: translateY(-2px);
+}
+.poi-card-img, .tour-card-img {
+    width: 160px;
+    height: 100px;
+    background-size: cover;
+    background-position: center;
+}
+.poi-card-img-placeholder, .tour-card-img-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e3f2fd;
+    color: #1976D2;
+}
+.poi-card-body, .tour-card-body {
+    padding: 8px 10px;
+}
+.poi-card-name, .tour-card-name {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+</style>
+
+@code {
+    private List<POIDto>? _featuredPOIs;
+    private List<TourDto>? _tours;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var poiTask = ApiService.GetPOIsAsync();
+        var tourTask = ApiService.GetToursAsync();
+
+        try
+        {
+            var all = await poiTask;
+            _featuredPOIs = all.OrderByDescending(p => p.Priority).Take(10).ToList();
+        }
+        catch { _featuredPOIs = new(); }
+
+        try { _tours = await tourTask; }
+        catch { _tours = new(); }
+    }
+
+    private void NavigateToPoi(string id)
+    {
+        if (int.TryParse(id, out var poiId))
+            Navigation.NavigateTo($"/poi/{poiId}");
+    }
+    private void NavigateToTour(string id)
+    {
+        if (int.TryParse(id, out var tourId))
+            Navigation.NavigateTo($"/tour/{tourId}");
+    }
+}

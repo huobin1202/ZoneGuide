@@ -38,6 +38,8 @@ public sealed class MobilePresenceService : IMobilePresenceService, IDisposable
         _geofenceService = geofenceService;
     }
 
+    #region Monitoring mobile session
+
     public async Task StartAsync()
     {
         await _lifecycleGate.WaitAsync();
@@ -55,6 +57,7 @@ public sealed class MobilePresenceService : IMobilePresenceService, IDisposable
             _isRunning = true;
 
             _heartbeatTimer?.Dispose();
+            //Gửi tín hiệu định kỳ
             _heartbeatTimer = new Timer(async _ => await SendHeartbeatAsync(), null, HeartbeatIntervalMs, HeartbeatIntervalMs);
         }
         finally
@@ -62,6 +65,7 @@ public sealed class MobilePresenceService : IMobilePresenceService, IDisposable
             _lifecycleGate.Release();
         }
 
+//báo tín hiệu bắt đầu cho api
         await SendHeartbeatAsync();
     }
 
@@ -149,6 +153,10 @@ public sealed class MobilePresenceService : IMobilePresenceService, IDisposable
         }
     }
 
+    #endregion
+
+    #region Dinh danh thiet bi cho mobile monitoring
+
     private async Task<string> GetAnonymousDeviceIdAsync()
     {
         var deviceId = await _settingsService.GetAsync<string>(DeviceIdKey);
@@ -160,6 +168,8 @@ public sealed class MobilePresenceService : IMobilePresenceService, IDisposable
 
         return deviceId;
     }
+
+    #endregion
 
     public void Dispose()
     {

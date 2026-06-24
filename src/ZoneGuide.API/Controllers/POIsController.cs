@@ -211,14 +211,13 @@ public class POIsController : ControllerBase
                 });
             }
 
-            var translatedTtsTask = TranslateTextSafelyAsync(request.TTSScript, sourceLanguage, targetLanguage);
-            await translatedTtsTask;
+            var tTSScript = await TranslateTextSafelyAsync(request.TTSScript, sourceLanguage, targetLanguage);
 
             return Ok(new TranslatedPOIContentDto
             {
                 // Always keep original place name; only narration content is translated.
                 Name = request.Name,
-                TTSScript = translatedTtsTask.Result
+                TTSScript = tTSScript
             });
         }
         catch (Exception ex)

@@ -32,28 +32,28 @@
         <MudItem xs="12" sm="6" md="3">
             <MudPaper Class="pa-4 text-center">
                 <MudIcon Icon="@Icons.Material.Filled.Drafts" Color="Color.Default" Style="font-size: 48px;" />
-                <MudText Typo="Typo.h4">@_stats.Draft</MudText>
+                <MudText Typo="Typo.h4">@_stats.DraftCount</MudText>
                 <MudText Typo="Typo.body2" Class="mud-text-secondary">Bản nháp</MudText>
             </MudPaper>
         </MudItem>
         <MudItem xs="12" sm="6" md="3">
             <MudPaper Class="pa-4 text-center">
                 <MudIcon Icon="@Icons.Material.Filled.HourglassTop" Color="Color.Warning" Style="font-size: 48px;" />
-                <MudText Typo="Typo.h4">@_stats.Pending</MudText>
+                <MudText Typo="Typo.h4">@_stats.PendingCount</MudText>
                 <MudText Typo="Typo.body2" Class="mud-text-secondary">Chờ duyệt</MudText>
             </MudPaper>
         </MudItem>
         <MudItem xs="12" sm="6" md="3">
             <MudPaper Class="pa-4 text-center">
                 <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Style="font-size: 48px;" />
-                <MudText Typo="Typo.h4">@_stats.Approved</MudText>
+                <MudText Typo="Typo.h4">@_stats.ApprovedCount</MudText>
                 <MudText Typo="Typo.body2" Class="mud-text-secondary">Đã duyệt</MudText>
             </MudPaper>
         </MudItem>
         <MudItem xs="12" sm="6" md="3">
             <MudPaper Class="pa-4 text-center">
                 <MudIcon Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Style="font-size: 48px;" />
-                <MudText Typo="Typo.h4">@_stats.NeedsRevision</MudText>
+                <MudText Typo="Typo.h4">@_stats.NeedsRevisionCount</MudText>
                 <MudText Typo="Typo.body2" Class="mud-text-secondary">Cần sửa</MudText>
             </MudPaper>
         </MudItem>
@@ -63,10 +63,10 @@
             <MudPaper Class="pa-4">
                 <MudTabs Elevation="0" Rounded="true" Centered="true" @bind-ActivePanelIndex="_activeTabIndex">
                     <MudTabPanel Text="Tất cả" BadgeData="@_contributions.Count" BadgeColor="Color.Primary" />
-                    <MudTabPanel Text="Bản nháp" BadgeData="@_stats.Draft" BadgeColor="Color.Default" />
-                    <MudTabPanel Text="Chờ duyệt" BadgeData="@_stats.Pending" BadgeColor="Color.Warning" />
-                    <MudTabPanel Text="Đã duyệt" BadgeData="@_stats.Approved" BadgeColor="Color.Success" />
-                    <MudTabPanel Text="Cần sửa" BadgeData="@_stats.NeedsRevision" BadgeColor="Color.Info" />
+                    <MudTabPanel Text="Bản nháp" BadgeData="@_stats.DraftCount" BadgeColor="Color.Default" />
+                    <MudTabPanel Text="Chờ duyệt" BadgeData="@_stats.PendingCount" BadgeColor="Color.Warning" />
+                    <MudTabPanel Text="Đã duyệt" BadgeData="@_stats.ApprovedCount" BadgeColor="Color.Success" />
+                    <MudTabPanel Text="Cần sửa" BadgeData="@_stats.NeedsRevisionCount" BadgeColor="Color.Info" />
                 </MudTabs>
                 
                 <MudDivider Class="my-4" />
@@ -161,7 +161,7 @@
     private bool _isLoading = true;
     private int _activeTabIndex = 0;
     
-    private ContributionStats _stats = new();
+    private ContributionStatsDto _stats = new();
     
     private IEnumerable<POIContributionDto> FilteredContributions => _activeTabIndex switch
     {
@@ -237,13 +237,14 @@
     
     private void CalculateStats()
     {
-        _stats = new ContributionStats
+        _stats = new ContributionStatsDto
         {
-            Draft = _contributions.Count(c => c.Status == "Draft"),
-            Pending = _contributions.Count(c => c.Status == "Pending"),
-            Approved = _contributions.Count(c => c.Status == "Approved"),
-            NeedsRevision = _contributions.Count(c => c.Status == "NeedsRevision"),
-            Rejected = _contributions.Count(c => c.Status == "Rejected")
+            DraftCount = _contributions.Count(c => c.Status == "Draft"),
+            PendingCount = _contributions.Count(c => c.Status == "Pending"),
+            ApprovedCount = _contributions.Count(c => c.Status == "Approved"),
+            NeedsRevisionCount = _contributions.Count(c => c.Status == "NeedsRevision"),
+            RejectedCount = _contributions.Count(c => c.Status == "Rejected"),
+            TotalContributions = _contributions.Count
         };
     }
     
@@ -394,12 +395,5 @@
         _ => status
     };
     
-    private class ContributionStats
-    {
-        public int Draft { get; set; }
-        public int Pending { get; set; }
-        public int Approved { get; set; }
-        public int NeedsRevision { get; set; }
-        public int Rejected { get; set; }
-    }
+
 }

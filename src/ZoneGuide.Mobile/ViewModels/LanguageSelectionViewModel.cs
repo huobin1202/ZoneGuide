@@ -24,9 +24,10 @@ public partial class LanguageSelectionViewModel : ObservableObject
     {
         _settingsService = settingsService;
 
-        var currentCode = string.IsNullOrWhiteSpace(_settingsService.Settings.PreferredLanguage)
-            ? "vi-VN"
-            : _settingsService.Settings.PreferredLanguage;
+        // Detect device language until the first language choice is confirmed.
+        var currentCode = _settingsService.Settings.HasCompletedLanguageSelection
+            ? _settingsService.Settings.PreferredLanguage
+            : AppLocalizer.GetDeviceLanguage();
 
         foreach (var option in LanguageOptionItem.CreateDefaults(currentCode))
         {

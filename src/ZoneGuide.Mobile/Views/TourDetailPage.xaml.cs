@@ -1,7 +1,5 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
-using Microsoft.Maui.Controls.Maps;
-using Microsoft.Maui.Maps;
 using ZoneGuide.Shared.Models;
 using ZoneGuide.Mobile.ViewModels;
 
@@ -182,7 +180,7 @@ public partial class TourDetailPage : ContentPage
         await command.ExecuteAsync(null);
     }
 
-    private void RenderMiniMap()
+    private async void RenderMiniMap()
     {
         if (!MainThread.IsMainThread)
         {
@@ -193,9 +191,6 @@ public partial class TourDetailPage : ContentPage
         if (MiniRouteMap == null)
             return;
 
-        MiniRouteMap.Pins.Clear();
-        MiniRouteMap.MapElements.Clear();
-
         var orderedPois = _viewModel.POIs
             .Where(IsValidCoordinate)
             .OrderBy(p => p.OrderInTour <= 0 ? int.MaxValue : p.OrderInTour)
@@ -205,63 +200,13 @@ public partial class TourDetailPage : ContentPage
         if (orderedPois.Count == 0)
             return;
 
-        var route = new Polyline
+        try
         {
-            StrokeColor = Color.FromArgb("#2563EB"),
-            StrokeWidth = 4
-        };
-
-        foreach (var poi in orderedPois)
-        {
-            var location = new Location(poi.Latitude, poi.Longitude);
-            route.Geopath.Add(location);
-
-            var orderLabel = poi.OrderInTour > 0 ? poi.OrderInTour.ToString() : "?";
-            MiniRouteMap.Pins.Add(new Pin
-            {
-                Label = $"{orderLabel}. {poi.Name}",
-                Location = location,
-                Type = PinType.Place
-            });
+            var points = string.Join(",", orderedPois.Select(p => $"[{p.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}, {p.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}]"));
+            var js = $"if (typeof initializeMiniRouteMap !== 'undefined') initializeMiniRouteMap([{points}]);";
+            await MiniRouteMap.EvaluateJavaScriptAsync(js);
         }
-
-        if (route.Geopath.Count > 1)
-        {
-            MiniRouteMap.MapElements.Add(route);
-        }
-
-        FitMiniMapRegion(orderedPois);
-    }
-
-    private void FitMiniMapRegion(IReadOnlyList<POI> pois)
-    {
-        if (MiniRouteMap == null || pois.Count == 0)
-            return;
-
-        if (pois.Count == 1)
-        {
-            var one = pois[0];
-            MiniRouteMap.MoveToRegion(MapSpan.FromCenterAndRadius(
-                new Location(one.Latitude, one.Longitude),
-                Distance.FromKilometers(0.7)));
-            return;
-        }
-
-        var minLat = pois.Min(p => p.Latitude);
-        var maxLat = pois.Max(p => p.Latitude);
-        var minLon = pois.Min(p => p.Longitude);
-        var maxLon = pois.Max(p => p.Longitude);
-
-        var centerLat = (minLat + maxLat) / 2d;
-        var centerLon = (minLon + maxLon) / 2d;
-
-        var latKm = (maxLat - minLat) * 111d;
-        var lonKm = (maxLon - minLon) * 111d * Math.Cos(centerLat * Math.PI / 180d);
-        var radiusKm = Math.Clamp((Math.Max(latKm, lonKm) * 0.75d) + 0.35d, 0.6d, 20d);
-
-        MiniRouteMap.MoveToRegion(MapSpan.FromCenterAndRadius(
-            new Location(centerLat, centerLon),
-            Distance.FromKilometers(radiusKm)));
+        catch { }
     }
 
     private static bool IsValidCoordinate(POI poi)

@@ -1,10 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <DefaultItemExcludes>$(DefaultItemExcludes);_codex_obj\**</DefaultItemExcludes>
+    <UserSecretsId>81ddbc85-ddc9-4323-8369-53c5a7f7277f</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

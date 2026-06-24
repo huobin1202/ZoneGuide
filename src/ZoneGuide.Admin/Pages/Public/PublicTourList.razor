@@ -1,0 +1,130 @@
+@page "/tour-list"
+@layout PublicLayout
+@inject IApiService ApiService
+@inject NavigationManager Navigation
+
+<PageTitle>Tour du lịch - ZoneGuide</PageTitle>
+
+<div class="tour-list-page">
+    @if (_tours is null)
+    {
+        <div class="loading-state">
+            <MudProgressCircular Indeterminate="true" />
+        </div>
+    }
+    else if (_tours.Count == 0)
+    {
+        <MudText Class="empty-state mud-text-secondary">Chưa có tour nào</MudText>
+    }
+    else
+    {
+        <div class="tour-grid">
+            @foreach (var tour in _tours)
+            {
+                <div class="tour-card" @onclick="() => NavigateToTour(tour.Id)">
+                    @if (!string.IsNullOrEmpty(tour.ImageUrl))
+                    {
+                        <div class="tour-card-img" style="background-image: url('@tour.ImageUrl')"></div>
+                    }
+                    else
+                    {
+                        <div class="tour-card-img tour-card-img-placeholder">
+                            <MudIcon Icon="@Icons.Material.Filled.Route" Size="Size.Large" />
+                        </div>
+                    }
+                    <div class="tour-card-body">
+                        <MudText Typo="Typo.subtitle2" Class="tour-card-name">@tour.Name</MudText>
+                        <MudText Typo="Typo.caption" Class="tour-card-meta">
+                            @tour.POICount điểm · @tour.EstimatedDurationMinutes phút
+                        </MudText>
+                        @if (!string.IsNullOrEmpty(tour.Description))
+                        {
+                            <MudText Typo="Typo.body2" Class="tour-card-desc">@tour.Description</MudText>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+@@media (prefers-color-scheme: dark) {
+    .tour-card { background: var(--bg-card); }
+    .tour-card-name { color: var(--text-primary); }
+    .tour-card-desc { color: var(--text-secondary); }
+}
+.tour-list-page {
+    padding: 12px 16px;
+}
+.loading-state, .empty-state {
+    display: flex;
+    justify-content: center;
+    padding: 40px 0;
+}
+.tour-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.tour-card {
+    background: var(--bg-card);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px var(--shadow-color);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.tour-card:hover {
+    transform: translateY(-2px);
+}
+.tour-card-img {
+    width: 100%;
+    height: 160px;
+    background-size: cover;
+    background-position: center;
+}
+.tour-card-img-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    color: #1976D2;
+    height: 100px;
+}
+.tour-card-body {
+    padding: 12px 16px;
+}
+.tour-card-name {
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+.tour-card-meta {
+    color: #999;
+    margin-bottom: 6px;
+}
+.tour-card-desc {
+    color: #666;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+</style>
+
+@code {
+    private List<TourDto>? _tours;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _tours = await ApiService.GetToursAsync(); }
+        catch { _tours = new(); }
+    }
+
+    private void NavigateToTour(string id)
+    {
+        if (int.TryParse(id, out var tourId))
+            Navigation.NavigateTo($"/tour/{tourId}");
+    }
+}

@@ -1,0 +1,248 @@
+@page "/poi-list"
+@layout PublicLayout
+@using ZoneGuide.Admin.Shared.Components
+@inject IApiService ApiService
+@inject NavigationManager Navigation
+@inject AudioPlayerInterop AudioInterop
+@implements IDisposable
+
+<PageTitle>Địa điểm - ZoneGuide</PageTitle>
+
+<div class="poi-list-page">
+    <div class="search-bar">
+        <MudTextField Value="@_searchQuery" Placeholder="Tìm địa điểm..."
+                      Variant="Variant.Outlined" Immediate="true"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      ValueChanged="(string? v) => OnSearchChanged(v)" Class="mb-3" />
+    </div>
+
+    <div class="category-chips">
+        <MudChip T="string" Color="@(_selectedCategory == null ? Color.Primary : Color.Default)"
+                 OnClick="() => FilterByCategory(null)">Tất cả</MudChip>
+        @foreach (var cat in _categories)
+        {
+            <MudChip T="string" Color="@(_selectedCategory == cat ? Color.Primary : Color.Default)"
+                     OnClick="() => FilterByCategory(cat)">@cat</MudChip>
+        }
+    </div>
+
+    @if (_filteredPOIs is null)
+    {
+        <div class="loading-state">
+            <MudProgressCircular Indeterminate="true" />
+        </div>
+    }
+    else if (_filteredPOIs.Count == 0)
+    {
+        <MudText Class="empty-state mud-text-secondary">Không tìm thấy địa điểm</MudText>
+    }
+    else
+    {
+        <div class="poi-list">
+            @foreach (var poi in _filteredPOIs)
+            {
+                <div class="poi-list-item" @onclick="@((MouseEventArgs _) => NavigateToPoi(poi.Id))">
+                    <div class="poi-list-thumb">
+                        @if (!string.IsNullOrEmpty(poi.ImageUrl))
+                        {
+                            <img src="@poi.ImageUrl" alt="@poi.Name" />
+                        }
+                        else
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Large" />
+                        }
+                    </div>
+                    <div class="poi-list-info">
+                        <MudText Typo="Typo.subtitle2" Class="poi-list-name">@poi.Name</MudText>
+                        <div class="poi-list-meta">
+                            <MudText Typo="Typo.caption" Class="poi-list-category">@poi.Category</MudText>
+                            <MudText Typo="Typo.caption" Class="poi-list-distance">~@poi.TriggerRadius m</MudText>
+                        </div>
+                        <MudText Typo="Typo.caption" Class="poi-list-address">@poi.Address</MudText>
+                    </div>
+                    <div class="poi-list-actions" @onclick:stopPropagation>
+                        @if (!string.IsNullOrEmpty(poi.AudioUrl))
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.PlayCircle" Color="Color.Primary"
+                                           Size="Size.Small"
+                                           OnClick="@((MouseEventArgs _) => QuickPlay(poi))" />
+                        }
+                    </div>
+                    <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Color="Color.Default" Size="Size.Small" />
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+.poi-list-page {
+    padding: 12px 16px;
+}
+.search-bar {
+    margin-bottom: 8px;
+}
+.category-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+.loading-state, .empty-state {
+    display: flex;
+    justify-content: center;
+    padding: 40px 0;
+}
+.poi-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.poi-list-item {
+    display: flex;
+    align-items: center;
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 10px 12px;
+    cursor: pointer;
+    box-shadow: 0 1px 4px var(--shadow-color);
+    transition: transform 0.2s;
+}
+.poi-list-item:hover {
+    transform: translateX(2px);
+}
+.poi-list-thumb {
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    overflow: hidden;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e3f2fd;
+    color: #1976D2;
+}
+.poi-list-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.poi-list-info {
+    flex: 1;
+    margin: 0 8px;
+    overflow: hidden;
+}
+.poi-list-name {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.poi-list-meta {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 2px 0;
+}
+.poi-list-category {
+    color: var(--text-muted);
+}
+.poi-list-distance {
+    color: var(--text-muted);
+}
+.poi-list-address {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-muted);
+}
+.poi-list-actions {
+    flex-shrink: 0;
+}
+</style>
+
+@code {
+    private string _searchQuery = "";
+    private string? _selectedCategory;
+    private List<POIDto>? _allPOIs;
+    private List<POIDto>? _filteredPOIs;
+    private List<string> _categories = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _allPOIs = await ApiService.GetPOIsAsync();
+            _categories = _allPOIs
+                .Where(p => !string.IsNullOrEmpty(p.Category))
+                .Select(p => p.Category!)
+                .Distinct()
+                .OrderBy(c => c)
+                .ToList();
+        }
+        catch { _allPOIs = new(); }
+
+        ApplyFilter();
+    }
+
+    private void FilterByCategory(string? category)
+    {
+        _selectedCategory = category;
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        var query = _searchQuery?.Trim().ToLowerInvariant() ?? "";
+        _filteredPOIs = _allPOIs?
+            .Where(p => (string.IsNullOrEmpty(_selectedCategory) || p.Category == _selectedCategory) &&
+                        (string.IsNullOrEmpty(query) || p.Name?.ToLowerInvariant().Contains(query) == true))
+            .ToList();
+    }
+
+    private CancellationTokenSource? _debounceCts;
+
+    private void OnSearchChanged(string? value)
+    {
+        _searchQuery = value ?? "";
+        _debounceCts?.Cancel();
+        _debounceCts = new CancellationTokenSource();
+        var token = _debounceCts.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(300, token);
+                if (!token.IsCancellationRequested)
+                    InvokeAsync(ApplyFilter);
+            }
+            catch (TaskCanceledException) { }
+        }, token);
+    }
+
+    private async Task QuickPlay(POIDto poi)
+    {
+        var url = poi.AudioUrl ?? "";
+        if (!string.IsNullOrEmpty(url))
+        {
+            await AudioInterop.RequestPlayAsync(new AudioTrack
+            {
+                Name = poi.Name,
+                Url = url
+            });
+        }
+    }
+
+    private void NavigateToPoi(string id)
+    {
+        if (int.TryParse(id, out var poiId))
+            Navigation.NavigateTo($"/poi/{poiId}");
+    }
+
+    public void Dispose()
+    {
+        _debounceCts?.Cancel();
+        _debounceCts?.Dispose();
+    }
+}

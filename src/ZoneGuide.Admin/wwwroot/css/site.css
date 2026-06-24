@@ -57,3 +57,14 @@ html, body {
     min-width: 60px;
     line-height: 1;
 }
+
+.dashboard-metric-stack {
+    height: 100%;
+    justify-content: center;
+}
+
+.dashboard-metric-tile {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #f8fafc;
+}

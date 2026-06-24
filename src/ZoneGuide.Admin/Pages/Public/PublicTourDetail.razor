@@ -1,0 +1,275 @@
+@page "/tour/{Id:int}"
+@layout PublicLayout
+@inject IApiService ApiService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject AudioPlayerInterop AudioInterop
+@implements IAsyncDisposable
+
+<PageTitle>@(_tour?.Name ?? "Tour")</PageTitle>
+
+@if (_tour is null)
+{
+    <div class="tour-loading">
+        <MudProgressCircular Indeterminate="true" Size="Size.Large" />
+        <MudText Class="mt-4">Đang tải...</MudText>
+    </div>
+}
+else
+{
+    <div class="tour-detail">
+        <div class="tour-hero" style="background-image: url('@(_tour.ImageUrl ?? "")')">
+            <div class="tour-hero-overlay">
+                <MudText Typo="Typo.h4" Class="tour-hero-name">@_tour.Name</MudText>
+                <div class="tour-hero-meta">
+                    <span>@_tour.POICount địa điểm</span>
+                    <span>·</span>
+                    <span>@_tour.EstimatedDurationMinutes phút</span>
+                    @if (_tour.DistanceKm > 0)
+                    {
+                        <span>·</span>
+                        <span>@_tour.DistanceKm.ToString("F1") km</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="tour-content">
+            <div class="tour-actions">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.PlayCircle"
+                           OnClick="@((MouseEventArgs _) => StartTour())">
+                    Bắt đầu tour
+                </MudButton>
+            </div>
+
+            @if (!string.IsNullOrEmpty(_tour.Description))
+            {
+                <div class="tour-section">
+                    <MudText Typo="Typo.h6" Class="section-label">Giới thiệu</MudText>
+                    <MudText Typo="Typo.body2" Class="tour-desc">@_tour.Description</MudText>
+                </div>
+            }
+
+            @if (_showMiniMap)
+            {
+                <div class="tour-section">
+                    <MudText Typo="Typo.h6" Class="section-label">Lộ trình</MudText>
+                    <div id="tour-mini-map" class="tour-mini-map"></div>
+                </div>
+            }
+
+            <div class="tour-section">
+                <MudText Typo="Typo.h6" Class="section-label">Địa điểm trong tour</MudText>
+                @if (_tourWithPOIs?.POIs is { Count: > 0 })
+                {
+                    <div class="tour-poi-list">
+                        @for (int i = 0; i < _tourWithPOIs.POIs.Count; i++)
+                        {
+                            var poi = _tourWithPOIs.POIs[i];
+                            <div class="tour-poi-item" @onclick="@((MouseEventArgs _) => NavigateToPoi(poi.Id))">
+                                <div class="tour-poi-order">@(i + 1)</div>
+                                <div class="tour-poi-thumb">
+                                    @if (!string.IsNullOrEmpty(poi.ImageUrl))
+                                    {
+                                        <img src="@poi.ImageUrl" alt="@poi.Name" />
+                                    }
+                                    else
+                                    {
+                                        <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" />
+                                    }
+                                </div>
+                                <div class="tour-poi-info">
+                                    <MudText Typo="Typo.subtitle2">@poi.Name</MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@poi.Category</MudText>
+                                </div>
+                                <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Color="Color.Default" Size="Size.Small" />
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <MudText Class="mud-text-secondary">Chưa có địa điểm nào trong tour</MudText>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+@@media (prefers-color-scheme: dark) {
+    .tour-poi-item { background: var(--bg-card); }
+    .tour-desc { color: #bbb; }
+    .tour-mini-map { filter: invert(0.9) hue-rotate(180deg); }
+}
+.tour-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    color: #666;
+}
+.tour-hero {
+    width: 100%;
+    height: 200px;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+}
+.tour-hero-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 20px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.7));
+    color: white;
+}
+.tour-hero-name {
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+.tour-hero-meta {
+    display: flex;
+    gap: 6px;
+    font-size: 13px;
+    opacity: 0.85;
+}
+.tour-content {
+    padding: 16px;
+}
+.tour-actions {
+    margin-bottom: 20px;
+}
+.tour-section {
+    margin-bottom: 20px;
+}
+.section-label {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+.tour-desc {
+    line-height: 1.6;
+    color: #444;
+}
+.tour-poi-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.tour-poi-item {
+    display: flex;
+    align-items: center;
+    background: white;
+    border-radius: 12px;
+    padding: 10px 12px;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    transition: transform 0.2s;
+    gap: 10px;
+}
+.tour-poi-item:hover {
+    transform: translateX(2px);
+}
+.tour-poi-order {
+    width: 24px;
+    height: 24px;
+    background: #1976D2;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+.tour-poi-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e3f2fd;
+    color: #1976D2;
+}
+.tour-poi-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.tour-poi-info {
+    flex: 1;
+    overflow: hidden;
+}
+.tour-mini-map {
+    width: 100%;
+    height: 180px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px var(--shadow-color);
+}
+</style>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private TourDto? _tour;
+    private TourWithPOIsDto? _tourWithPOIs;
+    private bool _showMiniMap;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTour();
+    }
+
+    private async Task LoadTour()
+    {
+        try
+        {
+            _tour = await ApiService.GetTourAsync(Id.ToString());
+            _tourWithPOIs = await ApiService.GetTourWithDetailsAsync(Id.ToString());
+            _showMiniMap = _tourWithPOIs?.POIs?.Any(p => p.Latitude != 0 || p.Longitude != 0) == true;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error loading tour {Id}: {ex.Message}");
+        }
+    }
+
+    private async Task StartTour()
+    {
+        if (_tourWithPOIs?.POIs is not { Count: > 0 }) return;
+        var firstPoi = _tourWithPOIs.POIs[0];
+        NavigateToPoi(firstPoi.Id);
+    }
+
+    private void NavigateToPoi(string id)
+    {
+        if (int.TryParse(id, out var poiId))
+            Navigation.NavigateTo($"/poi/{poiId}");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && _showMiniMap && _tourWithPOIs?.POIs is { Count: > 0 })
+        {
+            var waypoints = _tourWithPOIs.POIs
+                .Where(p => p.Latitude != 0 || p.Longitude != 0)
+                .Select(p => new { lat = p.Latitude, lng = p.Longitude, name = p.Name })
+                .ToArray();
+            if (waypoints.Length > 0)
+                await JS.InvokeVoidAsync("initTourMiniMap", "tour-mini-map", waypoints);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("destroyTourMiniMap"); } catch { }
+    }
+}

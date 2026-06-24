@@ -35,7 +35,7 @@ public interface IApiService
 
     // Analytics
     Task<DashboardAnalyticsDto?> GetDashboardAsync(DateTime? from = null, DateTime? to = null);
-    Task<List<TopPOIDto>> GetTopPOIsAsync(int count = 10);
+    Task<List<TopPOIDto>> GetTopPOIsAsync(DateTime? from = null, DateTime? to = null, int count = 10);
     Task<List<HeatmapPointDto>> GetHeatmapDataAsync(DateTime? from = null, DateTime? to = null);
     Task<QrMonitoringSnapshotDto?> GetQrMonitoringSnapshotAsync();
     Task<MobileLiveMonitoringSnapshotDto?> GetMobileMonitoringSnapshotAsync();
@@ -43,6 +43,15 @@ public interface IApiService
     // TTS
     Task<string?> GenerateTtsAsync(string text, string language);
     Task<string?> UploadAudioAsync(byte[] bytes, string fileName, string? contentType = null);
+
+    // Notifications
+    Task<List<NotificationDto>> GetNotificationsAsync(bool? isRead = null, bool isDeleted = false);
+    Task<NotificationDto?> GetNotificationAsync(int id);
+    Task<int> GetUnreadCountAsync();
+    Task<bool> MarkAsReadAsync(int id);
+    Task<bool> MarkAllAsReadAsync();
+    Task<bool> DeleteNotificationAsync(int id);
+    Task<bool> RestoreNotificationAsync(int id);
 
     // Generic
     Task<T?> GetAsync<T>(string url) where T : class;
@@ -397,11 +406,24 @@ public class ApiService : IApiService
         }
     }
 
-    public async Task<List<TopPOIDto>> GetTopPOIsAsync(int count = 10)
+    public async Task<List<TopPOIDto>> GetTopPOIsAsync(DateTime? from = null, DateTime? to = null, int count = 10)
     {
         try
         {
-            return await _httpClient.GetFromJsonAsync<List<TopPOIDto>>($"api/analytics/top-pois?count={count}") ?? new();
+            var queryParts = new List<string> { $"count={count}" };
+
+            if (from.HasValue)
+            {
+                queryParts.Add($"from={from.Value:yyyy-MM-dd}");
+            }
+
+            if (to.HasValue)
+            {
+                queryParts.Add($"to={to.Value:yyyy-MM-dd}");
+            }
+
+            var query = string.Join("&", queryParts);
+            return await _httpClient.GetFromJsonAsync<List<TopPOIDto>>($"api/analytics/top-pois?{query}") ?? new();
         }
         catch
         {
@@ -441,6 +463,103 @@ public class ApiService : IApiService
         }
     }
 
+    // Notifications
+    public async Task<List<NotificationDto>> GetNotificationsAsync(bool? isRead = null, bool isDeleted = false)
+    {
+        try
+        {
+            var query = $"api/notifications?isDeleted={isDeleted.ToString().ToLowerInvariant()}";
+            if (isRead.HasValue)
+            {
+                query += $"&isRead={isRead.Value.ToString().ToLowerInvariant()}";
+            }
+            return await _httpClient.GetFromJsonAsync<List<NotificationDto>>(query) ?? new();
+        }
+        catch
+        {
+            return new();
+        }
+    }
+
+    public async Task<NotificationDto?> GetNotificationAsync(int id)
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<NotificationDto>($"api/notifications/{id}");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<int> GetUnreadCountAsync()
+    {
+        try
+        {
+            var result = await _httpClient.GetFromJsonAsync<UnreadCountDto>("api/notifications/unread-count");
+            return result?.Count ?? 0;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    public async Task<bool> MarkAsReadAsync(int id)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsync($"api/notifications/{id}/read", null);
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<bool> MarkAllAsReadAsync()
+    {
+        try
+        {
+            var response = await _httpClient.PostAsync("api/notifications/mark-all-read", null);
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<bool> DeleteNotificationAsync(int id)
+    {
+        try
+        {
+            var response = await _httpClient.DeleteAsync($"api/notifications/{id}");
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<bool> RestoreNotificationAsync(int id)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsync($"api/notifications/{id}/restore", null);
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    #region Dashboard monitoring QR va mobile
+
     public async Task<MobileLiveMonitoringSnapshotDto?> GetMobileMonitoringSnapshotAsync()
     {
         try
@@ -452,6 +571,8 @@ public class ApiService : IApiService
             return null;
         }
     }
+
+    #endregion
 
     public async Task<T?> GetAsync<T>(string url) where T : class
     {
@@ -469,11 +590,15 @@ public class ApiService : IApiService
     {
         try
         {
-            var response = await _httpClient.PostAsJsonAsync("api/tts/generate", new { text, language });
+            var request = new GenerateTtsRequest { Text = text, Language = language };
+            var response = await _httpClient.PostAsJsonAsync("api/audio/generate-tts", request);
             if (response.IsSuccessStatusCode)
             {
-                var result = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
-                return result.GetProperty("audioUrl").GetString();
+                var result = await response.Content.ReadFromJsonAsync<GenerateTtsResponse>();
+                if (result != null && result.Success)
+                {
+                    return result.AudioPath ?? result.AudioUrl;
+                }
             }
             return null;
         }
@@ -512,6 +637,14 @@ public class ApiService : IApiService
 // Analytics DTOs are defined in ZoneGuide.API.Services.SyncService
 // We use those definitions through the Shared project
 
+public sealed class QrScanLogDto
+{
+    public DateTime ScannedAtUtc { get; set; }
+    public int PoiId { get; set; }
+    public string DeviceId { get; set; } = string.Empty;
+    public int SignalStrength { get; set; } // 0 = Mạnh, 1 = Yếu
+}
+
 public sealed class QrMonitoringSnapshotDto
 {
     public int ActiveDeviceCount { get; set; }
@@ -522,4 +655,5 @@ public sealed class QrMonitoringSnapshotDto
     public int? LastPoiId { get; set; }
     public int ActiveWindowSeconds { get; set; }
     public int LastMinuteWindowSeconds { get; set; }
+    public List<QrScanLogDto> RecentScans { get; set; } = new();
 }
